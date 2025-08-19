@@ -1,0 +1,23 @@
+[tool.poetry]
+name = "public-api"
+version = "0.1.0"
+description = "Public API service"
+authors = ["Your Name <you@example.com>"]
+packages = [{ include = "public_api" }]
+
+[tool.poetry.dependencies]
+python = "^3.13"
+plainera-core = { path = "../../packages/plainera_core", develop = true }
+# fastapi = "^0.114.0"
+# uvicorn = "^0.30.0"
+# sqlalchemy = "^2.0.0"
+# pydantic = "^2.8.0"
+
+[tool.poetry.group.dev.dependencies]
+pytest = "^8.3.0"
+mypy = "^1.11.1"
+ruff = "^0.5.7"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"

@@ -1,0 +1,34 @@
+stages: [core]
+
+variables:
+  POETRY_VERSION: "1.8.3"
+  POETRY_VIRTUALENVS_CREATE: "false"
+  PIP_DISABLE_PIP_VERSION_CHECK: "1"
+
+cache:
+  key: "$CI_COMMIT_REF_SLUG"
+  paths:
+    - .cache/pip
+    - .cache/pypoetry
+
+core:
+  stage: core
+  image: python:3.13
+  before_script:
+    - python --version
+    - pip install "poetry==$POETRY_VERSION"
+    - cd packages/plainera_core
+    - poetry install --no-interaction
+  script:
+    - make lint
+    - make typecheck
+    - make test
+  artifacts:
+    when: always
+    paths:
+      - packages/plainera_core/coverage.xml
+    reports:
+      coverage_report:
+        coverage_format: cobertura
+        path: packages/plainera_core/coverage.xml
+    expire_in: 1 week

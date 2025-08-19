@@ -1,0 +1,26 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+*.egg
+.pytest_cache/
+.mypy_cache/
+
+dist/
+build/
+# Poetry
+.poetry/
+# Editors/OS
+.idea/
+.vscode/
+.DS_Store
+
+# Pre-commit
+.pre-commit-config.yaml.venv/
+.pre-commit-config.yaml
+
+# coverage
+.coverage
+coverage.xml
+**/coverage.xml
+htmlcov/
