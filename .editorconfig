@@ -1,0 +1,27 @@
+# Top-level EditorConfig
+root = true
+
+[*]
+charset = utf-8
+end_of_line = lf
+insert_final_newline = true
+indent_style = space
+trim_trailing_whitespace = true
+max_line_length = 120   # align with Ruff config (set in pyproject.toml)
+
+# --- Python (4 spaces)
+[*.py]
+indent_size = 4
+
+# --- JavaScript / TypeScript / JSON
+[*.{js,jsx,ts,tsx,json}]
+indent_size = 2
+
+# --- YAML
+[*.{yml,yaml}]
+indent_size = 2
+
+# --- Markdown (allow trailing spaces for line breaks, no wrapping)
+[*.md]
+max_line_length = off
+trim_trailing_whitespace = false

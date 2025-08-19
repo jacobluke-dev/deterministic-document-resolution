@@ -1,0 +1,32 @@
+[tool.poetry]
+name = "plainera-core"
+version = "0.1.0"
+description = "Core utilities for Plainera"
+authors = ["Your Name <you@example.com>"]
+packages = [{ include = "plainera_core" }]
+
+[tool.poetry.dependencies]
+python = "^3.13"
+
+[tool.poetry.group.dev.dependencies]
+pytest = "^8.3.0"
+mypy = "^1.11.1"
+ruff = "^0.5.7"
+pytest-cov = "^6.2.1"
+pre-commit = "^4.3.0"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
+
+[tool.mypy]
+python_version = "3.13"
+warn_unused_ignores = true
+disallow_any_generics = true
+no_implicit_optional = true
+check_untyped_defs = true
+warn_redundant_casts = true
+warn_unreachable = true
+show_error_codes = true
+pretty = true
+explicit_package_bases = true
