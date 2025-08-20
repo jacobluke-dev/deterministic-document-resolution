@@ -24,3 +24,5 @@ build/
 coverage.xml
 **/coverage.xml
 htmlcov/
+
+.env

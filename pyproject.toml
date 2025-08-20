@@ -6,6 +6,8 @@ description = "Plainera mono-repo: dev tooling and orchestration"
 
 [tool.poetry.dependencies]
 python = "^3.13"
+httpx = "^0.28.1"
+fastapi = "^0.116.1"
 
 [tool.poetry.group.dev.dependencies]
 ruff = "^0.5.7"

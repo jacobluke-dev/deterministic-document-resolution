@@ -1,43 +1,62 @@
-POETRY=poetry
-RUN=$(POETRY) run
+# services/public_api/Makefile
+POETRY ?= poetry
+RUN := $(POETRY) run
+PORT ?= 8000
+IMAGE ?= unacronym-api
+GIT_SHA := $(shell git rev-parse --short HEAD 2>/dev/null || echo dev)
 
-.PHONY: install fmt lint typecheck test style cover htmlcov clean hooks build
+.PHONY: install run fmt lint style typecheck test cover htmlcov clean hooks build up down
 
 install:
-	$(POETRY) install
+	$(POETRY) install --no-interaction
 
-# Format code with Ruff formatter
+# Dev server
+run:
+	$(RUN) uvicorn public_api.main:create_app --factory --host 0.0.0.0 --port $(PORT)
+
+# Format with Ruff formatter
 fmt:
-	$(RUN) ruff format .
+	$(RUN) ruff format src tests
 
 # Lint (and autofix simple issues)
 lint:
-	$(RUN) ruff check . --fix
+	$(RUN) ruff check src tests --fix
 
-# Optional: CI-friendly style check (no changes)
+# CI-friendly style check (no writes)
 style:
-	$(RUN) ruff format --check .
-	$(RUN) ruff check .
+	$(RUN) ruff format --check src tests
+	$(RUN) ruff check src tests
 
+# Type checking (uses local mypy.ini or pyproject)
 typecheck:
-	$(RUN) mypy --config-file pyproject.toml --package plainera_core
+	$(RUN) mypy --config-file mypy.ini
 
+# Tests + coverage
 test:
-	$(RUN) pytest -q --cov=plainera_core --cov-report=term --cov-report=xml --cov-fail-under=80
+	$(RUN) pytest -q --cov=public_api --cov-report=term --cov-report=xml --cov-fail-under=80
 
-cover:  # just re-run coverage without -q
-	$(RUN) pytest --cov=plainera_core --cov-report=term --cov-report=xml --cov-fail-under=80
+cover:  # verbose coverage
+	$(RUN) pytest --cov=public_api --cov-report=term --cov-report=xml --cov-fail-under=80
 
-htmlcov:  # open HTML coverage locally
-	$(RUN) pytest --cov=plainera_core --cov-report=html
+htmlcov:
+	$(RUN) pytest --cov=public_api --cov-report=html
 	@python -c "import webbrowser; webbrowser.open('htmlcov/index.html')" >/dev/null 2>&1 || true
+
+# Docker image
+build:
+	docker build -t $(IMAGE):$(GIT_SHA) -t $(IMAGE):latest .
+
+# Optional: local compose (only API for now)
+up:
+	docker compose up --build -d
+
+down:
+	docker compose down
 
 clean:
 	rm -rf .pytest_cache .mypy_cache .ruff_cache htmlcov .coverage dist build
+	find src -name '__pycache__' -type d -prune -exec rm -rf {} +
 
 hooks:
 	pre-commit install
 	pre-commit install -t pre-push
-
-build:
-	$(POETRY) build

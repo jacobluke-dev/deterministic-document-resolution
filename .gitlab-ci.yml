@@ -1,9 +1,13 @@
-stages: [core]
+# Create pipelines only for non-draft MRs and for the default branch
+workflow:
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event" && $CI_MERGE_REQUEST_DRAFT == "true"
+      when: never
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+    - when: never
 
-variables:
-  POETRY_VERSION: "1.8.3"
-  POETRY_VIRTUALENVS_CREATE: "false"
-  PIP_DISABLE_PIP_VERSION_CHECK: "1"
+stages: [core]
 
 cache:
   key: "$CI_COMMIT_REF_SLUG"
@@ -14,6 +18,20 @@ cache:
 core:
   stage: core
   image: python:3.13
+  variables:
+    POETRY_VERSION: "1.8.3"
+    POETRY_VIRTUALENVS_CREATE: "false"
+    PIP_DISABLE_PIP_VERSION_CHECK: "1"
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event" && $CI_MERGE_REQUEST_DRAFT == "true"
+      when: never
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+      changes:
+        - packages/plainera_core/**/*
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+      changes:
+        - packages/plainera_core/**/*
+    - when: never
   before_script:
     - python --version
     - pip install "poetry==$POETRY_VERSION"
@@ -31,4 +49,45 @@ core:
       coverage_report:
         coverage_format: cobertura
         path: packages/plainera_core/coverage.xml
+    expire_in: 1 week
+
+api:
+  stage: core
+  image: python:3.13
+  variables:
+    POETRY_VERSION: "1.8.3"
+    POETRY_VIRTUALENVS_CREATE: "false"
+    PIP_DISABLE_PIP_VERSION_CHECK: "1"
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event" && $CI_MERGE_REQUEST_DRAFT == "true"
+      when: never
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+      changes:
+        - services/public_api/**/*
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+      changes:
+        - services/public_api/**/*
+    - when: never
+  cache:
+    key: "$CI_COMMIT_REF_SLUG"
+    paths:
+      - .cache/pip
+      - .cache/pypoetry
+  before_script:
+    - python --version
+    - pip install "poetry==$POETRY_VERSION"
+    - cd services/public_api
+    - poetry install --no-interaction --no-root
+  script:
+    - make lint
+    - make typecheck
+    - make test
+  artifacts:
+    when: always
+    paths:
+      - services/public_api/coverage.xml
+    reports:
+      coverage_report:
+        coverage_format: cobertura
+        path: services/public_api/coverage.xml
     expire_in: 1 week
