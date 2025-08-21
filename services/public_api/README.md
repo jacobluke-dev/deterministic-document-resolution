@@ -31,3 +31,12 @@ Common commands (see `make help`):
 | REQUEST_TIMEOUT_MS          | `2000`                               | `2000`           | `2000`           | Request timeout                |
 
 Copy `.env.example` → `.env` (or `.env.local`) and tweak for your environment.
+
+## Services
+Offsets use Python-slice semantics: start inclusive, end exclusive.
+
+Path versioning: breaking changes ⇒ /v2/...; additive only in /v1/....
+
+meta.model_version mirrors plainera-core resolver version.
+
+Headers: X-Request-Id, X-Input-Bytes, X-Body-Limit-Bytes. X-RateLimit-* reserved.
