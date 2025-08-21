@@ -54,7 +54,7 @@ def resolve_acronyms(
     x_request_id: Optional[str] = Header(default=None, convert_underscores=False),
     x_api_key: Optional[str] = Header(default=None, convert_underscores=False),
     content_encoding: Optional[str] = Header(default=None, convert_underscores=False),
-):
+) -> JSONResponse | dict[str, Any]:
     """
     Contract endpoint: returns deterministic example-shaped payload for tests & SDKs.
     """

@@ -1,3 +1,4 @@
+from typing import Any
 
 from fastapi import FastAPI
 
@@ -5,7 +6,7 @@ from fastapi import FastAPI
 def apply_openapi_overrides(app: FastAPI) -> None:
     original = app.openapi
 
-    def custom_openapi():
+    def custom_openapi() -> dict[str, Any] | Any:
         if app.openapi_schema:
             return app.openapi_schema
         schema = original()
