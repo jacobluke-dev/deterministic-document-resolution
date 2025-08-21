@@ -5,6 +5,16 @@ services:
     working_dir: /app
     env_file: .env
     ports: ["8000:8000"]
+    depends_on: [pg]
+
+  pg:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: user
+      POSTGRES_PASSWORD: pass
+      POSTGRES_DB: unacronym
+    ports:
+      - "5432:5432"
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/healthz"]
       interval: 30s
