@@ -24,5 +24,6 @@ build/
 coverage.xml
 **/coverage.xml
 htmlcov/
+pytest-results.xml
 
 .env
