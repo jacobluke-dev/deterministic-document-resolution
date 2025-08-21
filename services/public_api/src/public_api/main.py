@@ -4,21 +4,19 @@ from fastapi import FastAPI
 from starlette.middleware.cors import CORSMiddleware
 
 from public_api.api.routers.health import router as health_router
-from public_api.api.routers.resolve import router as resolve_router
 from public_api.core.logging import configure_logging
 from public_api.core.middleware import (
     AccessLogMiddleware,
     BodySizeLimitMiddleware,
     RequestIDMiddleware,
 )
-from public_api.core.openapi import apply_openapi_overrides
-from public_api.core.settings import AppSettings, app_settings
+from public_api.core.settings import AppSettings
 
 __version__ = "0.1.0"
 
 
-def create_app(settings: AppSettings  = app_settings) -> FastAPI:
-    settings = settings
+def create_app(settings: AppSettings | None = None) -> FastAPI:
+    settings = settings or AppSettings()
 
     configure_logging(settings.LOG_LEVEL)
 
@@ -47,8 +45,4 @@ def create_app(settings: AppSettings  = app_settings) -> FastAPI:
     )
 
     app.include_router(health_router)
-    app.include_router(resolve_router)
-
-    apply_openapi_overrides(app)
-
     return app

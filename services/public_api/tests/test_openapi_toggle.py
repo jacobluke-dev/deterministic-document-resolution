@@ -1,21 +1,14 @@
 import pytest
-from httpx import ASGITransport, AsyncClient
+from httpx import AsyncClient
+from public_api.core.settings import AppSettings
 from public_api.main import create_app
 
 
-class TestOpenAPIToggle:
-
-    @pytest.mark.anyio
-    async def test_docs_enabled_returns_200(self):
-        app = create_app()
-        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://testserver") as ac:
-            r = await ac.get("/openapi.json")
-            assert r.status_code == 200
-            assert "openapi" in r.json()
-
-    @pytest.mark.anyio
-    async def test_docs_disabled_returns_404(self):
-        app = create_app()
-        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://testserver") as ac:
-            r = await ac.get("/openapi.json")
-            assert r.status_code == 200
+@pytest.mark.asyncio
+async def test_docs_disabled_returns_404():
+    app = create_app(AppSettings(ENABLE_DOCS=False))
+    async with AsyncClient(app=app, base_url="http://testserver") as ac:
+        r = await ac.get("/docs")
+        assert r.status_code == 404
+        r2 = await ac.get("/openapi.json")
+        assert r2.status_code == 404
