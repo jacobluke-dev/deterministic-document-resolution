@@ -1,4 +1,4 @@
-from plainera_core.domain.models import Acronym
+from plainera_core.domain import Acronym
 
 
 class AcronymResolver:

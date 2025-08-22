@@ -1,8 +1,16 @@
-from typing import Any, Optional
+import asyncio
+import inspect
+import math
+import re
+import time
+from typing import Any, Iterable
 
-from fastapi import APIRouter, Header, Response, status
+from fastapi import APIRouter, Response, status
 from starlette.responses import JSONResponse
 
+from public_api.api.response_types import build_responses
+from public_api.api.types import DefinitionCandidateLike, ResolverDep, SemaphoreDep
+from public_api.core.settings import app_settings
 from public_api.schemas.error import ErrorBody, ErrorCode, ErrorResponse
 from public_api.schemas.resolve import ResolveOptions, ResolveRequest, ResolveResponse
 
@@ -28,19 +36,57 @@ response_headers = {
     "X-RateLimit-Reset": {"description": "Epoch seconds until window resets.", "schema": {"type": "integer"}},
 }
 
+ACRO_PAREN_PATTERN = re.compile(r"\(([A-Z][A-Z0-9]{1,9})\)")  # simple, deterministic
+
+def _bad_request(message: str, details: dict[str, Any] | None = None, http_status: int = 400) -> JSONResponse:
+    return JSONResponse(
+        status_code=http_status,
+        content=ErrorResponse(
+            error=ErrorBody(code=ErrorCode.BAD_REQUEST, message=message, details=details or {})
+        ).model_dump()
+    )
+
+def _too_large(limit: int, actual: int) -> JSONResponse:
+    return JSONResponse(
+        status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+        content=ErrorResponse(
+            error=ErrorBody(
+                code=ErrorCode.PAYLOAD_TOO_LARGE,
+                message="Body/text too large.",
+                details={"limit": limit, "actual": actual},
+            )
+        ).model_dump()
+    )
+
+def _svc_unavailable(reason: str) -> JSONResponse:
+    return JSONResponse(
+        status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+        content=ErrorResponse(
+            error=ErrorBody(
+                code=ErrorCode.SERVICE_UNAVAILABLE,
+                message="Service unavailable.",
+                details={"reason": reason},
+            )
+        ).model_dump()
+    )
+
+# keep your helper but compute once, module-level (no per-request cost)
+def _extract_max_len(model: type[ResolveRequest], field: str) -> Any:
+    info = model.model_fields[field]
+    # pydantic v2: constraints live in metadata (list of constraint objs)
+    for meta in getattr(info, "metadata", []):
+        if hasattr(meta, "max_length"):
+            return meta.max_length
+    # pydantic v1 fallback (harmless if v2)
+    return getattr(info, "max_length", None)
+
+TEXT_MAX_LEN = _extract_max_len(ResolveRequest, "text")
+
+
 @router.post(
     "/resolve",
     response_model=ResolveResponse,
-    responses={
-        400: {"model": ErrorResponse},
-        413: {"model": ErrorResponse},
-        415: {"model": ErrorResponse},
-        422: {"model": ErrorResponse},
-        429: {"model": ErrorResponse},
-        500: {"model": ErrorResponse},
-        503: {"model": ErrorResponse},
-        200: {"headers": response_headers},
-    },
+    responses=build_responses(success_status=200),
     summary="Resolve acronyms in raw text",
     description=(
         "Detect acronyms, propose definitions, and (optionally) enrich from a curated glossary. "
@@ -48,26 +94,20 @@ response_headers = {
         "Idempotent: does not mutate server state. Content-Encoding: gzip supported."
     ),
 )
-def resolve_acronyms(
+async def resolve_acronyms(
     payload: ResolveRequest,
     response: Response,
-    x_request_id: Optional[str] = Header(default=None, convert_underscores=False),
-    x_api_key: Optional[str] = Header(default=None, convert_underscores=False),
-    content_encoding: Optional[str] = Header(default=None, convert_underscores=False),
+    resolver: ResolverDep,
+    semaphore: SemaphoreDep,
 ) -> JSONResponse | dict[str, Any]:
-    """
-    Contract endpoint: returns deterministic example-shaped payload for tests & SDKs.
-    """
-    # Use Pydantic v2 API to avoid .json() mismatch
+    started = time.perf_counter()
+
+    # Headers (size numbers reflect parsed model; body limit reflects config/middleware)
     text_bytes = len(payload.model_dump_json().encode("utf-8"))
-
-    body_limit = 1_048_576  # 1 MiB default (documented; configurable)
-
-    response.headers["X-Request-Id"] = x_request_id or "generated-req-id"
     response.headers["X-Input-Bytes"] = str(text_bytes)
-    response.headers["X-Body-Limit-Bytes"] = str(body_limit)
+    response.headers["X-Body-Limit-Bytes"] = str(app_settings.MAX_BODY_BYTES)
 
-    # Minimal semantic validation example (empty text → 422)
+    # Semantic validation: whitespace-only → 422
     if not payload.text.strip():
         err = ErrorResponse(
             error=ErrorBody(
@@ -77,54 +117,118 @@ def resolve_acronyms(
             )
         )
         return JSONResponse(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, content=err.model_dump())
+
+    if TEXT_MAX_LEN and len(payload.text) > TEXT_MAX_LEN:
+        return _too_large(limit=TEXT_MAX_LEN, actual=len(payload.text))
+
+    # Options: coerce/validate (Pydantic already validated bounds/types)
     opts = payload.options or ResolveOptions.model_validate({})
+    if any(map(math.isnan, [float(opts.min_confidence)])):
+        return _bad_request("Invalid numeric option.", {"field": "min_confidence"})
 
-    occurrences_part: dict[str, Any] = (
-        {"occurrences": [{"start": 34, "end": 37}]}
-        if opts.return_occurrences
-        else {}
-    )
-    glossary_part: dict[str, Any] = (
-        {
-            "glossary": {
-                "matches": [
-                    {
-                        "definition": "Metropolitan Police Service",
-                        "domain": None,
-                        "lang": "en",
-                        "confidence": 0.99,
-                        "source": "system",
-                    }
-                ]
-            }
-        }
-        if opts.include_glossary_enrichment
-        else {}
-    )
+    # Concurrency cap
+    if semaphore is not None and semaphore.locked() and semaphore._value == 0:  # noqa: SLF001 (internal field read)
+        return _svc_unavailable("OVERLOADED")
 
-    acronym = {
-        "acronym": "MPS",
-        "first_occurrence": {"start": 34, "end": 37},
-        "definitions": [
+    async def _call_resolver(acronym: str) -> Iterable[DefinitionCandidateLike]:
+        from plainera_core.domain import Acronym
+        res = resolver.resolve(Acronym(text=acronym), top_k=opts.max_definitions_per_acronym)
+        if inspect.isawaitable(res):
+            res = await res
+        return res
+
+    # Detect acronyms by simple paren rule; order by first occurrence
+    matches = list(ACRO_PAREN_PATTERN.finditer(payload.text))
+    # Build one acronym block per unique acronym ordered by first hit
+    seen: set[str] = set()
+    blocks: list[dict[str, Any]] = []
+    for m in matches:
+        ac = m.group(1)
+        if ac in seen:
+            continue
+        seen.add(ac)
+
+        first_occ = {"start": m.start(1), "end": m.end(1)}
+        coro = _call_resolver(ac)  # <-- no closure over loop var now
+
+        try:
+            # 2) If a global semaphore exists, use it to throttle; otherwise just run.
+            if semaphore is not None:
+                async with semaphore:
+                    results = await asyncio.wait_for(
+                        coro,
+                        timeout=app_settings.REQUEST_TIMEOUT_MS / 1000.0,
+                    )
+            else:
+                results = await asyncio.wait_for(
+                    coro,
+                    timeout=app_settings.REQUEST_TIMEOUT_MS / 1000.0,
+                )
+
+        except asyncio.TimeoutError:
+            err = ErrorResponse(
+                error=ErrorBody(
+                    code=ErrorCode.SERVICE_UNAVAILABLE,
+                    message="Resolution timed out.",
+                    details={"timeout_ms": app_settings.REQUEST_TIMEOUT_MS, "acronym": ac},
+                )
+            )
+            # Decide policy: either bail out (return 503) or record a per-acronym error and continue.
+            return JSONResponse(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                content=err.model_dump(),
+            )
+
+        except Exception as exc:
+            # Map unexpected resolver failures (same policy decision as above).
+            err = ErrorResponse(
+                error=ErrorBody(
+                    code=ErrorCode.SERVICE_UNAVAILABLE,
+                    message="Resolution failed.",
+                    details={"acronym": ac, "reason": str(exc)},
+                )
+            )
+            return JSONResponse(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                content=err.model_dump(),
+            )
+
+        # Map core DefinitionCandidates -> API definitions
+        definitions = [
             {
-                "text": "Metropolitan Police Service",
-                "start": 4,
-                "end": 31,
-                "confidence": 0.96,
+                "text": c.text,
+                # window hint only; adjust later with real extraction
+                "start": max(0, first_occ["start"] - opts.window_chars),
+                "end": first_occ["end"],  # placeholder end; core will supply in future stories
+                "confidence": float(c.score),
                 "source": "extracted",
             }
-        ],
-        **occurrences_part,
-        **glossary_part,
-    }
+            for c in results
+            if c.score >= float(opts.min_confidence)
+        ]
 
-    example: dict[str, Any] = {
-        "acronyms": [acronym],
+        # Occurrences list (optional): all matches of this acronym
+        occs = [{"start": mm.start(1), "end": mm.end(1)} for mm in matches if mm.group(1) == ac]
+
+        block: dict[str, Any] = {
+            "acronym": ac,
+            "first_occurrence": first_occ,
+            "definitions": definitions,
+        }
+        if opts.return_occurrences:
+            block["occurrences"] = occs
+        # TODO Glossary enrichment stub stays empty until 2.5
+        blocks.append(block)
+
+    # Meta
+    processing_ms = int((time.perf_counter() - started) * 1000)
+    model_version = "plainera-core@dev"
+
+    return {
+        "acronyms": blocks,
         "meta": {
-            "processing_ms": 12,
-            "model_version": "plainera-core@1.0.0",
+            "processing_ms": processing_ms,
+            "model_version": model_version,
             "input_chars": len(payload.text),
         },
     }
-
-    return example

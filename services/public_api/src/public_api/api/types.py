@@ -1,0 +1,52 @@
+# services/public_api/src/public_api/api/types.py
+from __future__ import annotations
+
+from asyncio import Semaphore
+from typing import Annotated, Awaitable, Iterable, Optional, Protocol, TypeAlias
+
+from fastapi import Depends, Header
+
+from public_api.core import deps  # get_resolver / get_semaphore
+
+# --- Structural contracts (no core imports in annotations) -------------------
+
+class AcronymLike(Protocol):
+    """
+    Minimal shape we need from an Acronym.
+    """
+    text: str
+
+
+class DefinitionCandidateLike(Protocol):
+    """
+    Minimal shape we need from a DefinitionCandidate.
+    """
+    text: str
+    score: float
+
+
+class ResolverProtocol(Protocol):
+    """
+    Minimal protocol the resolver must satisfy.
+    """
+    def resolve(
+        self,
+        acro: AcronymLike,
+        top_k: int = 5,
+    ) -> Iterable[DefinitionCandidateLike] | Awaitable[Iterable[DefinitionCandidateLike]]:
+        ...
+
+
+ResolverT: TypeAlias = ResolverProtocol
+
+
+# --- Common DI aliases -------------------------------------------------------
+
+ResolverDep: TypeAlias = Annotated[ResolverT, Depends(deps.get_resolver)]
+SemaphoreDep: TypeAlias = Annotated[Semaphore | None, Depends(deps.get_semaphore)]
+
+# Common headers
+RequestIdHeader: TypeAlias = Annotated[
+    Optional[str],
+    Header(default=None, convert_underscores=False),
+]
