@@ -1,4 +1,4 @@
-from plainera_core.domain.models import Acronym, DefinitionCandidate
+from plainera_core.domain import DefinitionCandidate, Acronym
 from plainera_core.services.resolver import AcronymResolver
 
 

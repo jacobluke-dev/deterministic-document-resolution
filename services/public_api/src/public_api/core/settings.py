@@ -12,6 +12,9 @@ class AppSettings(BaseSettings):
     MAX_BODY_BYTES: int = 2 * 1024 * 1024
     ENABLE_DOCS: bool = True
     REQUEST_TIMEOUT_MS: int = 5000
+    DEFAULT_LOCALE: str = "en-GB"
+    DEFAULT_WINDOW_CHARS: int = 120
+    MAX_INFLIGHT: int = 0  # 0 = unlimited (semaphore off)
 
 
     SENTRY_DSN: Optional[str] = None
