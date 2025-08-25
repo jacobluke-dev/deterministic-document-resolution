@@ -2,6 +2,7 @@ import logging
 
 import pytest
 from httpx import AsyncClient
+
 from public_api.main import create_app
 
 

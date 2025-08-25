@@ -1,22 +1,37 @@
 version: "3.9"
+
 services:
   api:
-    build: ..
+    build:
+      context: ..                                 # repo root
+      dockerfile: services/public_api/Dockerfile  # path is relative to context
     working_dir: /app
-    env_file: .env
-    ports: ["8000:8000"]
-    depends_on: [pg]
+    env_file: ./public_api/.env
+    ports: [ "8000:8000" ]
+    volumes:
+      - ./public_api/alembic.ini:/app/public_api/alembic.ini:ro
+      - ./public_api/migrations:/app/public_api/migrations
+    depends_on:
+      db:
+        condition: service_healthy
 
-  pg:
-    image: postgres:16-alpine
+  db:
+    image: postgres:15-alpine
     environment:
-      POSTGRES_USER: user
-      POSTGRES_PASSWORD: pass
-      POSTGRES_DB: unacronym
+      POSTGRES_DB: ${POSTGRES_DB:-unacronym}
+      POSTGRES_USER: ${POSTGRES_USER:-unacronym}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-test-password}
     ports:
-      - "5432:5432"
+      - "${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    # keep host port closed by default to avoid collisions
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8000/healthz"]
-      interval: 30s
-      timeout: 5s
-      retries: 3
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-unacronym} -d ${POSTGRES_DB:-unacronym}"]
+      interval: 5s
+      timeout: 3s
+      retries: 30
+      start_period: 5s
+
+volumes:
+  pgdata:

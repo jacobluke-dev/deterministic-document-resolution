@@ -1,47 +1,45 @@
-# services/public_api/Makefile
+#### Variables ####
+
 POETRY ?= poetry
 RUN := $(POETRY) run
 PORT ?= 8000
 IMAGE ?= unacronym-api
+APP_VERSION ?= 0.1.0
 GIT_SHA := $(shell git rev-parse --short HEAD 2>/dev/null || echo dev)
 
-.PHONY: install run fmt lint style typecheck test cover htmlcov clean hooks build up down help
+# Always use the compose file in ../
+COMPOSE := docker compose -f ../docker-compose.yml
 
+.PHONY: install run fmt lint style typecheck test cover htmlcov clean hooks \
+        build all build-remove-cache up down logs nuke help migrate makemigration downgrade \
+        seed-local al e mbic-help ci-local release
 
 help:
 	@echo "Common targets:"
 	@grep -E '^[a-zA-Z_-]+:.*?## ' $(MAKEFILE_LIST) | sed -e 's/:.*##/: /' | sort
 
-
-
 install:
 	$(POETRY) install --no-interaction
 
-# Dev server
-
 # ---- Dev & Quality ---------------------------------------------
+
 run: ## Run app locally with reload
 	PYTHONPATH=src $(RUN) uvicorn public_api.main:create_app --factory --reload --host 0.0.0.0 --port $(PORT)
 
-# Format with Ruff formatter
-fmt:
+fmt: ## Format with Ruff formatter
 	$(RUN) ruff format src tests
 
-# Lint (and autofix simple issues)
-lint:
+lint: ## Lint (and autofix simple issues)
 	$(RUN) ruff check src tests --fix
 
-# CI-friendly style check (no writes)
-style:
+style: ## CI-friendly style check (no writes)
 	$(RUN) ruff format --check src tests
 	$(RUN) ruff check src tests
 
-# Type checking (uses local mypy.ini or pyproject)
-typecheck:
+typecheck: ## Type checking
 	$(RUN) mypy --config-file mypy.ini
 
-# Tests + coverage
-test:
+test: ## Tests + coverage (quiet)
 	PYTHONPATH=src $(RUN) pytest -q \
 	  --junitxml=pytest-results.xml \
 	  --cov=public_api \
@@ -49,45 +47,69 @@ test:
 	  --cov-report=xml:coverage.xml \
 	  --cov-fail-under=80
 
-cover:  # verbose coverage
-	$(RUN) pytest --cov=public_api --cov-report=term --cov-report=xml --cov-fail-under=80
+cover: ## Verbose coverage
+	PYTHONPATH=src $(RUN) pytest --cov=public_api --cov-report=term --cov-report=xml --cov-fail-under=80
 
-htmlcov:
-	$(RUN) pytest --cov=public_api --cov-report=html
+htmlcov: ## HTML coverage report
+	PYTHONPATH=src $(RUN) pytest --cov=public_api --cov-report=html
 	@python -c "import webbrowser; webbrowser.open('htmlcov/index.html')" >/dev/null 2>&1 || true
 
+print-env:
+	@echo "PYTHONPATH: $(PYTHONPATH)"
+	@env
+
 # ---- Migrations (Alembic) --------------------------------------
-ALEMBIC?=alembic
 alembic-help:
-	@$(ALEMBIC) -h || (echo "Alembic not installed. Add it to dev deps and alembic.ini." && exit 1)
+	$(COMPOSE) exec -T -w /app api python -m alembic -h || (echo "Alembic not available in image" && exit 1)
 
-migrate: alembic-help ## Apply migrations (upgrade head)
-	$(ALEMBIC) upgrade head
+migrate: ## Apply migrations (upgrade head)
+	$(COMPOSE) exec -w /app api \
+	  python -m alembic -c public_api/alembic.ini upgrade head
 
-downgrade: alembic-help ## Roll back one migration
-	$(ALEMBIC) downgrade -1
+# usage: make makemigration msg="add glossary tables"
+makemigration: ## Create migration file
+	@test -n "$(msg)" || (echo "Usage: make makemigration msg=\"your message\""; exit 2)
+	$(COMPOSE) exec -w /app api \
+	  python -m alembic -c public_api/alembic.ini revision --autogenerate -m "$(msg)"
+
+# usage: make downgrade n=1
+n ?= 1
+downgrade: ## Roll back N steps (default 1)
+	$(COMPOSE) exec -w /app api \
+	  python -m alembic -c public_api/alembic.ini downgrade -$(n)
 
 # ---- Seed -------------------------------------------------------
-seed-local: ## Seed sample data (only if APP_ENV=local)
-	@if [ "$$APP_ENV" != "local" ]; then echo "Refusing to seed unless APP_ENV=local"; exit 2; fi
-	@echo "Seeding sample glossary entries... (stub)"; exit 0
+seed-local: ## Seed sample data (Docker env; APP_ENV=local)
+	$(COMPOSE) exec -w /app api \
+	  python -m public_api.db.seed.seed --force
 
 # ---- Build & CI -------------------------------------------------
-IMAGE ?= unacronym-api
-APP_VERSION ?= 0.1.0
+
 LABELS = --label org.opencontainers.image.title=$(IMAGE) \
          --label org.opencontainers.image.version=$(APP_VERSION) \
          --label org.opencontainers.image.revision=$(GIT_SHA)
 
-build: ## Docker build with labels
-	docker build $(LABELS) -t $(IMAGE):$(GIT_SHA) -t $(IMAGE):latest .
+all: build-remove-cache up
 
-# Optional: local compose (only API for now)
+build-remove-cache:
+	$(COMPOSE) down
+	$(COMPOSE) build --no-cache
+
+build:
+	$(COMPOSE) build
+
 up:
-	docker compose up --build -d
+	$(COMPOSE) up -d
 
 down:
-	docker compose down
+	$(COMPOSE) down
+
+nuke: ## stop & remove volumes (DATA LOSS)
+	@read -p "Remove volumes (data loss)? type 'yes': " a; [ "$$a" = "yes" ]
+	$(COMPOSE) down -v
+
+logs:
+	$(COMPOSE) logs -f
 
 clean:
 	rm -rf .pytest_cache .mypy_cache .ruff_cache htmlcov .coverage dist build
@@ -109,9 +131,6 @@ release: ## Tag & push (VERSION=vX.Y.Z). Generates/updates CHANGELOG.md (simple)
 	git commit -m "chore(release): $(VERSION)" || true
 	git tag -a $(VERSION) -m "Release $(VERSION)"
 	git push --follow-tags
-
-
-
 
 hooks:
 	pre-commit install

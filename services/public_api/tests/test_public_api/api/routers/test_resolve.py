@@ -1,6 +1,8 @@
 import asyncio
 
 import pytest
+
+from public_api.db.models import GlossaryEntry
 from public_api.schemas.error import ErrorCode
 
 
@@ -13,14 +15,33 @@ def _get_fastapi_app_from_client(client):
 
 
 class TestV1Resolve:
+    @pytest.fixture(autouse=True)
+    def seed_for_this_class(self, _session_factory):
+        # minimal deterministic seed used by multiple tests here
+        with _session_factory() as s:
+            # Upsert-ish for idempotence across parametrized runs
+            if not s.query(GlossaryEntry).filter_by(acronym="MPS").first():
+                s.add(GlossaryEntry(
+                    acronym="MPS",
+                    definition="Metropolitan Police Service, the territorial police force for Greater London.",
+                    source="test",
+                ))
+            if not s.query(GlossaryEntry).filter_by(acronym="ABC").first():
+                s.add(GlossaryEntry(
+                    acronym="ABC",
+                    definition="Alpha Beta Charlie.",
+                    source="test",
+                ))
+            s.commit()
+        yield
+
     @pytest.mark.anyio
     async def test_happy_path(self, client):
         payload = {"text": "The Metropolitan Police Service (MPS) operates in London."}
         r = await client.post("/v1/resolve", json=payload)
         assert r.status_code == 200
         body = r.json()
-        assert "acronyms" in body
-        assert "meta" in body
+        assert "acronyms" in body and "meta" in body
         assert body["meta"]["input_chars"] == len(payload["text"])
         assert r.headers.get("X-Request-Id")
         assert int(r.headers["X-Input-Bytes"]) > 0

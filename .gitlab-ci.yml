@@ -54,34 +54,47 @@ core:
 api:
   stage: core
   image: python:3.13
+  services:
+    - name: postgres:15-alpine
+      alias: db
+      command: ["postgres", "-c", "log_statement=none"]
   variables:
     POETRY_VERSION: "1.8.3"
     POETRY_VIRTUALENVS_CREATE: "false"
     PIP_DISABLE_PIP_VERSION_CHECK: "1"
-  rules:
-    - if: $CI_PIPELINE_SOURCE == "merge_request_event" && $CI_MERGE_REQUEST_DRAFT == "true"
-      when: never
-    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
-      changes:
-        - services/public_api/**/*
-    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
-      changes:
-        - services/public_api/**/*
-    - when: never
-  cache:
-    key: "$CI_COMMIT_REF_SLUG"
-    paths:
-      - .cache/pip
-      - .cache/pypoetry
+    POSTGRES_DB: "unacronym"
+    POSTGRES_USER: "unacronym"
+    POSTGRES_PASSWORD: "test-password"
+    DATABASE_URL: "postgresql+psycopg://unacronym:test-password@db:5432/unacronym"
+    APP_ENV: "test"
+    AUTH_DISABLED: "false"
   before_script:
     - python --version
     - pip install "poetry==$POETRY_VERSION"
     - cd services/public_api
+    - export PYTHONPATH="$PWD/src:$CI_PROJECT_DIR/packages/plainera_core/src:$PYTHONPATH"
     - poetry install --no-interaction --no-root
   script:
+    # wait for DB (use literal block so heredoc works; also strip +psycopg)
+    - |
+      poetry run python - <<'PY'
+      import os, time, sys
+      import psycopg
+      url = os.environ["DATABASE_URL"].replace("+psycopg", "")
+      for _ in range(60):
+          try:
+              with psycopg.connect(url, connect_timeout=2) as conn:
+                  with conn.cursor() as cur: cur.execute("SELECT 1")
+              print("DB is ready"); sys.exit(0)
+          except Exception:
+              time.sleep(1)
+      print("DB not ready in time", file=sys.stderr); sys.exit(2)
+      PY
+    - poetry run alembic -c alembic.ini upgrade head
     - make lint
     - make typecheck
-    - make test
+    # ensure coverage.xml exists for artifacts
+    - poetry run pytest --cov=public_api --cov-report=term-missing --cov-report=xml:coverage.xml
   artifacts:
     when: always
     paths:
@@ -90,4 +103,5 @@ api:
       coverage_report:
         coverage_format: cobertura
         path: services/public_api/coverage.xml
+
     expire_in: 1 week

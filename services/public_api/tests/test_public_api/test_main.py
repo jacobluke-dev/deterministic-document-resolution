@@ -1,8 +1,9 @@
 import pytest
 from httpx import ASGITransport, AsyncClient
+from starlette.requests import ClientDisconnect
+
 from public_api.core.settings import AppSettings
 from public_api.main import create_app
-from starlette.requests import ClientDisconnect
 
 
 @pytest.mark.anyio

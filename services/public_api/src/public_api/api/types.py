@@ -2,11 +2,13 @@
 from __future__ import annotations
 
 from asyncio import Semaphore
-from typing import Annotated, Awaitable, Iterable, Optional, Protocol, TypeAlias
+from collections.abc import Awaitable, Iterable
+from typing import Annotated, Optional, Protocol, TypeAlias, TypedDict
 
 from fastapi import Depends, Header
 
 from public_api.core import deps  # get_resolver / get_semaphore
+from public_api.db.db_manager.connection import DBManager
 
 # --- Structural contracts (no core imports in annotations) -------------------
 
@@ -44,9 +46,25 @@ ResolverT: TypeAlias = ResolverProtocol
 
 ResolverDep: TypeAlias = Annotated[ResolverT, Depends(deps.get_resolver)]
 SemaphoreDep: TypeAlias = Annotated[Semaphore | None, Depends(deps.get_semaphore)]
+DBManagerDep: TypeAlias = Annotated[DBManager, Depends(deps.get_dbm)]
+
 
 # Common headers
 RequestIdHeader: TypeAlias = Annotated[
     Optional[str],
     Header(default=None, convert_underscores=False),
 ]
+
+
+class APIDefinition(TypedDict):
+    text: str
+    start: int
+    end: int
+    confidence: float
+    source: str
+
+class AppState(Protocol):
+    """
+    Providing the DB Manager to the FastAPI class.
+    """
+    dbm: DBManager
