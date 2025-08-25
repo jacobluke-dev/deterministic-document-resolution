@@ -1,7 +1,10 @@
 from __future__ import annotations
 
+from typing import Protocol, cast
+
 from fastapi import FastAPI
 from fastapi.exceptions import RequestValidationError
+from starlette.datastructures import State
 from starlette.middleware.cors import CORSMiddleware
 
 from public_api.api.routers.errors import map_length_validation_to_413
@@ -17,6 +20,11 @@ from public_api.core.settings import AppSettings, app_settings
 
 __version__ = "0.1.0"
 
+from public_api.db.factory import make_dbm
+
+
+class HasState(Protocol):
+    state: State
 
 def create_app(settings: AppSettings  = app_settings) -> FastAPI:
     settings = settings
@@ -34,6 +42,8 @@ def create_app(settings: AppSettings  = app_settings) -> FastAPI:
         redoc_url=redoc_url,
         openapi_url=openapi_url,
     )
+
+    cast(HasState, app).state.dbm = make_dbm()
 
     # Middleware order: size limit → request-id → access log → CORS
     app.add_middleware(BodySizeLimitMiddleware, max_body_bytes=settings.MAX_BODY_BYTES)

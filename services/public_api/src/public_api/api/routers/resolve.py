@@ -3,13 +3,14 @@ import inspect
 import math
 import re
 import time
-from typing import Any, Iterable
+from collections.abc import Iterable
+from typing import Any
 
 from fastapi import APIRouter, Response, status
 from starlette.responses import JSONResponse
 
 from public_api.api.response_types import build_responses
-from public_api.api.types import DefinitionCandidateLike, ResolverDep, SemaphoreDep
+from public_api.api.types import APIDefinition, DBManagerDep, DefinitionCandidateLike, ResolverDep, SemaphoreDep
 from public_api.core.settings import app_settings
 from public_api.schemas.error import ErrorBody, ErrorCode, ErrorResponse
 from public_api.schemas.resolve import ResolveOptions, ResolveRequest, ResolveResponse
@@ -99,7 +100,9 @@ async def resolve_acronyms(
     response: Response,
     resolver: ResolverDep,
     semaphore: SemaphoreDep,
+    dbm: DBManagerDep,
 ) -> JSONResponse | dict[str, Any]:
+    definitions: list[APIDefinition] = []
     started = time.perf_counter()
 
     # Headers (size numbers reflect parsed model; body limit reflects config/middleware)
@@ -149,7 +152,24 @@ async def resolve_acronyms(
         seen.add(ac)
 
         first_occ = {"start": m.start(1), "end": m.end(1)}
-        coro = _call_resolver(ac)  # <-- no closure over loop var now
+        coro = _call_resolver(ac)
+
+        if opts.include_glossary_enrichment:
+            # assumes you whitelisted these tables when constructing DBManager
+            table = "glossary_entries"
+            row = dbm.select_one_dict(
+                table_fqn=table,
+                columns=["acronym", "definition", "source"],
+                criteria=[("acronym", "", ac.lower())],  # see note below
+            )
+            if row:
+                definitions.append({
+                    "text": row["definition"],
+                    "start": max(0, first_occ["start"] - opts.window_chars),
+                    "end": first_occ["end"],
+                    "confidence": 1.0,
+                    "source": row.get("source") or "glossary",
+                })
 
         try:
             # 2) If a global semaphore exists, use it to throttle; otherwise just run.

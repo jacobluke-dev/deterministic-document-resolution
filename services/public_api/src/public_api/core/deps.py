@@ -1,9 +1,14 @@
 from __future__ import annotations
 
 from asyncio import Semaphore
+from collections.abc import Iterator
+
+from sqlalchemy.orm import Session
 
 from public_api.core.providers import AcronymResolverLike, create_resolver
 from public_api.core.settings import app_settings
+from public_api.core.settings import db_settings as db_settings
+from public_api.db.db_manager.connection import DBManager
 
 
 class AppContainer:
@@ -33,8 +38,18 @@ class AppContainer:
         if app_settings.MAX_INFLIGHT and app_settings.MAX_INFLIGHT > 0:
             self.semaphore = Semaphore(app_settings.MAX_INFLIGHT)
 
+        from sqlalchemy import create_engine
+        from sqlalchemy.orm import sessionmaker
+
+        engine = create_engine(db_settings.database_url, pool_pre_ping=True)
+        SessionLocal: sessionmaker[Session] = sessionmaker(
+            bind=engine, autoflush=False, autocommit=False
+        )
+        self.dbm = DBManager(engine=engine, session_factory=SessionLocal)
+
 
 container = AppContainer()
+
 
 def get_resolver() -> AcronymResolverLike:
     """Provide the global resolver instance.
@@ -60,3 +75,24 @@ def get_semaphore() -> Semaphore | None:
         is enabled, otherwise None.
     """
     return container.semaphore
+
+
+def get_dbm() -> DBManager:
+    """Return the app-scoped DBManager instance.
+
+    DBManager: The DB manager attached to `app.state.dbm`.
+    """
+    return container.dbm
+
+
+def get_session(dbm: DBManager) -> Iterator[Session]:
+    """Yield a transactional SQLAlchemy Session.
+
+    This wraps `DBManager.session()` so routes can depend on a ready-to-use
+    session with commit/rollback/close handled automatically.
+
+    Yields:
+        Iterator[Session]: An active Session for the request scope.
+    """
+    with dbm.session() as s:
+        yield s
