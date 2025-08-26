@@ -4,13 +4,13 @@ services:
   api:
     build:
       context: ..                                 # repo root
-      dockerfile: services/public_api/Dockerfile  # path is relative to context
+      dockerfile: services/unacronym_api/Dockerfile  # path is relative to context
     working_dir: /app
-    env_file: ./public_api/.env
+    env_file: ./unacronym_api/.env
     ports: [ "8000:8000" ]
     volumes:
-      - ./public_api/alembic.ini:/app/public_api/alembic.ini:ro
-      - ./public_api/migrations:/app/public_api/migrations
+      - ./unacronym_api/alembic.ini:/app/unacronym_api/alembic.ini:ro
+      - ./unacronym_api/migrations:/app/unacronym_api/migrations
     depends_on:
       db:
         condition: service_healthy

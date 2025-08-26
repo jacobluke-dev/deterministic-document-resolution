@@ -9,6 +9,8 @@ workflow:
 
 stages: [core]
 
+variables:
+      ENVIRONMENT: "CI"
 cache:
   key: "$CI_COMMIT_REF_SLUG"
   paths:
@@ -71,7 +73,7 @@ api:
   before_script:
     - python --version
     - pip install "poetry==$POETRY_VERSION"
-    - cd services/public_api
+    - cd services/unacronym_api
     - export PYTHONPATH="$PWD/src:$CI_PROJECT_DIR/packages/plainera_core/src:$PYTHONPATH"
     - poetry install --no-interaction --no-root
   script:
@@ -94,14 +96,14 @@ api:
     - make lint
     - make typecheck
     # ensure coverage.xml exists for artifacts
-    - poetry run pytest --cov=public_api --cov-report=term-missing --cov-report=xml:coverage.xml
+    - poetry run pytest --cov=unacronym_api --cov-report=term-missing --cov-report=xml:coverage.xml
   artifacts:
     when: always
     paths:
-      - services/public_api/coverage.xml
+      - services/unacronym_api/coverage.xml
     reports:
       coverage_report:
         coverage_format: cobertura
-        path: services/public_api/coverage.xml
+        path: services/unacronym_api/coverage.xml
 
     expire_in: 1 week

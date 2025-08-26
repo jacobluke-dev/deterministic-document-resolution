@@ -40,7 +40,7 @@ typecheck: ## Type checking
 	$(RUN) mypy --config-file mypy.ini
 
 test: ## Tests + coverage (quiet)
-	PYTHONPATH=src $(RUN) pytest -q \
+	ENVIRONMENT=TEST PYTHONPATH=src $(RUN) pytest -q \
 	  --junitxml=pytest-results.xml \
 	  --cov=public_api \
 	  --cov-report=term \
@@ -62,12 +62,12 @@ print-env:
 alembic-help:
 	$(COMPOSE) exec -T -w /app api python -m alembic -h || (echo "Alembic not available in image" && exit 1)
 
-migrate: ## Apply migrations (upgrade head)
+migrate: ## 2nd:  Apply migrations (upgrade head)
 	$(COMPOSE) exec -w /app api \
 	  python -m alembic -c public_api/alembic.ini upgrade head
 
 # usage: make makemigration msg="add glossary tables"
-makemigration: ## Create migration file
+makemigration: ## 1st: Create migration file
 	@test -n "$(msg)" || (echo "Usage: make makemigration msg=\"your message\""; exit 2)
 	$(COMPOSE) exec -w /app api \
 	  python -m alembic -c public_api/alembic.ini revision --autogenerate -m "$(msg)"
