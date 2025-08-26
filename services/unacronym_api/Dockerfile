@@ -7,7 +7,7 @@ WORKDIR /app
 RUN pip install --no-cache-dir poetry==1.8.3
 # only need these for dependency export
 
-COPY services/public_api/pyproject.toml services/public_api/poetry.lock* ./
+COPY services/unacronym_api/pyproject.toml services/unacronym_api/poetry.lock* ./
 RUN poetry export -f requirements.txt --without-hashes -o requirements.txt
 
 FROM python:3.13.3-slim AS runtime
@@ -29,9 +29,9 @@ COPY packages /packages
 RUN pip install --no-cache-dir -r requirements.txt
 
 # app code
-COPY services/public_api/src ./src
+COPY services/unacronym_api/src ./src
 EXPOSE 8000
 HEALTHCHECK --interval=30s --timeout=3s --start-period=10s CMD curl -fsS http://localhost:${PORT}/healthz || exit 1
 
 USER app
-CMD ["uvicorn", "--app-dir", "/app/src", "public_api.main:create_app", "--factory", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["uvicorn", "--app-dir", "/app/src", "unacronym_api.main:create_app", "--factory", "--host", "0.0.0.0", "--port", "8000"]

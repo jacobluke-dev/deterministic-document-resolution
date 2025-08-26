@@ -1,7 +1,8 @@
 import asyncio
+from typing import Any
 
 import pytest
-
+from httpx import Response
 from public_api.db.models import GlossaryEntry
 from public_api.schemas.error import ErrorCode
 
@@ -98,12 +99,21 @@ class TestV1Resolve:
 
         _value = 0
 
+    def _stable_json(self, resp: Response) -> dict[str, Any]:
+        body = resp.json()
+        meta = dict(body.get("meta", {}))
+        # Strip fields that can vary run-to-run
+        for k in ("processing_ms", "created_at"):
+            meta.pop(k, None)
+        body["meta"] = meta
+        return body
+
     @pytest.mark.anyio
     async def test_deterministic_output(self, client):
         payload = {"text": "Alpha (ABC). Another (ABC)."}
         r1 = await client.post("/v1/resolve", json=payload)
         r2 = await client.post("/v1/resolve", json=payload)
-        assert r1.json() == r2.json()
+        assert self._stable_json(r1) == self._stable_json(r2)
 
     @pytest.mark.anyio
     async def test_overloaded(self, client):
