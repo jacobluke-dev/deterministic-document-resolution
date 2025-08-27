@@ -39,6 +39,14 @@ class DatabaseSettings(BaseSettings):
     AUTH_DISABLED: bool = False
     # Keep strict validation but avoid editor nags by allowing None and failing explicitly
     DATABASE_URL: AnyUrl | None = None
+    DB_SCHEMA: str = "unacronym"
+    NAMING_CONVENTION: dict[str, str] = {
+        "ix": "ix_%(column_0_label)s",
+        "uq": "uq_%(table_name)s_%(column_0_name)s",
+        "ck": "ck_%(table_name)s_%(constraint_name)s",
+        "fk": "fk_%(table_name)s_%(column_0_name)s_%(referred_table_name)s",
+        "pk": "pk_%(table_name)s",
+    }
 
     @property
     def database_url(self) -> str:
@@ -48,6 +56,5 @@ class DatabaseSettings(BaseSettings):
             f"DATABASE_URL missing. Expected in {ENV_PATH}. "
             "Set AUTH_DISABLED=true only if no DB is used."
         )
-
 
 db_settings = DatabaseSettings()

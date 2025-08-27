@@ -14,7 +14,7 @@ FROM python:3.13.3-slim AS runtime
 
 ENV PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1 PORT=8000
 
-ENV PYTHONPATH=/app/src
+ENV PYTHONPATH=/app/src:/app
 
 RUN apt-get update && apt-get install -y --no-install-recommends curl && rm -rf /var/lib/apt/lists/*
 
@@ -30,8 +30,11 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 # app code
 COPY services/unacronym_api/src ./src
+
+COPY shared /app/shared
+
 EXPOSE 8000
 HEALTHCHECK --interval=30s --timeout=3s --start-period=10s CMD curl -fsS http://localhost:${PORT}/healthz || exit 1
 
 USER app
-CMD ["uvicorn", "--app-dir", "/app/src", "unacronym_api.main:create_app", "--factory", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["uvicorn", "--app-dir", "/app/src", "public_api.main:create_app", "--factory", "--host", "0.0.0.0", "--port", "8000"]
