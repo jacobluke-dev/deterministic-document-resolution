@@ -1,13 +1,13 @@
 [tool.poetry]
-name = "plainera-core"
+name = "plainera-observability"
 version = "0.1.0"
-description = "Observability packaGE for Plainera"
+description = "Observability package for Plainera"
 authors = ["Jacob Bickerstaff <jacob.bickerstaff@plainera.com>"]
-packages = [{ include = "plainera_core" }]
+packages = [{ include = "plainera_observability" }]
 
 [tool.poetry.dependencies]
 python = "^3.13"
-fastapi = "^0.115"
+starlette = ">=0.40.0,<0.48.0"
 
 [tool.poetry.group.dev.dependencies]
 pytest = "^8.3.0"

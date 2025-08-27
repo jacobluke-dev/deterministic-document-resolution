@@ -5,7 +5,6 @@ from alembic import context
 from dotenv import load_dotenv
 from sqlalchemy import engine_from_config, pool
 
-from public_api.core.settings import db_settings
 from public_api.db.models import Base, BaseWithTimestamps, AcronymAlias, GlossaryEntry
 
 config = context.config
@@ -58,15 +57,13 @@ def run_migrations_online() -> None:
     # ✅ Respect a connection injected by tests:
     connection = config.attributes.get("connection")
 
-    context.configure(
-        connection=connection,
-        target_metadata=target_metadata,
-        include_schemas=True,
-        version_table_schema=db_settings.DB_SCHEMA,
-        compare_type=True,
-        compare_server_default=True,
-    )
     if connection is not None:
+        context.configure(
+            connection=connection,
+            target_metadata=target_metadata,
+            compare_type=True,
+            compare_server_default=True,
+        )
         with context.begin_transaction():
             context.run_migrations()
         return

@@ -25,13 +25,13 @@ WORKDIR /app
 COPY --from=builder /app/requirements.txt ./
 # because build context is repo root (see compose), this path exists:
 COPY packages /packages
+RUN pip install --no-cache-dir /packages/plainera_observability /packages/plainera_core
+RUN pip install --no-cache-dir -r requirements.txt
 
 RUN pip install --no-cache-dir -r requirements.txt
 
 # app code
 COPY services/unacronym_api/src ./src
-
-COPY shared /app/shared
 
 EXPOSE 8000
 HEALTHCHECK --interval=30s --timeout=3s --start-period=10s CMD curl -fsS http://localhost:${PORT}/healthz || exit 1

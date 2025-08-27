@@ -8,8 +8,9 @@ packages = [{ include = "public_api", from = "src" }]
 [tool.poetry.dependencies]
 python = "^3.13"
 plainera-core = { path = "../../packages/plainera_core", develop = true }
-plainera-observability = { path = "../../packages/plainera_observability", develop = true }
+plainera-observability = { path = "../../packages/plainera_observability", develop = true, extras = ["fastapi"] }
 fastapi = "^0.115.0"
+starlette = ">=0.40.0,<0.48.0"
 uvicorn = {extras = ["standard"], version = "^0.30.0"}
 pydantic-settings = "^2.4.0"
 python-dotenv = "^1.0.1"
