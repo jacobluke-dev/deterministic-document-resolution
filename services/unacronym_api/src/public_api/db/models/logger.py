@@ -10,7 +10,6 @@ from .base import Base
 
 class Logger(Base):
     __tablename__ = "logger"
-    __table_args__ = {"schema": "logging"}
 
     id: Mapped[int] = mapped_column(Integer, Identity(always=False), primary_key=True)
     date_time: Mapped[datetime] = mapped_column(TIMESTAMP(timezone=True), nullable=False)
