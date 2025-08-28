@@ -23,7 +23,7 @@ def emit(event: str,
         "request_id": request_id_var.get(),
         **scrub(fields),
     }
-    logging.log(STD_LEVEL[level], json.dumps(payload, default=str))
+    logger.log(STD_LEVEL[level], json.dumps(payload, default=str))
     # Fire-and-forget enqueue if provided
     if db_sink:
         try:
