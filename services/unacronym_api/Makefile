@@ -59,24 +59,25 @@ print-env:
 	@env
 
 # ---- Migrations (Alembic) --------------------------------------
+ALEMBIC_INI := unacronym_api/alembic.ini
 alembic-help:
 	$(COMPOSE) exec -T -w /app api python -m alembic -h || (echo "Alembic not available in image" && exit 1)
 
 migrate: ## 2nd:  Apply migrations (upgrade head)
 	$(COMPOSE) exec -w /app api \
-	  python -m alembic -c unacronym_api/alembic.ini upgrade head
+	  python -m alembic -c  $(ALEMBIC_INI) upgrade head
 
 # usage: make makemigration msg="add glossary tables"
 makemigration: ## 1st: Create migration file
 	@test -n "$(msg)" || (echo "Usage: make makemigration msg=\"your message\""; exit 2)
 	$(COMPOSE) exec -w /app api \
-	  python -m alembic -c unacronym_api/alembic.ini revision --autogenerate -m "$(msg)"
+	  python -m alembic -c  $(ALEMBIC_INI) revision --autogenerate -m "$(msg)"
 
 # usage: make downgrade n=1
 n ?= 1
 downgrade: ## Roll back N steps (default 1)
 	$(COMPOSE) exec -w /app api \
-	  python -m alembic -c public_api/alembic.ini downgrade -$(n)
+	  python -m alembic -c  $(ALEMBIC_INI) downgrade -$(n)
 
 # ---- Seed -------------------------------------------------------
 seed-local: ## Seed sample data (Docker env; APP_ENV=local)
