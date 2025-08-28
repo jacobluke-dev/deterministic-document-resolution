@@ -64,13 +64,13 @@ alembic-help:
 
 migrate: ## 2nd:  Apply migrations (upgrade head)
 	$(COMPOSE) exec -w /app api \
-	  python -m alembic -c public_api/alembic.ini upgrade head
+	  python -m alembic -c unacronym_api/alembic.ini upgrade head
 
 # usage: make makemigration msg="add glossary tables"
 makemigration: ## 1st: Create migration file
 	@test -n "$(msg)" || (echo "Usage: make makemigration msg=\"your message\""; exit 2)
 	$(COMPOSE) exec -w /app api \
-	  python -m alembic -c public_api/alembic.ini revision --autogenerate -m "$(msg)"
+	  python -m alembic -c unacronym_api/alembic.ini revision --autogenerate -m "$(msg)"
 
 # usage: make downgrade n=1
 n ?= 1
