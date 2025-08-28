@@ -7,6 +7,7 @@ from collections.abc import Iterable
 from typing import Any
 
 from fastapi import APIRouter, Response, status
+from plainera_observability.config import REQ_ID_HEADER
 from starlette.responses import JSONResponse
 
 from public_api.api.response_types import build_responses
@@ -14,7 +15,6 @@ from public_api.api.types import APIDefinition, DBManagerDep, DefinitionCandidat
 from public_api.core.settings import app_settings
 from public_api.schemas.error import ErrorBody, ErrorCode, ErrorResponse
 from public_api.schemas.resolve import ResolveOptions, ResolveRequest, ResolveResponse
-from plainera_observability.config import REQ_ID_HEADER
 
 router = APIRouter(prefix="/v1", tags=["Resolve"])
 

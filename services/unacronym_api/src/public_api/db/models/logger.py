@@ -2,9 +2,11 @@ from __future__ import annotations
 
 from datetime import datetime
 from typing import Any, Optional
-from sqlalchemy import Integer, String, Text, TIMESTAMP, Identity
+
+from sqlalchemy import TIMESTAMP, Identity, Integer, String, Text
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column
+
 from .base import Base
 
 

@@ -1,4 +1,5 @@
-import json, logging
+import json
+import logging
 from datetime import datetime, timezone
 from typing import Any, Protocol, Optional
 from .levels import LogLevel, STD_LEVEL

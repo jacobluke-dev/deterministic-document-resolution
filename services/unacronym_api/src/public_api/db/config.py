@@ -1,5 +1,6 @@
 from dataclasses import dataclass
 
+
 @dataclass(frozen=True)
 class DBConfig:
     DB_SCHEMA: str = "unacronym"   # single schema for app + logs
