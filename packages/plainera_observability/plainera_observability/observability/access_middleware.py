@@ -1,16 +1,19 @@
 import time
 import uuid
-from typing import Awaitable, Callable, Optional
-from fastapi import Request, Response
+from typing import Awaitable, Callable, Optional, Any, Coroutine
+from starlette.requests import Request
+from starlette.responses import Response
+
 from .context import set_request_context
 from .emit import emit
 from .levels import LogLevel
 from ..config import REQ_ID_HEADER
 
 
-def access_middleware(app, *, header_name: str = REQ_ID_HEADER):
+def access_middleware(app, *, header_name: str = REQ_ID_HEADER) -> Callable[
+    [Request, Callable[[Request], Awaitable[Response]]], Coroutine[Any, Any, Response | None]]:
     @app.middleware("http")
-    async def _mw(request: Request, call_next: Callable[[Request], Awaitable[Response]]):
+    async def _mw(request: Request, call_next: Callable[[Request], Awaitable[Response]])-> Response | None:
         rid = request.headers.get(header_name) or str(uuid.uuid4())
         start = time.perf_counter()
 

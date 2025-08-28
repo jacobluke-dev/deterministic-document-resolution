@@ -3,12 +3,15 @@ import inspect
 import json
 from functools import wraps
 from time import monotonic
-from typing import Callable, Iterable, Optional, Any
+from typing import Callable, Iterable, Optional, Any, ParamSpec, TypeVar
 
 from .emit import emit
 from .levels import LogLevel
 
 _MISSING = object()
+
+P = ParamSpec("P")
+R = TypeVar("R")
 
 def _preview(value: Any, limit: int = 1024) -> str:
     """JSON-preview with fallback to repr, truncated to 'limit' chars."""
@@ -29,7 +32,7 @@ def logger(message: str = "",
            logger_type: str = "decorator",
            db_sink=None,
            result_max_len: int = 1024,
-           result_transform: Optional[Callable[[Any], Any]] = None) -> Callable:
+           result_transform: Optional[Callable[[Any], Any]] = None) -> Callable[[Callable[P, Any]], Callable[P, Any]]:
     arg_names = list(arg_names or [])
     redact = set(redact or [])
 

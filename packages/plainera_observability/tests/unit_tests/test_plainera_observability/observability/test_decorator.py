@@ -78,7 +78,8 @@ def test_db_sink_is_called(caplog):
 
     persist(7)
     # still logs to stdout
-    p = _last_json(caplog); assert p["event"] == "persist"
+    p = _last_json(caplog)
+    assert p["event"] == "persist"
     # and we enqueued once to the sink
     assert len(sink.items) == 1
     assert sink.items[0]["event"] == "persist"
