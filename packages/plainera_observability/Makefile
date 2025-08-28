@@ -2,50 +2,39 @@ POETRY ?= poetry
 RUN := $(POETRY) run
 PKG := plainera_observability
 
-.PHONY: install fmt lint style typecheck test cover htmlcov clean ci-local help
+.PHONY: ensure-venv install fmt lint style typecheck test build ci-local
 
-help:
-	@echo "Common targets:"
-	@grep -E '^[a-zA-Z_-]+:.*?## ' $(MAKEFILE_LIST) | sed -e 's/:.*##/: /' | sort
+ensure-venv:
+	@$(POETRY) env info --path >/dev/null 2>&1 || $(POETRY) env use 3.13
+	@$(POETRY) run python -c "import ruff,pytest,mypy" >/dev/null 2>&1 || \
+	    $(POETRY) install --no-interaction --with dev
 
-install: ## Install deps for this package
-	$(POETRY) install --no-interaction
+install:  ## Force (re)install (optional explicit target)
+	$(POETRY) install --no-interaction --with dev
 
-fmt: ## Format with Ruff
+fmt: ensure-venv
 	$(RUN) ruff format $(PKG) tests
 
-lint: ## Lint (and autofix)
+lint: ensure-venv
 	$(RUN) ruff check $(PKG) tests --fix
 
-style: ## Lint (no writes)
+style: ensure-venv
 	$(RUN) ruff format --check $(PKG) tests
 	$(RUN) ruff check $(PKG) tests
 
-typecheck: ## mypy on the package
+typecheck: ensure-venv
 	$(RUN) mypy $(PKG)
 
-test: ## Tests + coverage
-	ENVIRONMENT=TEST $(RUN) pytest -q \
+test: ensure-venv
+	ENVIRONMENT=TEST PYTHONPATH=. $(RUN) pytest -q \
 	  --junitxml=pytest-results.xml \
 	  --cov=$(PKG) \
 	  --cov-report=term \
 	  --cov-report=xml:coverage.xml \
 	  --cov-fail-under=80
 
-build: ## Build sdist+wheel
+build: ensure-venv
 	$(POETRY) build
 
-cover:
-	$(RUN) pytest --cov=$(PKG) --cov-report=term --cov-report=xml --cov-fail-under=80
-
-htmlcov:
-	$(RUN) pytest --cov=$(PKG) --cov-report=html
-
-clean:
-	rm -rf .pytest_cache .mypy_cache .ruff_cache htmlcov .coverage coverage.xml dist build
-
-ci-local: ## Simulate CI locally (lint, typecheck, test, build)
-	$(MAKE) lint
-	$(MAKE) typecheck
-	$(MAKE) test
-	$(MAKE) build
+ci-local: lint typecheck test build  ## No explicit install needed
+	@echo "✅ $(PKG) OK"
