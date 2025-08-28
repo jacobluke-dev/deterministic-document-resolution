@@ -12,7 +12,6 @@ class Logger(Base):
     __tablename__ = "logger"
 
     id: Mapped[int] = mapped_column(Integer, Identity(always=False), primary_key=True)
-    date_time: Mapped[datetime] = mapped_column(TIMESTAMP(timezone=True), nullable=False)
 
     # core fields
     level_code: Mapped[int] = mapped_column(Integer, nullable=False)
@@ -21,19 +20,21 @@ class Logger(Base):
     logger_type: Mapped[str] = mapped_column(String(32), nullable=False) # "decorator"|"api"|...
 
     # optional metadata
-    function_name: Mapped[Optional[str]] = mapped_column(String(128))
-    request_id: Mapped[Optional[str]] = mapped_column(String(64))
-    duration_ms: Mapped[Optional[int]] = mapped_column(Integer)
+    function_name: Mapped[Optional[str]] = mapped_column(String(128), nullable=True)
+    request_id: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
+    duration_ms: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
 
     # http-ish extras (optional)
-    path: Mapped[Optional[str]] = mapped_column(String(512))
-    method: Mapped[Optional[str]] = mapped_column(String(16))
-    status: Mapped[Optional[int]] = mapped_column(Integer)
-    bytes: Mapped[Optional[int]] = mapped_column(Integer)
-    client_ip: Mapped[Optional[str]] = mapped_column(String(64))
-    key_id: Mapped[Optional[str]] = mapped_column(String(128))
+    path: Mapped[Optional[str]] = mapped_column(String(512), nullable=True)
+    method: Mapped[Optional[str]] = mapped_column(String(16), nullable=True)
+    status: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    bytes: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    client_ip: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
+    key_id: Mapped[Optional[str]] = mapped_column(String(128), nullable=True)
 
     # payloads
     info: Mapped[Optional[str]] = mapped_column(Text)                    # free-form summary (same as event if you like)
     arguments: Mapped[dict[str, Any] | None] = mapped_column(JSONB, default=None)
     keyword_arguments: Mapped[dict[str, Any] | None] = mapped_column(JSONB, default=None)
+
+    date_time: Mapped[datetime] = mapped_column(TIMESTAMP(timezone=True), nullable=False)
