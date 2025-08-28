@@ -91,3 +91,17 @@ def test_std_level_mapping():
     assert STD_LEVEL[LogLevel.ERROR]   == logging.ERROR
     # MESSAGE is an alias of INFO
     assert STD_LEVEL[LogLevel.MESSAGE] == logging.INFO
+
+
+def test_log_result_included_and_truncated(caplog):
+    caplog.set_level(logging.INFO)
+    from plainera_observability.observability.decorator import logger
+
+    @logger("calc", arg_names=["x"], log_result=True, result_max_len=20)
+    def calc(x): return {"ok": True, "data": "x"*100}
+
+    calc(1)
+    payload = json.loads(caplog.records[-1].msg)
+    assert payload["event"] == "calc"
+    assert payload["args"] == {"x": 1}
+    assert payload["result"].endswith(" chars)")
