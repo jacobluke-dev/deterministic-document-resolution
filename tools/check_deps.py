@@ -23,6 +23,7 @@ def pick_deps(d):
             norm[k] = "*"
     return norm
 
+
 def load(path):
     with open(path, "rb") as f:
         return pick_deps(tomllib.load(f))
