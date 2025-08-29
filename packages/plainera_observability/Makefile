@@ -1,4 +1,5 @@
-POETRY ?= poetry
+SHELL := /usr/bin/env bash
+POETRY ?= $(shell command -v poetry 2>/dev/null || echo $(HOME)/.local/bin/poetry)
 RUN := $(POETRY) run
 PKG := plainera_observability
 
@@ -8,6 +9,14 @@ ensure-venv:
 	@$(POETRY) env info --path >/dev/null 2>&1 || $(POETRY) env use 3.13
 	@$(POETRY) run python -c "import ruff,pytest,mypy" >/dev/null 2>&1 || \
 	    $(POETRY) install --with dev --sync --dry-run
+
+.PHONY: shell-observability
+shell-observability:
+	@echo "Run this to activate plainera_observability:"
+	@echo "source .venv/bin/activate"
+
+poetry-info:
+	@$(POETRY) --version
 
 install:  ## Force (re)install (optional explicit target)
 	$(POETRY) install  --with --sync --dry-run dev

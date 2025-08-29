@@ -1,4 +1,6 @@
-POETRY ?= poetry
+SHELL := /usr/bin/env bash
+export PATH := $(HOME)/.local/bin:$(PATH)
+POETRY ?= $(shell command -v poetry 2>/dev/null || echo $(HOME)/.local/bin/poetry)
 RUN := $(POETRY) run
 PKG := plainera_core
 
@@ -9,10 +11,13 @@ help:
 	@grep -E '^[a-zA-Z_-]+:.*?## ' $(MAKEFILE_LIST) | sed -e 's/:.*##/: /' | sort
 
 install:
-	$(POETRY) install --no-interaction --sync --dry-run
+	$(POETRY) install --no-interaction
 
 activate_shell:
 	source .venv/bin/activate
+
+poetry-info:
+	@$(POETRY) --version
 
 lock:
 	$(POETRY) lock --no-update

@@ -113,10 +113,6 @@ shell-core:
 	@echo "Run this to activate plainera_core:"
 	@echo "  source packages/plainera_core/.venv/bin/activate"
 
-.PHONY: shell-observability
-shell-observability:
-	@echo "Run this to activate plainera_observability:"
-	@echo "  source packages/plainera_observability/.venv/bin/activate"
 
 .PHONY: shell-api
 shell-api:

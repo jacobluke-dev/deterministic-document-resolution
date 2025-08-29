@@ -1,7 +1,8 @@
-#### Variables ####
-
-POETRY ?= poetry
+SHELL := /usr/bin/env bash
+POETRY ?= $(shell command -v poetry 2>/dev/null || echo $(HOME)/.local/bin/poetry)
 RUN := $(POETRY) run
+
+PKG := unacronym_api
 PORT ?= 8000
 IMAGE ?= unacronym-api
 APP_VERSION ?= 0.1.0
@@ -23,6 +24,16 @@ install:
 
 lock:
 	$(POETRY) lock --no-update
+
+ensure-venv:
+	@$(POETRY) env info --path >/dev/null 2>&1 || $(POETRY) env use 3.13
+	@$(POETRY) run python -c "import ruff,pytest,mypy" >/dev/null 2>&1 || \
+	    $(POETRY) install --with dev --sync --dry-run
+
+
+poetry-info:
+	@$(POETRY) --version
+
 
 # ---- Dev & Quality ---------------------------------------------
 
