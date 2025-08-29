@@ -1,7 +1,7 @@
 """baseline
 
 Revision ID: 668bcce5b0db
-Revises: 
+Revises:
 Create Date: 2025-08-28 10:12:10.893927
 
 """
