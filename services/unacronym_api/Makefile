@@ -19,7 +19,10 @@ help:
 	@grep -E '^[a-zA-Z_-]+:.*?## ' $(MAKEFILE_LIST) | sed -e 's/:.*##/: /' | sort
 
 install:
-	$(POETRY) install --no-interaction
+	$(POETRY) install --no-interaction --sync --dry-run
+
+lock:
+	$(POETRY) lock --no-update
 
 # ---- Dev & Quality ---------------------------------------------
 

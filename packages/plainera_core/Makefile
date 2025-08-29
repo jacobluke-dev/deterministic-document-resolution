@@ -9,7 +9,13 @@ help:
 	@grep -E '^[a-zA-Z_-]+:.*?## ' $(MAKEFILE_LIST) | sed -e 's/:.*##/: /' | sort
 
 install:
-	$(POETRY) install --no-interaction
+	$(POETRY) install --no-interaction --sync --dry-run
+
+activate_shell:
+	source .venv/bin/activate
+
+lock:
+	$(POETRY) lock --no-update
 
 # Format code with Ruff formatter
 fmt:
