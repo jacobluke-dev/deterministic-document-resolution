@@ -1,6 +1,6 @@
 from typing import Any
 
-from plainera_observability.config import SENSITIVE_KEYS, TOKEN_PATS
+from observability.config import SENSITIVE_KEYS, TOKEN_PATS
 
 
 def _scrub_str(s: str) -> str:

@@ -1,5 +1,5 @@
-from plainera_core.domain import Acronym
-from plainera_core.services.resolver import AcronymResolver
+from core.domain import Acronym
+from core.services.resolver import AcronymResolver
 
 
 class TestAcronymResolver:

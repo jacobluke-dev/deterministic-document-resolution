@@ -4,7 +4,7 @@ from typing import Any, MutableMapping
 
 from starlette.types import ASGIApp, Receive, Scope, Send
 
-from plainera_observability.config import REQ_ID_HEADER
+from observability.config import REQ_ID_HEADER
 
 
 class RequestIDMiddleware:

@@ -1,5 +1,5 @@
 import pytest
-from plainera_core.domain import Acronym, DefinitionCandidate
+from core.domain import Acronym, DefinitionCandidate
 
 
 class TestAcronymFunctions:

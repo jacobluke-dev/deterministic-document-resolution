@@ -3,7 +3,7 @@ import json
 
 import pytest
 
-from plainera_observability.observability.redact import scrub, _scrub_str
+from observability.observability.redact import scrub, _scrub_str
 
 
 class Test_ScrubStr:

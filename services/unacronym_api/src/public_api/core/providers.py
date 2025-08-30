@@ -1,7 +1,7 @@
 from typing import Awaitable, Callable, Iterable, Optional, Protocol, TypeAlias, cast, runtime_checkable
 
-from plainera_core.domain import DefinitionCandidate
-from plainera_core.services.resolver import AcronymResolver
+from core.domain import DefinitionCandidate
+from core.services.resolver import AcronymResolver
 
 
 class DefinitionCandidateLike(Protocol):

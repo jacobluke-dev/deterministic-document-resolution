@@ -86,7 +86,7 @@ class TestV1Resolve:
 
         # Patch the core call to be slow (async)
         monkeypatch.setattr(
-            "plainera_core.services.resolver.AcronymResolver.resolve",
+            "core.services.resolver.AcronymResolver.resolve",
             slow_resolve,
         )
 

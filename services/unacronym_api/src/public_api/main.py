@@ -4,8 +4,8 @@ from typing import Protocol, cast
 
 from fastapi import FastAPI
 from fastapi.exceptions import RequestValidationError
-from plainera_observability.http.request_id import RequestIDMiddleware
-from plainera_observability.observability.access_middleware import access_middleware
+from observability.http.request_id import RequestIDMiddleware
+from observability.observability.access_middleware import access_middleware
 from starlette.datastructures import State
 from starlette.middleware.cors import CORSMiddleware
 
@@ -17,7 +17,7 @@ from public_api.core.settings import AppSettings, app_settings
 
 __version__ = "0.1.0"
 
-from plainera_observability.http.body_limit import BodySizeLimitMiddleware
+from observability.http.body_limit import BodySizeLimitMiddleware
 
 from public_api.db.factory import make_dbm
 

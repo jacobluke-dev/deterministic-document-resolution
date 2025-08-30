@@ -4,8 +4,8 @@ import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
-from plainera_observability.config import REQ_ID_HEADER
-from plainera_observability.observability.access_middleware import access_middleware
+from observability.config import REQ_ID_HEADER
+from observability.observability.access_middleware import access_middleware
 
 def _last_json(caplog) -> dict:
     return json.loads(caplog.records[-1].msg)

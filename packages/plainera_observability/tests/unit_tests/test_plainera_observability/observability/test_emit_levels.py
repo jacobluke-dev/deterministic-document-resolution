@@ -2,8 +2,8 @@ import json
 import logging
 import pytest
 
-from plainera_observability.observability.emit import emit
-from plainera_observability.observability.levels import LogLevel, STD_LEVEL
+from observability.observability.emit import emit
+from observability.observability.levels import LogLevel, STD_LEVEL
 
 def _last_json(caplog) -> tuple[dict, logging.LogRecord]:
     assert caplog.records, "no records captured"
@@ -26,7 +26,7 @@ def test_emit_level_payload_and_logrecord(caplog, lvl):
 
 def test_decorator_defaults_to_info_level(caplog):
     caplog.set_level(logging.DEBUG)
-    from plainera_observability.observability.decorator import logger
+    from observability.observability.decorator import logger
 
     @logger("work", arg_names=["x"])
     def work(x: int) -> int:

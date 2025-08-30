@@ -2,9 +2,9 @@ import json
 import logging
 import pytest
 
-from plainera_observability.observability.decorator import logger
-from plainera_observability.observability.context import request_id_var
-from plainera_observability.observability.levels import LogLevel, STD_LEVEL
+from observability.observability.decorator import logger
+from observability.observability.context import request_id_var
+from observability.observability.levels import LogLevel, STD_LEVEL
 
 
 def _last_json(caplog) -> dict:
@@ -96,7 +96,7 @@ def test_std_level_mapping():
 
 def test_log_result_included_and_truncated(caplog):
     caplog.set_level(logging.INFO)
-    from plainera_observability.observability.decorator import logger
+    from observability.observability.decorator import logger
 
     @logger("calc", arg_names=["x"], log_result=True, result_max_len=20)
     def calc(x): return {"ok": True, "data": "x"*100}

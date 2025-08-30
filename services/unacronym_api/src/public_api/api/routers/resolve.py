@@ -7,7 +7,7 @@ from collections.abc import Iterable
 from typing import Any
 
 from fastapi import APIRouter, Response, status
-from plainera_observability.config import REQ_ID_HEADER
+from observability.config import REQ_ID_HEADER
 from starlette.responses import JSONResponse
 
 from public_api.api.response_types import build_responses
@@ -135,7 +135,7 @@ async def resolve_acronyms(
         return _svc_unavailable("OVERLOADED")
 
     async def _call_resolver(acronym: str) -> Iterable[DefinitionCandidateLike]:
-        from plainera_core.domain import Acronym
+        from core.domain import Acronym
         res = resolver.resolve(Acronym(text=acronym), top_k=opts.max_definitions_per_acronym)
         if inspect.isawaitable(res):
             res = await res

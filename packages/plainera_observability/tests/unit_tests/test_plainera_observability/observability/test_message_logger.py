@@ -1,7 +1,7 @@
 import json
 import logging
-from plainera_observability.observability.message_logger import message_logger
-from plainera_observability.observability.levels import LogLevel
+from observability.observability.message_logger import message_logger
+from observability.observability.levels import LogLevel
 
 def _last_json(caplog):
     rec = caplog.records[-1]

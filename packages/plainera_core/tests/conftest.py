@@ -1,7 +1,6 @@
 import pytest
-
-from plainera_core.domain import DefinitionCandidate
-from plainera_core.services.resolver import AcronymResolver
+from core.domain import DefinitionCandidate
+from core.services.resolver import AcronymResolver
 
 
 @pytest.fixture
