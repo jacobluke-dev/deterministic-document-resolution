@@ -1,23 +1,69 @@
-# pyproject.toml (repo root)
 [tool.poetry]
 name = "plainera-monorepo"
 version = "0.1.0"
 description = "Plainera mono-repo: dev tooling and orchestration"
+authors = ["Jacob Bickerstaff"]
+packages = [
+    { include = "services/unacronym_api"},
+    { include = "packages/plainera_core"},
+    { include = "packages/plainera_observability"}
+]
 
 [tool.poetry.dependencies]
 python = "^3.13"
-httpx = "^0.28.1"
 fastapi = "^0.116.1"
+starlette = ">=0.40.0,<0.48.0"
+uvicorn = {extras = ["standard"], version = "^0.30.0"}
+pydantic-settings = "^2.4.0"
+python-dotenv = "^1.0.1"
+SQLAlchemy = ">=2.0.43,<2.1"
+psycopg = { version = ">=3.2,<3.3", extras = ["binary"] }
+alembic = ">=1.16.5,<2.0"
+httpx = "^0.28.1"
 testcontainers = "^4.12.0"
+plainera-core = { path = "packages/plainera_core", develop = true }
+plainera-observability = { path = "packages/plainera_observability", develop = true, extras = ["fastapi"] }
+
 
 [tool.poetry.group.dev.dependencies]
-ruff = "^0.5.7"
-mypy = "^1.11.1"
 pytest = "^8.3.0"
+mypy = "^1.11.1"
+ruff = "^0.5.7"
+pytest-asyncio = "^0.23.8"
+httpx = "^0.28.1"
 pytest-cov = "^5.0.0"
-types-requests = "^2.32.0.20240712"
+testcontainers = { extras = ["postgresql"], version = "^4.12.0" }
+types-requests = "^2.32.4.20250809"
 types-PyYAML = "^6.0.12"
+pre-commit = "^4.3.0"
 
 [build-system]
 requires = ["poetry-core"]
 build-backend = "poetry.core.masonry.api"
+
+# --- Pytest configuration ---
+[tool.pytest.ini_options]
+addopts = "-q --asyncio-mode=auto --cov=public_api --cov-report=term --cov-report=xml:coverage.xml --cov-fail-under=80"
+pythonpath = ["src"]
+
+# --- Mypy configuration ---
+[tool.mypy]
+python_version = "3.13"
+warn_unused_ignores = true
+disallow_any_generics = true
+no_implicit_optional = true
+check_untyped_defs = true
+warn_redundant_casts = true
+warn_unreachable = true
+show_error_codes = true
+pretty = true
+explicit_package_bases = true
+
+# --- Ruff configuration ---
+[tool.ruff]
+line-length = 120
+select = ["E", "F", "I", "UP", "B", "PERF", "ASYNC"]
+
+# --- Poetry Extras ---
+[tool.poetry.extras]
+fastapi = ["fastapi"]
