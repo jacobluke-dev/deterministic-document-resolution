@@ -1,4 +1,4 @@
-from public_api.schemas.base import BaseSchema
+from src.public_api.schemas.base import BaseSchema
 
 
 class HealthCheckResponse(BaseSchema):

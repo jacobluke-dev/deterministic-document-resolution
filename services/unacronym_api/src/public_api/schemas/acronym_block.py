@@ -2,9 +2,9 @@ from typing import List, Optional
 
 from pydantic import Field
 
-from public_api.schemas.base import BaseSchema
-from public_api.schemas.definition import Definition, Span
-from public_api.schemas.glossary import GlossaryBlock
+from src.public_api.schemas.base import BaseSchema
+from src.public_api.schemas.definition import Definition, Span
+from src.public_api.schemas.glossary import GlossaryBlock
 
 
 class AcronymBlock(BaseSchema):

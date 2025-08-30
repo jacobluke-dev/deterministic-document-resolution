@@ -5,7 +5,7 @@ from alembic.runtime.migration import MigrationContext
 from alembic.script import ScriptDirectory
 from sqlalchemy.engine import Engine
 
-from public_api.utils.utils import get_project_path
+from src.public_api.utils.utils import get_project_path
 
 DEFAULT_INI_REL = "alembic.ini"
 DEFAULT_SCRIPTS_REL = "public_api/migrations"

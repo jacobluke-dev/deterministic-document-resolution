@@ -4,7 +4,7 @@ from typing import ClassVar
 from sqlalchemy import DateTime, Integer, MetaData
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
-from public_api.core.settings import db_settings
+from src.public_api.core.settings import db_settings
 
 
 class Base(DeclarativeBase):

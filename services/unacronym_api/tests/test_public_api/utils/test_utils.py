@@ -1,7 +1,7 @@
 from unittest import mock
 
 import pytest
-from public_api.utils.utils import get_project_path
+from src.public_api.utils.utils import get_project_path
 
 
 class TestGetProjectPath:

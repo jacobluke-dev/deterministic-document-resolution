@@ -3,9 +3,9 @@ from __future__ import annotations
 from fastapi import APIRouter, HTTPException, Request, status
 from sqlalchemy import text
 
-from public_api.api.types import DBManagerDep
-from public_api.db.migrations_status import is_at_head
-from public_api.schemas.health_check import HealthCheckResponse
+from src.public_api.api.types import DBManagerDep
+from src.public_api.db.migrations_status import is_at_head
+from src.public_api.schemas.health_check import HealthCheckResponse
 
 router = APIRouter()
 

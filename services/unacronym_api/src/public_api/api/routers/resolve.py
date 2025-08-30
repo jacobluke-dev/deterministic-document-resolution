@@ -10,11 +10,11 @@ from fastapi import APIRouter, Response, status
 from observability.config import REQ_ID_HEADER
 from starlette.responses import JSONResponse
 
-from public_api.api.response_types import build_responses
-from public_api.api.types import APIDefinition, DBManagerDep, DefinitionCandidateLike, ResolverDep, SemaphoreDep
-from public_api.core.settings import app_settings
-from public_api.schemas.error import ErrorBody, ErrorCode, ErrorResponse
-from public_api.schemas.resolve import ResolveOptions, ResolveRequest, ResolveResponse
+from src.public_api.api.response_types import build_responses
+from src.public_api.api.types import APIDefinition, DBManagerDep, DefinitionCandidateLike, ResolverDep, SemaphoreDep
+from src.public_api.core.settings import app_settings
+from src.public_api.schemas.error import ErrorBody, ErrorCode, ErrorResponse
+from src.public_api.schemas.resolve import ResolveOptions, ResolveRequest, ResolveResponse
 
 router = APIRouter(prefix="/v1", tags=["Resolve"])
 

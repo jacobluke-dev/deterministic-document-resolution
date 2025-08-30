@@ -5,9 +5,9 @@ import pytest
 from alembic import command
 from alembic.config import Config
 from httpx import ASGITransport, AsyncClient
-from public_api.core import deps
-from public_api.db.db_manager.connection import DBManager
-from public_api.main import create_app
+from src.public_api.core import deps
+from src.public_api.db.db_manager.connection import DBManager
+from src.public_api.main import create_app
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
@@ -64,7 +64,7 @@ def _session_factory(_engine):
 
 @pytest.fixture(scope="session", autouse=True)
 def _apply_migrations_once(_engine):
-    from public_api.utils.utils import get_project_path  # import after ENV set
+    from src.public_api.utils.utils import get_project_path  # import after ENV set
     cfg = Config(get_project_path("alembic.ini", raise_error=True))
     with _engine.connect() as conn:
         cfg.attributes["connection"] = conn

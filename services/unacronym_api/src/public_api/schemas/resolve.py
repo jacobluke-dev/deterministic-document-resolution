@@ -2,8 +2,8 @@ from typing import List, Optional
 
 from pydantic import Field, confloat, conint, constr
 
-from public_api.schemas.base import BaseSchema
-from public_api.schemas.glossary import AcronymBlock
+from src.public_api.schemas.base import BaseSchema
+from src.public_api.schemas.glossary import AcronymBlock
 
 
 class ResolveMeta(BaseSchema):

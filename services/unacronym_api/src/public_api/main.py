@@ -9,17 +9,17 @@ from observability.observability.access_middleware import access_middleware
 from starlette.datastructures import State
 from starlette.middleware.cors import CORSMiddleware
 
-from public_api.api.routers.errors import map_length_validation_to_413
-from public_api.api.routers.health import router as health_router
-from public_api.api.routers.resolve import router as resolve_router
-from public_api.core.logging import configure_logging
-from public_api.core.settings import AppSettings, app_settings
+from src.public_api.api.routers.errors import map_length_validation_to_413
+from src.public_api.api.routers.health import router as health_router
+from src.public_api.api.routers.resolve import router as resolve_router
+from src.public_api.core.logging import configure_logging
+from src.public_api.core.settings import AppSettings, app_settings
 
 __version__ = "0.1.0"
 
 from observability.http.body_limit import BodySizeLimitMiddleware
 
-from public_api.db.factory import make_dbm
+from src.public_api.db.factory import make_dbm
 
 
 class HasState(Protocol):

@@ -5,10 +5,10 @@ from collections.abc import Iterator
 
 from sqlalchemy.orm import Session
 
-from public_api.core.providers import AcronymResolverLike, create_resolver
-from public_api.core.settings import app_settings
-from public_api.core.settings import db_settings as db_settings
-from public_api.db.db_manager.connection import DBManager
+from src.public_api.core.providers import AcronymResolverLike, create_resolver
+from src.public_api.core.settings import app_settings
+from src.public_api.core.settings import db_settings as db_settings
+from src.public_api.db.db_manager.connection import DBManager
 
 
 class AppContainer:

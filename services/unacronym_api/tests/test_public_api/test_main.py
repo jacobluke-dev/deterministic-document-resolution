@@ -1,7 +1,7 @@
 import pytest
 from httpx import ASGITransport, AsyncClient
-from public_api.core.settings import AppSettings
-from public_api.main import create_app
+from src.public_api.core.settings import AppSettings
+from src.public_api.main import create_app
 from starlette.requests import ClientDisconnect
 
 

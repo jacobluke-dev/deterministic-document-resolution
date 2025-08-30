@@ -44,6 +44,7 @@ build-backend = "poetry.core.masonry.api"
 # --- Pytest configuration ---
 [tool.pytest.ini_options]
 addopts = "-q --asyncio-mode=auto --cov=public_api --cov-report=term --cov-report=xml:coverage.xml --cov-fail-under=80"
+pythonpath = ["src"]
 
 # --- Mypy configuration ---
 [tool.mypy]

@@ -3,7 +3,7 @@ from contextlib import contextmanager
 
 # You already have these in public_api.db.database
 # import them and pass in from your app/tests to avoid tight coupling
-# from public_api.db.database import engine as default_engine, SessionLocal as default_sessionmaker
+# from src.public_api.db.database import engine as default_engine, SessionLocal as default_sessionmaker
 from functools import wraps
 from pathlib import Path
 from typing import Any, Callable, ParamSpec, TypeVar, cast

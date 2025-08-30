@@ -3,8 +3,8 @@ from typing import Any
 
 import pytest
 from httpx import Response
-from public_api.db.models import GlossaryEntry
-from public_api.schemas.error import ErrorCode
+from src.public_api.db.models import GlossaryEntry
+from src.public_api.schemas.error import ErrorCode
 
 
 def _get_fastapi_app_from_client(client):
@@ -122,7 +122,7 @@ class TestV1Resolve:
                 self._value = 0
 
             def locked(self): return True
-        from public_api.core import deps as deps_mod
+        from src.public_api.core import deps as deps_mod
 
         app = _get_fastapi_app_from_client(client)
         app.dependency_overrides[deps_mod.get_semaphore] = lambda: DummySemaphore()
