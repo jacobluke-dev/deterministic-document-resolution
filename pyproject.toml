@@ -23,6 +23,7 @@ httpx = "^0.28.1"
 testcontainers = "^4.12.0"
 plainera-core = { path = "packages/plainera_core", develop = true }
 plainera-observability = { path = "packages/plainera_observability", develop = true, extras = ["fastapi"] }
+unacronym-api = { path = "services/unacronym_api", develop = true}
 
 [tool.poetry.group.dev.dependencies]
 pytest = "^8.3.0"
@@ -43,7 +44,6 @@ build-backend = "poetry.core.masonry.api"
 # --- Pytest configuration ---
 [tool.pytest.ini_options]
 addopts = "-q --asyncio-mode=auto --cov=public_api --cov-report=term --cov-report=xml:coverage.xml --cov-fail-under=80"
-pythonpath = ["src"]
 
 # --- Mypy configuration ---
 [tool.mypy]
