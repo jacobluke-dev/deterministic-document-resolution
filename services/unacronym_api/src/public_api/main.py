@@ -4,8 +4,13 @@ from typing import Protocol, cast
 
 from fastapi import FastAPI
 from fastapi.exceptions import RequestValidationError
+
+from db_manager.factory import make_dbm
 from observability.http.request_id import RequestIDMiddleware
 from observability.observability.access_middleware import access_middleware
+from observability.http.body_limit import BodySizeLimitMiddleware
+
+
 from starlette.datastructures import State
 from starlette.middleware.cors import CORSMiddleware
 
@@ -16,10 +21,6 @@ from src.public_api.core.logging import configure_logging
 from src.public_api.core.settings import AppSettings, app_settings
 
 __version__ = "0.1.0"
-
-from observability.http.body_limit import BodySizeLimitMiddleware
-
-from src.public_api.db.factory import make_dbm
 
 
 class HasState(Protocol):
