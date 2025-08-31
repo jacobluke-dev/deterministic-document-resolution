@@ -58,6 +58,7 @@ def require_allowed_table(func: Callable[P, R]) -> Callable[P, R]:
 
     return cast(Callable[P, R], wrapper)
 
+
 class DBManager:
     """
     Db Manager, SQLAlchemy engine/session for utility ops.

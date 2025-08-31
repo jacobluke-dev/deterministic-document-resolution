@@ -8,7 +8,7 @@ from typing import Annotated, Optional, Protocol, TypeAlias, TypedDict
 from fastapi import Depends, Header
 
 from src.public_api.core import deps  # get_resolver / get_semaphore
-from src.public_api.db.db_manager.connection import DBManager
+from db_manager.connection import DBManager
 
 # --- Structural contracts (no core imports in annotations) -------------------
 
