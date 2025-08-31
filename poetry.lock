@@ -903,6 +903,20 @@ type = "directory"
 url = "packages/plainera_observability"
 
 [[package]]
+name = "plainera-testkit"
+version = "0.1.0"
+description = ""
+optional = false
+python-versions = "^3.13"
+groups = ["main"]
+files = []
+develop = true
+
+[package.source]
+type = "directory"
+url = "packages/plainera_testkit"
+
+[[package]]
 name = "platformdirs"
 version = "4.4.0"
 description = "A small Python package for determining appropriate platform-specific dirs, e.g. a `user data dir`."
@@ -2145,4 +2159,4 @@ fastapi = ["fastapi"]
 [metadata]
 lock-version = "2.1"
 python-versions = "^3.13"
-content-hash = "8d8b8685c9ce6ade53f8eb902ea8cdecc2f50294374996eb4c8b8eb3f3f401b9"
+content-hash = "85b2460363786aea05780b53e7923f2b8f49f524e3a8e717bf746bb62b399c78"

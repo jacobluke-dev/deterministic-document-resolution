@@ -23,6 +23,7 @@ alembic = ">=1.16.5,<2.0"
 httpx = "^0.28.1"
 testcontainers = "^4.12.0"
 plainera-core = { path = "packages/plainera_core", develop = true }
+plainera-testkit = {path = "packages/plainera_testkit", develop = true}
 plainera-observability = { path = "packages/plainera_observability", develop = true, extras = ["fastapi"] }
 unacronym-api = { path = "services/unacronym_api", develop = true}
 

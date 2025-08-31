@@ -1,7 +1,7 @@
 [tool.poetry]
 name = "plainera-testkit"
 version = "0.1.0"
-packages = [{ include = "plainera_testkit" }]
+packages = [{ include = "testkit" }]
 
 [tool.poetry.dependencies]
 python = "^3.13"

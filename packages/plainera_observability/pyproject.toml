@@ -8,6 +8,7 @@ authors = ["Jacob Bickerstaff"]
 python = "^3.13"
 
 [tool.poetry.group.dev.dependencies]
+plainera-testkit = { path = "../../packages/plainera_testkit", develop = true }
 pytest = "^8.3.0"
 mypy = "^1.11.1"
 ruff = "^0.5.7"
