@@ -5,8 +5,9 @@ import pytest
 from alembic import command
 from alembic.config import Config
 from httpx import ASGITransport, AsyncClient
+
+from db_manager.connection import DBManager
 from src.public_api.core import deps
-from src.public_api.db.db_manager.connection import DBManager
 from src.public_api.main import create_app
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
