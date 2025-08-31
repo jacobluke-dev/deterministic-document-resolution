@@ -4,8 +4,8 @@ import os
 import sys
 from urllib.parse import urlsplit
 
+from db_manager.factory import make_dbm
 from src.public_api.core.settings import db_settings
-from src.public_api.db.factory import make_dbm
 from src.public_api.db.models import AcronymAlias, GlossaryEntry
 from sqlalchemy import select
 
