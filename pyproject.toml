@@ -6,6 +6,7 @@ authors = ["Jacob Bickerstaff"]
 packages = [
     { include = "services/unacronym_api" },
     { include = "packages/plainera_core" },
+    { include = "packages/plainera_testkit" },
     { include = "packages/plainera_observability" }
 ]
 
@@ -36,6 +37,7 @@ testcontainers = { extras = ["postgresql"], version = "^4.12.0" }
 types-requests = "^2.32.4.20250809"
 types-PyYAML = "^6.0.12"
 pre-commit = "^4.3.0"
+behave = "^1.3.2"
 
 [build-system]
 requires = ["poetry-core"]
