@@ -1,10 +1,9 @@
 from typing import Optional
 
+from db_manager.connection import DBManager
 from sqlalchemy import create_engine
 from sqlalchemy.orm import Session, sessionmaker
-
 from src.public_api.core.settings import db_settings
-from db_manager.connection import DBManager
 
 
 def make_dbm(url: Optional[str] = None) -> DBManager:
