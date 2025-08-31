@@ -49,14 +49,11 @@ def after_scenario(context: Context, scenario, *, service_name: str | None = Non
     """
     pass
 
-def teardown_database(context: Context, *, service_name: str | None = None):
-    """Teardown the temporary database.
+def after_feature(context, feature, *, service_name: str | None = None):
+    """
+    This function is executed after each feature file is run.
 
-    This function disconnects from the current database manager, connects to the default
-    'postgres' database, and drops the temporary database.
-
-    Args:
-        context (Context): The Behave context object containing database connection details.
+    It ensures resources are available for features tagged with specific tags.
     """
     pass
 
@@ -73,5 +70,17 @@ def after_all(context: Context, *, service_name: str | None = None):
         The test context carrying information shared across all test steps
         and scenarios. It provides access to various resources used during
         the testing process.
+    """
+    pass
+
+
+def teardown_database(context: Context, *, service_name: str | None = None):
+    """Teardown the temporary database.
+
+    This function disconnects from the current database manager, connects to the default
+    'postgres' database, and drops the temporary database.
+
+    Args:
+        context (Context): The Behave context object containing database connection details.
     """
     pass
