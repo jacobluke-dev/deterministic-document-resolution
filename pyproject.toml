@@ -3,12 +3,7 @@ name = "plainera-monorepo"
 version = "0.1.0"
 description = "Plainera mono-repo: dev tooling and orchestration"
 authors = ["Jacob Bickerstaff"]
-packages = [
-    { include = "services/unacronym_api" },
-    { include = "packages/plainera_core" },
-    { include = "packages/plainera_testkit" },
-    { include = "packages/plainera_observability" }
-]
+package-mode = false
 
 [tool.poetry.dependencies]
 python = "^3.13"
