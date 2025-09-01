@@ -6,9 +6,7 @@ from dotenv import load_dotenv
 from pydantic import AnyUrl
 from pydantic_settings import BaseSettings
 
-# Resolve the .env location robustly (independent of CWD):
-ENV_PATH = (Path(__file__).resolve().parents[2] / "../.env")  # -> services/public_api/.env
-# Load .env into os.environ (silent=True avoids noise if file is missing)
+ENV_PATH = Path(__file__).resolve().parents[3] / ".env"
 load_dotenv(dotenv_path=ENV_PATH, override=False)
 
 class AppSettings(BaseSettings):
