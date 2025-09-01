@@ -5,7 +5,7 @@ from functools import wraps
 from time import monotonic
 from typing import Any, Callable, Iterable, Optional, ParamSpec, TypeVar
 
-from .emit import emit
+from .emit import emit, emit_async
 from .levels import LogLevel
 
 _MISSING = object()
@@ -119,6 +119,23 @@ def logger(
             fields["result"] = _preview(val, limit=result_max_len)
         emit(message or func.__name__, level=_level_norm(level), logger_type=logger_type, db_sink=db_sink, **fields)
 
+    async def _finalize_async(level: LogLevel | str, res: Any, start: float, func, args, kwargs) -> None:
+        duration_ms = int((monotonic() - start) * 1000) if log_duration else None
+        fields: dict[str, Any] = {
+            "function": func.__name__,
+            "args": _select_args(func, args, kwargs),
+        }
+        if duration_ms is not None:
+            fields["duration_ms"] = duration_ms
+        if log_result and res is not _MISSING:
+            try:
+                val = result_transform(res) if result_transform else res
+            except Exception:
+                val = "<result_transform_failed>"
+            fields["result"] = _preview(val, limit=result_max_len)
+        await emit_async(message or func.__name__, level=_level_norm(level), logger_type=logger_type, db_sink=db_sink,
+                         **fields)
+
     def decorate(func: Callable[P, R]) -> Callable[P, R]:
         is_coro = asyncio.iscoroutinefunction(func)
 
@@ -126,7 +143,7 @@ def logger(
             @wraps(func)
             async def aw(*a: P.args, **kw: P.kwargs) -> R:
                 if log_before:
-                    emit(
+                    await emit_async(
                         message or "Executing function",
                         level=LogLevel.INFO,
                         logger_type=logger_type,
@@ -137,10 +154,10 @@ def logger(
                 start = monotonic()
                 try:
                     res = await func(*a, **kw)
-                    _finalize(LogLevel.INFO, res, start, func, a, kw)
+                    await _finalize_async(LogLevel.INFO, res, start, func, a, kw)
                     return res
                 except Exception as e:
-                    emit(
+                    await emit_async(
                         f"Exception in {func.__name__}",
                         level=_level_norm(on_error_level),
                         logger_type=logger_type,
