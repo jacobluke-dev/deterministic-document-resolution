@@ -1,19 +1,22 @@
 FROM python:3.13.3-slim AS builder
-
 ENV PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1
-
 WORKDIR /app
 
-RUN pip install --no-cache-dir poetry==1.8.3
-# only need these for dependency export
+# Poetry + export plugin
+RUN pip install poetry==1.8.3
 
-COPY services/unacronym_api/pyproject.toml services/unacronym_api/poetry.lock* ./
-RUN poetry export -f requirements.txt --without-hashes -o requirements.txt
+# --- make path-deps visible to Poetry during export ---
+# copy service metadata and the monorepo packages tree
+COPY services/unacronym_api/pyproject.toml services/unacronym_api/poetry.lock* ./services/unacronym_api/
+COPY packages ./packages
+
+# export runtime (non-dev) requirements to a file *at /app*
+WORKDIR /app/services/unacronym_api
+RUN poetry export -f requirements.txt --without dev --without-hashes -o /app/requirements.txt
+# ------------------------------------------------------
 
 FROM python:3.13.3-slim AS runtime
-
 ENV PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1 PORT=8000
-
 ENV PYTHONPATH=/app/src:/app
 
 RUN apt-get update && apt-get install -y --no-install-recommends curl && rm -rf /var/lib/apt/lists/*
@@ -23,11 +26,8 @@ WORKDIR /app
 
 # bring in requirements and local path deps
 COPY --from=builder /app/requirements.txt ./
-# because build context is repo root (see compose), this path exists:
 COPY packages /packages
-RUN pip install --no-cache-dir /packages/plainera_observability /packages/plainera_core
-RUN pip install --no-cache-dir -r requirements.txt
-
+RUN pip install --no-cache-dir /packages/plainera_observability /packages/plainera_core /packages/plainera_testkit
 RUN pip install --no-cache-dir -r requirements.txt
 
 # app code
