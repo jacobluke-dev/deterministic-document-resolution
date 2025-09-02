@@ -1,10 +1,18 @@
-from __future__ import annotations
-
 import inspect
+import json
 from typing import Any, Mapping, Optional
 
 from .emit import emit
 from .levels import LogLevel
+
+def _to_text(v: Any, limit: int = 2048) -> Optional[str]:
+    if v is None:
+        return None
+    try:
+        s = json.dumps(v, default=str)
+    except Exception:
+        s = str(v)
+    return s if len(s) <= limit else s[:limit] + f"...(+{len(s)-limit} chars)"
 
 def message_logger(
     message: str,
@@ -16,16 +24,20 @@ def message_logger(
     db_sink=None,
 ) -> None:
     """
-    Ad-hoc, structured event logger
+    Ad-hoc structured logger.
 
-    - `message` becomes the structured `event`
-    - `args` is captured as `args` (redaction happens centrally in emit)
-    - `details` is an optional free-form field (dict or str)
-    - `function` is auto-populated from the caller
+    - `message` -> event
+    - `args` -> captured as `args` (payload key)
+    - `details` -> mapped to `info` (stringified) so it persists with current mapper
+    - `function` -> auto-resolved from caller
     """
     frame = inspect.currentframe()
-    caller = frame.f_back if frame else None
-    func_name = caller.f_code.co_name if caller else None
+    try:
+        caller = frame.f_back if frame else None
+        func_name = caller.f_code.co_name if caller else None
+    finally:
+        # prevent reference cycles
+        del frame
 
     emit(
         message,
@@ -34,7 +46,7 @@ def message_logger(
         db_sink=db_sink,
         function=func_name,
         args=dict(args) if args else None,
-        details=details,
+        info=_to_text(details),  # <-- map details -> info so it hits the DB
     )
 
 # Optional convenience shorthands:
