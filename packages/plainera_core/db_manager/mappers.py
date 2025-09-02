@@ -1,4 +1,3 @@
-# db_manager/mappers.py
 from datetime import datetime, timezone
 from typing import Any
 
@@ -11,6 +10,9 @@ _LEVEL_NAME_TO_CODE = {
 }
 
 def logger_model_map(payload: dict[str, Any]) -> dict[str, Any]:
+    """
+    Map a raw logging payload into a normalized database model format.
+    """
     level_name: str = str(payload.get("level", "info")).lower()
     level_code = _LEVEL_NAME_TO_CODE.get(level_name, 20)
 
