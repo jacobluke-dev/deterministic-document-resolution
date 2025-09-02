@@ -6,7 +6,7 @@ from dotenv import load_dotenv
 from pydantic import AnyUrl
 from pydantic_settings import BaseSettings
 
-ENV_PATH = Path(__file__).resolve().parents[3] / ".env"
+ENV_PATH = Path(__file__).resolve().parents[4] / ".env"
 load_dotenv(dotenv_path=ENV_PATH, override=False)
 
 class AppSettings(BaseSettings):
