@@ -8,6 +8,7 @@ from alembic.config import Config
 from httpx import ASGITransport, AsyncClient
 
 from src.public_api.core.settings import db_settings, AppSettings
+from test_kit.fixtures import session_factory
 
 from src.public_api.main import create_app
 from src.public_api.core import deps
@@ -46,7 +47,7 @@ def _db_ready(TEST_DB_URL):
 
 @pytest.fixture(scope="session", autouse=True)
 def _apply_migrations_once(engine_factory):
-    cfg = Config(get_project_path("alembic.ini", raise_error=True))
+    cfg = Config(get_project_path("services/unacronym_api/alembic.ini", raise_error=True))
     with engine_factory.connect() as conn:
         cfg.attributes["connection"] = conn
         command.upgrade(cfg, "head")
@@ -57,7 +58,7 @@ def _apply_migrations_once(engine_factory):
 # --- app client ---------------------------------------------------------------
 
 @pytest.fixture()
-async def client(engine_factory, _session_factory, monkeypatch):
+async def client(engine_factory, session_factory, monkeypatch):
     # Ensure anything that reads env gets a valid DSN (not strictly required once we patch make_dbm)
     os.environ["DATABASE_URL"] = engine_factory.url.render_as_string(hide_password=False)
 
@@ -66,7 +67,7 @@ async def client(engine_factory, _session_factory, monkeypatch):
         "src.public_api.main.make_dbm",
         lambda test_mode=False: TestDBManager(
             engine=engine_factory,
-            session_factory=_session_factory,
+            session_factory=session_factory,
             allowed_tables={"glossary_entries", "acronym_aliases"},
         ),
         raising=False,
@@ -77,7 +78,7 @@ async def client(engine_factory, _session_factory, monkeypatch):
     # (Optional) also override dependency to be explicit
     app.dependency_overrides[deps.get_dbm] = lambda: TestDBManager(
         engine=engine_factory,
-        session_factory=_session_factory,
+        session_factory=session_factory,
         allowed_tables={"glossary_entries", "acronym_aliases"},
     )
 
