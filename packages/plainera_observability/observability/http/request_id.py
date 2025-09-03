@@ -1,5 +1,7 @@
+# observability/http/request_id.py
 import uuid
-from starlette.types import ASGIApp, Receive, Scope, Send
+from starlette.types import ASGIApp, Receive, Scope, Send, Message
+from starlette.datastructures import MutableHeaders
 from observability.config import REQ_ID_HEADER
 
 class RequestIDMiddleware:
@@ -11,6 +13,7 @@ class RequestIDMiddleware:
             await self.app(scope, receive, send)
             return
 
+        # Prefer incoming header, else generate
         req_id = None
         for k, v in scope.get("headers", []):
             if k.decode().lower() == REQ_ID_HEADER.lower():
@@ -21,4 +24,12 @@ class RequestIDMiddleware:
 
         scope["request_id"] = req_id
 
-        await self.app(scope, receive, send)
+        async def send_wrapper(message: Message) -> None:
+            if message["type"] == "http.response.start":
+                headers = MutableHeaders(scope=message)
+                # Only add if missing — lets access_middleware be the "single source of truth"
+                if REQ_ID_HEADER not in headers:
+                    headers[REQ_ID_HEADER] = req_id
+            await send(message)
+
+        await self.app(scope, receive, send_wrapper)
