@@ -1,10 +1,12 @@
-import os, time
+# test_kit/fixtures.py
+import os
+import time
+import urllib.parse
 import pytest
 from alembic import command
 from alembic.config import Config
 from sqlalchemy import create_engine, event
 from sqlalchemy.orm import sessionmaker
-
 from src.public_api.core.settings import db_settings
 from db_manager.connection import DBManager
 from utils.utils import get_project_path
@@ -12,39 +14,52 @@ from utils.utils import get_project_path
 def _normalize(url: str) -> str:
     return url.replace("postgresql+psycopg2://", "postgresql+psycopg://")
 
-@pytest.fixture(scope="session", name="TEST_DB_URL")
-def _test_db_url():
-    env_url = os.getenv("DATABASE_URL")
-    if env_url:
-        yield _normalize(env_url)
-        return
-    from testcontainers.postgres import PostgresContainer
-    with PostgresContainer("postgres:15-alpine") as pg:
-        yield _normalize(pg.get_connection_url())
-
 def _install_search_path(engine, schema: str):
     @event.listens_for(engine, "connect")
     def _set_search_path(dbapi_conn, _):
         with dbapi_conn.cursor() as cur:
             cur.execute(f'SET search_path TO "{schema}", public')
-# test_kit/fixtures.py
 
-@pytest.fixture(scope="session", name="db_ready")
-def _db_ready(TEST_DB_URL):
-    if os.getenv("DATABASE_URL") and os.getenv("CI") == "true":
-        import psycopg, time
-        dsn = os.environ["DATABASE_URL"].replace("+psycopg", "")
-        WAIT_SECS = int(os.getenv("PLAINERA_TESTKIT_DB_WAIT_SECONDS", "5"))
-        for _ in range(WAIT_SECS):
-            try:
-                with psycopg.connect(dsn, connect_timeout=2) as conn:
-                    with conn.cursor() as cur:
-                        cur.execute("SELECT 1")
-                break
-            except Exception:
-                time.sleep(1)
+@pytest.fixture(scope="session")
+def TEST_DB_URL():
+    """Choose DB for tests:
+    1) TEST_DB_URL env (host-friendly) → use it
+    2) CI && DATABASE_URL set → use it
+    3) else start a testcontainers Postgres
+    """
+    tc = None
+    try:
+        if os.getenv("TEST_DB_URL"):
+            url = _normalize(os.environ["TEST_DB_URL"])
+        elif os.getenv("CI") == "true" and os.getenv("DATABASE_URL"):
+            url = _normalize(os.environ["DATABASE_URL"])
         else:
-            raise RuntimeError(f"DB not ready after {WAIT_SECS}s")
+            from testcontainers.postgres import PostgresContainer
+            tc = PostgresContainer("postgres:15-alpine")
+            tc.start()
+            url = _normalize(tc.get_connection_url())
+        yield url
+    finally:
+        if tc:
+            tc.stop()
+
+@pytest.fixture(scope="session")
+def db_ready(TEST_DB_URL):
+    # If we’re using a remote/host DSN, optionally wait a bit
+    parsed = urllib.parse.urlparse(TEST_DB_URL)
+    host = parsed.hostname or ""
+    if host not in {"localhost", "127.0.0.1"}:
+        return  # container branch or CI will be handled elsewhere
+    import psycopg
+    dsn = TEST_DB_URL.replace("+psycopg", "")
+    for _ in range(int(os.getenv("PLAINERA_TESTKIT_DB_WAIT_SECONDS", "10"))):
+        try:
+            with psycopg.connect(dsn, connect_timeout=2) as conn:
+                with conn.cursor() as cur:
+                    cur.execute("SELECT 1")
+            break
+        except Exception:
+            time.sleep(1)
 
 @pytest.fixture(scope="session", name="engine_factory")
 def engine_factory(TEST_DB_URL, db_ready):
@@ -64,8 +79,7 @@ def session_factory(engine_factory):
 
 @pytest.fixture(scope="session", name="apply_migrations_once")
 def apply_migrations_once(engine_factory):
-    ini_path = os.getenv("ALEMBIC_INI_PATH", "alembic.ini")
-    cfg = Config(get_project_path(ini_path, raise_error=True))
+    cfg = Config(get_project_path(os.getenv("ALEMBIC_INI_PATH", "services/unacronym_api/alembic.ini"), raise_error=True))
     with engine_factory.connect() as conn:
         cfg.attributes["connection"] = conn
         command.upgrade(cfg, "head")
