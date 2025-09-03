@@ -7,17 +7,24 @@ authors = ["Jacob Bickerstaff"]
 
 packages = [
   { include = "core" },
-  { include = "db_manager" }
+  { include = "db_manager" },
+  { include = "utils" }
 ]
 
 [tool.poetry.dependencies]
 python = "^3.13"
 
 [tool.poetry.group.dev.dependencies]
+plainera-testkit = { path = "../plainera_testkit", develop = true }
 pytest = "^8.3.0"
 mypy = "^1.11.1"
 ruff = "^0.5.7"
+pytest-asyncio = "^1.1.0"
+pytest-cov = "^6.2.1"
 
 [build-system]
 requires = ["poetry-core"]
 build-backend = "poetry.core.masonry.api"
+
+[tool.poetry.plugins."pytest11"]
+plainera_testkit = "test_kit.fixtures"

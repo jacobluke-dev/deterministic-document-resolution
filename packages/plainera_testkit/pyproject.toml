@@ -9,3 +9,6 @@ python = "^3.13"
 [build-system]
 requires = ["poetry-core"]
 build-backend = "poetry.core.masonry.api"
+
+[tool.poetry.plugins."pytest11"]
+plainera_testkit = "test_kit.fixtures"
