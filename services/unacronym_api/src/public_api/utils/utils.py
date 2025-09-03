@@ -132,5 +132,3 @@ def get_project_path(
         else:
             return False
     return absolute_path
-'/home/jacob/PycharmProjects/unacronym/services/unacronym_api/src/public_api/alembic.ini'
-'/home/jacob/PycharmProjects/unacronym/services/unacronym_api/alembic.ini'
