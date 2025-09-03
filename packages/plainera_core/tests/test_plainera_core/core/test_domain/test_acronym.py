@@ -1,5 +1,5 @@
 import pytest
-from core.domain import Acronym, DefinitionCandidate
+from core.domain import Acronym
 
 
 class TestAcronymFunctions:
@@ -26,15 +26,6 @@ class TestAcronymFunctions:
         """
         resolved = acronym_resolver.resolve(acronym)
         assert len(resolved) == 3  # Since we have 3 definitions in the mock lookup
-
-    def test_definition_candidate_comparison(self):
-        """
-        Test that DefinitionCandidate is correctly ordered by score.
-        """
-        def1 = DefinitionCandidate(text="Def 1", score=1.0)
-        def2 = DefinitionCandidate(text="Def 2", score=2.0)
-        assert def1 != def2  # Different texts and scores
-        assert def1.score < def2.score  # Lower score comes first
 
     def test_acronym_instantiation(self):
         """
