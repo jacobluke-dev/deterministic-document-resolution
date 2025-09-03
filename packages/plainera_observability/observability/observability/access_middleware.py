@@ -8,6 +8,7 @@ from .emit import emit
 from .levels import LogLevel
 from ..config import REQ_ID_HEADER
 
+# //TODO write tests to make sure dplication of REQ_ID_header is accounted for
 def access_middleware(app, *, header_name: str = REQ_ID_HEADER) -> Callable[
     [Request, Callable[[Request], Awaitable[Response]]], Coroutine[Any, Any, Response | None]]:
     @app.middleware("http")

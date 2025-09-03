@@ -1,5 +1,3 @@
-from __future__ import annotations
-
 from pathlib import Path
 
 from dotenv import load_dotenv
@@ -23,6 +21,7 @@ class AppSettings(BaseSettings):
     SENTRY_DSN: str | None = None
 
     RUN_DB_MIGRATIONS: bool = True
+    print("MAX BODY BYTES", MAX_BODY_BYTES)
 
     @property
     def cors_origins(self) -> list[str]:
