@@ -18,7 +18,7 @@ class AcronymAlias(BaseWithTimestamps):
     )
     alias: Mapped[str] = mapped_column(String(128), nullable=False)
 
-    entry: Mapped[GlossaryEntry] = relationship(
+    entry: Mapped["GlossaryEntry"] = relationship(
         "GlossaryEntry",
         back_populates="aliases",
     )

@@ -17,7 +17,7 @@ class GlossaryEntry(BaseWithTimestamps):
     definition: Mapped[str] = mapped_column(Text, nullable=False)
     source: Mapped[str | None] = mapped_column(String(128), nullable=True)
 
-    aliases: Mapped[list[AcronymAlias]] = relationship(
+    aliases: Mapped[list["AcronymAlias"]] = relationship(
         "AcronymAlias",
         back_populates="entry",
         cascade="all, delete-orphan",

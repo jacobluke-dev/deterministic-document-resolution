@@ -77,9 +77,8 @@ class TestV1Resolve:
             await asyncio.sleep(2.0)
             return []
 
-        # Make the per-request timeout small so the sleep triggers it
         monkeypatch.setattr(
-            "public_api.core.settings.app_settings.REQUEST_TIMEOUT_MS",
+            "services.unacronym_api.src.public_api.api.routers.resolve.app_settings.REQUEST_TIMEOUT_MS",
             500,  # 0.5s
             raising=False,
         )
