@@ -1,13 +1,13 @@
 from unittest import mock
 
 import pytest
-from src.public_api.utils.utils import get_project_path
+from utils.utils import get_project_path
 
 
 class TestGetProjectPath:
     @pytest.fixture
     def mock_project_root(self):
-        with mock.patch('src.public_api.utils.utils.get_project_root') as mock_root:
+        with mock.patch('utils.utils.get_project_root') as mock_root:
             mock_root.return_value = '/home/user/project'
             yield mock_root
 
