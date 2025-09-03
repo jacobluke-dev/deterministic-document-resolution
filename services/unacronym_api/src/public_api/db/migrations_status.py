@@ -7,7 +7,7 @@ from alembic.script import ScriptDirectory
 from sqlalchemy import text
 from sqlalchemy.engine import Engine
 
-from src.public_api.utils.utils import get_project_path
+from utils.utils import get_project_path
 
 DEFAULT_INI_REL = "alembic.ini"
 DEFAULT_SCRIPTS_REL = "public_api/migrations"
@@ -23,7 +23,7 @@ def _cfg(alembic_ini_path: str | None) -> Config:
 
 
 def is_at_head(engine: Engine, *, schema: Optional[str] = None) -> bool:
-    cfg = Config(get_project_path("alembic.ini", raise_error=True))
+    cfg = Config(get_project_path("services/unacronym_api/alembic.ini", raise_error=True))
     script = ScriptDirectory.from_config(cfg)
     head = script.get_current_head()          # expected head revision id
 
