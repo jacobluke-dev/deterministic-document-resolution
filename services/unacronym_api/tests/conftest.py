@@ -8,13 +8,11 @@ from alembic.config import Config
 from httpx import ASGITransport, AsyncClient
 
 from sqlalchemy import create_engine, event
-from sqlalchemy.orm import sessionmaker
-
 from src.public_api.core.settings import db_settings, AppSettings
 from src.public_api.utils.utils import get_project_path
 from src.public_api.main import create_app
 from src.public_api.core import deps
-from db_manager.connection import DBManager
+from test_kit.fixtures.conftest import _session_factory, TestDBManager
 
 
 # --- env ---------------------------------------------------------------------
@@ -88,12 +86,6 @@ def _engine(TEST_DB_URL, _db_ready):
     finally:
         engine.dispose()
 
-
-@pytest.fixture(scope="session")
-def _session_factory(_engine):
-    return sessionmaker(bind=_engine, autoflush=False, autocommit=False, future=True)
-
-
 # --- apply migrations ON THE SAME ENGINE -------------------------------------
 
 @pytest.fixture(scope="session", autouse=True)
@@ -104,18 +96,6 @@ def _apply_migrations_once(_engine):
         command.upgrade(cfg, "head")
         # prove the version table exists in our schema
         conn.exec_driver_sql(f'SELECT 1 FROM "{db_settings.DB_SCHEMA}".alembic_version LIMIT 1')
-
-
-# --- DBManager used everywhere (app + DI) ------------------------------------
-
-class TestDBManager(DBManager):
-    def __init__(self, engine, session_factory, allowed_tables):
-        super().__init__(engine=engine, session_factory=session_factory, allowed_tables=allowed_tables)
-
-
-@pytest.fixture()
-def dbm(_engine, _session_factory):
-    return TestDBManager(_engine, _session_factory, {"glossary_entries", "acronym_aliases"})
 
 
 # --- app client ---------------------------------------------------------------
