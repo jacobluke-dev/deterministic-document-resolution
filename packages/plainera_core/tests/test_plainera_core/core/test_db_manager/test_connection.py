@@ -27,7 +27,7 @@ class TestUpdateRow:
             updates={"definition": "Alpha · Beta · Charlie"},
             where='"acronym" = :acr',
             params={"acr": "ABC"},
-            touch_updated_at=False,  # SQLite-friendly
+            touch_updated_at=False,
         )
         # Assert
         row = self._get(dbm, "ABC")

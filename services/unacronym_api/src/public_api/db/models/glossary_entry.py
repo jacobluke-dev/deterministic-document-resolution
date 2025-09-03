@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from sqlalchemy import Index, String, Text, func
+from sqlalchemy import Index, String, Text, func, Integer
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from src.public_api.db.models.base import BaseWithTimestamps
@@ -12,6 +12,7 @@ if TYPE_CHECKING:
 
 class GlossaryEntry(BaseWithTimestamps):
     __tablename__ = "glossary_entries"
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
 
     acronym: Mapped[str] = mapped_column(String(64), nullable=False)
     definition: Mapped[str] = mapped_column(Text, nullable=False)
