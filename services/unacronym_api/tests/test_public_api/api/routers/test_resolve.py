@@ -17,9 +17,9 @@ def _get_fastapi_app_from_client(client):
 
 class TestV1Resolve:
     @pytest.fixture(autouse=True)
-    def seed_for_this_class(self, _session_factory):
+    def seed_for_this_class(self, session_factory):
         # minimal deterministic seed used by multiple tests here
-        with _session_factory() as s:
+        with session_factory() as s:
             # Upsert-ish for idempotence across parametrized runs
             if not s.query(GlossaryEntry).filter_by(acronym="MPS").first():
                 s.add(GlossaryEntry(
