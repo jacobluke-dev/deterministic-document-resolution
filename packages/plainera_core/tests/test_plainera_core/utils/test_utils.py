@@ -1,5 +1,7 @@
+import os
 from unittest import mock
 
+import plainera_core.utils.utils as utils
 import pytest
 from plainera_core.utils.utils import (
     get_environment,
@@ -56,6 +58,24 @@ class TestEnvironmentFuncs:
     def test_environment_helpers(self, monkeypatch, env_value, func, expected):
         monkeypatch.setenv("ENVIRONMENT", env_value)
         assert func() is expected
+
+
+@pytest.mark.unit
+class TestGetProjectRoot:
+    def test_returns_expected_path_from_fake_file(self, monkeypatch):
+        # Suppose our module file is at /a/b/c/src/utils/foo/bar/utils.py
+        fake_file = os.path.join(
+            os.sep, "a", "b", "c", "src", "utils", "foo", "bar", "utils.py"
+        )
+        monkeypatch.setattr(utils, "__file__", fake_file)
+
+        root = utils.get_project_root()
+
+        # 5 levels up from fake_file
+        expected = os.path.abspath(os.path.join(fake_file, "..", "..", "..", "..", ".."))
+        assert root == expected
+        # should be an absolute path
+        assert os.path.isabs(root)
 
 
 class TestGetProjectPath:
