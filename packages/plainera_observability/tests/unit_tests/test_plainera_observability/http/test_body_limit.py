@@ -3,7 +3,9 @@ import json
 import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
+
 from observability.http.body_limit import BodySizeLimitMiddleware  # adjust import if needed
+
 
 def make_json_bytes(n: int) -> bytes:
     """Return a JSON body whose encoded size is guaranteed > n bytes."""

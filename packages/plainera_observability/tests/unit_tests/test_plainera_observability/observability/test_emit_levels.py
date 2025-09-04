@@ -1,9 +1,11 @@
 import json
 import logging
+
 import pytest
 
 from observability.observability.emit import emit
-from observability.observability.levels import LogLevel, STD_LEVEL
+from observability.observability.levels import STD_LEVEL, LogLevel
+
 
 def _last_json(caplog) -> tuple[dict, logging.LogRecord]:
     assert caplog.records, "no records captured"

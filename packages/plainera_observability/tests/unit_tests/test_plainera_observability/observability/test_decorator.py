@@ -1,10 +1,11 @@
 import json
 import logging
+
 import pytest
 
-from observability.observability.decorator import logger
 from observability.observability.context import request_id_var
-from observability.observability.levels import LogLevel, STD_LEVEL
+from observability.observability.decorator import logger
+from observability.observability.levels import STD_LEVEL, LogLevel
 
 
 def _last_json(caplog) -> dict:

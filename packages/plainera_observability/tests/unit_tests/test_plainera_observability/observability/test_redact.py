@@ -3,7 +3,7 @@ import json
 
 import pytest
 
-from observability.observability.redact import scrub, _scrub_str
+from observability.observability.redact import _scrub_str, scrub
 
 
 class Test_ScrubStr:

@@ -1,7 +1,6 @@
 SHELL := /usr/bin/env bash
 export PATH := $(HOME)/.local/bin:$(PATH)
-POETRY ?= $(shell command -v poetry 2>/dev/null || echo $(HOME)/.local/bin/poetry)
-RUN ?= $(POETRY) run
+RUN ?= python -m
 PKG := core utils db_manager
 
 .PHONY: install fmt lint style typecheck test cover htmlcov clean ci-local help
@@ -9,18 +8,6 @@ PKG := core utils db_manager
 help:
 	@echo "Common targets:"
 	@grep -E '^[a-zA-Z_-]+:.*?## ' $(MAKEFILE_LIST) | sed -e 's/:.*##/: /' | sort
-
-install:
-	$(POETRY) install --no-interaction
-
-activate_shell:
-	source .venv/bin/activate
-
-poetry-info:
-	@$(POETRY) --version
-
-lock:
-	$(POETRY) lock --no-update
 
 # Format code with Ruff formatter
 fmt:
@@ -49,7 +36,7 @@ htmlcov:
 	$(RUN) pytest --cov=$(PKG) --cov-report=html
 
 build: ## Build sdist+wheel
-	$(POETRY) build
+	$(RUN) build .
 
 clean:
 	rm -rf .pytest_cache .mypy_cache .ruff_cache htmlcov .coverage coverage.xml dist build

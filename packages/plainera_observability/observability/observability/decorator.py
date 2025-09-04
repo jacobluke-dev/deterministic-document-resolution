@@ -3,7 +3,7 @@ import inspect
 import json
 from functools import wraps
 from time import monotonic
-from typing import Any, Callable, Iterable, Optional, ParamSpec, TypeVar
+from typing import Any, Awaitable, Callable, Iterable, Optional, ParamSpec, TypeVar, cast
 
 from .emit import emit, emit_async
 from .levels import LogLevel
@@ -34,7 +34,7 @@ def _preview(value: Any, limit: int = 1024) -> str:
     return s if len(s) <= limit else s[:limit] + f"...(+{len(s)-limit} chars)"
 
 
-def logger(
+def logger(  # noqa: C901
     message: str = "",
     *,
     arg_names: Optional[Iterable[str]] = None,
@@ -43,8 +43,8 @@ def logger(
     log_duration: bool = True,
     log_before: bool = False,
     logger_type: str = "decorator",
-    db_sink=None,  # type: ignore[assignment]  # keep loose to avoid circular import
-    on_error_level: LogLevel | str = LogLevel.ERROR,
+    db_sink=None,
+    on_error_level: LogLevel = LogLevel.ERROR,
     result_max_len: int = 1024,
     result_transform: Optional[Callable[[Any], Any]] = None,
 ) -> Callable[[Callable[P, R]], Callable[P, R]]:
@@ -68,7 +68,7 @@ def logger(
         log_before (bool): If True, emit an INFO entry before invoking the function.
         logger_type (str): Free-form classifier passed through to the sink (e.g., "decorator").
         db_sink: Optional sink callable accepted by ``emit`` for persistence/forwarding.
-        on_error_level (LogLevel | str): Log level used when an exception occurs.
+        on_error_level (LogLevel): Log level used when an exception occurs.
         result_max_len (int): Maximum characters to include in the result preview.
         result_transform (Optional[Callable[[Any], Any]]): Optional transformation
             applied to the function's result before previewing/logging.
@@ -100,10 +100,10 @@ def logger(
                 picked[k] = "[REDACTED]"
         return picked
 
-    def _level_norm(level: LogLevel | str) -> LogLevel | str:
+    def _level_norm(level: LogLevel) -> LogLevel:
         return level  # keep passthrough; emit accepts LogLevel
 
-    def _finalize(level: LogLevel | str, res: Any, start: float, func, args, kwargs) -> None:
+    def _finalize(level: LogLevel, res: Any, start: float, func, args, kwargs) -> None:
         duration_ms = int((monotonic() - start) * 1000) if log_duration else None
         fields: dict[str, Any] = {
             "function": func.__name__,
@@ -119,7 +119,7 @@ def logger(
             fields["result"] = _preview(val, limit=result_max_len)
         emit(message or func.__name__, level=_level_norm(level), logger_type=logger_type, db_sink=db_sink, **fields)
 
-    async def _finalize_async(level: LogLevel | str, res: Any, start: float, func, args, kwargs) -> None:
+    async def _finalize_async(level: LogLevel, res: Any, start: float, func, args, kwargs) -> None:
         duration_ms = int((monotonic() - start) * 1000) if log_duration else None
         fields: dict[str, Any] = {
             "function": func.__name__,
@@ -133,13 +133,16 @@ def logger(
             except Exception:
                 val = "<result_transform_failed>"
             fields["result"] = _preview(val, limit=result_max_len)
-        await emit_async(message or func.__name__, level=_level_norm(level), logger_type=logger_type, db_sink=db_sink,
-                         **fields)
+        await emit_async(
+            message or func.__name__, level=_level_norm(level), logger_type=logger_type, db_sink=db_sink, **fields
+        )
 
     def decorate(func: Callable[P, R]) -> Callable[P, R]:
         is_coro = asyncio.iscoroutinefunction(func)
 
         if is_coro:
+            func_async = cast(Callable[P, Awaitable[R]], func)
+
             @wraps(func)
             async def aw(*a: P.args, **kw: P.kwargs) -> R:
                 if log_before:
@@ -153,7 +156,7 @@ def logger(
                     )
                 start = monotonic()
                 try:
-                    res = await func(*a, **kw)
+                    res = await func_async(*a, **kw)
                     await _finalize_async(LogLevel.INFO, res, start, func, a, kw)
                     return res
                 except Exception as e:
@@ -167,8 +170,10 @@ def logger(
                         error=repr(e),
                     )
                     raise
+
             return aw  # type: ignore[return-value]
         else:
+
             @wraps(func)
             def sw(*a: P.args, **kw: P.kwargs) -> R:
                 if log_before:
@@ -196,5 +201,7 @@ def logger(
                         error=repr(e),
                     )
                     raise
-            return sw  # type: ignore[return-value]
+
+            return sw
+
     return decorate

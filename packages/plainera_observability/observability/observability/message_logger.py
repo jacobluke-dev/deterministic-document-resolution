@@ -5,6 +5,7 @@ from typing import Any, Mapping, Optional
 from .emit import emit
 from .levels import LogLevel
 
+
 def _to_text(v: Any, limit: int = 2048) -> Optional[str]:
     if v is None:
         return None
@@ -13,6 +14,7 @@ def _to_text(v: Any, limit: int = 2048) -> Optional[str]:
     except Exception:
         s = str(v)
     return s if len(s) <= limit else s[:limit] + f"...(+{len(s)-limit} chars)"
+
 
 def message_logger(
     message: str,
@@ -49,8 +51,19 @@ def message_logger(
         info=_to_text(details),  # <-- map details -> info so it hits the DB
     )
 
+
 # Optional convenience shorthands:
-def info(message: str, **kw) -> None:    message_logger(message, LogLevel.INFO, **kw)
-def debug(message: str, **kw) -> None:   message_logger(message, LogLevel.DEBUG, **kw)
-def warning(message: str, **kw) -> None: message_logger(message, LogLevel.WARNING, **kw)
-def error(message: str, **kw) -> None:   message_logger(message, LogLevel.ERROR, **kw)
+def info(message: str, **kw) -> None:
+    message_logger(message, LogLevel.INFO, **kw)
+
+
+def debug(message: str, **kw) -> None:
+    message_logger(message, LogLevel.DEBUG, **kw)
+
+
+def warning(message: str, **kw) -> None:
+    message_logger(message, LogLevel.WARNING, **kw)
+
+
+def error(message: str, **kw) -> None:
+    message_logger(message, LogLevel.ERROR, **kw)

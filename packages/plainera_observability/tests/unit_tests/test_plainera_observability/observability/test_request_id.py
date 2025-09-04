@@ -1,7 +1,9 @@
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
+
 from observability.config import REQ_ID_HEADER
 from observability.http.request_id import RequestIDMiddleware
+
 
 def test_request_id_injected_and_preserved():
     app = FastAPI()

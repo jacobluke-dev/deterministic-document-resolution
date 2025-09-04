@@ -3,14 +3,22 @@ from typing import Any
 from db_manager.connection import DBManager
 
 
-def save_to_db(dbm: DBManager, *, table: str, level: str, function: str, message: str, details: dict[str, Any] | None = None) -> None:
+def save_to_db(dbm: DBManager, *,
+               table: str,
+               level: str,
+               function: str,
+               message: str,
+               details: dict[str, Any] | None = None) -> None:
     dbm.insert_row(
         table,
         ["level_name", "function_name", "message", "details"],
         [level.upper(), function, message, (details or {})],
     )
 
-def log_exists(dbm: DBManager, *, level: str | None = None, function: str | None = None, substr: str | None = None) -> bool:
+def log_exists(dbm: DBManager, *,
+               level: str | None = None,
+               function: str | None = None,
+               substr: str | None = None) -> bool:
     where, params = [], {}
     if level is not None:
         where.append("LOWER(level_name) = :lvl")

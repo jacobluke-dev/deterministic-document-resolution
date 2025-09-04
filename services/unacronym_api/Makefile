@@ -1,6 +1,5 @@
 SHELL := /usr/bin/env bash
-POETRY ?= $(shell command -v poetry 2>/dev/null || echo $(HOME)/.local/bin/poetry)
-RUN ?= $(POETRY) run
+RUN ?= python -m
 
 PKG := unacronym_api
 PORT ?= 8000
@@ -14,26 +13,6 @@ COMPOSE := docker compose -f ../docker-compose.yml
 .PHONY: install run fmt lint style typecheck test cover htmlcov clean hooks \
         build all build-remove-cache up down logs nuke help migrate makemigration downgrade \
         seed-local al e mbic-help ci-local release
-
-help:
-	@echo "Common targets:"
-	@grep -E '^[a-zA-Z_-]+:.*?## ' $(MAKEFILE_LIST) | sed -e 's/:.*##/: /' | sort
-
-install:
-	$(POETRY) install --no-interaction --sync --dry-run
-
-lock:
-	$(POETRY) lock --no-update
-
-ensure-venv:
-	@$(POETRY) env info --path >/dev/null 2>&1 || $(POETRY) env use 3.13
-	@$(POETRY) run python -c "import ruff,pytest,mypy" >/dev/null 2>&1 || \
-	    $(POETRY) install --with dev --sync --dry-run
-
-
-poetry-info:
-	@$(POETRY) --version
-
 
 # ---- Dev & Quality ---------------------------------------------
 

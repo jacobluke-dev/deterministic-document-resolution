@@ -1,16 +1,19 @@
 import time
 import uuid
-from typing import Awaitable, Callable, Optional, Any, Coroutine
+from typing import Any, Awaitable, Callable, Coroutine, Optional
+
 from starlette.requests import Request
 from starlette.responses import Response
+
+from ..config import REQ_ID_HEADER
 from .context import set_request_context
 from .emit import emit
 from .levels import LogLevel
-from ..config import REQ_ID_HEADER
 
 
-def access_middleware(app, *, header_name: str = REQ_ID_HEADER) -> Callable[
-    [Request, Callable[[Request], Awaitable[Response]]], Coroutine[Any, Any, Response | None]]:
+def access_middleware(
+    app, *, header_name: str = REQ_ID_HEADER
+) -> Callable[[Request, Callable[[Request], Awaitable[Response]]], Coroutine[Any, Any, Response | None]]:
     @app.middleware("http")
     async def _mw(request: Request, call_next: Callable[[Request], Awaitable[Response]]) -> Response | None:
         # prefer ID from RequestIDMiddleware, fall back to incoming header, then generate
@@ -21,8 +24,7 @@ def access_middleware(app, *, header_name: str = REQ_ID_HEADER) -> Callable[
         client_ip: Optional[str] = request.client.host if request.client else None
 
         set_request_context(
-            request_id=rid, key_id=key_id,
-            path=request.url.path, method=request.method, client_ip=client_ip
+            request_id=rid, key_id=key_id, path=request.url.path, method=request.method, client_ip=client_ip
         )
 
         response: Optional[Response] = None
@@ -55,4 +57,5 @@ def access_middleware(app, *, header_name: str = REQ_ID_HEADER) -> Callable[
                 duration_ms=dur_ms,
                 bytes=content_len,
             )
+
     return _mw

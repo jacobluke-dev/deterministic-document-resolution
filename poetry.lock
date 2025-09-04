@@ -78,6 +78,27 @@ formatters = ["behave-html-formatter (>=0.9.10) ; python_version >= \"3.6\"", "b
 testing = ["PyHamcrest (<2.0) ; python_version < \"3.0\"", "PyHamcrest (>=2.0.2) ; python_version >= \"3.0\"", "assertpy (>=1.1)", "chardet", "freezegun (>=1.5.1) ; python_version > \"3.7\"", "mock (<4.0) ; python_version < \"3.6\"", "mock (>=4.0) ; python_version >= \"3.6\"", "path (>=13.1.0) ; python_version >= \"3.5\"", "path.py (>=11.5.0,<13.0) ; python_version < \"3.5\"", "pathlib ; python_version <= \"3.4\"", "pytest (<5.0) ; python_version < \"3.0\"", "pytest (>=5.0) ; python_version >= \"3.0\"", "pytest-html (>=1.19.0,<2.0) ; python_version < \"3.0\"", "pytest-html (>=2.0) ; python_version >= \"3.0\""]
 
 [[package]]
+name = "build"
+version = "1.3.0"
+description = "A simple, correct Python build frontend"
+optional = false
+python-versions = ">=3.9"
+groups = ["dev"]
+files = [
+    {file = "build-1.3.0-py3-none-any.whl", hash = "sha256:7145f0b5061ba90a1500d60bd1b13ca0a8a4cebdd0cc16ed8adf1c0e739f43b4"},
+    {file = "build-1.3.0.tar.gz", hash = "sha256:698edd0ea270bde950f53aed21f3a0135672206f3911e0176261a31e0e07b397"},
+]
+
+[package.dependencies]
+colorama = {version = "*", markers = "os_name == \"nt\""}
+packaging = ">=19.1"
+pyproject_hooks = "*"
+
+[package.extras]
+uv = ["uv (>=0.1.18)"]
+virtualenv = ["virtualenv (>=20.11) ; python_version < \"3.10\"", "virtualenv (>=20.17) ; python_version >= \"3.10\" and python_version < \"3.14\"", "virtualenv (>=20.31) ; python_version >= \"3.14\""]
+
+[[package]]
 name = "certifi"
 version = "2025.8.3"
 description = "Python package for providing Mozilla's CA Bundle."
@@ -1242,6 +1263,18 @@ files = [
 windows-terminal = ["colorama (>=0.4.6)"]
 
 [[package]]
+name = "pyproject-hooks"
+version = "1.2.0"
+description = "Wrappers to call pyproject.toml-based build backend hooks."
+optional = false
+python-versions = ">=3.7"
+groups = ["dev"]
+files = [
+    {file = "pyproject_hooks-1.2.0-py3-none-any.whl", hash = "sha256:9e5c6bfa8dcc30091c74b0cf803c81fdd29d94f01992a7707bc97babb1141913"},
+    {file = "pyproject_hooks-1.2.0.tar.gz", hash = "sha256:1e859bd5c40fae9448642dd871adf459e5e2084186e8d2c2a79a824c970da1f8"},
+]
+
+[[package]]
 name = "pytest"
 version = "8.4.1"
 description = "pytest: simple powerful testing with Python"
@@ -2159,4 +2192,4 @@ fastapi = ["fastapi"]
 [metadata]
 lock-version = "2.1"
 python-versions = "^3.13"
-content-hash = "27e10e605f4e4b5e1151599ffd123265aabfd525335f39e8466df5123fc189a4"
+content-hash = "fc0e0e6e78c5a2fcc53227031ddb2c46695888c68bb5650855a69f81d3483ecc"

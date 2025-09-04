@@ -1,4 +1,4 @@
-from behave import given, when, then, step
+from behave import given, then, when
 from behave.runner import Context
 
 from observability.observability.decorator import logger

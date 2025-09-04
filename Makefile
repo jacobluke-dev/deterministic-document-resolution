@@ -1,7 +1,8 @@
 SHELL := /usr/bin/env bash
 export PATH := $(HOME)/.local/bin:$(PATH)
 POETRY ?= $(shell command -v poetry 2>/dev/null || echo $(HOME)/.local/bin/poetry)
-VENV_BIN := $(shell $(POETRY) env info --path)/bin
+VENV ?= $(shell $(POETRY) env info -p 2>/dev/null)
+VENV_BIN ?= $(VENV)/bin
 PYTHON ?= python3.13
 
 # Submodules and steps
@@ -21,6 +22,10 @@ ROOT := $(CURDIR)
 help:
 	@echo "Common targets:"
 	@grep -E '^[a-zA-Z_-]+:.*?## ' $(MAKEFILE_LIST) | sed -e 's/:.*##/: /' | sort
+
+bootstrap:
+	poetry install --with dev
+	poetry sync
 
 # Install dependencies for the entire monorepo
 install:
@@ -72,11 +77,11 @@ clean:
 	rm -rf .pytest_cache .mypy_cache .ruff_cache htmlcov .coverage coverage.xml dist build
 
 # Run all tasks locally like CI (lint, typecheck, test, build)
-ci-local: ## Simulate CI locally (lint, typecheck, test, build)
+ci-local: bootstrap ## Simulate CI locally across all packages using root venv
 	@set -e; \
 	for d in $(SUBDIRS); do \
 	  echo ""; echo "==> $$d: ci-local"; \
-	  $(MAKE) -C $$d ci-local RUN="$(VENV_BIN)/python -m";\
+	  $(MAKE) -C $$d ci-local RUN="$(VENV_BIN)/python -m"; \
 	done; \
 	echo ""; echo "✅ Monorepo CI local complete"
 

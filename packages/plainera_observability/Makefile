@@ -1,43 +1,26 @@
 SHELL := /usr/bin/env bash
-POETRY ?= $(shell command -v poetry 2>/dev/null || echo $(HOME)/.local/bin/poetry)
-RUN ?= $(POETRY) run
-PKG := plainera_observability
+RUN ?= python -m
 
-.PHONY: ensure-venv install fmt lint style typecheck test build ci-local
+PKG := observability
+FORMAT_PATHS := $(PKG)
+LINT_PATHS := $(PKG) tests
 
-ensure-venv:
-	@$(POETRY) env info --path >/dev/null 2>&1 || $(POETRY) env use 3.13
-	@$(POETRY) run python -c "import ruff,pytest,mypy" >/dev/null 2>&1 || \
-	    $(POETRY) install --with dev --sync --dry-run
+.PHONY: fmt lint style typecheck test build ci-local
 
-.PHONY: shell-observability
-shell-observability:
-	@echo "Run this to activate plainera_observability:"
-	@echo "source .venv/bin/activate"
+fmt:
+	$(RUN) ruff format $(FORMAT_PATHS)
 
-poetry-info:
-	@$(POETRY) --version
+lint:
+	$(RUN) ruff check $(LINT_PATHS) --fix
 
-install:  ## Force (re)install (optional explicit target)
-	$(POETRY) install  --with --sync --dry-run dev
+style:
+	$(RUN) ruff format --check $(FORMAT_PATHS)
+	$(RUN) ruff check $(LINT_PATHS)
 
-lock:
-	$(POETRY) lock --no-update
-
-fmt: ensure-venv
-	$(RUN) ruff format $(PKG) tests
-
-lint: ensure-venv
-	$(RUN) ruff check $(PKG) tests --fix
-
-style: ensure-venv
-	$(RUN) ruff format --check $(PKG) tests
-	$(RUN) ruff check $(PKG) tests
-
-typecheck: ensure-venv
+typecheck:
 	$(RUN) mypy $(PKG)
 
-test: ensure-venv
+test:
 	ENVIRONMENT=TEST PYTHONPATH=. $(RUN) pytest -q \
 	  --junitxml=pytest-results.xml \
 	  --cov=$(PKG) \
@@ -45,8 +28,8 @@ test: ensure-venv
 	  --cov-report=xml:coverage.xml \
 	  --cov-fail-under=80
 
-build: ensure-venv
-	$(POETRY) build
+build:
+	$(RUN) build .
 
-ci-local: lint typecheck test build  ## No explicit install needed
+ci-local: fmt lint typecheck test build
 	@echo "✅ $(PKG) OK"

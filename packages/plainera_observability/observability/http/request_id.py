@@ -1,8 +1,11 @@
 # observability/http/request_id.py
 import uuid
-from starlette.types import ASGIApp, Receive, Scope, Send, Message
+
 from starlette.datastructures import MutableHeaders
+from starlette.types import ASGIApp, Message, Receive, Scope, Send
+
 from observability.config import REQ_ID_HEADER
+
 
 class RequestIDMiddleware:
     def __init__(self, app: ASGIApp) -> None:

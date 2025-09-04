@@ -1,11 +1,13 @@
 import json
 import logging
+
 import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
 from observability.config import REQ_ID_HEADER
 from observability.observability.access_middleware import access_middleware
+
 
 def _last_json(caplog) -> dict:
     return json.loads(caplog.records[-1].msg)

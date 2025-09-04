@@ -1,24 +1,30 @@
-import asyncio, json, logging
+import asyncio
+import json
+import logging
 from datetime import datetime, timezone
 from typing import Any, Optional
 
-from .levels import LogLevel, STD_LEVEL
+from ..core.types import AsyncSink, SyncSink
 from .context import request_id_var
+from .levels import STD_LEVEL, LogLevel
 from .redact import scrub
-from ..core.types import SyncSink, AsyncSink
 
 logger = logging.getLogger("plainera")
 
+
 def _make_payload(event: str, level: LogLevel | int | str, logger_type: str, **fields: Any) -> dict[str, Any]:
     lvl = level.name.lower() if hasattr(level, "name") else (level if isinstance(level, int) else str(level).lower())
-    return scrub({
-        "timestamp": datetime.now(timezone.utc).isoformat(),
-        "level": lvl,
-        "event": event,
-        "logger_type": logger_type,
-        "request_id": request_id_var.get(),
-        **fields,
-    })
+    return scrub(
+        {
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "level": lvl,
+            "event": event,
+            "logger_type": logger_type,
+            "request_id": request_id_var.get(),
+            **fields,
+        }
+    )
+
 
 def emit(
     event: str,
@@ -34,11 +40,12 @@ def emit(
     if db_sink is not None:
         if hasattr(db_sink, "enqueue"):
             # Pure sync sink
-            db_sink.enqueue(payload)  # type: ignore[attr-defined]
+            db_sink.enqueue(payload)
         elif hasattr(db_sink, "enqueue_async"):
             # Sink is async; run it to completion (blocking this thread)
-            asyncio.run(db_sink.enqueue_async(payload))  # type: ignore[attr-defined]
+            asyncio.run(db_sink.enqueue_async(payload))
     logger.log(STD_LEVEL[LogLevel(level) if isinstance(level, int) else level], json.dumps(payload))
+
 
 async def emit_async(
     event: str,
@@ -53,8 +60,8 @@ async def emit_async(
 
     if db_sink is not None:
         if hasattr(db_sink, "enqueue_async"):
-            await db_sink.enqueue_async(payload)  # type: ignore[attr-defined]
+            await db_sink.enqueue_async(payload)
         elif hasattr(db_sink, "enqueue"):
             # Sink is sync; run it in a thread so we don't block the loop
-            await asyncio.to_thread(db_sink.enqueue, payload)  # type: ignore[attr-defined]
+            await asyncio.to_thread(db_sink.enqueue, payload)
     logger.log(STD_LEVEL[LogLevel(level) if isinstance(level, int) else level], json.dumps(payload))
