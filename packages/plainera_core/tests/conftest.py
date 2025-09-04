@@ -1,4 +1,5 @@
 import pytest
+
 from core.domain import DefinitionCandidate
 from core.services.resolver import AcronymResolver
 
