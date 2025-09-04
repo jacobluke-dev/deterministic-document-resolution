@@ -28,3 +28,12 @@ build-backend = "poetry.core.masonry.api"
 
 [tool.poetry.plugins."pytest11"]
 plainera_testkit = "test_kit.fixtures"
+
+# --- Ruff configuration ---
+[tool.ruff]
+line-length = 120
+extend-exclude = ["migrations", ".venv"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP", "SIM", "C90"]
+fixable = ["ALL"]

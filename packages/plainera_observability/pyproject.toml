@@ -12,3 +12,12 @@ plainera-testkit = { path = "../../packages/plainera_testkit", develop = true }
 pytest = "^8.3.0"
 mypy = "^1.11.1"
 ruff = "^0.5.7"
+
+# --- Ruff configuration ---
+[tool.ruff]
+line-length = 120
+extend-exclude = ["migrations", ".venv"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP", "SIM", "C90"]
+fixable = ["ALL"]
