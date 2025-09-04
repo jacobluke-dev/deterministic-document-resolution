@@ -24,15 +24,14 @@ if not IN_CI:
 
 @pytest.fixture(scope="session", autouse=True)
 def _db_ready(TEST_DB_URL):
-    # Only wait when using an external CI service URL
-    if os.getenv("DATABASE_URL"):
+   """ Only wait when using an external CI service URL"""
+   if os.getenv("DATABASE_URL"):
         import psycopg
         dsn = os.environ["DATABASE_URL"].replace("+psycopg", "")
         for _ in range(120):
             try:
-                with psycopg.connect(dsn, connect_timeout=2) as conn:
-                    with conn.cursor() as cur:
-                        cur.execute("SELECT 1")
+                with psycopg.connect(dsn, connect_timeout=2) as conn, conn.cursor() as cur:
+                    cur.execute("SELECT 1")
                 break
             except Exception:
                 time.sleep(1)

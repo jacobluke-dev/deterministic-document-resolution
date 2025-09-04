@@ -96,7 +96,7 @@ TEXT_MAX_LEN = _extract_max_len(ResolveRequest, "text")
         "Idempotent: does not mutate server state. Content-Encoding: gzip supported."
     ),
 )
-async def resolve_acronyms(
+async def resolve_acronyms( # noqa: C901
     payload: ResolveRequest,
     response: Response,
     resolver: ResolverDep,

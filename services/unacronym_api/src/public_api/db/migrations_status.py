@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-from typing import Optional
-
 from alembic.config import Config
 from alembic.script import ScriptDirectory
 from sqlalchemy import text
@@ -21,7 +19,7 @@ def _cfg(alembic_ini_path: str | None) -> Config:
 
 
 
-def is_at_head(engine: Engine, *, schema: Optional[str] = None) -> bool:
+def is_at_head(engine: Engine, *, schema: str | None) -> bool:
     cfg = Config(get_project_path("services/unacronym_api/alembic.ini", raise_error=True))
     script = ScriptDirectory.from_config(cfg)
     head = script.get_current_head()          # expected head revision id
