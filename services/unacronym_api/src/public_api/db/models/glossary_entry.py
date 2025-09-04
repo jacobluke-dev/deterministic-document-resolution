@@ -5,7 +5,7 @@ from typing import TYPE_CHECKING
 from sqlalchemy import Index, String, Text, func, Integer
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from src.public_api.db.models.base import BaseWithTimestamps
+from public_api.db.models.base import BaseWithTimestamps
 
 if TYPE_CHECKING:
     from .acronym_alias import AcronymAlias

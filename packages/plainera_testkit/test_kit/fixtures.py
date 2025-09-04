@@ -7,7 +7,7 @@ from alembic import command
 from alembic.config import Config
 from sqlalchemy import create_engine, event
 from sqlalchemy.orm import sessionmaker
-from src.public_api.core.settings import db_settings
+from public_api.core.settings import db_settings
 from db_manager.connection import DBManager
 from utils.utils import get_project_path
 

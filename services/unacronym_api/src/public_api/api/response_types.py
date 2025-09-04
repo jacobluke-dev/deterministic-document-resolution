@@ -3,7 +3,7 @@ from __future__ import annotations
 
 from typing import Any, Mapping, MutableMapping, TypeAlias
 
-from src.public_api.schemas.error import ErrorResponse
+from public_api.schemas.error import ErrorResponse
 
 COMMON_ERROR_RESPONSES: Mapping[int | str, dict[str, Any]] = {
     400: {"model": ErrorResponse},  # Bad Request (invalid options, malformed JSON, etc.)

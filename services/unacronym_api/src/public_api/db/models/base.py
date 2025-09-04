@@ -4,7 +4,7 @@ from datetime import datetime, timezone
 from sqlalchemy import DateTime, Integer, MetaData, func
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
-from src.public_api.core.settings import db_settings
+from public_api.core.settings import db_settings
 
 
 class Base(DeclarativeBase):

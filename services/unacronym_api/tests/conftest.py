@@ -7,11 +7,11 @@ from alembic import command
 from alembic.config import Config
 from httpx import ASGITransport, AsyncClient
 
-from src.public_api.core.settings import db_settings, AppSettings
+from public_api.core.settings import db_settings, AppSettings
 from test_kit.fixtures import session_factory
 
-from src.public_api.main import create_app
-from src.public_api.core import deps
+from public_api.main import create_app
+from public_api.core import deps
 from test_kit.fixtures import TestDBManager
 from utils.utils import get_project_path
 

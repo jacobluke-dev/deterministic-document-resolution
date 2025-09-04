@@ -3,10 +3,10 @@ from __future__ import annotations
 from fastapi import APIRouter, HTTPException, Request
 from sqlalchemy import text
 
-from src.public_api.core.settings import db_settings
-from src.public_api.api.types import DBManagerDep
-from src.public_api.db.migrations_status import is_at_head
-from src.public_api.schemas.health_check import HealthCheckResponse
+from public_api.core.settings import db_settings
+from public_api.api.types import DBManagerDep
+from public_api.db.migrations_status import is_at_head
+from public_api.schemas.health_check import HealthCheckResponse
 
 router = APIRouter()
 

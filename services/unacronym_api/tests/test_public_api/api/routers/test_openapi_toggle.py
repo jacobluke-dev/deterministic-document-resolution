@@ -1,6 +1,6 @@
 import pytest
 from httpx import ASGITransport, AsyncClient
-from src.public_api.main import create_app
+from public_api.main import create_app
 
 
 class TestOpenAPIToggle:

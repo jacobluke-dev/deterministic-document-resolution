@@ -3,7 +3,7 @@ from fastapi.exception_handlers import request_validation_exception_handler
 from fastapi.exceptions import RequestValidationError
 from starlette.responses import JSONResponse
 
-from src.public_api.schemas.error import ErrorBody, ErrorCode, ErrorResponse
+from public_api.schemas.error import ErrorBody, ErrorCode, ErrorResponse
 
 
 async def map_length_validation_to_413(

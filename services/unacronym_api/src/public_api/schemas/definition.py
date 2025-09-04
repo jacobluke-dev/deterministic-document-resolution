@@ -3,7 +3,7 @@ from typing import Optional
 
 from pydantic import Field, confloat
 
-from src.public_api.schemas.base import BaseSchema
+from public_api.schemas.base import BaseSchema
 
 
 class DefinitionSource(str, Enum):

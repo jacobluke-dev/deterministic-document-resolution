@@ -1,8 +1,8 @@
 from typing import Optional
 
+from public_api.core.settings import db_settings
 from sqlalchemy import NullPool, create_engine
 from sqlalchemy.orm import Session, sessionmaker
-from src.public_api.core.settings import db_settings
 
 from db_manager.connection import DBManager
 

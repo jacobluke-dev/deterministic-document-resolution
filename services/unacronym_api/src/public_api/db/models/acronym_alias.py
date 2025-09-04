@@ -5,7 +5,7 @@ from typing import TYPE_CHECKING
 from sqlalchemy import ForeignKey, Index, String, Integer
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from src.public_api.db.models.base import BaseWithTimestamps
+from public_api.db.models.base import BaseWithTimestamps
 
 if TYPE_CHECKING:
     from .glossary_entry import GlossaryEntry
