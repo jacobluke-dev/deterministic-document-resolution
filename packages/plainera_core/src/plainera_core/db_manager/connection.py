@@ -214,7 +214,17 @@ class DBManager:
             >>> dbm.select_rows("glossary_entries", ["acronym", "definition"])
             [('NHS', 'National Health Service')]
         """
-        col_str = ", ".join(f'"{c}"' for c in (columns or ["*"]))
+        if not columns:
+            col_str = "*"
+        else:
+            rendered: list[str] = []
+            for c in columns:
+                if c.strip() == "*":
+                    rendered.append("*")
+                else:
+                    rendered.append(f'"{c}"')
+            col_str = ", ".join(rendered)
+
         stmt = f"SELECT {col_str} FROM {table_fqn}"
         if where:
             stmt += f" WHERE {where}"
