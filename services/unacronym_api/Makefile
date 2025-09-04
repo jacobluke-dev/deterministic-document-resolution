@@ -1,6 +1,6 @@
 SHELL := /usr/bin/env bash
 POETRY ?= $(shell command -v poetry 2>/dev/null || echo $(HOME)/.local/bin/poetry)
-RUN := $(POETRY) run
+RUN ?= $(POETRY) run
 
 PKG := unacronym_api
 PORT ?= 8000

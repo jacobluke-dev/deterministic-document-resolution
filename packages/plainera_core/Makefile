@@ -1,8 +1,8 @@
 SHELL := /usr/bin/env bash
 export PATH := $(HOME)/.local/bin:$(PATH)
 POETRY ?= $(shell command -v poetry 2>/dev/null || echo $(HOME)/.local/bin/poetry)
-RUN := $(POETRY) run
-PKG := plainera_core
+RUN ?= $(POETRY) run
+PKG := core utils db_manager
 
 .PHONY: install fmt lint style typecheck test cover htmlcov clean ci-local help
 

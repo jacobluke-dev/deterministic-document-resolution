@@ -1,6 +1,7 @@
 SHELL := /usr/bin/env bash
 export PATH := $(HOME)/.local/bin:$(PATH)
 POETRY ?= $(shell command -v poetry 2>/dev/null || echo $(HOME)/.local/bin/poetry)
+VENV_BIN := $(shell $(POETRY) env info --path)/bin
 PYTHON ?= python3.13
 
 # Submodules and steps
@@ -13,6 +14,8 @@ STEPS := install lint typecheck test build
 
 # Ensure Poetry environment is configured
 MAKEFLAGS += --no-print-directory
+
+ROOT := $(CURDIR)
 
 # Common Help Command
 help:
@@ -73,9 +76,10 @@ ci-local: ## Simulate CI locally (lint, typecheck, test, build)
 	@set -e; \
 	for d in $(SUBDIRS); do \
 	  echo ""; echo "==> $$d: ci-local"; \
-	  $(MAKE) -C $$d ci-local; \
+	  $(MAKE) -C $$d ci-local RUN="$(VENV_BIN)/python -m";\
 	done; \
 	echo ""; echo "✅ Monorepo CI local complete"
+
 
 # Run a single project: make run-ci DIR=services/unacronym_api
 run-ci:
@@ -103,14 +107,8 @@ run-changed:
 	if [ -z "$(CHANGED_SUBDIRS)" ]; then echo "No changes detected"; exit 0; fi; \
 	for d in $(CHANGED_SUBDIRS); do \
 		echo ""; echo "==> $$d: ci-local"; \
-		if [ -f "$$d/Makefile" ]; then $(MAKE) -C $$d ci-local; else echo "    (no Makefile)"; fi; \
+		if [ -f "$$d/Makefile" ]; then$(MAKE) -C $$d ci-local RUN="$(POETRY) run"; else echo "    (no Makefile)"; fi; \
 	done
-
-# Poetry configuration and environment setup
-poetry-config:
-	@$(POETRY) --version >/dev/null
-	$(POETRY) config virtualenvs.in-project true
-	$(POETRY) config keyring.enabled false
 
 # Ensure submodules are using Poetry's virtual environment
 env-%:

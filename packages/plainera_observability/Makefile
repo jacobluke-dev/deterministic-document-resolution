@@ -1,6 +1,6 @@
 SHELL := /usr/bin/env bash
 POETRY ?= $(shell command -v poetry 2>/dev/null || echo $(HOME)/.local/bin/poetry)
-RUN := $(POETRY) run
+RUN ?= $(POETRY) run
 PKG := plainera_observability
 
 .PHONY: ensure-venv install fmt lint style typecheck test build ci-local
