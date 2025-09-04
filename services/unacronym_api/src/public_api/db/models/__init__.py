@@ -36,7 +36,3 @@ def __getattr__(name: str) -> Any:
 def __dir__() -> list[str]:
     # So tab-completion shows lazies too
     return sorted(list(globals().keys()) + list(_lazy_attrs.keys()))
-
-# Ensure mapped classes are registered so string relationships resolve
-from .glossary_entry import GlossaryEntry as _GE  # noqa: F401
-from .acronym_alias import AcronymAlias as _AA    # noqa: F401

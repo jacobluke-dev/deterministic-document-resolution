@@ -4,6 +4,11 @@ from logging.config import fileConfig
 from alembic import context
 from sqlalchemy import engine_from_config, pool
 from src.public_api.db.models import Base
+#registering tables...
+import src.public_api.db.models.glossary_entry
+import src.public_api.db.models.acronym_alias
+import src.public_api.db.models.logger
+
 
 config = context.config
 
