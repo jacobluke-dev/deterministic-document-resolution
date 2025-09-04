@@ -21,12 +21,7 @@ typecheck:
 	$(RUN) mypy $(PKG)
 
 test:
-	ENVIRONMENT=TEST PYTHONPATH=. $(RUN) pytest -q \
-	  --junitxml=pytest-results.xml \
-	  --cov=$(PKG) \
-	  --cov-report=term \
-	  --cov-report=xml:coverage.xml \
-	  --cov-fail-under=80
+	$(RUN) pytest -q --override-ini="addopts=-q --cov=$(PKG) --cov-report=term --cov-report=xml:coverage.xml --cov-fail-under=80" tests
 
 build:
 	$(RUN) build .

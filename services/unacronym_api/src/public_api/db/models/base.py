@@ -1,6 +1,5 @@
 from datetime import datetime, timezone
 
-
 from sqlalchemy import DateTime, Integer, MetaData, func
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 

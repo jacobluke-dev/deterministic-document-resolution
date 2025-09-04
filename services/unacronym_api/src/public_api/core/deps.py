@@ -3,12 +3,12 @@ from __future__ import annotations
 from asyncio import Semaphore
 from collections.abc import Iterator
 
+from db_manager.connection import DBManager
 from sqlalchemy.orm import Session
 
 from public_api.core.providers import AcronymResolverLike, create_resolver
 from public_api.core.settings import app_settings
 from public_api.core.settings import db_settings as db_settings
-from db_manager.connection import DBManager
 
 
 class AppContainer:

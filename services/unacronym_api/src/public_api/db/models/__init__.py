@@ -1,5 +1,5 @@
-from typing import TYPE_CHECKING, Any
 import importlib as _importlib
+from typing import TYPE_CHECKING, Any
 
 __all__ = (
     "Base",
@@ -10,9 +10,9 @@ __all__ = (
 )
 
 if TYPE_CHECKING:
+    from .acronym_alias import AcronymAlias
     from .base import Base, BaseWithTimestamps
     from .glossary_entry import GlossaryEntry
-    from .acronym_alias import AcronymAlias
     from .logger import Logger
 
 _lazy_attrs: dict[str, tuple[str, str]] = {

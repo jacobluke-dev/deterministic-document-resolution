@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from sqlalchemy import ForeignKey, Index, String, Integer
+from sqlalchemy import ForeignKey, Index, Integer, String
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from public_api.db.models.base import BaseWithTimestamps
@@ -19,7 +19,7 @@ class AcronymAlias(BaseWithTimestamps):
     )
     alias: Mapped[str] = mapped_column(String(128), nullable=False)
 
-    entry: Mapped["GlossaryEntry"] = relationship(
+    entry: Mapped[GlossaryEntry] = relationship(
         "GlossaryEntry",
         back_populates="aliases",
     )

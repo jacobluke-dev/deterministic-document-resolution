@@ -1,19 +1,21 @@
 from __future__ import annotations
+
 from contextlib import asynccontextmanager
-from fastapi import FastAPI
-from fastapi.exceptions import RequestValidationError
-from sqlalchemy.engine import Engine
 
 from db_manager.factory import make_dbm
+from fastapi import FastAPI
+from fastapi.exceptions import RequestValidationError
+from observability.http.body_limit import BodySizeLimitMiddleware
+from observability.http.request_id import RequestIDMiddleware
+from observability.observability.access_middleware import access_middleware
+from sqlalchemy.engine import Engine
+from starlette.middleware.cors import CORSMiddleware
+
 from public_api.api.routers.errors import map_length_validation_to_413
 from public_api.api.routers.health import router as health_router
 from public_api.api.routers.resolve import router as resolve_router
 from public_api.core.logging import configure_logging
 from public_api.core.settings import AppSettings, app_settings
-from observability.http.request_id import RequestIDMiddleware
-from observability.http.body_limit import BodySizeLimitMiddleware
-from observability.observability.access_middleware import access_middleware
-from starlette.middleware.cors import CORSMiddleware
 
 __version__ = "0.1.0"
 

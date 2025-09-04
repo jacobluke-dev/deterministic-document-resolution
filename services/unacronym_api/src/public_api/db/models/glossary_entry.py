@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from sqlalchemy import Index, String, Text, func, Integer
+from sqlalchemy import Index, Integer, String, Text, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from public_api.db.models.base import BaseWithTimestamps
@@ -18,7 +18,7 @@ class GlossaryEntry(BaseWithTimestamps):
     definition: Mapped[str] = mapped_column(Text, nullable=False)
     source: Mapped[str | None] = mapped_column(String(128), nullable=True)
 
-    aliases: Mapped[list["AcronymAlias"]] = relationship(
+    aliases: Mapped[list[AcronymAlias]] = relationship(
         "AcronymAlias",
         back_populates="entry",
         cascade="all, delete-orphan",

@@ -5,10 +5,10 @@ from asyncio import Semaphore
 from collections.abc import Awaitable, Iterable
 from typing import Annotated, Optional, Protocol, TypeAlias, TypedDict
 
+from db_manager.connection import DBManager
 from fastapi import Depends, Header
 
 from public_api.core import deps  # get_resolver / get_semaphore
-from db_manager.connection import DBManager
 
 # --- Structural contracts (no core imports in annotations) -------------------
 

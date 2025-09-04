@@ -6,7 +6,6 @@ from alembic.config import Config
 from alembic.script import ScriptDirectory
 from sqlalchemy import text
 from sqlalchemy.engine import Engine
-
 from utils.utils import get_project_path
 
 DEFAULT_INI_REL = "alembic.ini"
