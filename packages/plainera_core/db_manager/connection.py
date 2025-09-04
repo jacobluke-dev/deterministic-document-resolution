@@ -1,9 +1,5 @@
 from collections.abc import Iterable, Iterator, Sequence
 from contextlib import contextmanager
-
-# You already have these in public_api.db.database
-# import them and pass in from your app/tests to avoid tight coupling
-# from src.public_api.db.database import engine as default_engine, SessionLocal as default_sessionmaker
 from functools import wraps
 from pathlib import Path
 from typing import Any, Callable, ParamSpec, TypeVar, cast
@@ -310,7 +306,7 @@ class DBManager:
             ...     params={"acr": "NHS"}
             ... )
         """
-        sets = [f'"{k}" = :u_{k}' for k in updates.keys()]
+        sets = [f'"{k}" = :u_{k}' for k in updates]
         update_params = {f"u_{k}": v for k, v in updates.items()}
         if touch_updated_at:
             sets.append('updated_at = NOW()')
