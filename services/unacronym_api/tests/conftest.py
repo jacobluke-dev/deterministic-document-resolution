@@ -10,7 +10,7 @@ from public_api.core import deps
 from public_api.core.settings import AppSettings, db_settings
 from public_api.main import create_app
 from test_kit.fixtures import TestDBManager
-from utils.utils import get_project_path
+from plainera_core.utils.utils import get_project_path
 
 # --- env ---------------------------------------------------------------------
 

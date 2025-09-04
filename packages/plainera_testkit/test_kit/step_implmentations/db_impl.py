@@ -1,7 +1,7 @@
 from behave.runner import Context
 from typing import Callable
 
-from db_manager.connection import DBManager
+from plainera_core.db_manager.connection import DBManager
 from test_kit.helpers.db import create_temp_database, drop_database
 
 

@@ -1,8 +1,7 @@
 from unittest import mock
 
 import pytest
-
-from utils.utils import get_project_path
+from plainera_core.utils.utils import get_project_path
 
 
 class TestGetProjectPath:

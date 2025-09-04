@@ -6,6 +6,7 @@ authors = ["Jacob Bickerstaff"]
 packages = [{ include = "public_api", from = "src" }]
 
 [tool.poetry.dependencies]
+plainera-core = { path = "../../packages/plainera_core", develop = true }
 python = "^3.13"
 fastapi = "^0.116.1"
 starlette = ">=0.40.0,<0.48.0"

@@ -5,11 +5,7 @@ version = "0.1.0"
 description = "Plainera Core Package"
 authors = ["Jacob Bickerstaff"]
 
-packages = [
-  { include = "core" },
-  { include = "db_manager" },
-  { include = "utils" }
-]
+packages = [{ include = "plainera_core", from = "src" }]
 
 [tool.poetry.dependencies]
 python = "^3.13"

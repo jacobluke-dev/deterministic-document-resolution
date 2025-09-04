@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from contextlib import asynccontextmanager
 
-from db_manager.factory import make_dbm
+from plainera_core.db_manager.factory import make_dbm
 from fastapi import FastAPI
 from fastapi.exceptions import RequestValidationError
 from observability.http.body_limit import BodySizeLimitMiddleware

@@ -3,7 +3,7 @@ from sqlalchemy import create_engine, text
 from sqlalchemy.orm import sessionmaker
 from typing import Tuple
 
-from db_manager.connection import DBManager
+from plainera_core.db_manager.connection import DBManager
 
 
 def _base_url() -> str:

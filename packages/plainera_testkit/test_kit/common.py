@@ -7,8 +7,8 @@ import re
 from pprint import pprint
 from typing import Any
 
-from db_manager.connection import DBManager
-from utils.utils import get_project_path
+from plainera_core.db_manager.connection import DBManager
+from plainera_core.utils.utils import get_project_path
 
 
 def table_exists_check(dbm: DBManager, schema: str, tbl_name: str) -> tuple[Any, bool]:

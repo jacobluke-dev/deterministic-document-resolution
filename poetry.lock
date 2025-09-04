@@ -1767,6 +1767,7 @@ develop = true
 alembic = ">=1.16.5,<2.0"
 fastapi = "^0.116.1"
 httpx = "^0.28.1"
+plainera-core = {path = "../../packages/plainera_core", develop = true}
 psycopg = {version = ">=3.2,<3.3", extras = ["binary"]}
 pydantic-settings = "^2.4.0"
 python-dotenv = "^1.0.1"

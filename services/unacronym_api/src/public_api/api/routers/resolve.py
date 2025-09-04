@@ -135,7 +135,7 @@ async def resolve_acronyms( # noqa: C901
         return _svc_unavailable("OVERLOADED")
 
     async def _call_resolver(acronym: str) -> Iterable[DefinitionCandidateLike]:
-        from core.domain import Acronym
+        from plainera_core.core.domain import Acronym
         res = resolver.resolve(Acronym(text=acronym), top_k=opts.max_definitions_per_acronym)
         if inspect.isawaitable(res):
             res = await res

@@ -1,7 +1,8 @@
 SHELL := /usr/bin/env bash
 export PATH := $(HOME)/.local/bin:$(PATH)
 RUN ?= python -m
-PKG := core utils db_manager
+SRC := src
+TESTS := tests
 
 .PHONY: install fmt lint style typecheck test cover htmlcov clean ci-local help
 
@@ -11,28 +12,28 @@ help:
 
 # Format code with Ruff formatter
 fmt:
-	$(RUN) ruff format $(PKG) tests
+	$(RUN) ruff format $(SRC) $(TESTS)
 
 # Lint (and autofix simple issues)
 lint:
-	$(RUN) ruff check $(PKG) tests --fix
+	$(RUN) ruff check $(SRC) $(TESTS) --fix
 
 # Optional: CI-friendly style check (no changes)
 style:
-	$(RUN) ruff format --check $(PKG) tests
-	$(RUN) ruff check $(PKG) tests
+	$(RUN) ruff format --check $(SRC) $(TESTS)
+	$(RUN) ruff check $(SRC) $(TESTS)
 
 typecheck:
-	$(RUN) mypy $(PKG)
+	$(RUN) mypy $(SRC)
 
 test:
-	$(RUN) pytest -q --override-ini="addopts=-q --cov=$(PKG) --cov-report=term --cov-report=xml:coverage.xml --cov-fail-under=80" tests
+	PYTHONPATH=$(SRC) $(RUN) pytest -q --override-ini="addopts=-q --cov=$(SRC) --cov-report=term --cov-report=xml:coverage.xml --cov-fail-under=80" tests
 
 cover:
-	$(RUN) pytest --cov=$(PKG) --cov-report=term --cov-report=xml --cov-fail-under=80
+	$(RUN) pytest --cov=$(SRC) --cov-report=term --cov-report=xml --cov-fail-under=80
 
 htmlcov:
-	$(RUN) pytest --cov=$(PKG) --cov-report=html
+	$(RUN) pytest --cov=$(SRC) --cov-report=html
 
 build: ## Build sdist+wheel
 	$(RUN) build .

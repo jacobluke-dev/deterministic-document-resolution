@@ -1,6 +1,6 @@
 from typing import Any
 
-from db_manager.connection import DBManager
+from plainera_core.db_manager.connection import DBManager
 
 
 def save_to_db(dbm: DBManager, *,

@@ -4,7 +4,7 @@ import os
 import sys
 from urllib.parse import urlsplit
 
-from db_manager.factory import make_dbm
+from plainera_core.db_manager.factory import make_dbm
 from public_api.core.settings import db_settings
 from public_api.db.models import AcronymAlias, GlossaryEntry
 from sqlalchemy import select
