@@ -12,9 +12,8 @@ def make_dbm(url: Optional[str] = None, *, test_mode: bool = False) -> DBManager
 
     Args:
         url (Optional[str]): Override database URL. If None, use db_settings.database_url.
-        test_mode (bool): If True, use a NullPool so connections are not reused
-            across tests. Recommended for unit/feature tests to avoid cross-test leakage.
-
+        test_mode (bool): If True, disables connection pooling by using ``NullPool``.
+            Each test will get a fresh connection, preventing cross-test state leakage.
     Returns:
         DBManager: A new DBManager instance with its own SQLAlchemy engine
         and session factory.

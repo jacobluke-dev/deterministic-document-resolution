@@ -13,7 +13,9 @@ def logger_model_map(payload: dict[str, Any]) -> dict[str, Any]:
     """
     Map a raw logging payload into a normalized database model format.
     """
-    level_name: str = str(payload.get("level", "info")).lower()
+    raw_level = payload.get("level")
+    level_name: str = str(raw_level or "info").lower()
+
     level_code = _LEVEL_NAME_TO_CODE.get(level_name, 20)
 
     # timestamp from emit is ISO string; ensure tz-aware datetime
@@ -31,7 +33,7 @@ def logger_model_map(payload: dict[str, Any]) -> dict[str, Any]:
         "request_id": payload.get("request_id"),
         "duration_ms": payload.get("duration_ms"),
 
-        # free-form summary; fall back to event name
+        # free-form summary; fall back to the event name
         "info": payload.get("result") or payload.get("info") or payload.get("event"),
 
         # args your decorator already attaches; kw args only if you add them

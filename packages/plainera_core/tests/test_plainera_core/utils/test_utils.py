@@ -1,7 +1,61 @@
 from unittest import mock
 
 import pytest
-from plainera_core.utils.utils import get_project_path
+from plainera_core.utils.utils import (
+    get_environment,
+    get_project_path,
+    is_integration_env,
+    is_local_env,
+    is_test_env,
+    is_valid_environment,
+)
+
+
+@pytest.mark.unit
+class TestEnvironmentFuncs:
+    @pytest.mark.parametrize(
+        "value, expected",
+        [
+            ("LOCAL", True),
+            ("INTEGRATION", True),
+            ("PROD", True),
+            ("LOCAL_PROD", True),
+            ("TEST", True),
+            ("STAGING", True),
+            ("UNKNOWN", False),
+            ("", False),
+            (None, False),
+        ],
+    )
+    def test_is_valid_environment(self, value, expected):
+        assert is_valid_environment(value) == expected
+
+    def test_get_environment_valid(self, monkeypatch):
+        monkeypatch.setenv("ENVIRONMENT", "LOCAL")
+        assert get_environment() == "LOCAL"
+
+    def test_get_environment_invalid_raises(self, monkeypatch):
+        monkeypatch.delenv("ENVIRONMENT", raising=False)  # no variable set
+        with pytest.raises(ValueError):
+            get_environment()
+
+        monkeypatch.setenv("ENVIRONMENT", "INVALID")
+        with pytest.raises(ValueError):
+            get_environment()
+
+    @pytest.mark.parametrize(
+        "env_value, func, expected",
+        [
+            ("LOCAL", is_local_env, True),
+            ("TEST", is_test_env, True),
+            ("INTEGRATION", is_integration_env, True),
+            ("PROD", is_local_env, False),
+            ("STAGING", is_test_env, False),
+        ],
+    )
+    def test_environment_helpers(self, monkeypatch, env_value, func, expected):
+        monkeypatch.setenv("ENVIRONMENT", env_value)
+        assert func() is expected
 
 
 class TestGetProjectPath:
