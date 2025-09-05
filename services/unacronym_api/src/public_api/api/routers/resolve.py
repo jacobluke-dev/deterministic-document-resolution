@@ -7,19 +7,21 @@ from collections.abc import Iterable
 from typing import Any
 
 from fastapi import APIRouter, Response, status
+from observability.config import REQ_ID_HEADER
 from starlette.responses import JSONResponse
 
 from public_api.api.response_types import build_responses
-from public_api.api.types import APIDefinition, DBManagerDep, DefinitionCandidateLike, ResolverDep, SemaphoreDep
+from public_api.core.di_aliases import DBManagerDep, ResolverDep, SemaphoreDep
 from public_api.core.settings import app_settings
 from public_api.schemas.error import ErrorBody, ErrorCode, ErrorResponse
 from public_api.schemas.resolve import ResolveOptions, ResolveRequest, ResolveResponse
+from public_api.types import APIDefinition, DefinitionCandidateLike
 
 router = APIRouter(prefix="/v1", tags=["Resolve"])
 
 # Document response headers in OpenAPI
 response_headers = {
-    "X-Request-Id": {
+    REQ_ID_HEADER: {
         "description": "Echoed or generated correlation id.",
         "schema": {"type": "string"},
     },
@@ -95,7 +97,7 @@ TEXT_MAX_LEN = _extract_max_len(ResolveRequest, "text")
         "Idempotent: does not mutate server state. Content-Encoding: gzip supported."
     ),
 )
-async def resolve_acronyms(
+async def resolve_acronyms( # noqa: C901
     payload: ResolveRequest,
     response: Response,
     resolver: ResolverDep,
@@ -134,7 +136,7 @@ async def resolve_acronyms(
         return _svc_unavailable("OVERLOADED")
 
     async def _call_resolver(acronym: str) -> Iterable[DefinitionCandidateLike]:
-        from plainera_core.domain import Acronym
+        from plainera_core.core.domain import Acronym
         res = resolver.resolve(Acronym(text=acronym), top_k=opts.max_definitions_per_acronym)
         if inspect.isawaitable(res):
             res = await res

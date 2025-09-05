@@ -3,12 +3,13 @@ from __future__ import annotations
 from asyncio import Semaphore
 from collections.abc import Iterator
 
+from plainera_core.db_manager.connection import DBManager
 from sqlalchemy.orm import Session
 
-from public_api.core.providers import AcronymResolverLike, create_resolver
+from public_api.core.factory import create_resolver
+from public_api.core.providers import AcronymResolverLike
 from public_api.core.settings import app_settings
 from public_api.core.settings import db_settings as db_settings
-from public_api.db.db_manager.connection import DBManager
 
 
 class AppContainer:
@@ -96,3 +97,7 @@ def get_session(dbm: DBManager) -> Iterator[Session]:
     """
     with dbm.session() as s:
         yield s
+
+
+def get_request_timeout_ms() -> int:
+    return app_settings.REQUEST_TIMEOUT_MS

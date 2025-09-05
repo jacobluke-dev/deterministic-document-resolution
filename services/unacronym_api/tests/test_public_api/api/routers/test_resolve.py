@@ -3,6 +3,8 @@ from typing import Any
 
 import pytest
 from httpx import Response
+from public_api.api.routers import resolve as resolve_mod
+from public_api.core import deps as deps_mod
 from public_api.db.models import GlossaryEntry
 from public_api.schemas.error import ErrorCode
 
@@ -17,9 +19,9 @@ def _get_fastapi_app_from_client(client):
 
 class TestV1Resolve:
     @pytest.fixture(autouse=True)
-    def seed_for_this_class(self, _session_factory):
+    def seed_for_this_class(self, session_factory):
         # minimal deterministic seed used by multiple tests here
-        with _session_factory() as s:
+        with session_factory() as s:
             # Upsert-ish for idempotence across parametrized runs
             if not s.query(GlossaryEntry).filter_by(acronym="MPS").first():
                 s.add(GlossaryEntry(
@@ -72,32 +74,26 @@ class TestV1Resolve:
         assert err["code"] == ErrorCode.PAYLOAD_TOO_LARGE
 
     @pytest.mark.anyio
-    async def test_timeout(self, monkeypatch, client):
-        async def slow_resolve(self, *args, **kwargs):
-            await asyncio.sleep(2.0)
-            return []
+    async def test_timeout(self, client):
+        class SlowResolver:
+            async def resolve(self, *args, **kwargs):
+                await asyncio.sleep(2.0)
+                return []
 
-        # Make the per-request timeout small so the sleep triggers it
-        monkeypatch.setattr(
-            "public_api.core.settings.app_settings.REQUEST_TIMEOUT_MS",
-            500,  # 0.5s
-            raising=False,
-        )
+        # Force a short timeout on the exact module the handler reads
+        resolve_mod.app_settings.REQUEST_TIMEOUT_MS = 500  # 0.5s
 
-        # Patch the core call to be slow (async)
-        monkeypatch.setattr(
-            "plainera_core.services.resolver.AcronymResolver.resolve",
-            slow_resolve,
-        )
+        app = _get_fastapi_app_from_client(client)
+        app.dependency_overrides[deps_mod.get_resolver] = lambda: SlowResolver()
 
-        r = await client.post("/v1/resolve", json={"text": "Foo (BAR)"})
-        assert r.status_code == 503
-        body = r.json()
-        assert body["error"]["code"] == "SERVICE_UNAVAILABLE"
-        assert body["error"]["details"]["timeout_ms"] == 500
-
-
-        _value = 0
+        try:
+            r = await client.post("/v1/resolve", json={"text": "Foo (BAR)"})
+            assert r.status_code == 503
+            body = r.json()
+            assert body["error"]["code"] == "SERVICE_UNAVAILABLE"
+            assert body["error"]["details"]["timeout_ms"] == 500
+        finally:
+            app.dependency_overrides.pop(deps_mod.get_resolver, None)
 
     def _stable_json(self, resp: Response) -> dict[str, Any]:
         body = resp.json()

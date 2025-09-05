@@ -1,32 +1,29 @@
 from datetime import datetime, timezone
-from typing import ClassVar
 
-from sqlalchemy import DateTime, Integer, MetaData
+from sqlalchemy import DateTime, Integer, MetaData, func
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
-NAMING_CONVENTION = {
-    "ix": "ix_%(column_0_label)s",
-    "uq": "uq_%(table_name)s_%(column_0_name)s",
-    "ck": "ck_%(table_name)s_%(constraint_name)s",
-    "fk": "fk_%(table_name)s_%(column_0_name)s_%(referred_table_name)s",
-    "pk": "pk_%(table_name)s",
-}
+from public_api.core.settings import db_settings
+
 
 class Base(DeclarativeBase):
-    metadata = MetaData(naming_convention=NAMING_CONVENTION)
+    metadata = MetaData(naming_convention=db_settings.NAMING_CONVENTION, schema=db_settings.DB_SCHEMA)
+
 
 class BaseWithTimestamps(Base):
-    __abstract__: ClassVar[bool] = True
+    __abstract__ = True
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         nullable=False,
-        default=lambda: datetime.now(timezone.utc),
+        server_default=func.now(),   # DB default
+        default=lambda: datetime.now(timezone.utc),   # client default (safe fallback)
     )
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         nullable=False,
-        default=lambda: datetime.now(timezone.utc),
-        onupdate=lambda: datetime.now(timezone.utc),
+        server_default=func.now(),   # initial insert default at DB
+        onupdate=lambda: datetime.now(timezone.utc),  # app-driven updates
+        # If you add a DB trigger for updated_at, you can drop onupdate.
     )
