@@ -1,7 +1,8 @@
-from typing import Awaitable, Callable, Iterable, Optional, Protocol, TypeAlias, cast, runtime_checkable
+from typing import Protocol, runtime_checkable
 
 from plainera_core.core.domain import DefinitionCandidate
-from plainera_core.core.services.resolver import AcronymResolver
+
+from public_api.types import LookupFunc, ResolveReturn
 
 
 class DefinitionCandidateLike(Protocol):
@@ -22,24 +23,6 @@ class AcronymLike(Protocol):
     """
     text: str
 
-"""Type alias for a synchronous lookup function.
-
-Args:
-    str: The acronym text to resolve.
-
-Returns:
-    Iterable[DefinitionCandidateLike]: A collection of candidate definitions.
-"""
-LookupFunc: TypeAlias = Callable[[str], Iterable[DefinitionCandidateLike]]
-"""Type alias for a resolver return type.
-
-The resolver may be synchronous or asynchronous.
-
-Returns:
-    Iterable[DefinitionCandidateLike] | Awaitable[Iterable[DefinitionCandidateLike]]:
-        Candidate definitions either directly or wrapped in an awaitable.
-"""
-ResolveReturn: TypeAlias = Iterable[DefinitionCandidateLike] | Awaitable[Iterable[DefinitionCandidateLike]]
 
 @runtime_checkable
 class AcronymResolverLike(Protocol):
@@ -61,7 +44,6 @@ class AcronymResolverLike(Protocol):
         ...
 
 
-
 # TODO UN-14 2.5 Story
 def default_lookup() -> LookupFunc:
     """Create a minimal stub lookup function.
@@ -75,23 +57,5 @@ def default_lookup() -> LookupFunc:
         itself and a neutral score).
     """
     def _lookup(acronym_text: str) -> list[DefinitionCandidateLike]:
-        return [DefinitionCandidate(text=acronym_text, score=0.5)]
+        return [DefinitionCandidate(text=acronym_text, score=0.5)]   # type: ignore[incompatible-type]
     return _lookup
-
-
-def create_resolver(lookup: Optional[LookupFunc] = None) -> AcronymResolverLike:
-    """Factory for constructing the acronym resolver.
-
-    This is the single entry point for creating an `AcronymResolver`
-    with its collaborators. If no lookup function is provided, it falls
-    back to the stub from `default_lookup()`.
-
-    Args:
-        lookup (Optional[LookupFunc], optional): A function to resolve
-            acronym text into candidates. If None, the default stub is used.
-
-    Returns:
-        AcronymResolverLike: A resolver conforming to the minimal protocol,
-        safe for injection into the API layer.
-    """
-    return cast(AcronymResolverLike, AcronymResolver(lookup or default_lookup()))

@@ -1,14 +1,11 @@
 # services/public_api/src/public_api/api/types.py
 from __future__ import annotations
 
-from asyncio import Semaphore
 from collections.abc import Awaitable, Iterable
-from typing import Annotated, Optional, Protocol, TypeAlias, TypedDict
+from typing import Annotated, Callable, Optional, Protocol, TypeAlias, TypedDict
 
-from fastapi import Depends, Header
+from fastapi import Header
 from plainera_core.db_manager.connection import DBManager
-
-from public_api.core import deps  # get_resolver / get_semaphore
 
 # --- Structural contracts (no core imports in annotations) -------------------
 
@@ -38,17 +35,6 @@ class ResolverProtocol(Protocol):
     ) -> Iterable[DefinitionCandidateLike] | Awaitable[Iterable[DefinitionCandidateLike]]:
         ...
 
-
-ResolverT: TypeAlias = ResolverProtocol
-
-
-# --- Common DI aliases -------------------------------------------------------
-
-ResolverDep: TypeAlias = Annotated[ResolverT, Depends(deps.get_resolver)]
-SemaphoreDep: TypeAlias = Annotated[Semaphore | None, Depends(deps.get_semaphore)]
-DBManagerDep: TypeAlias = Annotated[DBManager, Depends(deps.get_dbm)]
-
-
 # Common headers
 RequestIdHeader: TypeAlias = Annotated[
     Optional[str],
@@ -68,3 +54,22 @@ class AppState(Protocol):
     Providing the DB Manager to the FastAPI class.
     """
     dbm: DBManager
+
+"""Type alias for a synchronous lookup function.
+
+Args:
+    str: The acronym text to resolve.
+
+Returns:
+    Iterable[DefinitionCandidateLike]: A collection of candidate definitions.
+"""
+LookupFunc: TypeAlias = Callable[[str], Iterable[DefinitionCandidateLike]]
+"""Type alias for a resolver return type.
+
+The resolver may be synchronous or asynchronous.
+
+Returns:
+    Iterable[DefinitionCandidateLike] | Awaitable[Iterable[DefinitionCandidateLike]]:
+        Candidate definitions either directly or wrapped in an awaitable.
+"""
+ResolveReturn: TypeAlias = Iterable[DefinitionCandidateLike] | Awaitable[Iterable[DefinitionCandidateLike]]

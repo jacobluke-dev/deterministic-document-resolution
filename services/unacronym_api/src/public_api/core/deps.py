@@ -6,7 +6,8 @@ from collections.abc import Iterator
 from plainera_core.db_manager.connection import DBManager
 from sqlalchemy.orm import Session
 
-from public_api.core.providers import AcronymResolverLike, create_resolver
+from public_api.core.factory import create_resolver
+from public_api.core.providers import AcronymResolverLike
 from public_api.core.settings import app_settings
 from public_api.core.settings import db_settings as db_settings
 
@@ -60,7 +61,7 @@ def get_resolver() -> AcronymResolverLike:
     Returns:
         The singleton resolver created at startup.
     """
-    return container.resolver
+    return create_resolver()
 
 
 def get_semaphore() -> Semaphore | None:
