@@ -22,8 +22,6 @@ pytest-cov = "^6.2.1"
 requires = ["poetry-core"]
 build-backend = "poetry.core.masonry.api"
 
-[tool.poetry.plugins."pytest11"]
-plainera_testkit = "test_kit.fixtures"
 
 # --- Ruff configuration ---
 [tool.ruff]

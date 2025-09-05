@@ -1,4 +1,3 @@
-# services/unacronym_api/tests/conftest.py
 import os
 import time
 
