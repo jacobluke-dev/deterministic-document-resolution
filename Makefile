@@ -18,6 +18,11 @@ MAKEFLAGS += --no-print-directory
 
 ROOT := $(CURDIR)
 
+coverage_debug:
+	$(VENV_BIN)/python -m coverage debug data
+	$(VENV_BIN)/python -m coverage debug sys
+
+
 # Common Help Command
 help:
 	@echo "Common targets:"
@@ -70,34 +75,23 @@ test:
 
 # Produce a combined HTML coverage report at repo root using the root venv,
 # even if some subprojects' tests fail.
-coverage-html: install  ## Combined HTML coverage at htmlcov/index.html
-	@rm -f .coverage .coverage.* 2>/dev/null || true
+coverage-html: install
+	@rm -rf htmlcov .coverage .coverage.* 2>/dev/null || true
 	@root_py="$(VENV_BIN)/python"; \
-	if [ ! -x "$$root_py" ]; then echo "Root venv not ready. Run: make install"; exit 1; fi; \
 	for d in $(SUBDIRS); do \
-	  case "$$d" in \
-	    packages/plainera_core)          cov_mod=plainera_core ;; \
-	    packages/plainera_observability) cov_mod=plainera_observability ;; \
-	    services/unacronym_api)          cov_mod=unacronym_api ;; \
-	    *)                                cov_mod=. ;; \
-	  esac; \
 	  name=$$(basename $$d); \
-	  echo ""; echo "==> $$d: collecting coverage with root venv (will continue on failure)"; \
-	  (cd $$d && \
+	  echo ""; echo "==> $$d (relative source)"; \
+	  ( cd $$d && \
+	    PYTHONPATH=src \
 	    COVERAGE_FILE=$(ROOT)/.coverage.$$name \
-	    "$$root_py" -m pytest -q \
-	      --maxfail=1 \
-	      --cov="$$cov_mod" \
-	      --cov-branch \
-	      --cov-report= \
-	    ) || true; \
+   	    "$$root_py" -m coverage run --rcfile "$(ROOT)/.coveragerc" -m pytest -q --maxfail=1 \
+	  ) || true; \
 	done; \
-	echo ""; echo "==> Combining and rendering HTML"; \
-	"$(VENV_BIN)/python" -m coverage combine || true; \
-	"$(VENV_BIN)/python" -m coverage html -d htmlcov || true; \
-	"$(VENV_BIN)/python" -m coverage report -m || true; \
-	echo ""; echo "📄 HTML report: htmlcov/index.html"
-
+	echo ""; echo "==> Combine & render"; \
+	"$(VENV_BIN)/python" -m coverage combine --rcfile "$(ROOT)/.coveragerc" || true; \
+	"$(VENV_BIN)/python" -m coverage html   --rcfile "$(ROOT)/.coveragerc" -i -d htmlcov || true; \
+	"$(VENV_BIN)/python" -m coverage report --rcfile "$(ROOT)/.coveragerc" -i -m || true; \
+	echo ""; echo "📄 htmlcov/index.html"
 
 # Build sdist and wheel files
 build:

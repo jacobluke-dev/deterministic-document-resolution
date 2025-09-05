@@ -2,9 +2,9 @@ from __future__ import annotations
 
 from alembic.config import Config
 from alembic.script import ScriptDirectory
+from plainera_core.utils.utils import get_project_path
 from sqlalchemy import text
 from sqlalchemy.engine import Engine
-from plainera_core.utils.utils import get_project_path
 
 DEFAULT_INI_REL = "alembic.ini"
 DEFAULT_SCRIPTS_REL = "public_api/migrations"

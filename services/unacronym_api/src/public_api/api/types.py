@@ -5,8 +5,8 @@ from asyncio import Semaphore
 from collections.abc import Awaitable, Iterable
 from typing import Annotated, Optional, Protocol, TypeAlias, TypedDict
 
-from plainera_core.db_manager.connection import DBManager
 from fastapi import Depends, Header
+from plainera_core.db_manager.connection import DBManager
 
 from public_api.core import deps  # get_resolver / get_semaphore
 
