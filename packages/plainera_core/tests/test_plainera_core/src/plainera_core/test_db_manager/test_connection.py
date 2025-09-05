@@ -1,10 +1,84 @@
+from contextlib import nullcontext
 from datetime import datetime, timezone
 from pathlib import Path
+from types import SimpleNamespace
+from unittest import mock
 
 import pytest
+from plainera_core.db_manager.connection import DBManager
 
 
-@pytest.mark.integration
+class TestSessionAndDDL:
+    def _mk_dbm(self):
+        # minimal fakes
+        fake_engine = SimpleNamespace(begin=lambda: nullcontext(), connect=lambda: nullcontext())
+        # session_factory() returns an object with commit/rollback/close
+        class _S:
+            def __init__(self): self.committed = self.rolled = self.closed = False
+            def commit(self): self.committed = True
+            def rollback(self): self.rolled = True
+            def close(self): self.closed = True
+        sf = mock.Mock()
+        sf.return_value = _S()
+        return DBManager(fake_engine, sf)
+
+    def test_session_commit_and_close(self):
+        dbm = self._mk_dbm()
+        with dbm.session() as s:
+            assert hasattr(s, "commit")
+        # session manager should have committed and closed
+        sess = dbm.session_factory.return_value
+        assert sess.committed is True
+        assert sess.closed is True
+        assert sess.rolled is False
+
+    def test_session_rollback_on_exception(self):
+        dbm = self._mk_dbm()
+        with pytest.raises(RuntimeError), dbm.session() as _:
+                raise RuntimeError("boom")
+        sess = dbm.session_factory.return_value
+        assert sess.rolled is True
+        assert sess.closed is True
+
+    def test_create_schema_executes_sql(self):
+        fake_conn = mock.MagicMock()
+        fake_ctx = mock.MagicMock()
+        fake_ctx.__enter__.return_value = fake_conn
+        engine = SimpleNamespace(begin=lambda: fake_ctx)
+        dbm = DBManager(engine, mock.Mock())
+        dbm.create_schema("analytics")
+        # validate the exact statement text (quoted name)
+        sql_arg = fake_conn.execute.call_args[0][0]
+        assert 'CREATE SCHEMA IF NOT EXISTS "analytics"' in str(sql_arg)
+
+    def test_execute_sql_file_raises_file_not_found(self, tmp_path: Path):
+        dbm = DBManager(SimpleNamespace(begin=lambda: nullcontext()), mock.Mock())
+        with pytest.raises(FileNotFoundError):
+            dbm.execute_sql_file(tmp_path / "missing.sql")
+
+
+class TestSelectRowsColumns:
+    @pytest.fixture(autouse=True)
+    def seed(self, dbm):
+        with dbm.engine.begin() as c:
+            c.exec_driver_sql("DELETE FROM glossary_entries WHERE acronym = 'QWE'")
+            c.exec_driver_sql(
+                "INSERT INTO glossary_entries (acronym, definition, source) "
+                "VALUES ('QWE','Q W E','cols_test')"
+            )
+        yield
+
+    def test_select_specific_columns_are_quoted(self, dbm):
+        rows = dbm.select_rows(
+            "glossary_entries",
+            columns=["acronym", "source"],
+            where='"acronym" = :a',
+            params={"a": "QWE"},
+        )
+        assert rows == [("QWE", "cols_test")]
+
+
+
 class TestInsertAndSelect:
     @pytest.fixture(autouse=True)
     def seed(self, dbm):
@@ -38,7 +112,7 @@ class TestInsertAndSelect:
         assert len(rows) == 1  # sanity check: star returns one row
 
 
-@pytest.mark.integration
+
 class TestSelectOneDict:
     @pytest.fixture(autouse=True)
     def seed(self, dbm):
@@ -84,7 +158,7 @@ class TestSelectOneDict:
         assert out is None
 
 
-@pytest.mark.integration
+
 class TestUpdateTouchUpdatedAt:
     @pytest.fixture(autouse=True)
     def seed(self, dbm):
@@ -126,7 +200,7 @@ class TestUpdateTouchUpdatedAt:
         assert after["definition"] == "Text-to-Speech"
 
 
-@pytest.mark.integration
+
 class TestRequireAllowedTable:
     def test_disallowed_table_raises_value_error(self, dbm, monkeypatch):
         # Narrow the allowed set so we can assert the decorator blocks others.
@@ -151,7 +225,7 @@ class TestRequireAllowedTable:
             )
 
 
-@pytest.mark.integration
+
 class TestExecuteSqlFile:
     @pytest.fixture(autouse=True)
     def clean(self, dbm):
@@ -184,7 +258,7 @@ class TestExecuteSqlFile:
         assert row == {"acronym": "SQLF", "definition": "From file", "source": "file_update"}
 
 
-@pytest.mark.integration
+
 class TestUpdateRow:
     @pytest.fixture(autouse=True)
     def seed_row(self, dbm):

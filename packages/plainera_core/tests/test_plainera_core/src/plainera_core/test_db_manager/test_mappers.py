@@ -4,7 +4,6 @@ import pytest
 from plainera_core.db_manager.mappers import logger_model_map
 
 
-@pytest.mark.unit
 class TestLoggerModelMapLevels:
     @pytest.mark.parametrize(
         "level_in, expected_code, expected_name",
@@ -26,7 +25,7 @@ class TestLoggerModelMapLevels:
         assert out["level_name"] == expected_name
 
 
-@pytest.mark.unit
+
 class TestLoggerModelMapTimestamp:
     def test_uses_iso_timestamp_when_provided(self):
         ts = "2025-09-04T12:34:56+00:00"
@@ -48,7 +47,7 @@ class TestLoggerModelMapTimestamp:
         assert before - timedelta(seconds=5) <= dt <= after + timedelta(seconds=5)
 
 
-@pytest.mark.unit
+
 class TestLoggerModelMapFields:
     def test_basic_field_mapping_and_defaults(self):
         payload = {

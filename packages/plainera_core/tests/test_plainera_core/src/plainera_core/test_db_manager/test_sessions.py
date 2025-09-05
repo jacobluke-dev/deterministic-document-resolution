@@ -3,10 +3,8 @@ from unittest import mock
 # Adjust this import to your actual module path
 # e.g. from plainera_core.db_manager.sessions import make_async_sessionmaker
 import plainera_core.db_manager.sessions as sessions
-import pytest
 
 
-@pytest.mark.unit
 class TestMakeAsyncSessionmaker:
     def test_builds_engine_and_sessionmaker_with_expected_args(self, monkeypatch):
         url = "postgresql+asyncpg://u:p@localhost:5432/db"

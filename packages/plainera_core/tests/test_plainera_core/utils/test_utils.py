@@ -13,7 +13,35 @@ from plainera_core.utils.utils import (
 )
 
 
-@pytest.mark.unit
+class TestLoadEnvIfLocal:
+    @pytest.mark.parametrize("env_value", ["LOCAL", "LOCAL_PROD", "local", "local_prod"])
+    def test_calls_load_dotenv_for_local_variants(self, monkeypatch, env_value):
+        monkeypatch.setenv("ENVIRONMENT", env_value)
+        m = mock.Mock()
+        # Patch the symbol in the defining module
+        monkeypatch.setattr(utils, "load_dotenv", m)
+
+        rv = utils.load_env_if_local()
+
+        assert rv is None
+        m.assert_called_once_with()
+
+    @pytest.mark.parametrize("env_value", [None, "", "TEST", "DEV", "PROD", "STAGING"])
+    def test_does_not_call_load_dotenv_for_other_envs(self, monkeypatch, env_value):
+        if env_value is None:
+            monkeypatch.delenv("ENVIRONMENT", raising=False)
+        else:
+            monkeypatch.setenv("ENVIRONMENT", env_value)
+
+        m = mock.Mock()
+        monkeypatch.setattr(utils, "load_dotenv", m)
+
+        rv = utils.load_env_if_local()
+
+        assert rv is None
+        m.assert_not_called()
+
+
 class TestEnvironmentFuncs:
     @pytest.mark.parametrize(
         "value, expected",
@@ -60,10 +88,9 @@ class TestEnvironmentFuncs:
         assert func() is expected
 
 
-@pytest.mark.unit
 class TestGetProjectRoot:
     def test_returns_expected_path_from_fake_file(self, monkeypatch):
-        # Suppose our module file is at /a/b/c/src/utils/foo/bar/utils.py
+
         fake_file = os.path.join(
             os.sep, "a", "b", "c", "src", "utils", "foo", "bar", "utils.py"
         )
@@ -71,8 +98,8 @@ class TestGetProjectRoot:
 
         root = utils.get_project_root()
 
-        # 5 levels up from fake_file
-        expected = os.path.abspath(os.path.join(fake_file, "..", "..", "..", "..", ".."))
+        # 6 levels up from fake_file
+        expected = os.path.abspath(os.path.join(fake_file, "..", "..", "..", "..", "..", ".."))
         assert root == expected
         # should be an absolute path
         assert os.path.isabs(root)
@@ -97,7 +124,6 @@ class TestGetProjectPath:
             mock_project_root.assert_called_once()
             mock_exists.assert_called_once_with(expected_path)
 
-
     def test_get_project_path_invalid_raise_error(self, mock_project_root):
         with mock.patch('os.path.exists') as mock_exists:
             mock_exists.return_value = False
@@ -110,7 +136,6 @@ class TestGetProjectPath:
             mock_project_root.assert_called_once()
             mock_exists.assert_called_once_with(expected_path)
 
-
     def test_get_project_path_invalid_no_raise_error(self, mock_project_root):
         with mock.patch('os.path.exists') as mock_exists:
             mock_exists.return_value = False
@@ -122,3 +147,26 @@ class TestGetProjectPath:
             assert result is False
             mock_project_root.assert_called_once()
             mock_exists.assert_called_once_with(expected_path)
+
+    def test_get_project_path_missing_return_path_true(self, mock_project_root):
+        with mock.patch('os.path.exists') as mock_exists:
+            mock_exists.return_value = False
+            relative_path = 'src/utils/non_existent_file.txt'
+            expected_path = '/home/user/project/src/utils/non_existent_file.txt'
+
+            # return_path=True should return the computed absolute path (no exception)
+            result = get_project_path(relative_path, return_path=True)
+            assert result == expected_path
+
+            mock_project_root.assert_called_once()
+            mock_exists.assert_called_once_with(expected_path)
+
+    def test_get_project_path_missing_return_path_true_overrides_raise(self, mock_project_root):
+        with mock.patch('os.path.exists') as mock_exists:
+            mock_exists.return_value = False
+            relative_path = 'src/utils/non_existent_file.txt'
+            expected_path = '/home/user/project/src/utils/non_existent_file.txt'
+
+            # Even with raise_error=True, return_path=True should still return the path
+            result = get_project_path(relative_path, raise_error=True, return_path=True)
+            assert result == expected_path

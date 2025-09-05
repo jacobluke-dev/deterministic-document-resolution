@@ -11,7 +11,6 @@ from plainera_core.db_manager.sinks import (
 )
 
 
-@pytest.mark.unit
 class TestSqlAlchemyModelSink:
     @pytest.mark.asyncio
     async def test_enqueue_async_maps_executes_and_commits(self, monkeypatch):
@@ -82,7 +81,7 @@ class TestSqlAlchemyModelSink:
         assert fake_session.committed is True
 
 
-@pytest.mark.unit
+
 class TestCompositeSink:
     @pytest.mark.asyncio
     async def test_forwards_to_all_sinks_and_schedules_coroutines(self, monkeypatch):
@@ -116,7 +115,7 @@ class TestCompositeSink:
         create_task_mock.assert_called_once_with(coro_instance)
 
 
-@pytest.mark.unit
+
 class TestRouterSink:
     def test_routes_payloads_by_predicate_and_schedules_coroutines(self, monkeypatch):
         # predicates

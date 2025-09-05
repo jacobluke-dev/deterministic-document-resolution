@@ -1,14 +1,12 @@
 import types
 from unittest import mock
 
-# Adjust import path if your factory lives elsewhere
 import plainera_core.db_manager.factory as factory
 import pytest
 from public_api.core.settings import db_settings
 from sqlalchemy import text
 
 
-@pytest.mark.unit
 class TestMakeDbm:
     def _setup_mocks(self, monkeypatch):
         """
@@ -98,7 +96,6 @@ def ensure_schema():
     return _apply
 
 
-@pytest.mark.integration
 class TestEngineAndSessionFixtures:
     def test_engine_has_expected_search_path(self, engine_factory, apply_migrations_once, ensure_schema):
         with engine_factory.connect() as conn:
@@ -114,7 +111,6 @@ class TestEngineAndSessionFixtures:
             assert one == 1
 
 
-@pytest.mark.integration
 class TestDbmFixture:
     def test_dbm_can_open_session_and_query(self, dbm, apply_migrations_once, ensure_schema):
         with dbm.session() as s:
