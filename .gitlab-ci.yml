@@ -126,31 +126,17 @@ api:
     - python --version
     - pip install "poetry==$POETRY_VERSION"
     - poetry env use python3.13
-    - poetry install --with dev           # root install, installs all path deps editable
+    - poetry install --with dev
     - export VENV_BIN="$(poetry env info --path)/bin"
     - cd services/unacronym_api
+    # install pg client for pg_isready (tiny)
+    - apt-get update && apt-get install -y --no-install-recommends postgresql-client && rm -rf /var/lib/apt/lists/*
   script:
-    # Wait for DB
-    - |
-      "$VENV_BIN/python" - <<'PY'
-      import os, sys, time
-      import psycopg
-      url = os.environ["DATABASE_URL"].replace("+psycopg", "")
-      for _ in range(60):
-          try:
-              with psycopg.connect(url, connect_timeout=2) as conn:
-                  with conn.cursor() as cur:
-                      cur.execute("SELECT 1")
-              print("DB is ready"); sys.exit(0)
-          except Exception:
-              time.sleep(1)
-      print("DB not ready in time", file=sys.stderr); sys.exit(2)
-      PY
+    - until pg_isready -h db -p 5432 -q; do echo "waiting for db..."; sleep 1; done
     - "$VENV_BIN/python" -m alembic -c alembic.ini upgrade head
-    - make lint      RUN="$VENV_BIN/python -m"
+    - make lint RUN="$VENV_BIN/python -m"
     - make typecheck RUN="$VENV_BIN/python -m"
     - "$VENV_BIN/python" -m pytest --cov=public_api --cov-report=term-missing --cov-report=xml:coverage.xml
-
   artifacts:
     when: always
     paths:
