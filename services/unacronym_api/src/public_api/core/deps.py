@@ -61,7 +61,7 @@ def get_resolver() -> AcronymResolverLike:
     Returns:
         The singleton resolver created at startup.
     """
-    return create_resolver()
+    return container.resolver
 
 
 def get_semaphore() -> Semaphore | None:
@@ -97,3 +97,7 @@ def get_session(dbm: DBManager) -> Iterator[Session]:
     """
     with dbm.session() as s:
         yield s
+
+
+def get_request_timeout_ms() -> int:
+    return app_settings.REQUEST_TIMEOUT_MS
