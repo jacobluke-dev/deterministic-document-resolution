@@ -1,16 +1,17 @@
-# Create pipelines only for non-draft MRs and for the default branch
+# Pipelines only for non-draft MRs and default branch
 workflow:
   rules:
-    - if: $CI_PIPELINE_SOURCE == "merge_request_event" && $CI_MERGE_REQUEST_DRAFT == "true"
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event" && $CI_MERGE_REQUEST_DRAFT == "true"  # draft MR
       when: never
-    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
-    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"                                       # non-draft MR
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH                                            # default branch
     - when: never
 
 stages: [core]
 
 variables:
-      ENVIRONMENT: "CI"
+  ENVIRONMENT: "CI"
+
 cache:
   key: "$CI_COMMIT_REF_SLUG"
   paths:
@@ -70,18 +71,34 @@ api:
     DATABASE_URL: "postgresql+psycopg://unacronym:test-password@db:5432/unacronym"
     APP_ENV: "test"
     AUTH_DISABLED: "false"
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event" && $CI_MERGE_REQUEST_DRAFT == "true"
+      when: never
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+      changes:
+        - services/unacronym_api/**/*
+        - packages/plainera_core/**/*
+        - packages/plainera_observability/**/*
+        - packages/plainera_testkit/**/*
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+      changes:
+        - services/unacronym_api/**/*
+        - packages/plainera_core/**/*
+        - packages/plainera_observability/**/*
+        - packages/plainera_testkit/**/*
+    - when: never
   before_script:
     - python --version
     - pip install "poetry==$POETRY_VERSION"
     - cd services/unacronym_api
-    - export PYTHONPATH="$PWD/src:$CI_PROJECT_DIR/packages/plainera_core/src:$PYTHONPATH"
+    # Make all local packages importable for tests/fixtures
+    - export PYTHONPATH="$PWD/src:$CI_PROJECT_DIR/packages/plainera_core/src:$CI_PROJECT_DIR/packages/plainera_observability:$CI_PROJECT_DIR/packages/plainera_testkit:$PYTHONPATH"
     - poetry install --no-interaction --no-root
   script:
-    # wait for DB (use literal block so heredoc works; also strip +psycopg)
+    # Wait for DB
     - |
       poetry run python - <<'PY'
-      import os, time, sys
-      import psycopg
+      import os, time, sys, psycopg
       url = os.environ["DATABASE_URL"].replace("+psycopg", "")
       for _ in range(60):
           try:
@@ -95,8 +112,8 @@ api:
     - poetry run alembic -c alembic.ini upgrade head
     - make lint
     - make typecheck
-    # ensure coverage.xml exists for artifacts
-    - poetry run pytest --cov=unacronym_api --cov-report=term-missing --cov-report=xml:coverage.xml
+    # Ensure coverage.xml exists for artifacts
+    - poetry run pytest --cov=public_api --cov-report=term-missing --cov-report=xml:coverage.xml
   artifacts:
     when: always
     paths:
@@ -105,5 +122,4 @@ api:
       coverage_report:
         coverage_format: cobertura
         path: services/unacronym_api/coverage.xml
-
     expire_in: 1 week
