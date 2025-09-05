@@ -11,20 +11,30 @@ stages: [core]
 
 variables:
   ENVIRONMENT: "CI"
+  POETRY_VERSION: "1.8.3"
+  # Use a single in-project venv at repo root
+  POETRY_VIRTUALENVS_IN_PROJECT: "true"
+  PIP_DISABLE_PIP_VERSION_CHECK: "1"
 
 cache:
   key: "$CI_COMMIT_REF_SLUG"
   paths:
     - .cache/pip
     - .cache/pypoetry
+    - .venv  # speeds subsequent jobs
+
+# ---------- common before_script (copy into each job) ----------
+# Note: we do NOT call `poetry env use` anymore.
+.before-poetry: &before-poetry
+  before_script:
+    - python --version
+    - pip install "poetry==$POETRY_VERSION"
+    - poetry install --with dev
+    - export VENV_BIN="$(poetry env info --path)/bin"
 
 core:
   stage: core
   image: python:3.13
-  variables:
-    POETRY_VERSION: "1.8.3"
-    POETRY_VIRTUALENVS_CREATE: "false"
-    PIP_DISABLE_PIP_VERSION_CHECK: "1"
   rules:
     - if: $CI_PIPELINE_SOURCE == "merge_request_event" && $CI_MERGE_REQUEST_DRAFT == "true"
       when: never
@@ -35,12 +45,7 @@ core:
       changes:
         - packages/plainera_core/**/*
     - when: never
-  before_script:
-    - python --version
-    - pip install "poetry==$POETRY_VERSION"
-    - poetry env use python3.13
-    - poetry install --with dev
-    - export VENV_BIN="$(poetry env info --path)/bin"
+  <<: *before-poetry
   script:
     - make -C packages/plainera_core lint      RUN="$VENV_BIN/python -m"
     - make -C packages/plainera_core typecheck RUN="$VENV_BIN/python -m"
@@ -55,13 +60,10 @@ core:
         path: packages/plainera_core/coverage.xml
     expire_in: 1 week
 
+
 observability:
   stage: core
   image: python:3.13
-  variables:
-    POETRY_VERSION: "1.8.3"
-    POETRY_VIRTUALENVS_CREATE: "false"
-    PIP_DISABLE_PIP_VERSION_CHECK: "1"
   rules:
     - if: $CI_PIPELINE_SOURCE == "merge_request_event" && $CI_MERGE_REQUEST_DRAFT == "true"
       when: never
@@ -72,11 +74,7 @@ observability:
       changes:
         - packages/plainera_observability/**/*
     - when: never
-  before_script:
-    - pip install "poetry==$POETRY_VERSION"
-    - poetry env use python3.13
-    - poetry install --with dev
-    - export VENV_BIN="$(poetry env info --path)/bin"
+  <<: *before-poetry
   script:
     - make -C packages/plainera_observability lint      RUN="$VENV_BIN/python -m"
     - make -C packages/plainera_observability typecheck RUN="$VENV_BIN/python -m"
@@ -91,6 +89,7 @@ observability:
         path: packages/plainera_observability/coverage.xml
     expire_in: 1 week
 
+
 api:
   stage: core
   image: python:3.13
@@ -99,9 +98,6 @@ api:
       alias: db
       command: ["postgres", "-c", "log_statement=none"]
   variables:
-    POETRY_VERSION: "1.8.3"
-    POETRY_VIRTUALENVS_CREATE: "false"
-    PIP_DISABLE_PIP_VERSION_CHECK: "1"
     POSTGRES_DB: "unacronym"
     POSTGRES_USER: "unacronym"
     POSTGRES_PASSWORD: "test-password"
@@ -124,18 +120,11 @@ api:
         - packages/plainera_observability/**/*
         - packages/plainera_testkit/**/*
     - when: never
-  before_script:
-    - python --version
-    - pip install "poetry==$POETRY_VERSION"
-    - poetry env use python3.13
-    - poetry install --with dev
-    - export VENV_BIN="$(poetry env info --path)/bin"
-    - cd services/unacronym_api
-    - apt-get update && apt-get install -y --no-install-recommends postgresql-client && rm -rf /var/lib/apt/lists/*
+  <<: *before-poetry
   script:
-    # Wait for DB
-    - |
-      poetry run python - <<'PY'
+    # DB readiness (use the root venv python)
+    - >
+      "$VENV_BIN/python" - <<'PY'
       import os, time, sys, psycopg
       url = os.environ["DATABASE_URL"].replace("+psycopg", "")
       for _ in range(60):
@@ -147,10 +136,14 @@ api:
               time.sleep(1)
       print("DB not ready in time", file=sys.stderr); sys.exit(2)
       PY
-    - poetry run alembic -c alembic.ini upgrade head
-    - make lint
-    - make typecheck
-    # Ensure coverage.xml exists for artifacts
+    # Run service steps within its directory
+    - >
+      ( cd services/unacronym_api &&
+        "$VENV_BIN/python" -m alembic -c alembic.ini upgrade head &&
+        make lint      RUN="$VENV_BIN/python -m" &&
+        make typecheck RUN="$VENV_BIN/python -m" &&
+        make test      RUN="$VENV_BIN/python -m"
+      )
   artifacts:
     when: always
     paths:
