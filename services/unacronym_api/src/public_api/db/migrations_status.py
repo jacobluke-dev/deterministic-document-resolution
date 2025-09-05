@@ -1,11 +1,10 @@
 from __future__ import annotations
 
 from alembic.config import Config
-from alembic.runtime.migration import MigrationContext
 from alembic.script import ScriptDirectory
+from plainera_core.utils.utils import get_project_path
+from sqlalchemy import text
 from sqlalchemy.engine import Engine
-
-from public_api.utils.utils import get_project_path
 
 DEFAULT_INI_REL = "alembic.ini"
 DEFAULT_SCRIPTS_REL = "public_api/migrations"
@@ -18,10 +17,17 @@ def _cfg(alembic_ini_path: str | None) -> Config:
         cfg.set_main_option("script_location", get_project_path(DEFAULT_SCRIPTS_REL, raise_error=True))
     return cfg
 
-def is_at_head(engine: Engine, alembic_ini_path: str | None = None) -> bool:
-    cfg = _cfg(alembic_ini_path)
+
+
+def is_at_head(engine: Engine, *, schema: str | None) -> bool:
+    cfg = Config(get_project_path("services/unacronym_api/alembic.ini", raise_error=True))
     script = ScriptDirectory.from_config(cfg)
+    head = script.get_current_head()          # expected head revision id
+
     with engine.connect() as conn:
-        current = MigrationContext.configure(conn).get_current_revision()
-    heads = script.get_heads()
-    return current in heads
+        # read the current recorded revision directly from the version table
+        current = conn.execute(
+            text(f'SELECT version_num FROM "{schema}".alembic_version')
+        ).scalar()
+
+    return current == head

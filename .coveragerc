@@ -1,0 +1,49 @@
+# .coveragerc (root)
+
+[run]
+branch = True
+parallel = True
+relative_files = True
+concurrency = multiprocessing
+
+# IMPORTANT: include BOTH root-canonical and subdir "src/..." sources
+source =
+    packages/plainera_core/src/plainera_core
+    packages/plainera_observability/src/plainera_observability
+    services/unacronym_api/src/public_api
+    src/plainera_core
+    src/plainera_observability
+    src/public_api
+[paths]
+# Canonicalize the same files seen under different CWDs
+plainera_core =
+    packages/plainera_core/src/plainera_core
+    */packages/plainera_core/src/plainera_core
+    src/plainera_core
+
+#plainera_observability =
+ #   packages/plainera_observability/src/plainera_observability
+ #   */packages/plainera_observability/src/plainera_observability
+ #   src/plainera_observability
+
+#public_api =
+#    services/unacronym_api/src/public_api
+ #   */services/unacronym_api/src/public_api
+  #  src/public_api
+
+[report]
+show_missing = True
+fail_under = 80
+exclude_lines =
+    pragma: no cover
+    def __repr__
+    if self\.debug
+    raise NotImplementedError
+    assert False
+    if 0:
+    if __name__ == .__main__.:
+exclude_also =
+    ^\s*@\w+
+    ^\s*if TYPE_CHECKING:
+
+[html]

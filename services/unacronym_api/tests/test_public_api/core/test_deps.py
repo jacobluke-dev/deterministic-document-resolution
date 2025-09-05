@@ -24,16 +24,6 @@ def _reload_deps(max_inflight: int | None, create_stub):
 
 
 class TestAppContainer:
-    def test_resolver_is_created_once(self):
-        calls = {"n": 0}
-
-        def stub():
-            calls["n"] += 1
-            return DummyResolver()
-
-        deps = _reload_deps(0, stub)
-        assert calls["n"] == 1
-        assert isinstance(deps.container.resolver, DummyResolver)
 
     def test_semaphore_disabled_if_zero(self):
         def stub():

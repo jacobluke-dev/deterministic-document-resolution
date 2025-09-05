@@ -6,7 +6,7 @@ services:
       context: ..                                 # repo root
       dockerfile: services/unacronym_api/Dockerfile  # path is relative to context
     working_dir: /app
-    env_file: ./unacronym_api/.env
+    env_file: ./.env
     ports: [ "8000:8000" ]
     volumes:
       - ./unacronym_api/alembic.ini:/app/unacronym_api/alembic.ini:ro

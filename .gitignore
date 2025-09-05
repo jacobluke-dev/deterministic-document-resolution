@@ -27,3 +27,4 @@ htmlcov/
 pytest-results.xml
 
 .env
+.venv

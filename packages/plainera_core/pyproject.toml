@@ -1,32 +1,35 @@
+# packages/plainera_core/pyproject.toml
 [tool.poetry]
 name = "plainera-core"
 version = "0.1.0"
-description = "Core utilities for Plainera"
-authors = ["Your Name <you@example.com>"]
-packages = [{ include = "plainera_core" }]
+description = "Plainera Core Package"
+authors = ["Jacob Bickerstaff"]
+
+packages = [{ include = "plainera_core", from = "src" }]
 
 [tool.poetry.dependencies]
 python = "^3.13"
+SQLAlchemy = ">=2.0.43,<2.1"
+python-dotenv = "^1.0"
 
 [tool.poetry.group.dev.dependencies]
+plainera-testkit = { path = "../plainera_testkit", develop = true }
 pytest = "^8.3.0"
 mypy = "^1.11.1"
 ruff = "^0.5.7"
+pytest-asyncio = "^1.1.0"
 pytest-cov = "^6.2.1"
-pre-commit = "^4.3.0"
 
 [build-system]
 requires = ["poetry-core"]
 build-backend = "poetry.core.masonry.api"
 
-[tool.mypy]
-python_version = "3.13"
-warn_unused_ignores = true
-disallow_any_generics = true
-no_implicit_optional = true
-check_untyped_defs = true
-warn_redundant_casts = true
-warn_unreachable = true
-show_error_codes = true
-pretty = true
-explicit_package_bases = true
+
+# --- Ruff configuration ---
+[tool.ruff]
+line-length = 120
+extend-exclude = ["migrations", ".venv"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP", "SIM", "C90"]
+fixable = ["ALL"]

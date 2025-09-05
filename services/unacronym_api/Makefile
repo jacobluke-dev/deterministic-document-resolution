@@ -1,7 +1,7 @@
-#### Variables ####
+SHELL := /usr/bin/env bash
+RUN ?= python -m
 
-POETRY ?= poetry
-RUN := $(POETRY) run
+PKG := unacronym_api
 PORT ?= 8000
 IMAGE ?= unacronym-api
 APP_VERSION ?= 0.1.0
@@ -13,13 +13,6 @@ COMPOSE := docker compose -f ../docker-compose.yml
 .PHONY: install run fmt lint style typecheck test cover htmlcov clean hooks \
         build all build-remove-cache up down logs nuke help migrate makemigration downgrade \
         seed-local al e mbic-help ci-local release
-
-help:
-	@echo "Common targets:"
-	@grep -E '^[a-zA-Z_-]+:.*?## ' $(MAKEFILE_LIST) | sed -e 's/:.*##/: /' | sort
-
-install:
-	$(POETRY) install --no-interaction
 
 # ---- Dev & Quality ---------------------------------------------
 
@@ -59,24 +52,25 @@ print-env:
 	@env
 
 # ---- Migrations (Alembic) --------------------------------------
+ALEMBIC_INI := unacronym_api/alembic.ini
 alembic-help:
 	$(COMPOSE) exec -T -w /app api python -m alembic -h || (echo "Alembic not available in image" && exit 1)
 
 migrate: ## 2nd:  Apply migrations (upgrade head)
 	$(COMPOSE) exec -w /app api \
-	  python -m alembic -c public_api/alembic.ini upgrade head
+	  python -m alembic -c  $(ALEMBIC_INI) upgrade head
 
 # usage: make makemigration msg="add glossary tables"
 makemigration: ## 1st: Create migration file
 	@test -n "$(msg)" || (echo "Usage: make makemigration msg=\"your message\""; exit 2)
 	$(COMPOSE) exec -w /app api \
-	  python -m alembic -c public_api/alembic.ini revision --autogenerate -m "$(msg)"
+	  python -m alembic -c  $(ALEMBIC_INI) revision --autogenerate -m "$(msg)"
 
 # usage: make downgrade n=1
 n ?= 1
 downgrade: ## Roll back N steps (default 1)
 	$(COMPOSE) exec -w /app api \
-	  python -m alembic -c public_api/alembic.ini downgrade -$(n)
+	  python -m alembic -c  $(ALEMBIC_INI) downgrade -$(n)
 
 # ---- Seed -------------------------------------------------------
 seed-local: ## Seed sample data (Docker env; APP_ENV=local)
