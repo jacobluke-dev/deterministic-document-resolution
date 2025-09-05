@@ -1,6 +1,11 @@
-from typing import Callable, Iterable
+from typing import TYPE_CHECKING, Any, Callable, Iterable, Mapping
 
-from public_api.types import DefinitionCandidateLike
+if TYPE_CHECKING:
+    # only used by type checkers; mypy already sees services/... via PYTHONPATH in Makefile
+    from public_api.types import DefinitionCandidateLike
+else:
+    # runtime-compatible fallback so we don't need FastAPI or the service package installed
+    DefinitionCandidateLike = Mapping[str, Any]
 
 from plainera_core.core.domain import Acronym
 
