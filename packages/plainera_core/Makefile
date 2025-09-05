@@ -24,7 +24,8 @@ style:
 	$(RUN) ruff check $(SRC) $(TESTS)
 
 typecheck:
-	$(RUN) mypy $(SRC)
+	ROOT=$$(git rev-parse --show-toplevel); \
+	PYTHONPATH=$$ROOT/services/unacronym_api/src:src $(RUN) mypy $(SRC)
 
 test:
 	PYTHONPATH=$(SRC) $(RUN) pytest -q --override-ini="addopts=-q --cov=$(SRC) --cov-report=term --cov-report=xml:coverage.xml --cov-fail-under=80" tests
