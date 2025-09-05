@@ -1,5 +1,3 @@
-# packages/plainera_core/src/plainera_core/core/services/factory.py
-
 from typing import Optional, cast
 
 from plainera_core.core.services.resolver import AcronymResolver
@@ -23,4 +21,5 @@ def create_resolver(lookup: Optional[LookupFunc] = None) -> AcronymResolverLike:
         AcronymResolverLike: A resolver conforming to the minimal protocol,
         safe for injection into the API layer.
     """
-    return cast(AcronymResolverLike, AcronymResolver(lookup or default_lookup()))
+    lf: LookupFunc = lookup if lookup is not None else cast(LookupFunc, default_lookup())
+    return cast(AcronymResolverLike, AcronymResolver(lf))

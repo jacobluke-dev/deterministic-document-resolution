@@ -1,27 +1,24 @@
-from typing import Protocol, runtime_checkable
+from typing import Callable, Iterable, Protocol, runtime_checkable
 
 from plainera_core.core.domain import DefinitionCandidate
 
-from public_api.types import LookupFunc, ResolveReturn
+from public_api.types import ResolveReturn
 
 
 class DefinitionCandidateLike(Protocol):
     """Structural protocol for definition candidates.
-
-    Attributes:
-        text (str): The human-readable definition text.
-        score (float): A relevance/confidence score for the candidate.
     """
-    text: str
-    score: float
+    @property
+    def text(self) -> str: ...
+
+    @property
+    def score(self) -> float: ...
 
 class AcronymLike(Protocol):
     """Structural protocol for acronyms.
-
-    Attributes:
-        text (str): The acronym text to be resolved.
     """
-    text: str
+    @property
+    def text(self) -> str: ...
 
 
 @runtime_checkable
@@ -45,7 +42,7 @@ class AcronymResolverLike(Protocol):
 
 
 # TODO UN-14 2.5 Story
-def default_lookup() -> LookupFunc:
+def default_lookup() -> Callable[[str], Iterable[DefinitionCandidate]]:
     """Create a minimal stub lookup function.
 
     //TODO This is a placeholder implementation until Story 2.5 introduces
@@ -56,6 +53,7 @@ def default_lookup() -> LookupFunc:
         list containing a single dummy candidate (with the acronym text
         itself and a neutral score).
     """
-    def _lookup(acronym_text: str) -> list[DefinitionCandidateLike]:
-        return [DefinitionCandidate(text=acronym_text, score=0.5)]   # type: ignore[incompatible-type]
+    def _lookup(acronym_text: str) -> Iterable[DefinitionCandidate]:
+        # tuple avoids list invariance issues
+        return (DefinitionCandidate(text=acronym_text, score=0.5),)
     return _lookup

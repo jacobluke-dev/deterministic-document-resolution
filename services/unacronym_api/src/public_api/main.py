@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from contextlib import asynccontextmanager
+from typing import Any, AsyncGenerator
 
 from fastapi import FastAPI
 from fastapi.exceptions import RequestValidationError
@@ -20,16 +21,16 @@ from public_api.core.settings import AppSettings, app_settings
 __version__ = "0.1.0"
 
 @asynccontextmanager
-async def lifespan(app: FastAPI):
+async def lifespan(app: FastAPI) -> AsyncGenerator[None, Any]:
     # init
-    state = app.state  # type: ignore[assignment]
+    state = app.state  # noqa: ignore[assignment]
     dbm = make_dbm(test_mode=False)
-    state.dbm = dbm  # type: ignore[index]  # AppState["dbm"]
+    state.dbm = dbm  # noqa: ignore[index]  # AppState["dbm"]
     try:
         yield
     finally:
         # dispose cleanly
-        engine: Engine = dbm.engine  # type: ignore[attr-defined]
+        engine: Engine = dbm.engine  # noqa: ignore[attr-defined]
         engine.dispose()
 
 def create_app(settings: AppSettings | None = None) -> FastAPI:
