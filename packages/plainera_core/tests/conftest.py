@@ -2,6 +2,10 @@ import pytest
 from plainera_core.core.domain import DefinitionCandidate
 from plainera_core.core.services.resolver import AcronymResolver
 
+pytest_plugins = (
+    "test_kit.fixtures",
+)
+
 
 @pytest.fixture
 def mock_lookup():
