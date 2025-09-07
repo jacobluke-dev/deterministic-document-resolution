@@ -1,71 +1,15 @@
-
-import dataclasses
 import re
-from dataclasses import dataclass
-from typing import Iterable, Iterator, List, Tuple, Dict
+from typing import Iterator
 
-# ---------------------------
-# Configuration
-# ---------------------------
-
-@dataclass(frozen=True)
-class DetectorConfig:
-    min_len: int = 2
-    max_len: int = 10
-    # Allowed internal punctuation in acronyms (normalized for keying).
-    allow_chars: str = "&/'’-"
-    # Very small, locale-aware blacklist. Configurable/overrideable.
-    blacklist: frozenset[str] = frozenset({"AM", "OK", "NO", "IT"})
-    locale: str = "en_GB"
-    window_chars: int = 80
-    # Letters only: ratio of uppercase letters over letters (digits ignored).
-    require_caps_ratio: float = 0.7
+from src.plainera_unacronym.nlp.config import TRAILING_PUNCT, LEADING_BRACK, CLOSING_BRACK, STANDS_FOR_RE, \
+    APOSTROPHE_VARIANTS
+from src.plainera_unacronym.nlp.types import DetectorConfig, pattern_cache
 
 
-@dataclass(frozen=True)
-class Occurrence:
-    acronym: str                 # surface form as detected (not lowercased)
-    start_offset: int
-    end_offset: int              # end-exclusive
-    confidence: float
-    context_window: Tuple[int, int]
-
-
-@dataclass(frozen=True)
-class FirstOccurrence:
-    acronym: str
-    start_offset: int
-    end_offset: int
-    confidence: float
-
-
-@dataclass(frozen=True)
-class DetectorResult:
-    unique_acronyms: Dict[str, FirstOccurrence]   # key = normalized_key
-    occurrences: List[Occurrence]
-
-
-# ---------------------------
-# Regex compilation
-# ---------------------------
-
-# Notes:
-# 1) Two branches:
-#    a) Chunk-with-separators: R & D, O’RAN, R-D, R/D  (spaces around separators allowed)
-#    b) Compact ALL-CAPS/alnum: NHS, GPU, H2O, G8, MP3
-#
-# 2) We purposely do *not* include trailing punctuation (,.;:!?) in the match.
-#    We'll slice it away if present, conservatively.
-#
-# 3) We avoid catastrophic backtracking by keeping the pattern simple and linear.
-
-# Will be rebuilt on first call per-config, but cached at module level per (pattern_str -> Pattern).
-_pattern_cache: Dict[Tuple[int, int, str], re.Pattern[str]] = {}
-
-def _compile_pattern(cfg: DetectorConfig) -> re.Pattern[str]:
+def compile_pattern(cfg: DetectorConfig) -> re.Pattern[str]:
     key = (cfg.min_len, cfg.max_len, cfg.allow_chars)
-    if key in _pattern_cache:
-        return _pattern_cache[key]
+    if key in pattern_cache:
+        return pattern_cache[key]
 
     sep = re.escape(cfg.allow_chars)  # allowed internal separators
     # Branch a: chunks separated by allowed punctuation, optional spaces around the sep.
@@ -77,21 +21,9 @@ def _compile_pattern(cfg: DetectorConfig) -> re.Pattern[str]:
     pattern  = rf"{token}"
 
     compiled = re.compile(pattern)
-    _pattern_cache[key] = compiled
+    pattern_cache[key] = compiled
     return compiled
 
-
-# ---------------------------
-# Helpers
-# ---------------------------
-
-_APOSTROPHE_VARIANTS = {"'": "’", "’": "’"}  # normalize to curly for keying
-
-_TRAILING_PUNCT = ",.;:!?)]}»”"
-_LEADING_BRACK  = "([«“["
-_CLOSING_BRACK  = ")]»”]"
-
-_STANDS_FOR_RE  = re.compile(r"\bstands\s+for\b", re.IGNORECASE)
 
 def _letters(token: str) -> str:
     return "".join(ch for ch in token if ch.isalpha())
@@ -103,24 +35,24 @@ def _caps_ratio(token: str) -> float:
     upp = sum(1 for ch in letters if ch.isupper())
     return upp / len(letters)
 
-def _strip_trailing_punct(text: str, start: int, end: int) -> Tuple[int, int]:
+def _strip_trailing_punct(text: str, start: int, end: int) -> tuple[int, int]:
     # Exclude common trailing punctuation from offsets.
-    while end > start and text[end - 1] in _TRAILING_PUNCT:
+    while end > start and text[end - 1] in TRAILING_PUNCT:
         end -= 1
     return start, end
 
-def _in_brackets(text: str, start: int, end: int) -> Tuple[bool, bool]:
+def _in_brackets(text: str, start: int, end: int) -> tuple[bool, bool]:
     # (inside, adjacent)
     s = start
     e = end
     inside = (s > 0 and text[s - 1] in "([") and (e < len(text) and text[e] in ")]")
-    adjacent = (s > 0 and text[s - 1] in _LEADING_BRACK) or (e < len(text) and text[e] in _CLOSING_BRACK)
+    adjacent = (s > 0 and text[s - 1] in LEADING_BRACK) or (e < len(text) and text[e] in CLOSING_BRACK)
     return inside, adjacent
 
 def _has_stands_for_near(text: str, start: int, end: int, radius: int) -> bool:
     lo = max(0, start - radius)
     hi = min(len(text), end + radius)
-    return bool(_STANDS_FOR_RE.search(text[lo:hi]))
+    return bool(STANDS_FOR_RE.search(text[lo:hi]))
 
 def _is_sentence_start(text: str, start: int) -> bool:
     # crude but fast: previous non-space is a sentence terminator or start of doc.
@@ -144,11 +76,11 @@ def _next_word_lowercase(text: str, end: int) -> bool:
     word = text[i:j]
     return bool(word) and word.islower()
 
-def _normalize_key(surface: str) -> str:
+def normalize_key(surface: str) -> str:
     # 1) normalize apostrophes
-    s = "".join(_APOSTROPHE_VARIANTS.get(ch, ch) for ch in surface)
+    s = "".join(APOSTROPHE_VARIANTS.get(ch, ch) for ch in surface)
     # 2) remove spaces *around* allowed separators only (R & D -> R&D), keep other spaces intact (rare).
-    parts: List[str] = []
+    parts: list[str] = []
     i = 0
     while i < len(s):
         ch = s[i]
@@ -169,7 +101,7 @@ def _core_len_for_bounds(token: str) -> int:
     # count alnum only for min/max length checks
     return sum(1 for ch in token if ch.isalnum())
 
-def _blacklist_context_drop(surface: str, text: str, start: int, end: int, cfg: DetectorConfig) -> bool:
+def blacklist_context_drop(surface: str, text: str, start: int, end: int, cfg: DetectorConfig) -> bool:
     tok = surface
     if tok not in cfg.blacklist:
         return False
@@ -194,7 +126,7 @@ def _blacklist_context_drop(surface: str, text: str, start: int, end: int, cfg: 
         return True
     return False
 
-def _score(surface: str, text: str, start: int, end: int, cfg: DetectorConfig) -> float:
+def score(surface: str, text: str, start: int, end: int, cfg: DetectorConfig) -> float:
     # base
     score = 0.6
 
@@ -217,7 +149,7 @@ def _score(surface: str, text: str, start: int, end: int, cfg: DetectorConfig) -
         return 1.0
     return score
 
-def _context_window(text: str, start: int, end: int, window_chars: int) -> Tuple[int, int]:
+def context_window(text: str, start: int, end: int, window_chars: int) -> tuple[int, int]:
     # Prefer sentence boundaries; fall back to +/- window_chars.
     left = start
     while left > 0 and text[left - 1] not in ".!?\n\r":
@@ -234,8 +166,8 @@ def _context_window(text: str, start: int, end: int, window_chars: int) -> Tuple
 
     return (left, right)
 
-def _iter_candidates(text: str, cfg: DetectorConfig) -> Iterator[Tuple[str, int, int]]:
-    pat = _compile_pattern(cfg)
+def iter_candidates(text: str, cfg: DetectorConfig) -> Iterator[tuple[str, int, int]]:
+    pat = compile_pattern(cfg)
     for m in pat.finditer(text):
         s, e = m.span("tok")
         s, e = _strip_trailing_punct(text, s, e)
@@ -256,45 +188,3 @@ def _iter_candidates(text: str, cfg: DetectorConfig) -> Iterator[Tuple[str, int,
         if clen == 1:
             continue
         yield surface, s, e
-
-
-# ---------------------------
-# Public API
-# ---------------------------
-
-DEFAULT_CONFIG = DetectorConfig()
-
-
-def detect_acronyms(text: str, config: DetectorConfig = DEFAULT_CONFIG) -> DetectorResult:
-    """
-    One-pass detector. Returns stable schema + first-occurrence map with normalized keys.
-    """
-    occurrences: List[Occurrence] = []
-    firsts: Dict[str, FirstOccurrence] = {}
-
-    for surface, s, e in _iter_candidates(text, config):
-        if _blacklist_context_drop(surface, text, s, e, config):
-            continue
-
-        conf = _score(surface, text, s, e, config)
-        ctx = _context_window(text, s, e, config.window_chars)
-
-        occ = Occurrence(
-            acronym=surface,
-            start_offset=s,
-            end_offset=e,
-            confidence=conf,
-            context_window=ctx,
-        )
-        occurrences.append(occ)
-
-        key = _normalize_key(surface)
-        if key not in firsts:
-            firsts[key] = FirstOccurrence(
-                acronym=surface,
-                start_offset=s,
-                end_offset=e,
-                confidence=conf,
-            )
-
-    return DetectorResult(unique_acronyms=firsts, occurrences=occurrences)

@@ -40,7 +40,7 @@ def scrub(obj: Any) -> Any:
       * **Dicts** – For keys whose lowercase form is in ``SENSITIVE_KEYS``,
         replace the value with ``"[REDACTED]"``. Keys are matched
         case-insensitively but **original casing is preserved** in the output.
-      * **Lists/Tuples** – Recurse into each element. Tuples are preserved as
+      * **lists/Tuples** – Recurse into each element. Tuples are preserved as
         tuples; lists remain lists.
       * **Strings** – Redact token-like substrings via :func:`_scrub_str`.
       * **Other types** – Returned unchanged.
