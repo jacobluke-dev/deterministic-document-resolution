@@ -1,0 +1,17 @@
+[project]
+name = "plainera-unacronym"
+version = "0.1.0"
+requires-python = ">=3.11"
+description = "Unacronym product library (detector + heuristics)"
+
+[tool.poetry]
+packages = [{ include = "plainera_unacronym", from = "src" }]
+
+[tool.pytest.ini_options]
+addopts = "-q --cov=plainera_unacronym --cov-report=term --cov-report=xml:coverage.xml --cov-fail-under=80"
+testpaths = ["tests"]
+
+[tool.mypy]
+python_version = "3.13"
+packages = ["plainera_unacronym"]
+strict = true

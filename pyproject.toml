@@ -18,6 +18,7 @@ psycopg = { version = ">=3.2,<3.3", extras = ["binary"] }
 alembic = ">=1.16.5,<2.0"
 httpx = "^0.28.1"
 plainera-core = { path = "packages/plainera_core", develop = true }
+plainera-unacronym = { path = "packages/plainera_unacronym", develop=true}
 plainera-testkit = {path = "packages/plainera_testkit", develop = true}
 plainera-observability = { path = "packages/plainera_observability", develop = true, extras = ["fastapi"] }
 unacronym-api = { path = "services/unacronym_api", develop = true}
