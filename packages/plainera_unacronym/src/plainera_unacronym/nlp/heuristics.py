@@ -164,7 +164,7 @@ def context_window(text: str, start: int, end: int, window_chars: int) -> tuple[
         if right - end >= window_chars:
             break
 
-    return (left, right)
+    return left, right
 
 def iter_candidates(text: str, cfg: DetectorConfig) -> Iterator[tuple[str, int, int]]:
     pat = compile_pattern(cfg)
@@ -186,5 +186,22 @@ def iter_candidates(text: str, cfg: DetectorConfig) -> Iterator[tuple[str, int, 
             continue
         # reject single-letter
         if clen == 1:
+            continue
+        yield surface, s, e
+
+
+def iter_candidates_with(text: str, cfg: DetectorConfig, pat: re.Pattern[str]) -> Iterator[tuple[str, int, int]]:
+    for m in pat.finditer(text):
+        s, e = m.span("tok")
+        s, e = _strip_trailing_punct(text, s, e)
+        if e - s < cfg.min_len:
+            continue
+        surface = text[s:e]
+        clen = _core_len_for_bounds(surface)
+        if clen < cfg.min_len or clen > cfg.max_len:
+            continue
+        if _caps_ratio(surface) < cfg.require_caps_ratio:
+            continue
+        if clen >= 15 or clen == 1:
             continue
         yield surface, s, e

@@ -1,17 +1,7 @@
-from .detect import (
-    DetectorConfig,
-    Occurrence,
-    FirstOccurrence,
-    DetectorResult,
-    DEFAULT_CONFIG,
-    detect_acronyms,
-)
+from .types import DetectorConfig, DetectorResult, Occurrence, FirstOccurrence
+from .detector import detect_acronyms, Detector
 
 __all__ = [
-    "DetectorConfig",
-    "Occurrence",
-    "FirstOccurrence",
-    "DetectorResult",
-    "DEFAULT_CONFIG",
-    "detect_acronyms",
+    "DetectorConfig", "DetectorResult", "Occurrence", "FirstOccurrence",
+    "detect_acronyms", "Detector",
 ]
