@@ -1,8 +1,11 @@
 import re
 from typing import Iterator
 
-from src.plainera_unacronym.nlp.config import TRAILING_PUNCT, LEADING_BRACK, CLOSING_BRACK, STANDS_FOR_RE, \
-    APOSTROPHE_VARIANTS
+from src.plainera_unacronym.nlp.config import (TRAILING_PUNCT,
+                                               LEADING_BRACK,
+                                               CLOSING_BRACK,
+                                               STANDS_FOR_RE,
+                                               APOSTROPHE_VARIANTS)
 from src.plainera_unacronym.nlp.types import DetectorConfig, pattern_cache
 
 
@@ -15,10 +18,10 @@ def compile_pattern(cfg: DetectorConfig) -> re.Pattern[str]:
     # Branch a: chunks separated by allowed punctuation, optional spaces around the sep.
     with_seps = rf"(?:[A-Z0-9]+(?:\s*[{sep}]\s*[A-Z0-9]+)+)"
     # Branch b: compact uppercase/alnum run with configurable length bounds.
-    compact  = rf"(?:[A-Z][A-Z0-9]{{{max(cfg.min_len-1, 1)},{max(cfg.max_len-1, 1)}}})"
-    token    = rf"(?P<tok>{with_seps}|{compact})"
+    compact = rf"(?:[A-Z][A-Z0-9]{{{max(cfg.min_len - 1, 1)},{max(cfg.max_len - 1, 1)}}})"
+    token = rf"(?P<tok>{with_seps}|{compact})"
     # Allow adjacency with brackets/quotes without consuming them.
-    pattern  = rf"{token}"
+    pattern = rf"{token}"
 
     compiled = re.compile(pattern)
     pattern_cache[key] = compiled
@@ -28,6 +31,7 @@ def compile_pattern(cfg: DetectorConfig) -> re.Pattern[str]:
 def _letters(token: str) -> str:
     return "".join(ch for ch in token if ch.isalpha())
 
+
 def _caps_ratio(token: str) -> float:
     letters = _letters(token)
     if not letters:
@@ -35,11 +39,13 @@ def _caps_ratio(token: str) -> float:
     upp = sum(1 for ch in letters if ch.isupper())
     return upp / len(letters)
 
+
 def _strip_trailing_punct(text: str, start: int, end: int) -> tuple[int, int]:
     # Exclude common trailing punctuation from offsets.
     while end > start and text[end - 1] in TRAILING_PUNCT:
         end -= 1
     return start, end
+
 
 def _in_brackets(text: str, start: int, end: int) -> tuple[bool, bool]:
     # (inside, adjacent)
@@ -49,10 +55,12 @@ def _in_brackets(text: str, start: int, end: int) -> tuple[bool, bool]:
     adjacent = (s > 0 and text[s - 1] in LEADING_BRACK) or (e < len(text) and text[e] in CLOSING_BRACK)
     return inside, adjacent
 
+
 def _has_stands_for_near(text: str, start: int, end: int, radius: int) -> bool:
     lo = max(0, start - radius)
     hi = min(len(text), end + radius)
     return bool(STANDS_FOR_RE.search(text[lo:hi]))
+
 
 def _is_sentence_start(text: str, start: int) -> bool:
     # crude but fast: previous non-space is a sentence terminator or start of doc.
@@ -61,6 +69,7 @@ def _is_sentence_start(text: str, start: int) -> bool:
         i -= 1
     return i < 0 or text[i] in ".!?\n\r"
 
+
 def _next_word_lowercase(text: str, end: int) -> bool:
     # Peek the immediate next word; if it's all-lowercase, return True.
     i = end
@@ -68,13 +77,14 @@ def _next_word_lowercase(text: str, end: int) -> bool:
     while i < n and text[i].isspace():
         i += 1
     # skip leading quotes/brackets
-    while i < n and text[i] in "\"'“”‘’([{" :
+    while i < n and text[i] in "\"'“”‘’([{":
         i += 1
     j = i
     while j < n and (text[j].isalpha() or text[j] == "'"):
         j += 1
     word = text[i:j]
     return bool(word) and word.islower()
+
 
 def normalize_key(surface: str) -> str:
     # 1) normalize apostrophes
@@ -97,9 +107,11 @@ def normalize_key(surface: str) -> str:
         i += 1
     return "".join(parts)
 
+
 def _core_len_for_bounds(token: str) -> int:
     # count alnum only for min/max length checks
     return sum(1 for ch in token if ch.isalnum())
+
 
 def blacklist_context_drop(surface: str, text: str, start: int, end: int, cfg: DetectorConfig) -> bool:
     tok = surface
@@ -126,6 +138,7 @@ def blacklist_context_drop(surface: str, text: str, start: int, end: int, cfg: D
         return True
     return False
 
+
 def score(surface: str, text: str, start: int, end: int, cfg: DetectorConfig) -> float:
     # base
     score = 0.6
@@ -149,6 +162,7 @@ def score(surface: str, text: str, start: int, end: int, cfg: DetectorConfig) ->
         return 1.0
     return score
 
+
 def context_window(text: str, start: int, end: int, window_chars: int) -> tuple[int, int]:
     # Prefer sentence boundaries; fall back to +/- window_chars.
     left = start
@@ -165,6 +179,7 @@ def context_window(text: str, start: int, end: int, window_chars: int) -> tuple[
             break
 
     return left, right
+
 
 def iter_candidates(text: str, cfg: DetectorConfig) -> Iterator[tuple[str, int, int]]:
     pat = compile_pattern(cfg)
