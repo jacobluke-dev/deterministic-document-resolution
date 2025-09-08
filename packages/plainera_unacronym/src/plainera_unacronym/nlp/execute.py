@@ -5,12 +5,14 @@ from pathlib import Path
 from src.plainera_unacronym.nlp.detector import Detector
 from src.plainera_unacronym.nlp.types import DetectorConfig, DetectorResult
 
+
 def _serialize(result: DetectorResult, *, pretty: bool = False) -> str:
     payload = {
         "unique_acronyms": {k: asdict(v) for k, v in result.unique_acronyms.items()},
         "occurrences": [asdict(o) for o in result.occurrences],
     }
     return json.dumps(payload, ensure_ascii=False, indent=2 if pretty else None)
+
 
 def run_detection(
     text: str,
@@ -24,6 +26,7 @@ def run_detection(
     det = Detector(cfg)
     result = det.detect_parallel(text) if parallel else det.detect(text)
     return _serialize(result, pretty=pretty) if as_json else result
+
 
 def execute_acronym_locator(
     file_path: str,
