@@ -1,7 +1,8 @@
 from concurrent.futures import ProcessPoolExecutor
 import asyncio
-from typing import Optional
+from typing import Optional, Iterable
 
+from plainera_unacronym.nlp.config import allow_chars
 from plainera_unacronym.nlp.heuristics import (
     context_window, score, normalize_key, blacklist_context_drop,
     iter_candidates, compile_pattern, iter_candidates_with, core_len_for_bounds,
@@ -9,6 +10,27 @@ from plainera_unacronym.nlp.heuristics import (
 from plainera_unacronym.nlp.types import DetectorConfig, DetectorResult, Occurrence, FirstOccurrence
 
 DEFAULT_CONFIG = DetectorConfig()
+ALLOW_CHARS_DEFAULTS = allow_chars
+
+
+def _score_chunk_worker(
+    cfg: DetectorConfig,
+    text: str,
+    window_chars: int,
+    cands: Iterable[tuple[str, int, int]],
+) -> list[Occurrence]:
+    out: list[Occurrence] = []
+    for surface, s, e in cands:
+        if blacklist_context_drop(surface, text, s, e, cfg):
+            continue
+        conf = score(surface, text, s, e, cfg)
+        clen = core_len_for_bounds(surface)
+        th = cfg.min_confidence_by_len.get(clen, cfg.min_confidence_default)
+        if conf < th:
+            continue
+        ctx = context_window(text, s, e, window_chars)
+        out.append(Occurrence(surface, s, e, conf, ctx))
+    return out
 
 
 class Detector:
@@ -17,6 +39,7 @@ class Detector:
         self._pat = compile_pattern(config)  # precompiled once
         self._pool: Optional[ProcessPoolExecutor] = None
         self._max_workers = max_workers
+        self.allow_chars = ALLOW_CHARS_DEFAULTS
 
     def detect(self, text: str) -> DetectorResult:
         occurrences: list[Occurrence] = []
@@ -33,7 +56,7 @@ class Detector:
             ctx = context_window(text, s, e, self.cfg.window_chars)
             occ = Occurrence(acronym=surface, start_offset=s, end_offset=e, confidence=conf, context_window=ctx)
             occurrences.append(occ)
-            key = normalize_key(surface)
+            key = normalize_key(surface, self.allow_chars)
             if key not in firsts:
                 firsts[key] = FirstOccurrence(acronym=surface, start_offset=s, end_offset=e, confidence=conf)
         return DetectorResult(unique_acronyms=firsts, occurrences=occurrences)
@@ -42,27 +65,17 @@ class Detector:
         # Heuristic: small inputs are faster serially
         cands = list(iter_candidates_with(text, self.cfg, self._pat))
         if len(cands) < threshold:
-            # Re-run serial path to keep code simple (or reuse scored objects if you prefer)
             return self.detect(text)
 
         if self._pool is None:
             self._pool = ProcessPoolExecutor(max_workers=self._max_workers)
 
-        # Chunk candidates to amortize IPC; re-score in workers
-        def _score_chunk(chunk: list[tuple[str,int,int]]) -> list[Occurrence]:
-            # Recompile pattern is not needed here; we’re only scoring supplied spans
-            occs: list[Occurrence] = []
-            for surface, s, e in chunk:
-                if blacklist_context_drop(surface, text, s, e, self.cfg):
-                    continue
-                conf = score(surface, text, s, e, self.cfg)
-                ctx = context_window(text, s, e, self.cfg.window_chars)
-                occs.append(Occurrence(surface, s, e, conf, ctx))
-            return occs
-
         futures = []
         for i in range(0, len(cands), chunk_size):
-            futures.append(self._pool.submit(_score_chunk, cands[i:i+chunk_size]))
+            chunk = cands[i:i + chunk_size]
+            futures.append(self._pool.submit(
+                _score_chunk_worker, self.cfg, text, self.cfg.window_chars, chunk
+            ))
 
         occurrences: list[Occurrence] = []
         for f in futures:
@@ -71,7 +84,7 @@ class Detector:
         # Build first-occurrence map
         firsts: dict[str, FirstOccurrence] = {}
         for occ in occurrences:
-            key = normalize_key(occ.acronym)
+            key = normalize_key(occ.acronym, self.allow_chars)
             if key not in firsts:
                 firsts[key] = FirstOccurrence(occ.acronym, occ.start_offset, occ.end_offset, occ.confidence)
         return DetectorResult(unique_acronyms=firsts, occurrences=occurrences)
@@ -83,7 +96,9 @@ class Detector:
 
 
 
-def detect_acronyms(text: str, config: DetectorConfig = DEFAULT_CONFIG) -> DetectorResult:
+def detect_acronyms(text: str,
+                    config: DetectorConfig = DEFAULT_CONFIG,
+                    allowed_chars = ALLOW_CHARS_DEFAULTS) -> DetectorResult:
     """
     One-pass detector. Returns stable schema + first-occurrence map with normalized keys.
     """
@@ -106,7 +121,7 @@ def detect_acronyms(text: str, config: DetectorConfig = DEFAULT_CONFIG) -> Detec
         )
         occurrences.append(occ)
 
-        key = normalize_key(surface)
+        key = normalize_key(surface, allowed_chars)
         if key not in firsts:
             firsts[key] = FirstOccurrence(
                 acronym=surface,
