@@ -229,19 +229,22 @@ def score(surface: str, text: str, start: int, end: int, cfg: DetectorConfig) ->
 
 
 def context_window(text: str, start: int, end: int, window_chars: int) -> tuple[int, int]:
-    # Prefer sentence boundaries; fall back to +/- window_chars.
+    # Left: back to previous terminator (or start), then skip spaces
     left = start
     while left > 0 and text[left - 1] not in ".!?\n\r":
+        if start - left >= window_chars: break
         left -= 1
-        if start - left >= window_chars:
-            break
+    while left < start and text[left].isspace():
+        left += 1
 
-    right = end
+    # Right: forward to next terminator (or end), include the terminator
     n = len(text)
+    right = end
     while right < n and text[right] not in ".!?\n\r":
+        if right - end >= window_chars: break
         right += 1
-        if right - end >= window_chars:
-            break
+    if right < n and text[right] in ".!?\n\r":
+        right += 1  # include the terminator
 
     return left, right
 

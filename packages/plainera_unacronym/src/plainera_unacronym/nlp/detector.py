@@ -24,8 +24,8 @@ def _score_chunk_worker(
         if blacklist_context_drop(surface, text, s, e, cfg):
             continue
         conf = score(surface, text, s, e, cfg)
-        clen = core_len_for_bounds(surface)
-        th = cfg.min_confidence_by_len.get(clen, cfg.min_confidence_default)
+        eff = threshold_len(surface, cfg.allow_chars)
+        th  = cfg.min_confidence_by_len.get(eff, cfg.min_confidence_default)
         if conf < th:
             continue
         ctx = context_window(text, s, e, window_chars)
