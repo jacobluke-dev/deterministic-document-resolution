@@ -1,12 +1,12 @@
 import re
 from typing import Iterator
 
-from src.plainera_unacronym.nlp.config import (TRAILING_PUNCT,
+from plainera_unacronym.nlp.config import (TRAILING_PUNCT,
                                                LEADING_BRACK,
                                                CLOSING_BRACK,
                                                STANDS_FOR_RE,
                                                APOSTROPHE_VARIANTS)
-from src.plainera_unacronym.nlp.types import DetectorConfig, pattern_cache
+from plainera_unacronym.nlp.types import DetectorConfig, pattern_cache
 
 
 def compile_pattern(cfg: DetectorConfig) -> re.Pattern[str]:

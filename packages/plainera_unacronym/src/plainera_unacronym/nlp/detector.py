@@ -2,11 +2,11 @@ from concurrent.futures import ProcessPoolExecutor
 import asyncio
 from typing import Optional
 
-from src.plainera_unacronym.nlp.heuristics import (
+from plainera_unacronym.nlp.heuristics import (
     context_window, score, normalize_key, blacklist_context_drop,
     iter_candidates, compile_pattern, iter_candidates_with,
 )
-from src.plainera_unacronym.nlp.types import DetectorConfig, DetectorResult, Occurrence, FirstOccurrence
+from plainera_unacronym.nlp.types import DetectorConfig, DetectorResult, Occurrence, FirstOccurrence
 
 DEFAULT_CONFIG = DetectorConfig()
 

@@ -2,8 +2,8 @@ import json
 from dataclasses import asdict
 from pathlib import Path
 
-from src.plainera_unacronym.nlp.detector import Detector
-from src.plainera_unacronym.nlp.types import DetectorConfig, DetectorResult
+from plainera_unacronym.nlp.detector import Detector
+from plainera_unacronym.nlp.types import DetectorConfig, DetectorResult
 
 
 def _serialize(result: DetectorResult, *, pretty: bool = False) -> str:
