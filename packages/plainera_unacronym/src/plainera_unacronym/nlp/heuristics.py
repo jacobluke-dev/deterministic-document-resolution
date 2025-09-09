@@ -98,6 +98,21 @@ def _next_word_lowercase(text: str, end: int) -> bool:
     return bool(word) and word.islower()
 
 
+def threshold_len(surface: str, allow_chars: str) -> int:
+    """
+    Effective length used for confidence thresholds.
+    - Base is alnum length.
+    - If the token contains any allowed internal separator (e.g. &, /, -),
+      we treat it as at least length 3 so items like 'R&D' don't get penalised
+      as two-letter tokens.
+    """
+    clen = core_len_for_bounds(surface)
+    if any(ch in allow_chars for ch in surface):
+        return max(3, clen)
+    return clen
+
+
+
 def normalize_key(surface: str, allow_chars: str) -> str:
     # 1) normalize apostrophes
     s = "".join(APOSTROPHE_VARIANTS.get(ch, ch) for ch in surface)

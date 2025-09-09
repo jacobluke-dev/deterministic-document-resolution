@@ -5,7 +5,7 @@ from typing import Optional, Iterable
 from plainera_unacronym.nlp.config import allow_chars
 from plainera_unacronym.nlp.heuristics import (
     context_window, score, normalize_key, blacklist_context_drop,
-    iter_candidates, compile_pattern, iter_candidates_with, core_len_for_bounds,
+    iter_candidates, compile_pattern, iter_candidates_with, core_len_for_bounds, threshold_len,
 )
 from plainera_unacronym.nlp.types import DetectorConfig, DetectorResult, Occurrence, FirstOccurrence
 
@@ -39,7 +39,6 @@ class Detector:
         self._pat = compile_pattern(config)  # precompiled once
         self._pool: Optional[ProcessPoolExecutor] = None
         self._max_workers = max_workers
-        self.allow_chars = ALLOW_CHARS_DEFAULTS
 
     def detect(self, text: str) -> DetectorResult:
         occurrences: list[Occurrence] = []
@@ -49,14 +48,14 @@ class Detector:
             if blacklist_context_drop(surface, text, s, e, self.cfg):
                 continue
             conf = score(surface, text, s, e, self.cfg)
-            clen = core_len_for_bounds(surface)
-            th = self.cfg.min_confidence_by_len.get(clen, self.cfg.min_confidence_default)
+            eff = threshold_len(surface, self.cfg.allow_chars)
+            th = self.cfg.min_confidence_by_len.get(eff, self.cfg.min_confidence_default)
             if conf < th:
                 continue
             ctx = context_window(text, s, e, self.cfg.window_chars)
             occ = Occurrence(acronym=surface, start_offset=s, end_offset=e, confidence=conf, context_window=ctx)
             occurrences.append(occ)
-            key = normalize_key(surface, self.allow_chars)
+            key = normalize_key(surface, self.cfg.allow_chars)
             if key not in firsts:
                 firsts[key] = FirstOccurrence(acronym=surface, start_offset=s, end_offset=e, confidence=conf)
         return DetectorResult(unique_acronyms=firsts, occurrences=occurrences)
@@ -84,7 +83,7 @@ class Detector:
         # Build first-occurrence map
         firsts: dict[str, FirstOccurrence] = {}
         for occ in occurrences:
-            key = normalize_key(occ.acronym, self.allow_chars)
+            key = normalize_key(occ.acronym, self.cfg.allow_chars)
             if key not in firsts:
                 firsts[key] = FirstOccurrence(occ.acronym, occ.start_offset, occ.end_offset, occ.confidence)
         return DetectorResult(unique_acronyms=firsts, occurrences=occurrences)
