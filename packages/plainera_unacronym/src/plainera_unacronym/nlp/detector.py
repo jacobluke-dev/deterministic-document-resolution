@@ -4,7 +4,7 @@ from typing import Optional
 
 from plainera_unacronym.nlp.heuristics import (
     context_window, score, normalize_key, blacklist_context_drop,
-    iter_candidates, compile_pattern, iter_candidates_with,
+    iter_candidates, compile_pattern, iter_candidates_with, core_len_for_bounds,
 )
 from plainera_unacronym.nlp.types import DetectorConfig, DetectorResult, Occurrence, FirstOccurrence
 
@@ -26,6 +26,10 @@ class Detector:
             if blacklist_context_drop(surface, text, s, e, self.cfg):
                 continue
             conf = score(surface, text, s, e, self.cfg)
+            clen = core_len_for_bounds(surface)
+            th = self.cfg.min_confidence_by_len.get(clen, self.cfg.min_confidence_default)
+            if conf < th:
+                continue
             ctx = context_window(text, s, e, self.cfg.window_chars)
             occ = Occurrence(acronym=surface, start_offset=s, end_offset=e, confidence=conf, context_window=ctx)
             occurrences.append(occ)

@@ -2,10 +2,10 @@ import re
 from typing import Iterator
 
 from plainera_unacronym.nlp.config import (TRAILING_PUNCT,
-                                               LEADING_BRACK,
-                                               CLOSING_BRACK,
-                                               STANDS_FOR_RE,
-                                               APOSTROPHE_VARIANTS)
+                                           LEADING_BRACK,
+                                           CLOSING_BRACK,
+                                           STANDS_FOR_RE,
+                                           APOSTROPHE_VARIANTS, BOUNDARY, TIME_RE)
 from plainera_unacronym.nlp.types import DetectorConfig, pattern_cache
 
 
@@ -54,6 +54,18 @@ def _in_brackets(text: str, start: int, end: int) -> tuple[bool, bool]:
     inside = (s > 0 and text[s - 1] in "([") and (e < len(text) and text[e] in ")]")
     adjacent = (s > 0 and text[s - 1] in LEADING_BRACK) or (e < len(text) and text[e] in CLOSING_BRACK)
     return inside, adjacent
+
+# add
+def has_stands_for_follow(text: str, end: int, max_chars: int = 24) -> bool:
+    # Look only to the right, stop at sentence end or max_chars
+    i, n = end, len(text)
+    while i < n and text[i].isspace():
+        i += 1
+    j = i
+    limit = min(n, i + max_chars)
+    while j < limit and text[j] not in ".!?":
+        j += 1
+    return bool(STANDS_FOR_RE.search(text[i:j]))
 
 
 def _has_stands_for_near(text: str, start: int, end: int, radius: int) -> bool:
@@ -108,59 +120,98 @@ def normalize_key(surface: str) -> str:
     return "".join(parts)
 
 
-def _core_len_for_bounds(token: str) -> int:
+def core_len_for_bounds(token: str) -> int:
     # count alnum only for min/max length checks
     return sum(1 for ch in token if ch.isalnum())
 
 
+def _at_sentence_boundary(text: str, pos: int) -> bool:
+    i = pos - 1
+    while i >= 0 and text[i].isspace():
+        i -= 1
+    return i < 0 or text[i] in BOUNDARY
+
+def _prev_token(text: str, start: int) -> str:
+    i = start - 1
+    while i >= 0 and text[i].isspace():
+        i -= 1
+    j = i
+    while j >= 0 and (text[j].isalnum() or text[j] in ":."):
+        j -= 1
+    return text[j+1:i+1]
+
+
 def blacklist_context_drop(surface: str, text: str, start: int, end: int, cfg: DetectorConfig) -> bool:
     tok = surface
-    if tok not in cfg.blacklist:
+
+    # Only run if token is explicitly blacklisted OR is in the always-drop uppercase set
+    if tok not in getattr(cfg, "blacklist", frozenset()) and tok not in cfg.non_acronym_upper:
         return False
-    # special: "IT" used as pronoun at sentence start: "IT was ..."
-    if tok == "IT" and _is_sentence_start(text, start) and _next_word_lowercase(text, end):
-        return True
-    # "AM" after "I " (I AM ...) isn't an acronym
+
+    # Don’t drop in definition-y contexts
+    inside, _ = _in_brackets(text, start, end)
+    if inside or has_paren_definition(text, end) or has_stands_for_follow(text, end):
+        return False
+
+    if tok in cfg.non_acronym_upper:
+        # “OK,” “OK.” or followed by lowercase word → drop (any position)
+        i = end
+        n = len(text)
+        while i < n and text[i].isspace():
+            i += 1
+        if i < n and text[i] in ",.!?;:":
+            return True
+        if _next_word_lowercase(text, end):
+            return True
+        # fall through to generic fallback
+
+    if tok == "IT":
+        return _at_sentence_boundary(text, start) and _next_word_lowercase(text, end)
+
     if tok == "AM":
-        # look behind for "I "
+        prev = _prev_token(text, start)
+        if TIME_RE.match(prev):  # keep shared constant if you have it
+            return True
+        # “I AM …” with boundary before I
         i = start - 1
         while i >= 0 and text[i].isspace():
             i -= 1
-        if i >= 0 and text[i] == 'I':
-            # ensure before I is boundary-ish
+        if i >= 0 and text[i] == "I":
             j = i - 1
             while j >= 0 and text[j].isspace():
                 j -= 1
-            if j < 0 or text[j] in ".!?\n\r\"'“”‘’([{":
+            if j < 0 or text[j] in BOUNDARY:
                 return True
-    # Plain blacklist: if sentence-start and next word is lowercase, very likely not acronym (e.g., OK then)
-    if _is_sentence_start(text, start) and _next_word_lowercase(text, end):
-        return True
+        return False
+
+    # Generic fallback
+    return _at_sentence_boundary(text, start) and _next_word_lowercase(text, end)
+
+
+
+def has_paren_definition(text: str, end: int, max_chars: int = 80) -> bool:
+    i, n = end, len(text)
+    while i < n and text[i].isspace(): i += 1
+    if i < n and text[i] == "(":
+        j, alpha = i + 1, 0
+        while j < n and (j - i) <= max_chars and text[j] != ")":
+            if text[j].isalpha(): alpha += 1
+            j += 1
+        return j < n and alpha >= 5
     return False
 
 
+
 def score(surface: str, text: str, start: int, end: int, cfg: DetectorConfig) -> float:
-    # base
     score = 0.6
-
     inside, adjacent = _in_brackets(text, start, end)
-    if inside:
-        score += 0.25
-    elif adjacent:
+    if inside: score += 0.25
+    elif adjacent: score += 0.15
+    if has_paren_definition(text, end): score += 0.25
+    if has_stands_for_follow(text, end):
         score += 0.15
-
-    if _has_stands_for_near(text, start, end, radius=40):
-        score += 0.15
-
-    if surface in cfg.blacklist:
-        score -= 0.2
-
-    # Clip
-    if score < 0.0:
-        return 0.0
-    if score > 1.0:
-        return 1.0
-    return score
+    if surface in cfg.soft_blacklist: score -= 0.2
+    return max(0.0, min(1.0, score))
 
 
 def context_window(text: str, start: int, end: int, window_chars: int) -> tuple[int, int]:
@@ -190,7 +241,7 @@ def iter_candidates(text: str, cfg: DetectorConfig) -> Iterator[tuple[str, int, 
             continue
         surface = text[s:e]
         # bounds by core alnum length
-        clen = _core_len_for_bounds(surface)
+        clen = core_len_for_bounds(surface)
         if clen < cfg.min_len or clen > cfg.max_len:
             continue
         # letter-case ratio
@@ -212,7 +263,7 @@ def iter_candidates_with(text: str, cfg: DetectorConfig, pat: re.Pattern[str]) -
         if e - s < cfg.min_len:
             continue
         surface = text[s:e]
-        clen = _core_len_for_bounds(surface)
+        clen = core_len_for_bounds(surface)
         if clen < cfg.min_len or clen > cfg.max_len:
             continue
         if _caps_ratio(surface) < cfg.require_caps_ratio:

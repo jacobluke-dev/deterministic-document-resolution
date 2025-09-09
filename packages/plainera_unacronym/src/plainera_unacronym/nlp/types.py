@@ -1,15 +1,31 @@
 import re
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 
 @dataclass(frozen=True)
 class DetectorConfig:
     min_len: int = 2
+    min_confidence_default: float = 0.50
+    min_confidence_by_len: dict[int, float] = field(
+        default_factory=lambda: {2: 0.72, 3: 0.60, 4: 0.55}
+    )
+
+    non_acronym_upper: frozenset[str] = frozenset({
+        "OK",
+        "PM",
+        "MR", "MRS", "MS", "DR", "JR", "SR",
+        "LTD", "PLC", "LLP", "LLC", "INC",
+        "YES", "NO", "ON", "OFF"
+    })
+
     max_len: int = 10
     # Allowed internal punctuation in acronyms (normalized for keying).
     allow_chars: str = "&/'’-"
     # Very small, locale-aware blacklist. Configurable/overrideable.
-    blacklist: frozenset[str] = frozenset({"AM", "OK", "NO", "IT"})
+    soft_blacklist: frozenset[str] = frozenset({
+        "AS", "AT", "BE", "BY", "DO", "GO", "IF", "IN", "IS", "OF", "ON", "OR", "SO", "TO", "AN"
+    })
+
     locale: str = "en_GB"
     window_chars: int = 80
     # Letters only: ratio of uppercase letters over letters (digits ignored).
