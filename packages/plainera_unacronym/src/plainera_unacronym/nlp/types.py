@@ -2,7 +2,7 @@ import re
 from dataclasses import dataclass, field
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, slots=True)
 class DetectorConfig:
     min_len: int = 2
     min_confidence_default: float = 0.50
@@ -32,7 +32,7 @@ class DetectorConfig:
     require_caps_ratio: float = 0.7
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, slots=True)
 class Occurrence:
     acronym: str                 # surface form as detected (not lowercased)
     start_offset: int
@@ -41,7 +41,7 @@ class Occurrence:
     context_window: tuple[int, int]
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, slots=True)
 class FirstOccurrence:
     acronym: str
     start_offset: int
@@ -49,7 +49,7 @@ class FirstOccurrence:
     confidence: float
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, slots=True)
 class DetectorResult:
     unique_acronyms: dict[str, FirstOccurrence]   # key = normalized_key
     occurrences: list[Occurrence]
