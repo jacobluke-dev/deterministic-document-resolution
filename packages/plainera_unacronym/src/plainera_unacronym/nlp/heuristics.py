@@ -98,7 +98,7 @@ def _next_word_lowercase(text: str, end: int) -> bool:
     return bool(word) and word.islower()
 
 
-def normalize_key(surface: str) -> str:
+def normalize_key(surface: str, allow_chars: str) -> str:
     # 1) normalize apostrophes
     s = "".join(APOSTROPHE_VARIANTS.get(ch, ch) for ch in surface)
     # 2) remove spaces *around* allowed separators only (R & D -> R&D), keep other spaces intact (rare).
@@ -106,8 +106,7 @@ def normalize_key(surface: str) -> str:
     i = 0
     while i < len(s):
         ch = s[i]
-        if ch in "&/'’-":
-            # swallow surrounding spaces
+        if ch in allow_chars:
             if parts and parts[-1] == " ":
                 parts.pop()
             parts.append(ch)
@@ -115,9 +114,9 @@ def normalize_key(surface: str) -> str:
             while i < len(s) and s[i] == " ":
                 i += 1
             continue
-        parts.append(ch)
-        i += 1
+        parts.append(ch); i += 1
     return "".join(parts)
+
 
 
 def core_len_for_bounds(token: str) -> int:
