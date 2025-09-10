@@ -3,10 +3,9 @@ import asyncio
 from typing import Optional
 
 from plainera_unacronym.nlp.config import allow_chars
-from plainera_unacronym.nlp.heuristics import (
-    context_window, score, normalize_key, blacklist_context_drop,
-    iter_candidates, compile_pattern, iter_candidates_with, threshold_len, strip_terminal_plural, reason_tags,
-)
+from plainera_unacronym.nlp.heuristics.core import score, threshold_len, normalize_key, context_window, compile_pattern, \
+    iter_candidates_with, iter_candidates, reason_tags
+from plainera_unacronym.nlp.heuristics.general import blacklist_context_drop, strip_terminal_plural
 from plainera_unacronym.nlp.types import DetectorConfig, DetectorResult, Occurrence, FirstOccurrence
 
 DEFAULT_CONFIG = DetectorConfig()
