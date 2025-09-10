@@ -5,7 +5,7 @@ from typing import Optional, Iterable
 from plainera_unacronym.nlp.config import allow_chars
 from plainera_unacronym.nlp.heuristics import (
     context_window, score, normalize_key, blacklist_context_drop,
-    iter_candidates, compile_pattern, iter_candidates_with, core_len_for_bounds, threshold_len,
+    iter_candidates, compile_pattern, iter_candidates_with, threshold_len, strip_terminal_plural, reason_tags,
 )
 from plainera_unacronym.nlp.types import DetectorConfig, DetectorResult, Occurrence, FirstOccurrence
 
@@ -13,23 +13,20 @@ DEFAULT_CONFIG = DetectorConfig()
 ALLOW_CHARS_DEFAULTS = allow_chars
 
 
-def _score_chunk_worker(
-    cfg: DetectorConfig,
-    text: str,
-    window_chars: int,
-    cands: Iterable[tuple[str, int, int]],
-) -> list[Occurrence]:
+def _score_chunk_worker(cfg: DetectorConfig, text: str, window_chars: int, cands):
     out: list[Occurrence] = []
     for surface, s, e in cands:
         if blacklist_context_drop(surface, text, s, e, cfg):
             continue
         conf = score(surface, text, s, e, cfg)
-        eff = threshold_len(surface, cfg.allow_chars)
-        th  = cfg.min_confidence_by_len.get(eff, cfg.min_confidence_default)
+        eff  = threshold_len(surface, cfg.allow_chars)
+        th   = cfg.min_confidence_by_len.get(eff, cfg.min_confidence_default)
         if conf < th:
             continue
+        key = normalize_key(surface, cfg.allow_chars, cfg.enable_dotted)
         ctx = context_window(text, s, e, window_chars)
-        out.append(Occurrence(surface, s, e, conf, ctx))
+        rsn = tuple(reason_tags(surface, text, s, e, cfg)) if cfg.debug_reasons else None
+        out.append(Occurrence(surface, s, e, conf, ctx, key, rsn))
     return out
 
 
@@ -55,7 +52,8 @@ class Detector:
             ctx = context_window(text, s, e, self.cfg.window_chars)
             occ = Occurrence(acronym=surface, start_offset=s, end_offset=e, confidence=conf, context_window=ctx)
             occurrences.append(occ)
-            key = normalize_key(surface, self.cfg.allow_chars)
+            base = strip_terminal_plural(surface)
+            key = normalize_key(base, self.cfg.allow_chars, self.cfg.enable_dotted)
             if key not in firsts:
                 firsts[key] = FirstOccurrence(acronym=surface, start_offset=s, end_offset=e, confidence=conf)
         return DetectorResult(unique_acronyms=firsts, occurrences=occurrences)
@@ -83,7 +81,7 @@ class Detector:
         # Build first-occurrence map
         firsts: dict[str, FirstOccurrence] = {}
         for occ in occurrences:
-            key = normalize_key(occ.acronym, self.cfg.allow_chars)
+            key = normalize_key(occ.acronym, self.cfg.allow_chars, self.cfg.enable_dotted)
             if key not in firsts:
                 firsts[key] = FirstOccurrence(occ.acronym, occ.start_offset, occ.end_offset, occ.confidence)
         return DetectorResult(unique_acronyms=firsts, occurrences=occurrences)
@@ -120,7 +118,7 @@ def detect_acronyms(text: str,
         )
         occurrences.append(occ)
 
-        key = normalize_key(surface, allowed_chars)
+        key = normalize_key(surface, allowed_chars, config.enable_dotted)
         if key not in firsts:
             firsts[key] = FirstOccurrence(
                 acronym=surface,
