@@ -2,6 +2,8 @@ import re
 from dataclasses import dataclass, field
 
 
+SCHEMA_VERSION = "1.1.0"
+
 @dataclass(frozen=True, slots=True)
 class DetectorConfig:
     min_len: int = 2
@@ -30,6 +32,8 @@ class DetectorConfig:
     window_chars: int = 80
     # Letters only: ratio of uppercase letters over letters (digits ignored).
     require_caps_ratio: float = 0.7
+    enable_dotted: bool = False
+    debug_reasons: bool = False
 
 
 @dataclass(frozen=True, slots=True)
@@ -39,6 +43,9 @@ class Occurrence:
     end_offset: int              # end-exclusive
     confidence: float
     context_window: tuple[int, int]
+    normalized_key: str
+    reasons: tuple[str, ...] | None = None
+    normalized_key: str | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -47,6 +54,7 @@ class FirstOccurrence:
     start_offset: int
     end_offset: int
     confidence: float
+    normalized_key: str | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -56,3 +64,5 @@ class DetectorResult:
 
 
 pattern_cache: dict[tuple[int, int, str], re.Pattern[str]] = {}
+
+soft_dotted_drop: frozenset[str] = frozenset({"EG", "IE", "AKA"})
