@@ -1,6 +1,6 @@
 from concurrent.futures import ProcessPoolExecutor
 import asyncio
-from typing import Optional, Iterable
+from typing import Optional
 
 from plainera_unacronym.nlp.config import allow_chars
 from plainera_unacronym.nlp.heuristics import (
@@ -19,8 +19,8 @@ def _score_chunk_worker(cfg: DetectorConfig, text: str, window_chars: int, cands
         if blacklist_context_drop(surface, text, s, e, cfg):
             continue
         conf = score(surface, text, s, e, cfg)
-        eff  = threshold_len(surface, cfg.allow_chars)
-        th   = cfg.min_confidence_by_len.get(eff, cfg.min_confidence_default)
+        eff = threshold_len(surface, cfg.allow_chars)
+        th = cfg.min_confidence_by_len.get(eff, cfg.min_confidence_default)
         if conf < th:
             continue
         key = normalize_key(surface, cfg.allow_chars, cfg.enable_dotted)
@@ -49,13 +49,26 @@ class Detector:
             th = self.cfg.min_confidence_by_len.get(eff, self.cfg.min_confidence_default)
             if conf < th:
                 continue
-            ctx = context_window(text, s, e, self.cfg.window_chars)
-            occ = Occurrence(acronym=surface, start_offset=s, end_offset=e, confidence=conf, context_window=ctx)
-            occurrences.append(occ)
             base = strip_terminal_plural(surface)
             key = normalize_key(base, self.cfg.allow_chars, self.cfg.enable_dotted)
+            ctx = context_window(text, s, e, self.cfg.window_chars)
+            rsn = tuple(reason_tags(surface, text, s, e, self.cfg)) if self.cfg.debug_reasons else None
+
+            occ = Occurrence(acronym=surface,
+                             start_offset=s,
+                             end_offset=e,
+                             confidence=conf,
+                             context_window=ctx,
+                             normalized_key=key,
+                             reasons=rsn)
+            occurrences.append(occ)
+
             if key not in firsts:
-                firsts[key] = FirstOccurrence(acronym=surface, start_offset=s, end_offset=e, confidence=conf)
+                firsts[key] = FirstOccurrence(acronym=surface,
+                                              start_offset=s,
+                                              end_offset=e,
+                                              confidence=conf,
+                                              normalized_key=key)
         return DetectorResult(unique_acronyms=firsts, occurrences=occurrences)
 
     def detect_parallel(self, text: str, threshold: int = 1000, chunk_size: int = 256) -> DetectorResult:
@@ -92,10 +105,9 @@ class Detector:
         return await loop.run_in_executor(None, self.detect_parallel, text)
 
 
-
 def detect_acronyms(text: str,
                     config: DetectorConfig = DEFAULT_CONFIG,
-                    allowed_chars = ALLOW_CHARS_DEFAULTS) -> DetectorResult:
+                    allowed_chars=ALLOW_CHARS_DEFAULTS) -> DetectorResult:
     """
     One-pass detector. Returns stable schema + first-occurrence map with normalized keys.
     """
