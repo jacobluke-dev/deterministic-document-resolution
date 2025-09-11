@@ -2,7 +2,16 @@ import re
 from plainera_unacronym.nlp.heuristics.shared import DottedMode
 
 
-APOSTROPHE_VARIANTS = {"'": "’", "’": "’"}  # normalize to curly for keying
+APOSTROPHE_VARIANTS = {
+    "’": "'",  # U+2019
+    "‘": "'",  # U+2018
+    "ʼ": "'",  # U+02BC
+    "′": "'",  # U+2032 (prime, often misused)
+    "＇": "'",  # U+FF07 fullwidth
+    "ʹ": "'",  # U+02B9 modifier letter
+    "'": "'",  # U+0027
+}
+
 DASH_MAP = {"–": "-", "—": "-", "-": "-"}   # en/em/minus -> "-"
 
 TRAILING_PUNCT = ",.;:!?)]}»”"
