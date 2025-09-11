@@ -68,6 +68,19 @@ class TestAtSentenceBoundary:
         text, pos = _extract(sample)
         assert at_sentence_boundary(text, pos) is True
 
+    @pytest.mark.parametrize("sample", [
+        "End. ^The",
+        "End! ^The",
+        "End? ^The",
+        "End?! ^The",
+        "End!   ^The",
+        'End! ”^The',
+        'End? ) ”  ^The',
+    ])
+    def test_true_cases(self, sample):
+        text, pos = _extract(sample)
+        assert at_sentence_boundary(text, pos)
+
 
 class TestBlacklistContextDrop:
     # 0) Definition contexts should NOT drop
