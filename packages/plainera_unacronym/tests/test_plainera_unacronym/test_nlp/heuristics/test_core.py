@@ -37,9 +37,6 @@ def _end(text: str, token: str) -> int:
     return s + len(token)
 
 
-def _span(text: str, token: str) -> tuple[int, int]:
-    s = text.index(token)
-    return s, s + len(token)
 
 
 
@@ -107,9 +104,9 @@ class TestCapsRatio:
 
 
 class TestStripTrailingPunct:
-    def test_no_trailing_punct_no_change(self):
+    def test_no_trailing_punct_no_change(self, span):
         text = "Alpha GPU Beta"
-        s, e = _span(text, "GPU")
+        s, e = span(text, "GPU")
         ns, ne = strip_trailing_punct(text, s, e)
         assert (ns, ne) == (s, e)
         assert text[ns:ne] == "GPU"
@@ -133,7 +130,7 @@ class TestStripTrailingPunct:
         # all trailing punct removed, leaving bare token
         assert text[ns:ne] == "Token"
 
-    def test_only_punct_span_becomes_empty(self):
+    def test_only_punctspan_becomes_empty(self):
         text = "Hello !!! there"
         s = text.index("!!!")
         e = s + 3
@@ -155,58 +152,58 @@ class TestStripTrailingPunct:
 
 
 class TestInBrackets:
-    def test_no_brackets(self):
+    def test_no_brackets(self, span):
         text = "foo GPU bar"
-        s, e = _span(text, "GPU")
+        s, e = span(text, "GPU")
         assert in_brackets(text, s, e) == (False, False)
 
-    def test_inside_parentheses(self):
+    def test_inside_parentheses(self, span):
         text = "(GPU)"
-        s, e = _span(text, "GPU")
+        s, e = span(text, "GPU")
         # inside True implies adjacent True as well
         assert in_brackets(text, s, e) == (True, True)
 
-    def test_inside_square_brackets(self):
+    def test_inside_square_brackets(self, span):
         text = "[GPU]"
-        s, e = _span(text, "GPU")
+        s, e = span(text, "GPU")
         assert in_brackets(text, s, e) == (True, True)
 
-    def test_adjacent_curly_quotes_only(self):
+    def test_adjacent_curly_quotes_only(self, span):
         text = "“GPU”"
-        s, e = _span(text, "GPU")
+        s, e = span(text, "GPU")
         # Curly quotes are considered adjacent, not "inside"
         assert in_brackets(text, s, e) == (False, True)
 
-    def test_adjacent_left_only(self):
+    def test_adjacent_left_only(self, span):
         text = "«GPU token"
-        s, e = _span(text, "GPU")
+        s, e = span(text, "GPU")
         assert in_brackets(text, s, e) == (False, True)
 
-    def test_adjacent_right_only(self):
+    def test_adjacent_right_only(self, span):
         text = "GPU»"
-        s, e = _span(text, "GPU")
+        s, e = span(text, "GPU")
         assert in_brackets(text, s, e) == (False, True)
 
-    def test_start_of_text_right_bracket(self):
+    def test_start_of_text_right_bracket(self, span):
         text = "GPU)"
-        s, e = _span(text, "GPU")
+        s, e = span(text, "GPU")
         # s == 0 → cannot be "inside", but right bracket makes it adjacent
         assert in_brackets(text, s, e) == (False, True)
 
-    def test_end_of_text_left_bracket(self):
+    def test_end_of_text_left_bracket(self, span):
         text = "(GPU"
-        s, e = _span(text, "GPU")
+        s, e = span(text, "GPU")
         # e == len(text) → cannot be "inside", but left bracket makes it adjacent
         assert in_brackets(text, s, e) == (False, True)
 
-    def test_nested_brackets_inside(self):
+    def test_nested_brackets_inside(self, span):
         text = "((GPU))"
-        s, e = _span(text, "GPU")
+        s, e = span(text, "GPU")
         assert in_brackets(text, s, e) == (True, True)
 
-    def test_mismatched_pair_counts_as_inside_by_current_rule(self):
+    def test_mismatched_pair_counts_as_inside_by_current_rule(self, span):
         text = "[GPU)"
-        s, e = _span(text, "GPU")
+        s, e = span(text, "GPU")
         # Left '[' and right ')' both satisfy inside-condition in current implementation
         assert in_brackets(text, s, e) == (True, True)
 
