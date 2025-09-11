@@ -2,7 +2,20 @@ import re
 import pytest
 
 from plainera_unacronym.nlp import DetectorConfig
-from plainera_unacronym.nlp.heuristics.core import _has_lower_and_upper, iter_candidates_with, context_window, has_letter, core_len_for_bounds, normalize_key
+from plainera_unacronym.nlp.config import TRAILING_PUNCT
+from plainera_unacronym.nlp.heuristics.core import (next_word_lowercase,
+                                                    _has_lower_and_upper,
+                                                    iter_candidates_with,
+                                                    context_window,
+                                                    has_letter,
+                                                    core_len_for_bounds,
+                                                    normalize_key,
+                                                    prev_token,
+                                                    has_stands_for_follow,
+                                                    in_brackets,
+                                                    strip_trailing_punct,
+                                                    caps_ratio,
+                                                    letters)
 import plainera_unacronym.nlp.detector as det
 import plainera_unacronym.nlp.heuristics.core as core
 
@@ -10,12 +23,277 @@ def _idx(text: str, token: str) -> tuple[int, int]:
     s = text.index(token)
     return s, s + len(token)
 
-# Adjust the import if prev_token lives in a different module.
-from plainera_unacronym.nlp.heuristics.core import prev_token
+
+def collect(text: str, cfg: DetectorConfig, pat: re.Pattern[str]):
+    return list(iter_candidates_with(text, cfg, pat))
 
 
 def _start_of(text: str, token: str) -> int:
     return text.index(token)
+
+
+def _end(text: str, token: str) -> int:
+    s = text.index(token)
+    return s + len(token)
+
+
+def _span(text: str, token: str) -> tuple[int, int]:
+    s = text.index(token)
+    return s, s + len(token)
+
+
+
+class TestLetters:
+    def test_ascii_letters_only(self):
+        assert letters("abcXYZ") == "abcXYZ"
+
+    def test_strips_digits_and_punct(self):
+        assert letters("H2O") == "HO"
+        assert letters("U.S.A.") == "USA"
+        assert letters("rock'n'roll") == "rocknroll"
+
+    def test_strips_whitespace(self):
+        assert letters("  a b  c ") == "abc"
+        assert letters("\tAlpha\nBeta\r") == "AlphaBeta"
+
+    def test_empty_and_nonletters_only(self):
+        assert letters("") == ""
+        assert letters("1234-_.:,()") == ""
+        assert letters("🙂🚀") == ""
+
+    def test_unicode_accents_and_scripts(self):
+        assert letters("Éclair") == "Éclair"    # accented Latin preserved
+        assert letters("İi") == "İi"            # Turkish dotted I + i
+        assert letters("Δx") == "Δx"            # Greek + Latin
+        assert letters("中A3!") == "中A"         # CJK + Latin; digits/punct dropped
+
+
+class TestCapsRatio:
+    def test_all_upper_is_1(self):
+        assert caps_ratio("GPU") == 1.0
+
+    def test_all_lower_is_0(self):
+        assert caps_ratio("gpu") == 0.0
+
+    def test_mixed_ascii(self):
+        # N a C l -> 2/4 uppercase
+        assert caps_ratio("NaCl") == 0.5
+
+    def test_digits_and_punct_ignored(self):
+        # Letters: H,O -> both uppercase => 1.0
+        assert caps_ratio("H2O") == 1.0
+        # Letters: U,S,A -> all uppercase => 1.0
+        assert caps_ratio("U.S.A.") == 1.0
+        # Letters: rocknroll (apostrophes ignored) -> all lower => 0.0
+        assert caps_ratio("rock'n'roll") == 0.0
+
+    def test_no_letters_returns_1(self):
+        assert caps_ratio("") == 1.0
+        assert caps_ratio("1234-._") == 1.0
+
+    def test_unicode_accented(self):
+        # Letters: É c l a i r -> 1/6 uppercase
+        assert caps_ratio("Éclair") == pytest.approx(1/6)
+
+    def test_unicode_turkish_and_greek(self):
+        # İ i -> 1/2 uppercase
+        assert caps_ratio("İi") == 0.5
+        # Δ x -> 1/2 uppercase
+        assert caps_ratio("Δx") == 0.5
+
+    def test_unicode_cjk_with_latin(self):
+        # Letters: 中 (caseless, not upper) + A (upper) -> 1/2
+        assert caps_ratio("中A3!") == 0.5
+
+
+class TestStripTrailingPunct:
+    def test_no_trailing_punct_no_change(self):
+        text = "Alpha GPU Beta"
+        s, e = _span(text, "GPU")
+        ns, ne = strip_trailing_punct(text, s, e)
+        assert (ns, ne) == (s, e)
+        assert text[ns:ne] == "GPU"
+
+    def test_strip_single_period(self):
+        text = "Memory uses RAM."
+        # include '.' in the span
+        s = text.index("RAM")
+        e = s + len("RAM.")
+        ns, ne = strip_trailing_punct(text, s, e)
+        assert text[ns:ne] == "RAM"
+        # the '.' should now be just outside the slice
+        assert text[ne:ne+1] == "."
+
+    def test_strip_multiple_closers_chain(self):
+        text = "Token!?) next"
+        # span includes all three trailing punct chars
+        s = text.index("Token")
+        e = s + len("Token!?)")
+        ns, ne = strip_trailing_punct(text, s, e)
+        # all trailing punct removed, leaving bare token
+        assert text[ns:ne] == "Token"
+
+    def test_only_punct_span_becomes_empty(self):
+        text = "Hello !!! there"
+        s = text.index("!!!")
+        e = s + 3
+        ns, ne = strip_trailing_punct(text, s, e)
+        assert ns == ne  # empty slice after stripping
+
+    def test_parametric_known_trailing_chars(self):
+        # Verify behavior for whatever is actually configured in TRAILING_PUNCT
+        base = "ACRONYM"
+        for ch in [".", "!", "?", ")", "]", "'", '"', "”", ",", ";", ":"]:
+            text = base + ch + " tail"
+            s = 0
+            e = len(base) + 1  # include the trailing char
+            ns, ne = strip_trailing_punct(text, s, e)
+            if ch in TRAILING_PUNCT:
+                assert text[ns:ne] == base
+            else:
+                assert text[ns:ne] == base + ch
+
+
+class TestInBrackets:
+    def test_no_brackets(self):
+        text = "foo GPU bar"
+        s, e = _span(text, "GPU")
+        assert in_brackets(text, s, e) == (False, False)
+
+    def test_inside_parentheses(self):
+        text = "(GPU)"
+        s, e = _span(text, "GPU")
+        # inside True implies adjacent True as well
+        assert in_brackets(text, s, e) == (True, True)
+
+    def test_inside_square_brackets(self):
+        text = "[GPU]"
+        s, e = _span(text, "GPU")
+        assert in_brackets(text, s, e) == (True, True)
+
+    def test_adjacent_curly_quotes_only(self):
+        text = "“GPU”"
+        s, e = _span(text, "GPU")
+        # Curly quotes are considered adjacent, not "inside"
+        assert in_brackets(text, s, e) == (False, True)
+
+    def test_adjacent_left_only(self):
+        text = "«GPU token"
+        s, e = _span(text, "GPU")
+        assert in_brackets(text, s, e) == (False, True)
+
+    def test_adjacent_right_only(self):
+        text = "GPU»"
+        s, e = _span(text, "GPU")
+        assert in_brackets(text, s, e) == (False, True)
+
+    def test_start_of_text_right_bracket(self):
+        text = "GPU)"
+        s, e = _span(text, "GPU")
+        # s == 0 → cannot be "inside", but right bracket makes it adjacent
+        assert in_brackets(text, s, e) == (False, True)
+
+    def test_end_of_text_left_bracket(self):
+        text = "(GPU"
+        s, e = _span(text, "GPU")
+        # e == len(text) → cannot be "inside", but left bracket makes it adjacent
+        assert in_brackets(text, s, e) == (False, True)
+
+    def test_nested_brackets_inside(self):
+        text = "((GPU))"
+        s, e = _span(text, "GPU")
+        assert in_brackets(text, s, e) == (True, True)
+
+    def test_mismatched_pair_counts_as_inside_by_current_rule(self):
+        text = "[GPU)"
+        s, e = _span(text, "GPU")
+        # Left '[' and right ')' both satisfy inside-condition in current implementation
+        assert in_brackets(text, s, e) == (True, True)
+
+
+class TestHasStandsForFollow:
+    def test_positive_basic(self):
+        text = "We use GPU stands for Graphics Processing Unit."
+        assert has_stands_for_follow(text, _end(text, "GPU")) is True
+
+    def test_case_insensitive(self):
+        text = "Abbrev GPU STANDS FOR Graphics."
+        assert has_stands_for_follow(text, _end(text, "GPU")) is True
+
+    def test_respects_sentence_boundary_period(self):
+        text = "Abbrev GPU. stands for Graphics."
+        # Stops at '.' immediately after GPU → no scan range → False
+        assert has_stands_for_follow(text, _end(text, "GPU")) is False
+
+    def test_respects_sentence_boundary_exclaim_question(self):
+        assert has_stands_for_follow("GPU! stands for X", _end("GPU! stands for X", "GPU")) is False
+        assert has_stands_for_follow("GPU? stands for X", _end("GPU? stands for X", "GPU")) is False
+
+    def test_max_chars_cutoff_false_when_too_far(self):
+        text = "GPU " + ("x" * 20) + " stands for Graphics."
+        # Place 'stands for' beyond a tight limit
+        assert has_stands_for_follow(text, _end(text, "GPU"), max_chars=10) is False
+
+    def test_max_chars_within_limit_true(self):
+        text = "GPU xxx stands for Graphics."
+        assert has_stands_for_follow(text, _end(text, "GPU"), max_chars=24) is True
+
+    def test_comma_does_not_stop_scan(self):
+        text = "GPU, stands for Graphics."
+        # Comma is not a terminator for this function
+        assert has_stands_for_follow(text, _end(text, "GPU")) is True
+
+    def test_quotes_do_not_stop_scan(self):
+        text = 'GPU "stands for" greatness.'
+        assert has_stands_for_follow(text, _end(text, "GPU")) is True
+
+    def test_no_match(self):
+        text = "GPU standard format pipeline."
+        assert has_stands_for_follow(text, _end(text, "GPU")) is False
+
+
+class TestNextWordLowercase:
+    def test_basic_lowercase(self):
+        text = "GPU stands for speed."
+        assert next_word_lowercase(text, _end(text, "GPU")) is True
+
+    def test_capitalized_is_false(self):
+        text = "GPU Graphs are nice."
+        assert next_word_lowercase(text, _end(text, "GPU")) is False
+
+    def test_mixed_case_is_false(self):
+        text = "GPU iOS builds are weekly."
+        assert next_word_lowercase(text, _end(text, "GPU")) is False
+
+    def test_skips_spaces_and_simple_quote(self):
+        text = "GPU   'graphics' pipeline"
+        assert next_word_lowercase(text, _end(text, "GPU")) is True  # -> graphics
+
+    def test_skips_curly_quotes_and_brackets(self):
+        text = "GPU “graphics” stage"
+        assert next_word_lowercase(text, _end(text, "GPU")) is True
+        text2 = "Token ([alpha]) beta"
+        assert next_word_lowercase(text2, _end(text2, "Token")) is True  # -> alpha
+
+    def test_handles_apostrophes_inside_word(self):
+        text = "GPU rock'n'roll forever"
+        assert next_word_lowercase(text, _end(text, "GPU")) is True
+
+    def test_next_is_punctuation_yields_false(self):
+        text = "GPU, then proceed"
+        assert next_word_lowercase(text, _end(text, "GPU")) is False
+
+    def test_next_is_number_yields_false(self):
+        text = "GPU 123abc later"
+        assert next_word_lowercase(text, _end(text, "GPU")) is False
+
+    def test_unicode_lowercase(self):
+        text = "GPU café tests"
+        assert next_word_lowercase(text, _end(text, "GPU")) is True
+
+    def test_end_of_text(self):
+        text = "GPU"
+        assert next_word_lowercase(text, _end(text, "GPU")) is False
 
 
 class TestPrevToken:
@@ -417,10 +695,6 @@ class TestHasLowerAndUpper:
 # - Captures a "token" as letters followed by letters/digits or common separators.
 # - Includes '.' so we can verify trailing-punct trimming (e.g., "RAM.")
 PAT = re.compile(r"(?P<tok>[A-Za-z][A-Za-z0-9&\-/\.]*)")
-
-
-def collect(text: str, cfg: DetectorConfig, pat: re.Pattern[str]):
-    return list(iter_candidates_with(text, cfg, pat))
 
 
 class TestIterCandidatesWith:

@@ -112,12 +112,6 @@ def has_stands_for_follow(text: str, end: int, max_chars: int = 24) -> bool:
         j += 1
     return bool(STANDS_FOR_RE.search(text[i:j]))
 
-def is_sentence_start(text: str, start: int) -> bool:
-    # crude but fast: previous non-space is a sentence terminator or start of doc.
-    i = start - 1
-    while i >= 0 and text[i].isspace():
-        i -= 1
-    return i < 0 or text[i] in ".!?\n\r"
 
 def next_word_lowercase(text: str, end: int) -> bool:
     # Peek the immediate next word; if it's all-lowercase, return True.
@@ -271,7 +265,6 @@ def reason_tags(surface: str, text: str, start: int, end: int, cfg: DetectorConf
     if has_stands_for_follow(text, end): tags.append("stands_for_right")
     if surface in cfg.soft_blacklist:    tags.append("soft_blacklist_penalty")
     if surface in cfg.non_acronym_upper: tags.append("non_acronym_upper")
-    if is_sentence_start(text, start):  tags.append("sentence_start")
     if next_word_lowercase(text, end):  tags.append("next_word_lowercase")
     prev = prev_token(text, start)
     if TIME_RE.match(prev):              tags.append("prev_time_token")
