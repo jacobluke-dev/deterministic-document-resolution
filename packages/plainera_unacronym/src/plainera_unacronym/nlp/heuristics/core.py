@@ -2,35 +2,71 @@ import re
 from typing import Iterator
 
 from plainera_unacronym.nlp import DetectorConfig
-from plainera_unacronym.nlp.config import TRAILING_PUNCT, LEADING_BRACK, CLOSING_BRACK, STANDS_FOR_RE, \
-    APOSTROPHE_VARIANTS, DASH_MAP, TIME_RE
+from plainera_unacronym.nlp.config import (TRAILING_PUNCT,
+                                           LEADING_BRACK,
+                                           CLOSING_BRACK,
+                                           STANDS_FOR_RE,
+                                           APOSTROPHE_VARIANTS,
+                                           DASH_MAP,
+                                           TIME_RE)
 from plainera_unacronym.nlp.heuristics.shared import has_paren_definition
 from plainera_unacronym.nlp.types import pattern_cache
 
 
 def compile_pattern(cfg: DetectorConfig) -> re.Pattern[str]:
-    key = (cfg.min_len, cfg.max_len, cfg.allow_chars, cfg.enable_dotted)
+    """
+    Build a linear, low-backtracking pattern that matches:
+      1) Chunks with internal separators:    R&D, USB-C, O’RAN, I/O  (spaces around seps allowed)
+      2) Dotted initialisms (opt-in):        U.S., U.S.A.
+      3) Compact ALL-CAPS/alnum runs:        NHS, GPU, H2O
+      4) CamelCaps (opt-in, upper-first):    TfL, eBPF  (requires ≥2 uppercase letters)
+
+    We wrap the whole token in word boundaries (\b … \b) to avoid matching inside longer words.
+    Note: \b is Unicode-aware in Python. Hyphens/quotes/dots are *inside* the token branches; the
+    boundaries apply only to the token edges, so adjacency like NHS) or "NHS" still matches.
+    """
+    # Cache key must include all switches that change the pattern’s shape.
+    # NOTE: if your config field is named `enable_mixed_case` (no underscore),
+    key = (cfg.min_len, cfg.max_len, cfg.allow_chars, cfg.enable_dotted, cfg.enable_mixed_case)
     if key in pattern_cache:
         return pattern_cache[key]
 
+    # Escape the set of allowed internal separators for the character class.
     sep = re.escape(cfg.allow_chars)
 
-    # Branch a: chunks with allowed separators (R&D, USB-C, O’RAN, I/O)
+    # 1) Chunks with internal separators (R&D, USB-C, O’RAN, I/O).
+    #    - Letters/digits on both sides of a separator from cfg.allow_chars.
+    #    - Optional whitespace around the separator is allowed (e.g., "R & D").
     with_seps = rf"(?:[A-Z0-9]+(?:\s*[{sep}]\s*[A-Z0-9]+)+)"
 
-    # Branch b: dotted initialisms (U.S., U.S.A.) — enabled via flag
-    # - At least two dotted letters
-    # - Optional trailing undotted letter
-    # - Optional final dot
-    dotted = r"(?:[A-Z]\.){2,}(?:[A-Z])?\.?"
+    # 2) Dotted initialisms (opt-in).
+    #    - One or more "LETTER + dot" pairs *followed by a final LETTER*.
+    #      Ending on a letter keeps the right-hand \b boundary valid.
+    #      Examples matched: "U.S", "U.S.A"  (the trailing period, if any, is
+    #      left outside the match and later trimmed by strip_trailing_punct()).
+    dotted = r"(?:[A-Z]\.)+[A-Z]"
 
-    # Branch c: compact ALL-CAPS/alnum run (NHS, GPU, H2O)
-    compact = rf"(?:[A-Z][A-Z0-9]{{{max(cfg.min_len-1, 1)},{max(cfg.max_len-1, 1)}}})"
+    # 3) Compact ALL-CAPS/alnum runs within length bounds.
+    #    - First char must be A–Z; remaining are A–Z or 0–9.
+    #    - Length bounds derive from cfg.{min,max}_len (inclusive) and apply to
+    #      the whole run (the first char counts toward the total).
+    compact = rf"(?:[A-Z][A-Z0-9]{{{max(cfg.min_len-1,1)},{max(cfg.max_len-1,1)}}})"
 
+    # 4) CamelCaps (opt-in, upper-first) for brand-style abbreviations.
+    #    - Simple, linear pattern that captures tokens like "TfL", "eBPF" (upper-first only here).
+    #    - We also guard this in the iterator by relaxing the caps ratio only if ≥2 uppers exist.
+    camel_uc = r"(?:[A-Z][a-z]?){2,5}"
+
+    # Order matters: keep more specific branches (with_seps/dotted) before the generic compact.
+    branches = [with_seps, compact]
     if cfg.enable_dotted:
-        token = rf"(?P<tok>{with_seps}|{dotted}|{compact})"
-    else:
-        token = rf"(?P<tok>{with_seps}|{compact})"
+        branches.insert(1, dotted)    # give dotted precedence over compact
+    if cfg.enable_mixed_case:
+        branches.append(camel_uc)
+
+    # Word boundaries prevent matching inside longer identifiers/words.
+    # The branches themselves include internal punctuation; \b only applies at edges.
+    token = r"\b(?P<tok>" + "|".join(branches) + r")\b"
 
     pat = re.compile(token)
     pattern_cache[key] = pat
@@ -196,46 +232,29 @@ def context_window(text: str, start: int, end: int, window_chars: int) -> tuple[
 def _has_lower_and_upper(tok: str) -> bool:
     return any(c.islower() for c in tok if c.isalpha()) and any(c.isupper() for c in tok if c.isalpha())
 
-def iter_candidates_with(text: str, cfg: DetectorConfig, pat: re.Pattern[str]) -> Iterator[tuple[str, int, int]]:
-    for m in pat.finditer(text):
-        s, e = m.span("tok")
-        s, e = strip_trailing_punct(text, s, e)
-        if e - s < cfg.min_len:
-            continue
-        surface = text[s:e]
-        if not has_letter(surface):
-            continue
-        clen = core_len_for_bounds(surface)
-        if clen < cfg.min_len or clen > cfg.max_len:
-            continue
-        if caps_ratio(surface) < cfg.require_caps_ratio:
-            continue
-        if clen >= 15 or clen == 1:
-            continue
-        yield surface, s, e
 
 def iter_candidates(text: str, cfg: DetectorConfig) -> Iterator[tuple[str,int,int]]:
     pat = compile_pattern(cfg)
     yield from iter_candidates_with(text, cfg, pat)
 
-# def iter_candidates_with(text: str, cfg: DetectorConfig, pat: re.Pattern[str]) -> Iterator[tuple[str,int,int]]:
-#     for m in pat.finditer(text):
-#         s, e = strip_trailing_punct(text, *m.span("tok"))
-#         if e - s < cfg.min_len: continue
-#         surface = text[s:e]
-#         if not has_letter(surface): continue
-#         clen = core_len_for_bounds(surface)
-#         if clen < cfg.min_len or clen > cfg.max_len: continue
-#
-#         cap_ratio = caps_ratio(surface)
-#         req = cfg.require_caps_ratio
-#         if cfg.enable_mixedcase and _has_lower_and_upper(surface):
-#             upp = sum(1 for ch in surface if ch.isupper())
-#             if upp >= 2:  # avoid noise
-#                 req = min(req, cfg.require_caps_ratio_mixed)
-#         if cap_ratio < req: continue
-#         if clen >= 15 or clen == 1: continue
-#         yield surface, s, e
+def iter_candidates_with(text: str, cfg: DetectorConfig, pat: re.Pattern[str]) -> Iterator[tuple[str,int,int]]:
+    for m in pat.finditer(text):
+        s, e = strip_trailing_punct(text, *m.span("tok"))
+        if e - s < cfg.min_len: continue
+        surface = text[s:e]
+        if not has_letter(surface): continue
+        clen = core_len_for_bounds(surface)
+        if clen < cfg.min_len or clen > cfg.max_len: continue
+
+        cap_ratio = caps_ratio(surface)
+        req = cfg.require_caps_ratio
+        if cfg.enable_mixed_case and _has_lower_and_upper(surface):
+            upp = sum(1 for ch in surface if ch.isupper())
+            if upp >= 2:  # avoid noise
+                req = min(req, cfg.require_caps_ratio_mixed)
+        if cap_ratio < req: continue
+        if clen >= 15 or clen == 1: continue
+        yield surface, s, e
 
 
 def reason_tags(surface: str, text: str, start: int, end: int, cfg: DetectorConfig) -> list[str]:

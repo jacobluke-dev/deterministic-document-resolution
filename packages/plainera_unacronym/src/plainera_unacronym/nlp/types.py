@@ -35,6 +35,8 @@ class DetectorConfig:
     require_caps_ratio: float = 0.7
     enable_dotted: bool = False
     debug_reasons: bool = False
+    enable_mixed_case: bool = True
+    require_caps_ratio_mixed: float = 0.5
 
 
 @dataclass(frozen=True, slots=True)
@@ -64,6 +66,6 @@ class DetectorResult:
     occurrences: list[Occurrence]
 
 
-pattern_cache: dict[tuple[int, int, str], re.Pattern[str]] = {}
+pattern_cache: dict[tuple, re.Pattern[str]] = {}
 
 soft_dotted_drop: frozenset[str] = frozenset({"EG", "IE", "AKA"})

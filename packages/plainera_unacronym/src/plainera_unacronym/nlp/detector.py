@@ -49,7 +49,11 @@ class Detector:
             if conf < th:
                 continue
             base = strip_terminal_plural(surface)
-            key = normalize_key(base, self.cfg.allow_chars, self.cfg.enable_dotted)
+            key = normalize_key(
+                base,
+                self.cfg.allow_chars,
+                self.cfg.enable_dotted,  # needed for "U.S." → "US"
+            )
             ctx = context_window(text, s, e, self.cfg.window_chars)
             rsn = tuple(reason_tags(surface, text, s, e, self.cfg)) if self.cfg.debug_reasons else None
 
