@@ -2,14 +2,14 @@ from concurrent.futures import ProcessPoolExecutor
 import asyncio
 from typing import Optional
 
-from plainera_unacronym.nlp.config import allow_chars
+from plainera_unacronym.nlp.config import ALLOW_CHARS
 from plainera_unacronym.nlp.heuristics.core import score, threshold_len, normalize_key, context_window, compile_pattern, \
     iter_candidates_with, iter_candidates, reason_tags
 from plainera_unacronym.nlp.heuristics.general import blacklist_context_drop, strip_terminal_plural
 from plainera_unacronym.nlp.types import DetectorConfig, DetectorResult, Occurrence, FirstOccurrence
 
 DEFAULT_CONFIG = DetectorConfig()
-ALLOW_CHARS_DEFAULTS = allow_chars
+ALLOW_CHARS_DEFAULTS = ALLOW_CHARS
 
 
 def _score_chunk_worker(cfg: DetectorConfig, text: str, window_chars: int, cands):

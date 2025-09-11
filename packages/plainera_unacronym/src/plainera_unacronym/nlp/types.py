@@ -1,6 +1,7 @@
 import re
 from dataclasses import dataclass, field
 
+from plainera_unacronym.nlp.config import ALLOW_CHARS
 
 SCHEMA_VERSION = "1.1.0"
 
@@ -22,7 +23,7 @@ class DetectorConfig:
 
     max_len: int = 10
     # Allowed internal punctuation in acronyms (normalized for keying).
-    allow_chars: str = "&/'’-"
+    allow_chars: str = ALLOW_CHARS
     # Very small, locale-aware blacklist. Configurable/overrideable.
     soft_blacklist: frozenset[str] = frozenset({
         "AS", "AT", "BE", "BY", "DO", "GO", "IF", "IN", "IS", "OF", "ON", "OR", "SO", "TO", "AN"
