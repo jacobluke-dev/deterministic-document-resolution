@@ -1,3 +1,5 @@
+from typing import Literal
+
 
 def has_paren_definition(text: str, end: int, max_chars: int = 80) -> bool:
     i, n = end, len(text)
@@ -9,3 +11,6 @@ def has_paren_definition(text: str, end: int, max_chars: int = 80) -> bool:
             j += 1
         return j < n and alpha >= 5
     return False
+
+
+DottedMode = Literal["strip", "preserve", "both"]
