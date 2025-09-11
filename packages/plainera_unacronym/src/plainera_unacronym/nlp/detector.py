@@ -2,7 +2,7 @@ from concurrent.futures import ProcessPoolExecutor
 import asyncio
 from typing import Optional
 
-from plainera_unacronym.nlp.config import ALLOW_CHARS
+from plainera_unacronym.nlp.config import ALLOW_CHARS, DOT_MODE
 from plainera_unacronym.nlp.heuristics.core import score, threshold_len, normalize_key, context_window, compile_pattern, \
     iter_candidates_with, iter_candidates, reason_tags
 from plainera_unacronym.nlp.heuristics.general import blacklist_context_drop, strip_terminal_plural
@@ -10,23 +10,75 @@ from plainera_unacronym.nlp.types import DetectorConfig, DetectorResult, Occurre
 
 DEFAULT_CONFIG = DetectorConfig()
 ALLOW_CHARS_DEFAULTS = ALLOW_CHARS
+DEFAULT_DOT_MODE = DOT_MODE
 
 
-def _score_chunk_worker(cfg: DetectorConfig, text: str, window_chars: int, cands):
+def _build_occurrence_from_match(
+    cfg: DetectorConfig,
+    text: str,
+    surface: str,
+    s: int,
+    e: int,
+    conf: float,
+) -> tuple[Occurrence, str]:
+    """
+    Build a single Occurrence with consistent policy:
+    - dotted display policy ('strip'|'preserve')
+    - optional trailing '.' preservation (without touching the regex)
+    - normalized_key for display
+    - (optional) canonical_key if you want for dedupe (here we return only display key;
+      use normalize_key(..., dotted_mode='strip') separately if you dedupe canonically)
+    Returns (occurrence, display_key_for_firsts).
+    """
+    display_mode = getattr(cfg, "dotted_display", "strip")          # 'strip' or 'preserve'
+    has_trailing_dot = (e < len(text) and text[e] == ".")
+
+    # Surface to display (may include the trailing dot if preserving)
+    surface_for_display = surface + "." if (display_mode == "preserve" and has_trailing_dot) else surface
+    end_for_occ = e + 1 if (display_mode == "preserve" and has_trailing_dot) else e
+
+    base = strip_terminal_plural(surface_for_display)
+
+    display_key = normalize_key(
+        base,
+        cfg.allow_chars,
+        dotted_mode=display_mode,
+    )
+
+    ctx = context_window(text, s, end_for_occ, cfg.window_chars)
+
+    # Optional reason tags; keep the same in serial + parallel
+    rsn = tuple(reason_tags(surface, text, s, end_for_occ, cfg)) if getattr(cfg, "debug_reasons", False) else None
+
+    # IMPORTANT: construct with keyword args to avoid field-order bugs
+    occ = Occurrence(
+        acronym=base,               # string; never assign an int here
+        start_offset=s,
+        end_offset=end_for_occ,
+        confidence=conf,
+        context_window=ctx,
+        normalized_key=display_key,
+        reasons=rsn,
+    )
+    return occ, display_key
+
+
+def _score_chunk_worker(cfg: DetectorConfig, text: str, window_chars: int, cands: list[tuple[str,int,int]]):
     out: list[Occurrence] = []
     for surface, s, e in cands:
         if blacklist_context_drop(surface, text, s, e, cfg):
             continue
         conf = score(surface, text, s, e, cfg)
-        eff = threshold_len(surface, cfg.allow_chars)
-        th = cfg.min_confidence_by_len.get(eff, cfg.min_confidence_default)
+        eff  = threshold_len(surface, cfg.allow_chars)
+        th   = cfg.min_confidence_by_len.get(eff, cfg.min_confidence_default)
         if conf < th:
             continue
-        key = normalize_key(surface, cfg.allow_chars, cfg.enable_dotted)
-        ctx = context_window(text, s, e, window_chars)
-        rsn = tuple(reason_tags(surface, text, s, e, cfg)) if cfg.debug_reasons else None
-        out.append(Occurrence(surface, s, e, conf, ctx, key, rsn))
+        occ, _ = _build_occurrence_from_match(cfg, text, surface, s, e, conf)
+        out.append(occ)
     return out
+
+
+
 
 
 class Detector:
@@ -43,39 +95,28 @@ class Detector:
         for surface, s, e in iter_candidates_with(text, self.cfg, self._pat):
             if blacklist_context_drop(surface, text, s, e, self.cfg):
                 continue
+
             conf = score(surface, text, s, e, self.cfg)
             eff = threshold_len(surface, self.cfg.allow_chars)
             th = self.cfg.min_confidence_by_len.get(eff, self.cfg.min_confidence_default)
             if conf < th:
                 continue
-            base = strip_terminal_plural(surface)
-            key = normalize_key(
-                base,
-                self.cfg.allow_chars,
-                self.cfg.enable_dotted,  # needed for "U.S." → "US"
-            )
-            ctx = context_window(text, s, e, self.cfg.window_chars)
-            rsn = tuple(reason_tags(surface, text, s, e, self.cfg)) if self.cfg.debug_reasons else None
 
-            occ = Occurrence(acronym=surface,
-                             start_offset=s,
-                             end_offset=e,
-                             confidence=conf,
-                             context_window=ctx,
-                             normalized_key=key,
-                             reasons=rsn)
+            occ, display_key = _build_occurrence_from_match(self.cfg, text, surface, s, e, conf)
             occurrences.append(occ)
 
-            if key not in firsts:
-                firsts[key] = FirstOccurrence(acronym=surface,
-                                              start_offset=s,
-                                              end_offset=e,
-                                              confidence=conf,
-                                              normalized_key=key)
+            if display_key not in firsts:
+                firsts[display_key] = FirstOccurrence(
+                    acronym=occ.acronym,
+                    start_offset=occ.start_offset,
+                    end_offset=occ.end_offset,
+                    confidence=conf,
+                    normalized_key=display_key,  # if present in the dataclass
+                )
+
         return DetectorResult(unique_acronyms=firsts, occurrences=occurrences)
 
     def detect_parallel(self, text: str, threshold: int = 1000, chunk_size: int = 256) -> DetectorResult:
-        # Heuristic: small inputs are faster serially
         cands = list(iter_candidates_with(text, self.cfg, self._pat))
         if len(cands) < threshold:
             return self.detect(text)
@@ -85,21 +126,34 @@ class Detector:
 
         futures = []
         for i in range(0, len(cands), chunk_size):
-            chunk = cands[i:i + chunk_size]
-            futures.append(self._pool.submit(
-                _score_chunk_worker, self.cfg, text, self.cfg.window_chars, chunk
-            ))
+            futures.append(
+                self._pool.submit(_score_chunk_worker, self.cfg, text, self.cfg.window_chars, cands[i:i + chunk_size]))
 
         occurrences: list[Occurrence] = []
         for f in futures:
             occurrences.extend(f.result())
 
-        # Build first-occurrence map
         firsts: dict[str, FirstOccurrence] = {}
+        # prefer the normalized_key computed in the helper if available
         for occ in occurrences:
-            key = normalize_key(occ.acronym, self.cfg.allow_chars, self.cfg.enable_dotted)
-            if key not in firsts:
-                firsts[key] = FirstOccurrence(occ.acronym, occ.start_offset, occ.end_offset, occ.confidence)
+            if not isinstance(occ.acronym, str):
+                raise TypeError(f"Occurrence.acronym is not str: {type(occ.acronym)} -> {occ}")
+
+            display_key = getattr(occ, "normalized_key", normalize_key(
+                occ.acronym,
+                self.cfg.allow_chars,
+                dotted_mode=getattr(self.cfg, "dotted_display", "strip"),
+            ))
+
+            if display_key not in firsts:
+                firsts[display_key] = FirstOccurrence(
+                    acronym=occ.acronym,
+                    start_offset=occ.start_offset,
+                    end_offset=occ.end_offset,
+                    confidence=occ.confidence,
+                    normalized_key=display_key,
+                )
+
         return DetectorResult(unique_acronyms=firsts, occurrences=occurrences)
 
     async def detect_async(self, text: str) -> DetectorResult:
@@ -110,7 +164,8 @@ class Detector:
 
 def detect_acronyms(text: str,
                     config: DetectorConfig = DEFAULT_CONFIG,
-                    allowed_chars=ALLOW_CHARS_DEFAULTS) -> DetectorResult:
+                    allowed_chars=ALLOW_CHARS_DEFAULTS,
+                    dot_mode=DEFAULT_DOT_MODE) -> DetectorResult:
     """
     One-pass detector. Returns stable schema + first-occurrence map with normalized keys.
     """
@@ -133,7 +188,7 @@ def detect_acronyms(text: str,
         )
         occurrences.append(occ)
 
-        key = normalize_key(surface, allowed_chars, config.enable_dotted)
+        key = normalize_key(surface, allowed_chars, dot_mode)
         if key not in firsts:
             firsts[key] = FirstOccurrence(
                 acronym=surface,
