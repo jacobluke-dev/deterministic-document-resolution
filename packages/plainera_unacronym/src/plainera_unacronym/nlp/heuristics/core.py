@@ -144,15 +144,20 @@ def prev_token(text: str, start: int) -> str:
     return text[j + 1:i + 1]
 
 
-def normalize_key(surface: str, allow_chars: str, enable_dotted: bool = False) -> str:
-    # 0) canonicalize look-alikes first
+def normalize_key(
+    surface: str,
+    allow_chars: str,
+    dotted_mode: str,   # "strip" or "preserve"
+) -> str:
+    # canonicalize look-alikes first
     s = "".join(APOSTROPHE_VARIANTS.get(ch, DASH_MAP.get(ch, ch)) for ch in surface)
 
-    # 1) strip dots for dotted initialisms (safe: only dotted branch yields dots)
-    if enable_dotted and "." in s:
+    # dotted policy
+    if dotted_mode == "strip":
         s = s.replace(".", "")
+    # else "preserve" and do nothing
 
-    # 2) swallow spaces around allowed internal separators (R & D -> R&D)
+    # swallow spaces around allowed internal separators (R & D -> R&D)
     parts: list[str] = []
     i = 0
     while i < len(s):
