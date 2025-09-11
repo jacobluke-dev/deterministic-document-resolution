@@ -42,14 +42,17 @@ class TestPrevToken:
     def test_hyphen_and_comma_break_tokens(self):
         text = "GPU-CPU next, okay"
 
-        # Hyphen is NOT allowed, so scanning left from "next" stops at '-'
-        # → previous token is just the alnum run "CPU".
+        # Hyphen is NOT allowed, so previous token before "next" is the alnum run "CPU".
         start = _start_of(text, "next")
         assert prev_token(text, start) == "CPU"
 
-        # Comma is a hard boundary; scanning left from "okay" stops at ',' → "next".
+        # Comma is a hard boundary and is *not* skipped by prev_token → returns ''.
         start2 = _start_of(text, "okay")
-        assert prev_token(text, start2) == "next"
+        assert prev_token(text, start2) == ""
+
+        # If you point start at the comma, prev_token will recover "next".
+        comma_idx = text.index(",")
+        assert prev_token(text, comma_idx) == "next"
 
     def test_unicode_letters_are_alnum(self):
         text = "αλφα beta"
