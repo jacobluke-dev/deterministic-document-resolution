@@ -1,6 +1,7 @@
 from plainera_unacronym.nlp import DetectorConfig
 
-from plainera_unacronym.nlp.config import BOUNDARY, TIME_RE, PLURAL_SUFFIXES, STANDS_FOR_RE
+from plainera_unacronym.nlp.config import BOUNDARY, TIME_RE, PLURAL_SUFFIXES, STANDS_FOR_RE, CLOSING_QUOTES_BRACKETS, \
+    BOUNDARY_TERMINATORS
 from plainera_unacronym.nlp.heuristics.core import in_brackets, has_stands_for_follow, next_word_lowercase, prev_token
 from plainera_unacronym.nlp.heuristics.shared import has_paren_definition
 
@@ -104,12 +105,23 @@ def is_all_caps_heading(text: str, start: int, end: int) -> bool:
     return len(letters) >= 6 and all(c.isupper() for c in letters)
 
 
-
 def at_sentence_boundary(text: str, pos: int) -> bool:
+    """True if `pos` looks like a sentence start (after terminators/closers/whitespace)."""
     i = pos - 1
-    while i >= 0 and text[i].isspace():
+
+    # Swallow any mix of whitespace and closing quotes/brackets (in any order).
+    while i >= 0 and (text[i].isspace() or text[i] in CLOSING_QUOTES_BRACKETS):
         i -= 1
-    return i < 0 or text[i] in BOUNDARY
+
+    # Allow clusters like "?!", "…", "!!!"
+    saw_term = False
+    while i >= 0 and text[i] in BOUNDARY_TERMINATORS:
+        saw_term = True
+        i -= 1
+
+    # Start-of-doc also counts.
+    return saw_term or i < 0
+
 
 def blacklist_context_drop(surface: str, text: str, start: int, end: int, cfg: DetectorConfig) -> bool:
     tok = surface
