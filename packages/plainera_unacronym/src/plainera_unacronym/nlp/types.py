@@ -1,9 +1,10 @@
 import re
 from dataclasses import dataclass, field
-
 from plainera_unacronym.nlp.config import ALLOW_CHARS
+from plainera_unacronym.nlp.heuristics.shared import DottedMode
 
 SCHEMA_VERSION = "1.1.0"
+
 
 @dataclass(frozen=True, slots=True)
 class DetectorConfig:
@@ -36,6 +37,7 @@ class DetectorConfig:
     enable_dotted: bool = False
     debug_reasons: bool = False
     enable_mixed_case: bool = True
+    dotted_display: DottedMode = "strip"  # "strip" | "preserve" | "both"
     require_caps_ratio_mixed: float = 0.5
 
 

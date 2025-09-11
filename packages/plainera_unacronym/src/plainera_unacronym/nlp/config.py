@@ -1,4 +1,6 @@
 import re
+from plainera_unacronym.nlp.heuristics.shared import DottedMode
+
 
 APOSTROPHE_VARIANTS = {"'": "’", "’": "’"}  # normalize to curly for keying
 DASH_MAP = {"–": "-", "—": "-", "-": "-"}   # en/em/minus -> "-"
@@ -13,5 +15,7 @@ BOUNDARY = ".!?\n\r\"'“”‘’([{"
 TIME_RE  = re.compile(r"^(?:[01]?\d|2[0-3])(?::[0-5]\d)?$")  # 7, 10:30, 23:59
 
 ALLOW_CHARS = "&/’'--–"
+
+DOT_MODE : DottedMode = "strip"
 
 PLURAL_SUFFIXES = ("s", "’s", "'s")
