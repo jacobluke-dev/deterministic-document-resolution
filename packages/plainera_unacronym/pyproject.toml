@@ -1,17 +1,33 @@
-[project]
+[tool.poetry]
 name = "plainera-unacronym"
 version = "0.1.0"
-requires-python = ">=3.11"
 description = "Unacronym product library (detector + heuristics)"
+authors = ["Jacob Bickerstaff"]
 
-[tool.poetry]
 packages = [{ include = "plainera_unacronym", from = "src" }]
 
-[tool.pytest.ini_options]
-addopts = "-q --cov=plainera_unacronym --cov-report=term --cov-report=xml:coverage.xml --cov-fail-under=80"
-testpaths = ["tests"]
+[tool.poetry.dependencies]
+python = "^3.13"
+SQLAlchemy = ">=2.0.43,<2.1"
+python-dotenv = "^1.0"
 
-[tool.mypy]
-python_version = "3.13"
-packages = ["plainera_unacronym"]
-strict = true
+[tool.poetry.group.dev.dependencies]
+plainera-testkit = { path = "../plainera_testkit", develop = true }
+pytest = "^8.3.0"
+mypy = "^1.11.1"
+ruff = "^0.5.7"
+pytest-asyncio = "^1.1.0"
+pytest-cov = "^6.2.1"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
+
+# --- Ruff configuration ---
+[tool.ruff]
+line-length = 120
+extend-exclude = ["migrations", ".venv"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP", "SIM", "C90"]
+fixable = ["ALL"]
