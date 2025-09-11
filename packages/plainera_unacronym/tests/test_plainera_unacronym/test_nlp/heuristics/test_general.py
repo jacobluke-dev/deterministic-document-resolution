@@ -1,4 +1,3 @@
-# tests/unit/test_at_sentence_boundary.py
 import pytest
 
 from plainera_unacronym.nlp import DetectorConfig
@@ -30,7 +29,7 @@ def mk_cfg(**overrides) -> DetectorConfig:
     return cfg
 
 
-@pytest.mark.unit
+
 class TestAtSentenceBoundary:
     @pytest.mark.parametrize(
         "sample, expected",
@@ -69,7 +68,7 @@ class TestAtSentenceBoundary:
         text, pos = _extract(sample)
         assert at_sentence_boundary(text, pos) is True
 
-@pytest.mark.unit
+
 class TestBlacklistContextDrop:
     # 0) Definition contexts should NOT drop
     def test_paren_definition_right(self, span):
