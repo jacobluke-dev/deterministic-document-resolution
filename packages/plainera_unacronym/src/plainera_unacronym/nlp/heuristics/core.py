@@ -1,6 +1,7 @@
 import re
 from typing import Iterator
 
+from plainera_unacronym.domains.bio.rules import Span
 from plainera_unacronym.nlp import DetectorConfig
 from plainera_unacronym.nlp.config import (TRAILING_PUNCT,
                                            LEADING_BRACK,
@@ -10,6 +11,7 @@ from plainera_unacronym.nlp.config import (TRAILING_PUNCT,
                                            DASH_MAP,
                                            TIME_RE)
 from plainera_unacronym.nlp.heuristics.shared import has_paren_definition
+from plainera_unacronym.nlp.plugins.registry import DOMAIN_PLUGINS
 from plainera_unacronym.nlp.types import pattern_cache
 
 
@@ -232,28 +234,69 @@ def _has_lower_and_upper(tok: str) -> bool:
     return any(c.islower() for c in tok if c.isalpha()) and any(c.isupper() for c in tok if c.isalpha())
 
 
-def iter_candidates(text: str, cfg: DetectorConfig) -> Iterator[tuple[str,int,int]]:
+def iter_candidates(text: str, cfg: DetectorConfig) -> Iterator[Span]:
     pat = compile_pattern(cfg)
     yield from iter_candidates_with(text, cfg, pat)
 
-def iter_candidates_with(text: str, cfg: DetectorConfig, pat: re.Pattern[str]) -> Iterator[tuple[str,int,int]]:
-    for m in pat.finditer(text):
-        s, e = strip_trailing_punct(text, *m.span("tok"))
-        if e - s < cfg.min_len: continue
-        surface = text[s:e]
-        if not has_letter(surface): continue
-        clen = core_len_for_bounds(surface)
-        if clen < cfg.min_len or clen > cfg.max_len: continue
+def iter_candidates_with(text: str, cfg: DetectorConfig, pat: re.Pattern[str]) -> Iterator[Span]:
+    """
+    Merge core regex hits with domain plugin hits, then apply the same gating:
+      - strip trailing punct
+      - has_letter()
+      - length bounds (min_len/max_len, plus your 1/>=15 guard)
+      - caps ratio (with mixed-case relaxation)
+    Dedup by (start, end) to avoid double-yields when both sources find the same span.
+    Core hits are yielded first to preserve first-occurrence determinism.
+    """
+    seen: set[tuple[int, int]] = set()
 
-        cap_ratio = caps_ratio(surface)
+    def _accept(s: int, e: int) -> Span | None:
+        # normalize offsets and re-slice
+        s, e = strip_trailing_punct(text, s, e)
+        if e - s < cfg.min_len:
+            return None
+        surface = text[s:e]
+        if not has_letter(surface):
+            return None
+
+        clen = core_len_for_bounds(surface)
+        if clen < cfg.min_len or clen > cfg.max_len:
+            return None
+        if clen >= 15 or clen == 1:
+            return None
+
+        cap = caps_ratio(surface)
         req = cfg.require_caps_ratio
         if cfg.enable_mixed_case and _has_lower_and_upper(surface):
             upp = sum(1 for ch in surface if ch.isupper())
-            if upp >= 2:  # avoid noise
+            if upp >= 2:
                 req = min(req, cfg.require_caps_ratio_mixed)
-        if cap_ratio < req: continue
-        if clen >= 15 or clen == 1: continue
-        yield surface, s, e
+        if cap < req:
+            return None
+
+        key = (s, e)
+        if key in seen:
+            return None
+        seen.add(key)
+        return surface, s, e
+
+    # 1) Core regex candidates (text order)
+    for m in pat.finditer(text):
+        s, e = m.span("tok")  # your pattern defines a 'tok' group
+        hit = _accept(s, e)
+        if hit:
+            yield hit
+
+    # 2) Domain plugin candidates (may arrive in any order; we still dedupe)
+    if cfg.enabled_domains:
+        for name in cfg.enabled_domains:
+            plug = DOMAIN_PLUGINS.get(name)
+            if not plug:
+                continue
+            for _, s, e in (plug.extra_candidates(text, cfg) or ()):
+                hit = _accept(s, e)
+                if hit:
+                    yield hit
 
 
 def reason_tags(surface: str, text: str, start: int, end: int, cfg: DetectorConfig) -> list[str]:

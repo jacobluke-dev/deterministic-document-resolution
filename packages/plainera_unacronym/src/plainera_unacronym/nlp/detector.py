@@ -1,11 +1,13 @@
 from concurrent.futures import ProcessPoolExecutor
 import asyncio
 from typing import Optional
+from dataclasses import replace as dc_replace
 
 from plainera_unacronym.nlp.config import ALLOW_CHARS, DOT_MODE
 from plainera_unacronym.nlp.heuristics.core import score, threshold_len, normalize_key, context_window, compile_pattern, \
     iter_candidates_with, iter_candidates, reason_tags
 from plainera_unacronym.nlp.heuristics.general import blacklist_context_drop, strip_terminal_plural
+from plainera_unacronym.nlp.plugins.activation import autodetect_domains
 from plainera_unacronym.nlp.types import DetectorConfig, DetectorResult, Occurrence, FirstOccurrence
 
 DEFAULT_CONFIG = DetectorConfig()
@@ -78,9 +80,6 @@ def _score_chunk_worker(cfg: DetectorConfig, text: str, window_chars: int, cands
     return out
 
 
-
-
-
 class Detector:
     def __init__(self, config: DetectorConfig = DEFAULT_CONFIG, max_workers: Optional[int] = None):
         self.cfg = config
@@ -88,21 +87,29 @@ class Detector:
         self._pool: Optional[ProcessPoolExecutor] = None
         self._max_workers = max_workers
 
+    def _with_auto_domains(self, text: str) -> DetectorConfig:
+        auto = autodetect_domains(text, self.cfg)
+        # merge (don’t replace) in case caller pre-set domains
+        if auto and auto != self.cfg.enabled_domains:
+            return dc_replace(self.cfg, enabled_domains=(self.cfg.enabled_domains | auto))
+        return self.cfg
+
     def detect(self, text: str) -> DetectorResult:
+        cfg = self._with_auto_domains(text)
         occurrences: list[Occurrence] = []
         firsts: dict[str, FirstOccurrence] = {}
 
-        for surface, s, e in iter_candidates_with(text, self.cfg, self._pat):
-            if blacklist_context_drop(surface, text, s, e, self.cfg):
+        for surface, s, e in iter_candidates_with(text, cfg, self._pat):
+            if blacklist_context_drop(surface, text, s, e, cfg):
                 continue
 
-            conf = score(surface, text, s, e, self.cfg)
-            eff = threshold_len(surface, self.cfg.allow_chars)
-            th = self.cfg.min_confidence_by_len.get(eff, self.cfg.min_confidence_default)
+            conf = score(surface, text, s, e, cfg)
+            eff = threshold_len(surface, cfg.allow_chars)
+            th = cfg.min_confidence_by_len.get(eff, cfg.min_confidence_default)
             if conf < th:
                 continue
 
-            occ, display_key = _build_occurrence_from_match(self.cfg, text, surface, s, e, conf)
+            occ, display_key = _build_occurrence_from_match(cfg, text, surface, s, e, conf)
             occurrences.append(occ)
 
             if display_key not in firsts:
@@ -117,7 +124,8 @@ class Detector:
         return DetectorResult(unique_acronyms=firsts, occurrences=occurrences)
 
     def detect_parallel(self, text: str, threshold: int = 1000, chunk_size: int = 256) -> DetectorResult:
-        cands = list(iter_candidates_with(text, self.cfg, self._pat))
+        cfg = self._with_auto_domains(text)
+        cands = list(iter_candidates_with(text, cfg, self._pat))
         if len(cands) < threshold:
             return self.detect(text)
 
@@ -127,7 +135,7 @@ class Detector:
         futures = []
         for i in range(0, len(cands), chunk_size):
             futures.append(
-                self._pool.submit(_score_chunk_worker, self.cfg, text, self.cfg.window_chars, cands[i:i + chunk_size]))
+                self._pool.submit(_score_chunk_worker, cfg, text, self.cfg.window_chars, cands[i:i + chunk_size]))
 
         occurrences: list[Occurrence] = []
         for f in futures:
@@ -141,8 +149,8 @@ class Detector:
 
             display_key = getattr(occ, "normalized_key", normalize_key(
                 occ.acronym,
-                self.cfg.allow_chars,
-                dotted_mode=getattr(self.cfg, "dotted_display", "strip"),
+                cfg.allow_chars,
+                dotted_mode=getattr(cfg, "dotted_display", "strip"),
             ))
 
             if display_key not in firsts:
