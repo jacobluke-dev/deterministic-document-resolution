@@ -1,6 +1,6 @@
 from plainera_unacronym.nlp import DetectorConfig
 
-from plainera_unacronym.nlp.config import BOUNDARY, TIME_RE, PLURAL_SUFFIXES, STANDS_FOR_RE, CLOSING_QUOTES_BRACKETS, \
+from plainera_unacronym.nlp.config import BOUNDARY, TIME_RE, PLURAL_SUFFIXES, CLOSING_QUOTES_BRACKETS, \
     BOUNDARY_TERMINATORS, EXCLAMS
 from plainera_unacronym.nlp.heuristics.core import in_brackets, has_stands_for_follow, next_word_lowercase, prev_token
 from plainera_unacronym.nlp.heuristics.shared import has_paren_definition
@@ -8,12 +8,6 @@ from plainera_unacronym.nlp.heuristics.shared import has_paren_definition
 
 def _alpha_len(s: str) -> int:
     return sum(ch.isalpha() for ch in s)
-
-
-def has_stands_for_near(text: str, start: int, end: int, radius: int) -> bool:
-    lo = max(0, start - radius)
-    hi = min(len(text), end + radius)
-    return bool(STANDS_FOR_RE.search(text[lo:hi]))
 
 
 def strip_terminal_plural(surface: str) -> str:

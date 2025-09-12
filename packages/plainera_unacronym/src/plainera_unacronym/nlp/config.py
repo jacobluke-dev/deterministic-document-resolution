@@ -31,4 +31,4 @@ EXCLAMS = ("!", "！", "‼")
 
 DOT_MODE : DottedMode = "strip"
 
-PLURAL_SUFFIXES = ("s", "’s", "'s")
+PLURAL_SUFFIXES = ("’s", "'s", "s")

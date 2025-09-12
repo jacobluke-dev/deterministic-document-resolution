@@ -3,7 +3,7 @@ import pytest
 from plainera_unacronym.nlp import DetectorConfig
 from plainera_unacronym.nlp.heuristics.general import at_sentence_boundary, blacklist_context_drop, is_all_caps_heading, \
     is_in_caps_interjection_context, is_in_caps_interjection_context_prev, _comma_near_left, exclam_near_right, \
-    _alpha_len
+    _alpha_len, is_all_caps_word, strip_terminal_plural
 
 
 def _extract(text_with_caret: str) -> tuple[str, int]:
@@ -117,6 +117,62 @@ class TestAlphaLen:
     )
     def test_various_strings(self, s, expected):
         assert _alpha_len(s) == expected
+
+
+class TestStripTerminalPlural:
+    @pytest.mark.parametrize("surface,expected", [
+        ("GPUs", "GPU"),          # simple plural
+        ("CPU's", "CPU"),         # straight apostrophe
+        ("CPU’s", "CPU"),         # curly apostrophe
+        ("NDA’s", "NDA"),         # another curly case
+        ("X’s", "X"),             # single-letter stem still OK
+    ])
+    def test_strips_when_stem_is_all_caps(self, surface, expected):
+        assert strip_terminal_plural(surface) == expected
+
+    @pytest.mark.parametrize("surface", [
+        "Apis",                   # stem not all-caps → unchanged
+        "cats",                   # lowercase word → unchanged
+        "123’s",                  # no cased letters in stem → unchanged
+        "GPU’s,",                 # trailing punctuation prevents match → unchanged
+        "GPUS",                   # endswith('S') (upper S) → unchanged
+        "CATS",                   # same: upper 'S' is not matched
+    ])
+    def test_does_not_strip_in_other_cases(self, surface):
+        assert strip_terminal_plural(surface) == surface
+
+    def test_mixed_punctuation_no_strip(self):
+        # Apostrophe in middle but no terminal plural suffix
+        surface = "O’BRIEN"
+        assert strip_terminal_plural(surface) == surface
+
+
+class TestIsAllCapsWord:
+    @pytest.mark.parametrize("surface,allow,expected", [
+        ("ALPHA", "-&/._", True),          # simple all-caps, >=4 letters
+        ("GPU", "-&/._", False),           # too short (alpha_len=3)
+        ("Alpha", "-&/._", False),         # mixed case -> False
+        ("ALPHA1", "-&/._", False),        # digits disqualify
+        ("A.BCD", "-&/._", False),         # '.' in allow_chars -> disqualify
+        ("A.BCD", "", True),               # '.' not in allow_chars -> OK
+        ("MOVE-ON", "-&/._", False),       # '-' in allow_chars -> disqualify
+        ("MOVE-ON", "", True),             # '-' not listed -> OK (letters are all upper)
+        ("R&DCPU", "-&/._", False),        # '&' in allow_chars -> disqualify
+        ("RNDCPU", "-&/._", True),         # no separators, all upper, >=4
+        ("A_BCD", "-&/._", False),         # '_' in allow_chars -> disqualify
+        ("A_BCD", "", True),               # '_' not listed -> OK
+        ("ÉTUDE", "-&/._", True),          # Unicode uppercase letters
+        ("ÜBER", "-&/._", True),           # Unicode uppercase (German Umlauts)
+        ("CHAPÉU", "-&/._", True),         # Accented capitals
+        ("ßABC", "-&/._", False),          # 'ß' is not uppercase -> False
+    ])
+    def test_various(self, surface, allow, expected):
+        assert is_all_caps_word(surface, allow) is expected
+
+    def test_alpha_len_boundary(self):
+        # Exactly 4 alphabetic chars required
+        assert is_all_caps_word("ABCD", "-&/._") is True
+        assert is_all_caps_word("ABCd", "-&/._") is False  # mixed case
 
 
 class TestExclamNearRight:
