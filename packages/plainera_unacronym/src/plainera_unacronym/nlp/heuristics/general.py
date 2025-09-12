@@ -22,6 +22,7 @@ def strip_terminal_plural(surface: str) -> str:
             return surface[:-len(suf)]
     return surface
 
+
 def is_all_caps_word(surface: str, allow_chars: str) -> bool:
     # Single word, letters-only uppercase, no digits/separators
     if _alpha_len(surface) < 4:
@@ -30,6 +31,7 @@ def is_all_caps_word(surface: str, allow_chars: str) -> bool:
         return False
     letters = [ch for ch in surface if ch.isalpha()]
     return letters and all(ch.isupper() for ch in letters)
+
 
 def exclam_near_right(text: str, end: int, max_chars: int = 6) -> bool:
     i, n = end, len(text)
@@ -55,6 +57,7 @@ def _comma_near_left(text: str, start: int, max_chars: int = 8) -> bool:
         i -= 1
     return False
 
+
 def word_bounds_right(text: str, pos: int) -> tuple[int, int]:
     i, n = pos, len(text)
     while i < n and text[i].isspace(): i += 1
@@ -76,29 +79,122 @@ def _prev_all_caps_word(text: str, start: int, allow_chars: str, max_gap: int = 
     return (0 <= start - j <= max_gap) and is_all_caps_word(text[i:j], allow_chars)
 
 
-
 def next_all_caps_word(text: str, end: int, allow_chars: str, max_gap: int = 2) -> bool:
     i, j = word_bounds_right(text, end)
     return (0 <= i - end <= max_gap) and is_all_caps_word(text[i:j], allow_chars)
 
 
+def is_in_caps_interjection_context(surface: str, text: str, s: int, e: int, cfg: DetectorConfig) -> bool:
+    """
+    Return True when an ALL-CAPS token appears to be part of a two-word “shouty
+    phrase” like “ALRIGHTY THEN!” so the token can be safely dropped from
+    acronym detection.
 
-def shouty_phrase_drop(surface: str, text: str, s: int, e: int, cfg: DetectorConfig) -> bool:
-    if not is_all_caps_word(surface, cfg.allow_chars): return False
-    if not (_comma_near_left(text, s) and exclam_near_right(text, e)): return False
-    # drop only if part of a 2-word shouty phrase (ALRIGHTY THEN!)
-    # naive: if next word is ALL-CAPS too
+    The pattern this targets is:
+
+        <comma near the left>  SURFACE  <spaces>  NEXT  <exclamation near right>
+
+    where:
+      * SURFACE is an ALL-CAPS “word” per `is_all_caps_word(surface, cfg.allow_chars)`.
+      * NEXT is the next sequence of alphabetic characters (Unicode-aware) after
+        the span [s:e], must be ALL-CAPS and length ≥ 3.
+      * “near” is decided by helper predicates `_comma_near_left(text, s)` and
+        `exclam_near_right(text, e)` (they typically enforce small max gaps).
+
+    This is a cheap, punctuation-driven heuristic for ignoring emphatic interjections
+    (e.g., “Well, ALRIGHTY THEN!”) that are unlikely to be acronyms.
+
+    Args:
+      surface: The text covered by the candidate span `[s:e]`; usually `text[s:e]`.
+      text: Full source string that contains the candidate span.
+      s: Start index (inclusive) of the candidate token within `text`.
+      e: End index (exclusive) of the candidate token within `text`.
+      cfg: Detector configuration. `cfg.allow_chars` is forwarded to
+        `is_all_caps_word` to allow internal separators (e.g., `R&D`, `GPU/CPU`,
+        `MOVE-ON`, `A_B`, `A.B`). Depending on your implementation of
+        `is_all_caps_word`, other config fields (e.g., soft blacklists like
+        common function words: “OF”, “IN”, “GO”) may cause `surface` to be
+        rejected even if it is uppercase.
+
+    Returns:
+      bool: True if the token at `[s:e]` should be dropped because it matches
+      the two-word shouty pattern; False otherwise.
+
+    Notes:
+      * The next word is parsed as consecutive `str.isalpha()` characters starting
+        at the first non-space after `e`. Digits or hyphens in the *next* word are
+        not considered here.
+      * Multiple exclamation marks are okay (e.g., “THEN!!”), as long as
+        `exclam_near_right` considers them “near”.
+      * Whitespace between `SURFACE` and `NEXT` is ignored.
+      * This heuristic is independent of sentence boundaries; it keys only off
+        local punctuation.
+
+    Examples:
+      >>> text = "Well, ALRIGHTY THEN!"
+      >>> s, e = text.index("ALRIGHTY"), text.index("ALRIGHTY") + len("ALRIGHTY")
+      >>> is_in_caps_interjection_context("ALRIGHTY", text, s, e, cfg)  # doctest: +SKIP
+      True
+
+      >>> text = "Well ALRIGHTY THEN!"  # no comma near left
+      >>> s, e = text.index("ALRIGHTY"), text.index("ALRIGHTY") + len("ALRIGHTY")
+      >>> is_in_caps_interjection_context("ALRIGHTY", text, s, e, cfg)  # doctest: +SKIP
+      False
+
+      >>> text = "Well, ALRIGHTY Then!"  # next word not ALL-CAPS
+      >>> s, e = text.index("ALRIGHTY"), text.index("ALRIGHTY") + len("ALRIGHTY")
+      >>> is_in_caps_interjection_context("ALRIGHTY", text, s, e, cfg)  # doctest: +SKIP
+      False
+
+      >>> text = "Well, MOVE NOW!"  # passes if MOVE is allowed by your config
+      >>> s, e = text.index("MOVE"), text.index("MOVE") + len("MOVE")
+      >>> is_in_caps_interjection_context("MOVE", text, s, e, cfg)  # doctest: +SKIP
+      True
+    """
+    if not is_all_caps_word(surface, cfg.allow_chars):
+        return False
+    if not (_comma_near_left(text, s) and exclam_near_right(text, e)):
+        return False
+
     i, n = e, len(text)
-    while i < n and text[i].isspace(): i += 1
-    j = i
-    while j < n and text[j].isalpha(): j += 1
-    nxt = text[i:j]
-    return nxt.isupper() and len(nxt) >= 3
+    fillers = 0
+    MAX_FILLERS = 2  # allow e.g. "I", "AM" before the content word
+
+    while i < n:
+        # stop early if we reach the exclamation
+        if text[i] == "!":
+            return False
+        # skip spaces
+        while i < n and text[i].isspace():
+            i += 1
+        # read the next alphabetic word
+        j = i
+        while j < n and text[j].isalpha():
+            j += 1
+        nxt = text[i:j]
+        if not nxt:
+            # non-letter (punctuation) — treat as not a valid shouty phrase
+            return False
+
+        if nxt.isupper():
+            if len(nxt) >= 3:
+                return True  # e.g. "HELLO I AM COOL!"
+            # short ALL-CAPS filler like "I", "AM"
+            fillers += 1
+            if fillers > MAX_FILLERS:
+                return False
+            i = j
+            continue
+        # mixed/lowercase breaks the shouty run
+        return False
+
+    return False
+
 
 
 def is_all_caps_heading(text: str, start: int, end: int) -> bool:
     line_start = text.rfind("\n", 0, start) + 1
-    line_end   = text.find("\n", end)
+    line_end = text.find("\n", end)
     if line_end == -1: line_end = len(text)
     seg = text[line_start:line_end].strip()
     letters = [c for c in seg if c.isalpha()]
