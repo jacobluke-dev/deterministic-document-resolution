@@ -1,5 +1,7 @@
 import re
 from dataclasses import dataclass, field
+from typing import FrozenSet, Mapping, Any
+
 from plainera_unacronym.nlp.config import ALLOW_CHARS
 from plainera_unacronym.nlp.heuristics.shared import DottedMode
 
@@ -39,6 +41,8 @@ class DetectorConfig:
     enable_mixed_case: bool = True
     dotted_display: DottedMode = "strip"  # "strip" | "preserve" | "both"
     require_caps_ratio_mixed: float = 0.5
+    enabled_domains: FrozenSet[str] = frozenset()
+    domain_cfg: Mapping[str, Any] = field(default_factory=dict)
 
 
 @dataclass(frozen=True, slots=True)

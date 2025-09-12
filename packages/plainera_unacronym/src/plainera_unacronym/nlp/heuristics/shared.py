@@ -13,4 +13,4 @@ def has_paren_definition(text: str, end: int, max_chars: int = 80) -> bool:
     return False
 
 
-DottedMode = Literal["strip", "preserve", "both"]
+DottedMode = Literal["strip", "preserve"]
