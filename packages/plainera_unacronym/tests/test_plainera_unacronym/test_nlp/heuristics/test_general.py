@@ -1,13 +1,29 @@
+from types import SimpleNamespace
+
 import pytest
 
 from plainera_unacronym.nlp import DetectorConfig
-from plainera_unacronym.nlp.heuristics.general import at_sentence_boundary, blacklist_context_drop
+from plainera_unacronym.nlp.heuristics.general import at_sentence_boundary, blacklist_context_drop, is_all_caps_heading, \
+    shouty_phrase_drop
 
 
 def _extract(text_with_caret: str) -> tuple[str, int]:
     """Turn '...^...' into (text, pos)."""
     pos = text_with_caret.index("^")
     return text_with_caret.replace("^", ""), pos
+
+
+def _extract_span(s: str) -> tuple[str, int, int]:
+    """
+    Use [ ... ] to mark (start, end) in the sample.
+    Returns: (clean_text, start, end)
+    """
+    pre, rest = s.split("[", 1)
+    inside, post = rest.split("]", 1)
+    text = pre + inside + post
+    start = len(pre)
+    end = start + len(inside)
+    return text, start, end
 
 def mk_cfg(**overrides) -> DetectorConfig:
     """
@@ -18,16 +34,186 @@ def mk_cfg(**overrides) -> DetectorConfig:
     base = {
         "non_acronym_upper": frozenset({"OK", "LTD", "PLC", "NO"}),
     }
-    # If your DetectorConfig doesn’t have 'blacklist', getattr(...) in your code
-    # will default it to an empty set—so we inject one here for tests.
+
     cfg = DetectorConfig()
-    # Dataclasses are frozen=True in your code; we’ll use object.__setattr__
+
     object.__setattr__(cfg, "non_acronym_upper", base["non_acronym_upper"])
     object.__setattr__(cfg, "soft_blacklist", frozenset({"IT", "AM"}))
     for k, v in overrides.items():
         object.__setattr__(cfg, k, v)
     return cfg
 
+
+
+def make_cfg(allow_chars: str = "-&/._") -> DetectorConfig:
+    """
+    Build a valid DetectorConfig for tests.
+    Adjust defaults if your real class has more fields.
+    """
+    return DetectorConfig(min_len=2, max_len=12, allow_chars=allow_chars)
+
+
+def _patch_near(monkeypatch, left_gap: int, right_gap: int):
+    """Simulate 'near' using max gap thresholds."""
+    def comma_near_left(text: str, s: int) -> bool:
+        i = s - 1
+        spaces = 0
+        while i >= 0 and text[i].isspace():
+            spaces += 1
+            i -= 1
+        return i >= 0 and text[i] == "," and spaces <= left_gap
+
+    def exclam_near_right(text: str, e: int) -> bool:
+        # Distance from e to the next '!' (counts every char between, incl. the next word).
+        i = e
+        dist = 0
+        n = len(text)
+        while i < n and text[i] != "!":
+            i += 1
+            dist += 1
+        return i < n and dist <= right_gap
+
+    monkeypatch.setattr("plainera_unacronym.nlp.heuristics.general._comma_near_left", comma_near_left, raising=True)
+    monkeypatch.setattr("plainera_unacronym.nlp.heuristics.general.exclam_near_right", exclam_near_right, raising=True)
+
+
+class TestShoutyPhraseDrop:
+
+    @pytest.fixture(autouse=True)
+    def _cfg(self):
+        return make_cfg()
+
+    @staticmethod
+    def _extract_span(s: str):
+        """Use [ ... ] to mark (start, end). Return (text, surface, s, e)."""
+        pre, rest = s.split("[", 1)
+        inside, post = rest.split("]", 1)
+        text = pre + inside + post
+        s_idx = len(pre)
+        e_idx = s_idx + len(inside)
+        return text, inside, s_idx, e_idx
+
+    @pytest.mark.parametrize(
+        "sample, expected",
+        [
+            ("Well, [ALRIGHTY] THEN!", True),             # canonical: comma + ALLCAPS + ALLCAPS + !
+            ("Well,    [ALRIGHTY]   THEN!", True),        # extra spaces
+            ("OK, [MOVE] ALONG!", True),                   # different words
+            ("Well, [ALRIGHTY] THEN!!", True),            # multiple !
+            ("Well [ALRIGHTY] THEN!", False),             # no comma near left
+            ("Well, [ALRIGHTY] THEN.", False),            # no exclamation near right
+            ("Well, [Alrighty] THEN!", False),            # first word not ALLCAPS
+            ("Well, [ALRIGHTY] Then!", False),            # next word not ALLCAPS
+            ("Well, [ALRIGHTY] OK!", False),              # next word too short (<3)
+            ("Well, [ALRIGHTY] X!", False),               # length 1 next word
+            ("Well, [ALRIGHTY] 123!", False),             # next token not letters
+        ],
+    )
+    def test_various(self, sample, expected, _cfg):
+        text, surface, s, e = self._extract_span(sample)
+        assert shouty_phrase_drop(surface, text, s, e, _cfg) is expected
+
+    def test_handles_unicode_caps_next_word(self, _cfg):
+        # Next word with Unicode uppercase letters should count
+        sample = "Well, [BRAVO] ÉTUDE!"
+        text, surface, s, e = self._extract_span(sample)
+        assert shouty_phrase_drop(surface, text, s, e, _cfg) is True
+
+    def test_variants_any_two_words(self, monkeypatch, _cfg):
+        _patch_near(monkeypatch, left_gap=4, right_gap=40)  # permissive for shape tests
+        for sample in [
+            "Well, [ALRIGHTY] THEN!",
+            "Fine, [MOVE] ALONG!",
+            "Okay, [RIGHT] NOW!",
+            "Listen,   [STOP]   THAT!",
+            "Hey, [PLEASE] CLAP!",
+        ]:
+            text, surface, s, e = self._extract_span(sample)
+            assert shouty_phrase_drop(surface, text, s, e, _cfg) is True
+
+    def test_rejects_if_next_word_not_all_caps_or_too_short(self, monkeypatch, _cfg):
+        _patch_near(monkeypatch, left_gap=4, right_gap=40)
+        # Next word not ALL CAPS
+        t1 = "Well, [ALRIGHTY] Then!"
+        # Next word length < 3
+        t2 = "Well, [ALRIGHTY] OK!"
+        for sample in [t1, t2]:
+            text, surface, s, e = self._extract_span(sample)
+            assert shouty_phrase_drop(surface, text, s, e, _cfg) is False
+
+    @pytest.mark.parametrize("right_gap,sample,expected", [
+        (3, "Well, [GO] UP!", True),    # distance e->'!' = 1(space)+2(UP) = 3
+        (3, "Well, [GO] NOW!", False),  # 1 + 3 = 4 > 3
+        (4, "Well, [GO] NOW!", True),   # 4 allowed
+    ])
+    def test_right_gap_enforced(self, monkeypatch, right_gap, sample, expected, _cfg):
+        _patch_near(monkeypatch, left_gap=3, right_gap=right_gap)
+        text, surface, s, e = self._extract_span(sample)
+        assert shouty_phrase_drop(surface, text, s, e, _cfg) is expected
+
+    @pytest.mark.parametrize("left_gap,sample,expected", [
+        (3, "Well,   [GO] UP!", True),   # 3 spaces after comma OK
+        (3, "Well,    [GO] UP!", False), # 4 spaces > 3
+        (4, "Well,    [GO] UP!", True),  # 4 allowed
+    ])
+    def test_left_gap_enforced(self, monkeypatch, left_gap, sample, expected, _cfg):
+        _patch_near(monkeypatch, left_gap=left_gap, right_gap=10)
+        text, surface, s, e = self._extract_span(sample)
+        assert shouty_phrase_drop(surface, text, s, e, _cfg) is expected
+
+    def test_both_gaps_tight_fail(self, monkeypatch, _cfg):
+        _patch_near(monkeypatch, left_gap=2, right_gap=2)
+        text, surface, s, e = self._extract_span("Well,   [GO] UP!")
+        assert shouty_phrase_drop(surface, text, s, e, _cfg) is False
+
+    def test_allowed_internal_separators_pass(self, monkeypatch):
+        _patch_near(monkeypatch, left_gap=3, right_gap=40)
+        # ampersand and slash allowed
+        for sample in [
+            "Well, [R&D] TEAM!",      # &
+            "Well, [GPU/CPU] CLUB!",  # /
+            "Well, [MOVE-ON] THEN!",  # -
+            "Well, [A_B] TEST!",      # _
+            "Well, [A.B] TEST!",      # .
+        ]:
+            text, surface, s, e = self._extract_span(sample)
+            _cfg = make_cfg(allow_chars="-&/._")
+            assert shouty_phrase_drop(surface, text, s, e, _cfg) is True
+
+    def test_disallowed_separator_fails(self, monkeypatch):
+        _patch_near(monkeypatch, left_gap=3, right_gap=40)
+        # '-' not allowed here -> fails ALL-CAPS word check
+        text, surface, s, e = self._extract_span("Well, [MOVE-ON] THEN!")
+        _cfg = make_cfg(allow_chars="&/._")
+        assert shouty_phrase_drop(surface, text, s, e, _cfg) is False
+
+    def test_unicode_all_caps_next_word_ok(self, monkeypatch, _cfg):
+        _patch_near(monkeypatch, left_gap=3, right_gap=40)
+        text, surface, s, e = self._extract_span("Well, [BRAVO] ÉTUDE!")
+        assert shouty_phrase_drop(surface, text, s, e, _cfg) is True
+
+    @pytest.mark.parametrize("sample, expected", [
+        ("\n[INTRODUCTION]\nBody", True),                      # simple all-caps, >=6 letters
+        ("\n   [   HEADING   ]   \n", True),                   # leading/trailing spaces
+        ("\n[API V2 OVERVIEW]\n", True),                       # digits ignored, letters all caps
+        ("\n[End. The]\n", False),                             # mixed case -> False
+        ("\n[FAQ]\n", False),                                  # <6 letters -> False
+        ("\n[----]\n", False),                                 # no letters -> False
+        ("\n[CHAPÉU]\n", True),                                # Unicode uppercase letters
+        ("\n[ΠΡΟΛΟΓΟΣ]\n", True),                              # Greek uppercase
+        ("Prev\n.. [NOT all CAPS]\nNext\n", False),            # mixed case long enough
+        ("# Intro\n[INTRODUCTION line continues]\n", False),   # selection mid-line still but contains lowercase
+        ("Last line with \n[OVERVIEW]\n(no trailing newlne)", True), # \n \n
+    ])
+    def test_various(self, sample: str, expected: bool):
+        text, start, end = _extract_span(sample)
+        assert is_all_caps_heading(text, start, end) is expected
+
+    def test_selection_inside_line_not_full_line(self):
+        # Start/end are in the middle of the line; function should still consider the whole line.
+        sample = "##   PRE [INTRODUCTION]  POST"
+        text, start, end = _extract_span(sample)
+        assert is_all_caps_heading(text, start + 2, end - 2) is True  # even a subspan on that line
 
 
 class TestAtSentenceBoundary:
