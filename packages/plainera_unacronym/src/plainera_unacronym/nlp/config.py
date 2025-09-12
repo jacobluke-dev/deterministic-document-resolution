@@ -26,6 +26,8 @@ BOUNDARY = ".!?\n\r\"'“”‘’([{"
 TIME_RE  = re.compile(r"^(?:[01]?\d|2[0-3])(?::[0-5]\d)?$")  # 7, 10:30, 23:59
 
 ALLOW_CHARS = "&/’'--–"
+TOKEN_SEPARATORS = "-&/._"
+EXCLAMS = ("!", "！", "‼")
 
 DOT_MODE : DottedMode = "strip"
 

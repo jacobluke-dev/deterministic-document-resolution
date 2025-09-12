@@ -1,7 +1,7 @@
 from plainera_unacronym.nlp import DetectorConfig
 
 from plainera_unacronym.nlp.config import BOUNDARY, TIME_RE, PLURAL_SUFFIXES, STANDS_FOR_RE, CLOSING_QUOTES_BRACKETS, \
-    BOUNDARY_TERMINATORS
+    BOUNDARY_TERMINATORS, EXCLAMS
 from plainera_unacronym.nlp.heuristics.core import in_brackets, has_stands_for_follow, next_word_lowercase, prev_token
 from plainera_unacronym.nlp.heuristics.shared import has_paren_definition
 
@@ -33,15 +33,24 @@ def is_all_caps_word(surface: str, allow_chars: str) -> bool:
     return letters and all(ch.isupper() for ch in letters)
 
 
-def exclam_near_right(text: str, end: int, max_scan: int | None = None, stop_at_newline: bool = True) -> bool:
-    i, n, scanned = end, len(text), 0
-    while i < n and (max_scan is None or scanned <= max_scan):
-        ch = text[i]
-        if ch in {"!", "！", "‼"}: return True
-        if ch in ".?" or (stop_at_newline and ch == "\n"): return False
-        i += 1; scanned += 1
-    return False
 
+def exclam_near_right(text: str, end: int, max_scan: int | None = None, stop_at_newline: bool = True) -> bool:
+    rest = text[end:]
+    # nearest exclamation
+    bang_idxs = [rest.find(ch) for ch in EXCLAMS]
+    bang_idx = min((i for i in bang_idxs if i != -1), default=None)
+    if bang_idx is None:
+        return False
+
+    # any blocker before the exclamation?
+    blockers = [rest.find("."), rest.find("?")]
+    if stop_at_newline:
+        blockers.append(rest.find("\n"))
+    blocker_idx = min((i for i in blockers if i != -1), default=None)
+    if blocker_idx is not None and blocker_idx < bang_idx:
+        return False
+
+    return max_scan is None or bang_idx <= max_scan
 
 
 def _comma_near_left(text: str, s: int) -> bool:
@@ -55,37 +64,12 @@ def _comma_near_left(text: str, s: int) -> bool:
     return i >= 0 and text[i] == ","
 
 
-def word_bounds_right(text: str, pos: int) -> tuple[int, int]:
-    i, n = pos, len(text)
-    while i < n and text[i].isspace(): i += 1
-    j = i
-    while j < n and (text[j].isalpha()): j += 1
-    return i, j
-
-
-def word_bounds_left(text: str, pos: int) -> tuple[int, int]:
-    i = pos - 1
-    while i >= 0 and text[i].isspace(): i -= 1
-    j = i
-    while j >= 0 and (text[j].isalpha()): j -= 1
-    return j + 1, i + 1
-
-
-def _prev_all_caps_word(text: str, start: int, allow_chars: str, max_gap: int = 2) -> bool:
-    i, j = word_bounds_left(text, start)
-    return (0 <= start - j <= max_gap) and is_all_caps_word(text[i:j], allow_chars)
-
-
-def next_all_caps_word(text: str, end: int, allow_chars: str, max_gap: int = 2) -> bool:
-    i, j = word_bounds_right(text, end)
-    return (0 <= i - end <= max_gap) and is_all_caps_word(text[i:j], allow_chars)
-
 def is_in_caps_interjection_context(surface: str, text: str, s: int, e: int, cfg: DetectorConfig) -> bool:
     """
     True if SURFACE (ALL-CAPS word, len≥4) is followed by another ALL-CAPS word (len≥3)
     before an exclamation (e.g., ', ALRIGHTY THEN!').
     """
-    if len(surface) < 4:                      # avoid dropping CPU, GPU, etc.
+    if len(surface) < 4:  # avoid dropping CPU, GPU, etc.
         return False
     if not is_all_caps_word(surface, cfg.allow_chars):
         return False
@@ -102,7 +86,8 @@ def is_in_caps_interjection_context(surface: str, text: str, s: int, e: int, cfg
         if ch == "!":
             return False
         if ch.isspace():
-            i += 1; continue
+            i += 1;
+            continue
         if ch.isalpha():
             j = i
             while j < n and text[j].isalpha():
@@ -115,7 +100,8 @@ def is_in_caps_interjection_context(surface: str, text: str, s: int, e: int, cfg
             fillers += 1
             if fillers > MAX_FILLERS:
                 return False
-            i = j; continue
+            i = j;
+            continue
         # any other punctuation before '!' breaks the pattern
         return False
     return False
@@ -141,8 +127,8 @@ def is_in_caps_interjection_context_prev(surface: str, text: str, s: int, e: int
     while j >= 0 and text[j].isalpha():
         j -= 1
     if j < i:
-        prev_word = text[j+1:i+1]
-        if prev_word.isupper() and len(prev_word) >= 4 and _comma_near_left(text, j+1):
+        prev_word = text[j + 1:i + 1]
+        if prev_word.isupper() and len(prev_word) >= 4 and _comma_near_left(text, j + 1):
             return True
     return False
 
