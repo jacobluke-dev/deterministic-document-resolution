@@ -1,4 +1,4 @@
-
+import re
 from typing import Iterator, Tuple
 from .config import BioConfig, _STATS_CI_RE, _STATS_OR_HR_RR_RE
 from .patterns import bio_pattern
@@ -6,7 +6,7 @@ from .patterns import bio_pattern
 Span = Tuple[str, int, int]
 
 
-def extra_candidates(text: str) -> Iterator[Span]:
+def extra_candidates(text: str, cfg: BioConfig) -> Iterator[Span]:
     """Yield biomedical candidate spans found by the bio regex.
 
         Scans ``text`` with the precompiled bio pattern (see ``bio_pattern()``) to
@@ -18,6 +18,9 @@ def extra_candidates(text: str) -> Iterator[Span]:
 
         Args:
           text: Source text to scan.
+          cfg: Bio domain configuration. Accepted for interface symmetry and
+            potential future tuning; not currently read by this function.
+
         Yields:
           Span: Tuples of ``(surface: str, start: int, end: int)`` for each match,
           where ``start`` (inclusive) and ``end`` (exclusive) are character offsets
@@ -31,6 +34,12 @@ def extra_candidates(text: str) -> Iterator[Span]:
     for m in pat.finditer(text):
         s, e = m.span("bio")
         yield text[s:e], s, e
+
+    # 2) Explicit RNA-like tokens (captures mRNA/miRNA/sgRNA that start lowercase)
+    if cfg.rna_like:
+        rna_re = re.compile(r"\b(?:" + "|".join(map(re.escape, cfg.rna_like)) + r")\b")
+        for m in rna_re.finditer(text):
+            yield m.group(0), m.start(), m.end()
 
 
 def _sentence_slice(text: str, s: int, e: int, max_chars: int) -> tuple[int, int]:

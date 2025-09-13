@@ -51,9 +51,6 @@ def _comma_near_left(text: str, s: int) -> bool:
     i = s - 1
     # skip any whitespace
     while i >= 0 and text[i].isspace():
-        print(i)
-        print(text[i].isspace())
-        print(text[i])
         i -= 1
     return i >= 0 and text[i] == ","
 

@@ -37,9 +37,6 @@ def _end(text: str, token: str) -> int:
     return s + len(token)
 
 
-
-
-
 class TestLetters:
     def test_ascii_letters_only(self):
         assert letters("abcXYZ") == "abcXYZ"
