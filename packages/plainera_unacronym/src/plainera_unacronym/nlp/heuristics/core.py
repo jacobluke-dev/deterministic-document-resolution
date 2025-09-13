@@ -1,8 +1,6 @@
 import re
 from typing import Iterator
 
-from plainera_unacronym.domains.bio.rules import Span
-from plainera_unacronym.nlp import DetectorConfig
 from plainera_unacronym.nlp.config import (TRAILING_PUNCT,
                                            LEADING_BRACK,
                                            CLOSING_BRACK,
@@ -12,7 +10,9 @@ from plainera_unacronym.nlp.config import (TRAILING_PUNCT,
                                            TIME_RE)
 from plainera_unacronym.nlp.heuristics.shared import has_paren_definition
 from plainera_unacronym.nlp.plugins.registry import DOMAIN_PLUGINS
-from plainera_unacronym.nlp.types import pattern_cache
+from plainera_unacronym.nlp.types import pattern_cache, DetectorConfig
+
+Span = tuple[str, int, int]
 
 
 def compile_pattern(cfg: DetectorConfig) -> re.Pattern[str]:
@@ -52,7 +52,7 @@ def compile_pattern(cfg: DetectorConfig) -> re.Pattern[str]:
     #    - First char must be A–Z; remaining are A–Z or 0–9.
     #    - Length bounds derive from cfg.{min,max}_len (inclusive) and apply to
     #      the whole run (the first char counts toward the total).
-    compact = rf"(?:[A-Z][A-Z0-9]{{{max(cfg.min_len-1,1)},{max(cfg.max_len-1,1)}}})"
+    compact = rf"(?:[A-Z][A-Z0-9]{{{max(cfg.min_len - 1, 1)},{max(cfg.max_len - 1, 1)}}})"
 
     # 4) CamelCaps (opt-in, upper-first) for brand-style abbreviations.
     #    - Simple, linear pattern that captures tokens like "TfL", "eBPF" (upper-first only here).
@@ -62,7 +62,7 @@ def compile_pattern(cfg: DetectorConfig) -> re.Pattern[str]:
     # Order matters: keep more specific branches (with_seps/dotted) before the generic compact.
     branches = [with_seps, compact]
     if cfg.enable_dotted:
-        branches.insert(1, dotted)    # give dotted precedence over compact
+        branches.insert(1, dotted)  # give dotted precedence over compact
     if cfg.enable_mixed_case:
         branches.append(camel_uc)
 
@@ -130,6 +130,7 @@ def next_word_lowercase(text: str, end: int) -> bool:
     word = text[i:j]
     return bool(word) and word.islower()
 
+
 def prev_token(text: str, start: int) -> str:
     i = start - 1
     while i >= 0 and text[i].isspace():
@@ -143,7 +144,7 @@ def prev_token(text: str, start: int) -> str:
 def normalize_key(
     surface: str,
     allow_chars: str,
-    dotted_mode: str,   # "strip" or "preserve"
+    dotted_mode: str,  # "strip" or "preserve"
 ) -> str:
     # canonicalize look-alikes first
     s = "".join(APOSTROPHE_VARIANTS.get(ch, DASH_MAP.get(ch, ch)) for ch in surface)
@@ -178,7 +179,6 @@ def core_len_for_bounds(token: str) -> int:
 
 def has_letter(s: str) -> bool:
     return any(ch.isalpha() for ch in s)
-
 
 
 def threshold_len(surface: str, allow_chars: str) -> int:
@@ -238,72 +238,117 @@ def iter_candidates(text: str, cfg: DetectorConfig) -> Iterator[Span]:
     pat = compile_pattern(cfg)
     yield from iter_candidates_with(text, cfg, pat)
 
-def iter_candidates_with(text: str, cfg: DetectorConfig, pat: re.Pattern[str]) -> Iterator[Span]:
-    """
-    Merge core regex hits with domain plugin hits, then apply the same gating:
-      - strip trailing punct
-      - has_letter()
-      - length bounds (min_len/max_len, plus your 1/>=15 guard)
+
+def _accept_candidate(text: str, cfg: DetectorConfig, s: int, e: int) -> Span | None:
+    """Apply the standard gating to a raw (s, e) span and return a normalized Span or None.
+
+    Gates (identical to legacy path):
+      - strip trailing punctuation
+      - min/max length (and explicit 1 / >=15 guard)
+      - must contain at least one letter
       - caps ratio (with mixed-case relaxation)
-    Dedup by (start, end) to avoid double-yields when both sources find the same span.
-    Core hits are yielded first to preserve first-occurrence determinism.
     """
+
+    s, e = strip_trailing_punct(text, s, e)
+    if e - s < cfg.min_len:
+        return None
+
+    surface = text[s:e]
+    if not has_letter(surface):
+        return None
+
+    clen = core_len_for_bounds(surface)
+    if clen < cfg.min_len or clen > cfg.max_len or clen >= 15 or clen == 1:
+        return None
+
+    req = cfg.require_caps_ratio
+    if cfg.enable_mixed_case and _has_lower_and_upper(surface):
+        upp = sum(1 for ch in surface if ch.isupper())
+        if upp >= 2:
+            req = min(req, cfg.require_caps_ratio_mixed)
+
+    if caps_ratio(surface) < req:
+        return None
+
+    return surface, s, e
+
+
+def _collect_core_hits(text: str, cfg: DetectorConfig, pat: re.Pattern[str]) -> list[Span]:
+    """Collect accepted core-regex hits in text order."""
+    out: list[Span] = []
+    for m in pat.finditer(text):
+        s, e = m.span("tok")  # your pattern's named group
+        hit = _accept_candidate(text, cfg, s, e)
+        if hit:
+            out.append(hit)
+    return out
+
+
+def _collect_domain_hits(text: str, cfg: DetectorConfig) -> list[Span]:
+    """Collect accepted domain-plugin hits and sort for containment checks.
+
+    Sorted by (start asc, length desc) so longer domain spans come first.
+    """
+    hits: list[Span] = []
+    for name in (cfg.enabled_domains or ()):
+        plug = DOMAIN_PLUGINS.get(name)
+        if not plug:
+            continue
+        for _, s, e in (plug.extra_candidates(text, cfg) or ()):
+            hit = _accept_candidate(text, cfg, s, e)
+            if hit:
+                hits.append(hit)
+
+    hits.sort(key=lambda x: (x[1], -(x[2] - x[1])))
+    return hits
+
+
+def _contained_in_any(s: int, e: int, containers: list[Span]) -> bool:
+    """True if (s,e) is fully contained in any (ds,de) span in containers."""
+    for _, ds, de in containers:
+        if ds <= s and e <= de:
+            return True
+        if ds > e:
+            break  # early exit: later spans all start after (s,e)
+    return False
+
+
+def iter_candidates_with(text: str, cfg: DetectorConfig, pat: re.Pattern[str]) -> Iterator[Span]:
+    """Yield core candidates, suppressing only those fully contained by domain spans; then yield domain spans.
+
+    This preserves normal heuristics while avoiding obvious fragments (e.g., drop 'IFN' if 'IFN-γ' exists).
+    """
+    core_hits = _collect_core_hits(text, cfg, pat)
+    dom_hits = _collect_domain_hits(text, cfg)
+
     seen: set[tuple[int, int]] = set()
 
-    def _accept(s: int, e: int) -> Span | None:
-        # normalize offsets and re-slice
-        s, e = strip_trailing_punct(text, s, e)
-        if e - s < cfg.min_len:
-            return None
-        surface = text[s:e]
-        if not has_letter(surface):
-            return None
-
-        clen = core_len_for_bounds(surface)
-        if clen < cfg.min_len or clen > cfg.max_len:
-            return None
-        if clen >= 15 or clen == 1:
-            return None
-
-        cap = caps_ratio(surface)
-        req = cfg.require_caps_ratio
-        if cfg.enable_mixed_case and _has_lower_and_upper(surface):
-            upp = sum(1 for ch in surface if ch.isupper())
-            if upp >= 2:
-                req = min(req, cfg.require_caps_ratio_mixed)
-        if cap < req:
-            return None
-
+    # 1) Core first (unless contained by any domain span)
+    for surface, s, e in core_hits:
         key = (s, e)
         if key in seen:
-            return None
+            continue
+        if _contained_in_any(s, e, dom_hits):
+            continue
         seen.add(key)
-        return surface, s, e
+        yield surface, s, e
 
-    # 1) Core regex candidates (text order)
-    for m in pat.finditer(text):
-        s, e = m.span("tok")  # your pattern defines a 'tok' group
-        hit = _accept(s, e)
-        if hit:
-            yield hit
-
-    # 2) Domain plugin candidates (may arrive in any order; we still dedupe)
-    if cfg.enabled_domains:
-        for name in cfg.enabled_domains:
-            plug = DOMAIN_PLUGINS.get(name)
-            if not plug:
-                continue
-            for _, s, e in (plug.extra_candidates(text, cfg) or ()):
-                hit = _accept(s, e)
-                if hit:
-                    yield hit
+    # 2) Then domain hits (skip duplicates by offsets)
+    for surface, s, e in dom_hits:
+        key = (s, e)
+        if key in seen:
+            continue
+        seen.add(key)
+        yield surface, s, e
 
 
 def reason_tags(surface: str, text: str, start: int, end: int, cfg: DetectorConfig) -> list[str]:
     tags: list[str] = []
     inside, adjacent = in_brackets(text, start, end)
-    if inside:   tags.append("inside_parens")
-    elif adjacent: tags.append("adjacent_parens")
+    if inside:
+        tags.append("inside_parens")
+    elif adjacent:
+        tags.append("adjacent_parens")
     if has_paren_definition(text, end):  tags.append("paren_definition_right")
     if has_stands_for_follow(text, end): tags.append("stands_for_right")
     if surface in cfg.soft_blacklist:    tags.append("soft_blacklist_penalty")
