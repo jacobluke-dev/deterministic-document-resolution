@@ -65,7 +65,7 @@ def _build_occurrence_from_match(
     return occ, display_key
 
 
-def _score_chunk_worker(cfg: DetectorConfig, text: str, window_chars: int, cands: list[tuple[str,int,int]]):
+def _score_chunk_worker(cfg: DetectorConfig, text: str, cands: list[tuple[str,int,int]]):
     out: list[Occurrence] = []
     for surface, s, e in cands:
         if blacklist_context_drop(surface, text, s, e, cfg):
@@ -88,10 +88,11 @@ class Detector:
         self._max_workers = max_workers
 
     def _with_auto_domains(self, text: str) -> DetectorConfig:
-        auto = autodetect_domains(text, self.cfg)
-        # merge (don’t replace) in case caller pre-set domains
-        if auto and auto != self.cfg.enabled_domains:
-            return dc_replace(self.cfg, enabled_domains=(self.cfg.enabled_domains | auto))
+        auto = autodetect_domains(text, self.cfg)  # frozenset[str]
+        if auto:
+            merged = self.cfg.enabled_domains | auto
+            if merged != self.cfg.enabled_domains:
+                return dc_replace(self.cfg, enabled_domains=merged)
         return self.cfg
 
     def detect(self, text: str) -> DetectorResult:

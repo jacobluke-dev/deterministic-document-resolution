@@ -11,18 +11,35 @@ GREEK    = re.compile(r"[\u0370-\u03FF]")
 
 def _slice(text: str, max_chars: int = 80_000) -> str: return text[:max_chars]
 
-def bio_signal_score(text: str) -> tuple[int,list[str]]:
-    t = _slice(text)
-    score, reasons = 0, []
-    for label, pat, w in (
-        ("rna", RNA_RE, 3), ("cytokine", CYTOKINE, 3), ("virus", VIRUS, 3),
-        ("pcr", PCR_RE, 2), ("units", UNITS, 1), ("stats", STATS, 2),
-        ("sections", SECTIONS, 1),
-    ):
-        if pat.search(t): score += w; reasons.append(label)
-    if GREEK.search(t): score += 1; reasons.append("greek")
-    return score, reasons
+STRONG = (
+    ("rna",      RNA_RE,      5),
+    ("cytokine", CYTOKINE,    5),
+    ("virus",    VIRUS,       5),
+)
+SUPPORT = (
+    ("pcr",      PCR_RE,      2),
+    ("units",    UNITS,       1),
+    ("stats",    STATS,       2),
+    ("sections", SECTIONS,    1),
+    ("greek",    GREEK,       1),
+)
 
-def should_enable_bio(text: str, threshold: int = 3) -> tuple[bool,list[str]]:
-    score, reasons = bio_signal_score(text)
-    return (score >= threshold), reasons
+def bio_signal_score(text: str, cap: int = 80_000) -> tuple[int, list[str], bool]:
+    t = text[:cap]
+    score, reasons, has_strong = 0, [], False
+
+    for label, pat, w in STRONG:
+        if pat.search(t):
+            score += w; reasons.append(label); has_strong = True
+
+    for label, pat, w in SUPPORT:
+        if pat.search(t):
+            score += w; reasons.append(label)
+
+    return score, reasons, has_strong
+
+def should_enable_bio(text: str, threshold: int = 5) -> tuple[bool, list[str]]:
+    score, reasons, has_strong = bio_signal_score(text)
+    # Require at least one strong signal, OR a high total score.
+    enable = has_strong or score >= threshold + 3
+    return enable, reasons
