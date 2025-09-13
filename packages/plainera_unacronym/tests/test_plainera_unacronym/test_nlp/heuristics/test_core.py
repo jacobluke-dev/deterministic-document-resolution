@@ -2,7 +2,7 @@ import re
 import pytest
 
 from plainera_unacronym.nlp import DetectorConfig
-from plainera_unacronym.nlp.config import TRAILING_PUNCT
+from plainera_unacronym.nlp.config import TRAILING_PUNCT, APOSTROPHE_VARIANTS
 from plainera_unacronym.nlp.heuristics.core import (next_word_lowercase,
                                                     _has_lower_and_upper,
                                                     iter_candidates_with,
@@ -389,6 +389,23 @@ class TestNormalizeKey:
     def test_apostrophe_variants_are_canonicalized(self):
         # Curly apostrophe should normalize to ASCII "'"
         assert normalize_key("O’Reilly", allow_chars="&-/", dotted_mode="preserve") == "O'Reilly"
+
+    @staticmethod
+    def _norm(s: str) -> str:
+        return normalize_key(s, allow_chars="&-/", dotted_mode="preserve")
+
+    @pytest.mark.parametrize("variant", list(APOSTROPHE_VARIANTS.keys()))
+    def test_apostrophe_variants_are_canonicalized(self, variant: str) -> None:
+        # Every variant becomes ASCII "'"
+        assert self._norm(f"O{variant}Reilly") == "O'Reilly"
+        assert self._norm(f"rock{variant}n{variant}roll") == "rock'n'roll"
+        # Works in all-caps tokens too (your acronym path)
+        assert self._norm(f"O{variant}RAN") == "O'RAN"
+
+    def test_apostrophe_normalization_is_idempotent(self) -> None:
+        assert self._norm("O'Reilly") == "O'Reilly"
+        assert self._norm("rock'n'roll") == "rock'n'roll"
+        assert self._norm("O'RAN") == "O'RAN"
 
     def test_dash_variants_are_canonicalized_and_trimmed(self):
         # EN dash / EM dash should map to '-' then spacing rule applies
