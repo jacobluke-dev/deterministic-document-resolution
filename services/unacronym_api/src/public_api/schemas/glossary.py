@@ -1,4 +1,4 @@
-from typing import list, Literal, Optional
+from typing import Literal, Optional
 
 from pydantic import Field, confloat, constr
 
