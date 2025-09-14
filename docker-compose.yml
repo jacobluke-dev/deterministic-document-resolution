@@ -3,33 +3,19 @@ version: "3.9"
 services:
   api:
     build:
-      context: .                               # repo root
+      context: .
       dockerfile: services/unacronym_api/Dockerfile
     env_file: ./.env
-    working_dir: /app
+    working_dir: /app/services/unacronym_api
     ports:
-      - "8000:8000"                            # host:container
+      - "8000:8000"
     depends_on:
       db:
         condition: service_healthy
-    # If you want live-reload for alembic files during dev:
     volumes:
-      - ./services/unacronym_api/alembic.ini:/app/unacronym_api/alembic.ini:ro
-      - ./services/unacronym_api/migrations:/app/unacronym_api/migrations
-
-  plainera_unacronym:
-    build:
-      context: .                               # repo root
-      dockerfile: packages/plainera_unacronym/Dockerfile
-    env_file: ./.env
-    working_dir: /app
-    environment:
-      - PORT=8000
-    ports:
-      - "8001:8000"                            # different host port than api
-    depends_on:
-      db:
-        condition: service_healthy
+      - ./services/unacronym_api/alembic.ini:/app/services/unacronym_api/alembic.ini:ro
+      - ./services/unacronym_api/migrations:/app/services/unacronym_api/migrations
+      - ./services/unacronym_api/src:/app/src
 
   db:
     image: postgres:15-alpine

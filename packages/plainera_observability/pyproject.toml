@@ -4,7 +4,7 @@ version = "0.1.0"
 description = "Plainera Observability Package"
 authors = ["Jacob Bickerstaff"]
 
-packages = [{ include = "plainera_observability", from = "src" }]
+packages = [{ include = "observability", from = "src" }]
 
 [tool.poetry.dependencies]
 python = "^3.13"
