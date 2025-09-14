@@ -1,10 +1,8 @@
-# plainera_core/db_manager/sink_factory.py
-from __future__ import annotations
-
 from dataclasses import dataclass
 from typing import Any, Callable
 
-from public_api.db.models import Logger, PackageLogger  # adjust if paths differ
+from plainera_unacronym.db.models.logger import PackageLogger
+from public_api.db.models import Logger
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from .mappers import make_logger_mapper
