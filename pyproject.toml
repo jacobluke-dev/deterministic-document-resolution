@@ -22,6 +22,7 @@ plainera-unacronym = { path = "packages/plainera_unacronym", develop=true}
 plainera-testkit = {path = "packages/plainera_testkit", develop = true}
 plainera-observability = { path = "packages/plainera_observability", develop = true, extras = ["fastapi"] }
 unacronym-api = { path = "services/unacronym_api", develop = true}
+asyncpg = "^0.30.0"
 
 [tool.poetry.group.dev.dependencies]
 pytest = "^8.3.0"
@@ -38,6 +39,7 @@ behave = "^1.3.2"
 build = "^1.3.0"
 ipykernel = "^6.30.1"
 jupyterlab = "^4.4.7"
+psycopg = {version = ">=3.2", extras = ["binary"]}
 
 [build-system]
 requires = ["poetry-core"]
