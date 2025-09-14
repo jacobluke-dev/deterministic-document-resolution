@@ -1,6 +1,9 @@
 from typing import Literal
 
 
+DottedMode = Literal["strip", "preserve"]
+
+
 def has_paren_definition(text: str, end: int, max_chars: int = 80) -> bool:
     """Return whether a parenthetical definition follows immediately after a token.
 
@@ -51,6 +54,3 @@ def has_paren_definition(text: str, end: int, max_chars: int = 80) -> bool:
 
     # valid only if we hit a closing ')' within the limit
     return (j < n and text[j] == ")") and (alpha >= 5)
-
-
-DottedMode = Literal["strip", "preserve"]
