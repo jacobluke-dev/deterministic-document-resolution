@@ -13,6 +13,7 @@ python-dotenv = "^1.0"
 
 [tool.poetry.group.dev.dependencies]
 plainera-testkit = { path = "../plainera_testkit", develop = true }
+plainera-observability = { path = "../plainera_observability", develop = true, extras = ["fastapi"] }
 pytest = "^8.3.0"
 mypy = "^1.11.1"
 ruff = "^0.5.7"

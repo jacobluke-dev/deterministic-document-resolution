@@ -39,7 +39,7 @@ class DetectorConfig:
     enable_dotted: bool = False
     debug_reasons: bool = False
     enable_mixed_case: bool = True
-    dotted_display: DottedMode = "strip"  # "strip" | "preserve" | "both"
+    dotted_display: DottedMode = "strip"  # "strip" | "preserve"
     require_caps_ratio_mixed: float = 0.5
     enabled_domains: FrozenSet[str] = frozenset()
     domain_cfg: Mapping[str, Any] = field(default_factory=dict)
