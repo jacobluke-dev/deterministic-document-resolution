@@ -57,17 +57,7 @@ def make_logger_mapper(
             "date_time": _parse_ts(payload.get("timestamp")),
         }
         # not all loggers have these cols
-        if "path" in cols:
-            out["path"] = payload.get("path")
-        if "method" in cols:
-            out["method"] = payload.get("method")
-        if "status" in cols:
-            out["status"] = _sanitize_status(payload.get("status"))
-        if "bytes" in cols:
-            out["bytes"] = payload.get("bytes")
-        if "client_ip" in cols:
-            out["client_ip"] = payload.get("client_ip")
-        if "key_id" in cols:
-            out["key_id"] = payload.get("key_id")
+        for key in {"path", "method", "bytes", "client_ip", "key_id"} & cols:
+            out[key] = payload.get(key)
         return {k: v for k, v in out.items() if k in cols}
     return map_
