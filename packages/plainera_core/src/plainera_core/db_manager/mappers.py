@@ -1,51 +1,73 @@
 from datetime import datetime, timezone
 from typing import Any
 
-_LEVEL_NAME_TO_CODE = {
-    "debug": 10,
-    "info": 20,
-    "warning": 30,
-    "error": 40,
-    "critical": 50,
-}
+from sqlalchemy import inspect as sqla_inspect
 
-def logger_model_map(payload: dict[str, Any]) -> dict[str, Any]:
-    """
-    Map a raw logging payload into a normalized database model format.
-    """
-    raw_level = payload.get("level")
-    level_name: str = str(raw_level or "info").lower()
+from plainera_core.db_manager.config import MapperFn
 
-    level_code = _LEVEL_NAME_TO_CODE.get(level_name, 20)
+_LEVEL_NAME_TO_CODE = {"debug":10, "info":20, "warning":30, "error":40, "critical":50}
+_CODE_TO_LEVEL_NAME = {v:k for k,v in _LEVEL_NAME_TO_CODE.items()}
 
-    # timestamp from emit is ISO string; ensure tz-aware datetime
-    ts_raw = payload.get("timestamp")
-    date_time = (
-        datetime.fromisoformat(ts_raw) if isinstance(ts_raw, str) else datetime.now(timezone.utc)
-    )
+def _level_name(raw: Any) -> str:
+    if isinstance(raw, int):
+        return _CODE_TO_LEVEL_NAME.get(raw, "info")
+    s = str(raw or "info").lower()
+    return s if s in _LEVEL_NAME_TO_CODE else "info"
 
-    return {
-        "level_code": level_code,
-        "level_name": level_name,
-        "event": payload.get("event", ""),
-        "logger_type": payload.get("logger_type", "decorator"),
-        "function_name": payload.get("function"),
-        "request_id": payload.get("request_id"),
-        "duration_ms": payload.get("duration_ms"),
+def _parse_ts(ts: Any) -> datetime:
+    if isinstance(ts, datetime):
+        return ts if ts.tzinfo else ts.replace(tzinfo=timezone.utc)
+    if isinstance(ts, str):
+        try:
+            return datetime.fromisoformat(ts.replace("Z", "+00:00")).astimezone(timezone.utc)
+        except Exception:
+            pass
+    return datetime.now(timezone.utc)
 
-        # free-form summary; fall back to the event name
-        "info": payload.get("result") or payload.get("info") or payload.get("event"),
 
-        # args your decorator already attaches; kw args only if you add them
-        "arguments": payload.get("args"),
-        "keyword_arguments": payload.get("kwargs"),
+def _sanitize_status(x: Any) -> int | None:
+    try:
+        v = int(x)
+        return v if 100 <= v <= 599 else None
+    except Exception:
+        return None
 
-        # http-ish extras if present
-        "path": payload.get("path"),
-        "method": payload.get("method"),
-        "status": payload.get("status"),
-        "bytes": payload.get("bytes"),
-        "client_ip": payload.get("client_ip"),
-        "key_id": payload.get("key_id"),
-        "date_time": date_time,
-    }
+
+def make_logger_mapper(
+    model: type[Any],             # or: type[Base] if you can import your Base
+    *,
+    default_logger_type: str = "decorator",
+) -> MapperFn:
+    # Collect column names from the mapped class
+    cols = {c.key for c in sqla_inspect(model).columns}
+
+    def map_(payload: dict[str, Any]) -> dict[str, Any]:
+        lvl_name = _level_name(payload.get("level"))
+        out = {
+            "level_code": _LEVEL_NAME_TO_CODE[lvl_name],
+            "level_name": lvl_name,
+            "event": payload.get("event", ""),
+            "logger_type": payload.get("logger_type", default_logger_type),
+            "function_name": payload.get("function"),
+            "request_id": payload.get("request_id"),
+            "duration_ms": payload.get("duration_ms"),
+            "info": payload.get("result") or payload.get("info") or payload.get("event"),
+            "arguments": payload.get("args"),
+            "keyword_arguments": payload.get("kwargs"),
+            "date_time": _parse_ts(payload.get("timestamp")),
+        }
+        # not all loggers have these cols
+        if "path" in cols:
+            out["path"] = payload.get("path")
+        if "method" in cols:
+            out["method"] = payload.get("method")
+        if "status" in cols:
+            out["status"] = _sanitize_status(payload.get("status"))
+        if "bytes" in cols:
+            out["bytes"] = payload.get("bytes")
+        if "client_ip" in cols:
+            out["client_ip"] = payload.get("client_ip")
+        if "key_id" in cols:
+            out["key_id"] = payload.get("key_id")
+        return {k: v for k, v in out.items() if k in cols}
+    return map_
