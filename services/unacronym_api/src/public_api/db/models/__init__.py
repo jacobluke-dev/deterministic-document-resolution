@@ -7,13 +7,15 @@ __all__ = (
     "GlossaryEntry",
     "AcronymAlias",
     "Logger",
+    "PackageLogger",
 )
 
 if TYPE_CHECKING:
     from .acronym_alias import AcronymAlias
-    from .base import Base, BaseWithTimestamps
+    from observability.db.models.base import BaseWithTimestamps, Base
     from .glossary_entry import GlossaryEntry
     from .logger import Logger
+    from plainera_unacronym.db.models.logger import PackageLogger
 
 _lazy_attrs: dict[str, tuple[str, str]] = {
     "Base": (".base", "Base"),
@@ -21,6 +23,7 @@ _lazy_attrs: dict[str, tuple[str, str]] = {
     "GlossaryEntry": (".glossary_entry", "GlossaryEntry"),
     "AcronymAlias": (".acronym_alias", "AcronymAlias"),
     "Logger": (".logger", "Logger"),
+    "PackageLogger": (".package_logger", "PackageLogger"),
 }
 
 def __getattr__(name: str) -> Any:

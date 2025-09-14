@@ -3,11 +3,14 @@ from logging.config import fileConfig
 
 from alembic import context
 from sqlalchemy import engine_from_config, pool
-from public_api.db.models import Base
+
+from observability.db.models.base import  Base
+
 #registering tables...
 import public_api.db.models.glossary_entry
 import public_api.db.models.acronym_alias
 import public_api.db.models.logger
+from packages.plainera_unacronym.src.plainera_unacronym.db.models.logger import PackageLogger
 
 
 config = context.config
