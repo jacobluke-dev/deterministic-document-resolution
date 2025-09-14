@@ -50,45 +50,60 @@ class TestRegexesMinimalMatches:
         assert PCR_RE.search("ELISA validated protein.") is not None
 
 
-@pytest.mark.unit
 class TestBioSignalScore:
     @pytest.mark.parametrize(
-        "text,expected_score,expected_reasons",
+        "text,expected_score,expected_reasons,expected_is_strong",
         [
-            ("mRNA present.", 3, {"rna"}),
-            ("IL-10 increased.", 3, {"cytokine"}),
-            ("H1N1 detected.", 3, {"virus"}),
-            ("western blot performed.", 2, {"pcr"}),
-            ("OD600=0.7", 1, {"units"}),
-            ("odds ratio improved.", 2, {"stats"}),
-            ("Abstract", 1, {"sections"}),
-            ("α only", 1, {"greek"}),
+            ("mRNA present.", 5, {"rna"}, True),  # STRONG
+            ("IL-10 increased.", 5, {"cytokine"}, True),  # STRONG
+            ("H1N1 detected.", 5, {"virus"}, True),  # STRONG
+            ("western blot performed.", 2, {"pcr"}, False),  # SUPPORT
+            ("OD600=0.7", 1, {"units"}, False),  # SUPPORT
+            ("odds ratio improved.", 2, {"stats"}, False),  # SUPPORT
+            ("Abstract", 1, {"sections"}, False),  # SUPPORT
+            ("α only", 1, {"greek"}, False),  # SUPPORT
         ],
     )
-    def test_minimal_signals(self, text, expected_score, expected_reasons):
-        score, reasons = bio_signal_score(text)
+    def test_minimal_signals(self, text, expected_score, expected_reasons, expected_is_strong):
+        score, reasons, is_strong = bio_signal_score(text)
         assert score == expected_score
         assert set(reasons) == expected_reasons
+        assert is_strong is expected_is_strong
+
+    def test_strong_plus_support_counts_and_flags(self):
+        text = "mRNA present. Abstract mentioned. OD600=0.7"
+        score, reasons, is_strong = bio_signal_score(text)
+        assert is_strong is True
+        assert score == 5 + 1 + 1
+        assert set(reasons) == {"rna", "sections", "units"}
+
+    def test_support_only_does_not_set_is_strong(self):
+        text = "PCR performed. Abstract provided."
+        score, reasons, is_strong = bio_signal_score(text)
+        assert is_strong is False
+        assert score == 2 + 1
+        assert set(reasons) == {"pcr", "sections"}
 
     def test_cytokine_with_greek_counts_both(self):
-        text = "TNF-α levels rose."
-        score, reasons = bio_signal_score(text)
-        # cytokine (3) + greek (1)
-        assert score == 4
-        assert set(reasons) == {"cytokine", "greek"}
+            text = "TNF-α levels rose."
+            score, reasons, is_strong = bio_signal_score(text)
+            # cytokine (5) + greek (1)
+            assert score == 6
+            assert set(reasons) == {"cytokine", "greek"}
+            assert is_strong == True
 
     def test_combined_signals(self):
         text = (
             "Abstract. mRNA quantified via RT-qPCR; OD260 noted; 95% CI reported. "
             "H7N9 was monitored."
         )
-        score, reasons = bio_signal_score(text)
-        # sections(1) + rna(3) + pcr(2) + units(1) + stats(2) + virus(3) = 12
-        assert score == 12
+        score, reasons, is_strong = bio_signal_score(text)
+        # sections(1) + rna(5) + pcr(2) + units(1) + stats(2) + virus(5) = 12
+        assert score == 16
         assert set(reasons) == {"sections", "rna", "pcr", "units", "stats", "virus"}
+        assert is_strong == True
 
 
-@pytest.mark.unit
 class TestShouldEnableBio:
     def test_threshold_default_false_when_low_signal(self):
         ok, reasons = should_enable_bio("PCR only.")  # score=2
@@ -100,15 +115,15 @@ class TestShouldEnableBio:
         assert ok is True
         assert set(reasons) == {"cytokine"}
 
-    def test_combination_reaches_threshold(self):
+    def test_combination_does_not_reach_threshold(self):
         text = "PCR performed. Abstract provided."  # pcr(2) + sections(1) = 3
-        ok, reasons = should_enable_bio(text)
-        assert ok is True
+        ok, reasons = should_enable_bio(text)  # default threshold=5 → needs ≥8 if no strong
+        assert ok is False
         assert set(reasons) == {"pcr", "sections"}
 
     def test_custom_threshold(self):
-        ok, reasons = should_enable_bio("α only", threshold=1)  # greek(1)
-        assert ok is True
+        ok, reasons = should_enable_bio("α only", threshold=1)
+        assert ok is False
         assert set(reasons) == {"greek"}
 
     def test_no_signal(self):
