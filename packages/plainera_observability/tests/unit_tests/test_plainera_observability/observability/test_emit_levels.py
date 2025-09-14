@@ -3,8 +3,8 @@ import logging
 
 import pytest
 
-from observability.observability.emit import emit
-from observability.observability.levels import STD_LEVEL, LogLevel
+from observability.logger.emit import emit
+from observability.logger.levels import LogLevel, STD_LEVEL
 
 
 def _last_json(caplog) -> tuple[dict, logging.LogRecord]:
@@ -28,8 +28,8 @@ def test_emit_level_payload_and_logrecord(caplog, lvl):
 
 def test_decorator_defaults_to_info_level(caplog):
     caplog.set_level(logging.DEBUG)
-    from observability.observability.decorator import logger
 
+    from observability.logger.decorator import logger
     @logger("work", arg_names=["x"])
     def work(x: int) -> int:
         return x * 2

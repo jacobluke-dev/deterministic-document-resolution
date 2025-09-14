@@ -3,9 +3,9 @@ import logging
 
 import pytest
 
-from observability.observability.context import request_id_var
-from observability.observability.decorator import logger
-from observability.observability.levels import STD_LEVEL, LogLevel
+from observability.logger.context import request_id_var
+from observability.logger.decorator import logger
+from observability.logger.levels import STD_LEVEL, LogLevel
 
 
 def _last_json(caplog) -> dict:
@@ -97,7 +97,7 @@ def test_std_level_mapping():
 
 def test_log_result_included_and_truncated(caplog):
     caplog.set_level(logging.INFO)
-    from observability.observability.decorator import logger
+    from observability.logger.decorator import logger
 
     @logger("calc", arg_names=["x"], log_result=True, result_max_len=20)
     def calc(x): return {"ok": True, "data": "x"*100}
