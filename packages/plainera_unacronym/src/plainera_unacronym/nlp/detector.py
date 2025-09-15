@@ -1,8 +1,13 @@
+import os
 from concurrent.futures import ProcessPoolExecutor
 import asyncio
 from typing import Optional
 from dataclasses import replace as dc_replace
 
+from observability.logger.decorator import logger
+from observability.logger.message_logger import message_logger
+from plainera_core.db_manager.sessions import make_async_sessionmaker
+from plainera_core.db_manager.sink_factory import make_universal_sink
 from plainera_unacronym.nlp.config import ALLOW_CHARS, DOT_MODE
 from plainera_unacronym.nlp.heuristics.core import score, threshold_len, normalize_key, context_window, compile_pattern, \
     iter_candidates_with, iter_candidates, reason_tags
@@ -81,11 +86,16 @@ def _score_chunk_worker(cfg: DetectorConfig, text: str, cands: list[tuple[str,in
 
 
 class Detector:
-    def __init__(self, config: DetectorConfig = DEFAULT_CONFIG, max_workers: Optional[int] = None):
+    def __init__(self,
+                 config: DetectorConfig = DEFAULT_CONFIG,
+                 max_workers: Optional[int] = None,
+                 *,
+                 sink):
         self.cfg = config
         self._pat = compile_pattern(config)  # precompiled once
         self._pool: Optional[ProcessPoolExecutor] = None
         self._max_workers = max_workers
+        self.sink = sink
 
     def _with_auto_domains(self, text: str) -> DetectorConfig:
         auto = autodetect_domains(text, self.cfg)  # frozenset[str]
@@ -95,6 +105,7 @@ class Detector:
                 return dc_replace(self.cfg, enabled_domains=merged)
         return self.cfg
 
+    @logger(message="testing logger", db_sink="sink")
     def detect(self, text: str) -> DetectorResult:
         cfg = self._with_auto_domains(text)
         occurrences: list[Occurrence] = []

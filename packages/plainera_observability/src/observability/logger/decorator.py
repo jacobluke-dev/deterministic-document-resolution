@@ -34,6 +34,36 @@ def _preview(value: Any, limit: int = 1024) -> str:
     return s if len(s) <= limit else s[:limit] + f"...(+{len(s)-limit} chars)"
 
 
+def _resolve_sink(db_sink, args):
+    # db_sink can be:
+    #  - an actual sink object
+    #  - a string: name of an attribute on self/cls
+    #  - a callable: lambda self_or_cls: sink  (or lambda: sink for free functions)
+    if isinstance(db_sink, str):
+        if not args:
+            raise RuntimeError(
+                f"db_sink='{db_sink}' expects a bound method (needs self/cls)"
+            )
+        owner = args[0]  # self for instance methods, cls for classmethods
+        try:
+            return getattr(owner, db_sink)
+        except AttributeError as e:
+            raise RuntimeError(
+                f"Attribute '{db_sink}' not found on {owner!r}"
+            ) from e
+
+    if callable(db_sink):
+        # Try passing self/cls if present; fall back to no-arg callable.
+        try:
+            return db_sink(args[0]) if args else db_sink()
+        except TypeError:
+            return db_sink()
+
+    # Already a sink object
+    return db_sink
+
+
+
 def logger(  # noqa: C901
     message: str = "",
     *,
@@ -117,7 +147,7 @@ def logger(  # noqa: C901
             except Exception:
                 val = "<result_transform_failed>"
             fields["result"] = _preview(val, limit=result_max_len)
-        emit(message or func.__name__, level=_level_norm(level), logger_type=logger_type, db_sink=db_sink, **fields)
+        emit(message or func.__name__, level=_level_norm(level), logger_type=logger_type, db_sink=_resolve_sink(db_sink, args), **fields)
 
     async def _finalize_async(level: LogLevel, res: Any, start: float, func, args, kwargs) -> None:
         duration_ms = int((monotonic() - start) * 1000) if log_duration else None
@@ -134,7 +164,7 @@ def logger(  # noqa: C901
                 val = "<result_transform_failed>"
             fields["result"] = _preview(val, limit=result_max_len)
         await emit_async(
-            message or func.__name__, level=_level_norm(level), logger_type=logger_type, db_sink=db_sink, **fields
+            message or func.__name__, level=_level_norm(level), logger_type=logger_type, db_sink=_resolve_sink(db_sink, args), **fields
         )
 
     def decorate(func: Callable[P, R]) -> Callable[P, R]:
@@ -150,7 +180,7 @@ def logger(  # noqa: C901
                         message or "Executing function",
                         level=LogLevel.INFO,
                         logger_type=logger_type,
-                        db_sink=db_sink,
+                        db_sink=_resolve_sink(db_sink, *a),
                         function=func.__name__,
                         args=_select_args(func, a, kw),
                     )
@@ -164,7 +194,7 @@ def logger(  # noqa: C901
                         f"Exception in {func.__name__}",
                         level=_level_norm(on_error_level),
                         logger_type=logger_type,
-                        db_sink=db_sink,
+                        db_sink=_resolve_sink(db_sink, *a),
                         function=func.__name__,
                         args=_select_args(func, a, kw),
                         error=repr(e),
@@ -181,7 +211,7 @@ def logger(  # noqa: C901
                         message or "Executing function",
                         level=LogLevel.INFO,
                         logger_type=logger_type,
-                        db_sink=db_sink,
+                        db_sink=_resolve_sink(db_sink, *a),
                         function=func.__name__,
                         args=_select_args(func, a, kw),
                     )
@@ -195,7 +225,7 @@ def logger(  # noqa: C901
                         f"Exception in {func.__name__}",
                         level=_level_norm(on_error_level),
                         logger_type=logger_type,
-                        db_sink=db_sink,
+                        db_sink=_resolve_sink(db_sink, *a),
                         function=func.__name__,
                         args=_select_args(func, a, kw),
                         error=repr(e),
