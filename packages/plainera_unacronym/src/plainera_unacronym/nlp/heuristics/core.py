@@ -338,6 +338,42 @@ def iter_candidates_with(text: str, cfg: DetectorConfig, pat: re.Pattern[str]) -
 
 
 def reason_tags(surface: str, text: str, start: int, end: int, cfg: DetectorConfig) -> list[str]:
+    """
+        Derive lightweight “reason” tags for a matched acronym span, based on local
+        context and config. Tags highlight cues that may boost or penalize confidence.
+
+        Tag rules (added in this order when true):
+          - "inside_parens"         → span is fully inside (...) or [...]
+          - "adjacent_parens"       → span touches a bracket/paren boundary
+          - "paren_definition_right"→ a parenthetical definition immediately follows
+          - "stands_for_right"      → “stands for …” pattern appears to the right
+          - "soft_blacklist_penalty"→ surface is in cfg.soft_blacklist
+          - "non_acronym_upper"     → surface is in cfg.non_acronym_upper
+          - "next_word_lowercase"   → next lexical word after `end` starts lowercase
+          - "prev_time_token"       → previous token matches TIME_RE (e.g. “8PM”)
+          - "has_separator"         → surface contains any character from cfg.allow_chars
+          - "dotted_initialism"     → surface contains '.' and cfg.enable_dotted is True
+
+        Args:
+            surface: The matched surface text (typically text[start:end]).
+            text: Full source text.
+            start: Start offset (inclusive) of the match in `text`.
+            end: End offset (exclusive) of the match in `text`.
+            cfg: Detector configuration (uses `soft_blacklist`, `non_acronym_upper`,
+                 `allow_chars`, and `enable_dotted`).
+
+        Returns:
+            list[str]: Ordered list of tags describing contextual/lexical cues.
+
+        Notes:
+            - Bracket/parenthesis checks come from `in_brackets(text, start, end)`.
+            - Right-hand cues use `has_paren_definition(text, end)` and
+              `has_stands_for_follow(text, end)`.
+            - Lowercase-next-word uses `next_word_lowercase(text, end)`.
+            - The previous token is obtained via `prev_token(text, start)` and tested
+              against `TIME_RE`.
+            - Separator and dotted checks are purely character-based on `surface`.
+    """
     tags: list[str] = []
     inside, adjacent = in_brackets(text, start, end)
     if inside:
