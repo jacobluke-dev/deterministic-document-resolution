@@ -2,7 +2,7 @@ import asyncio
 import json
 import logging
 from datetime import datetime, timezone
-from typing import Any, Optional, Protocol
+from typing import Any, Optional
 
 from .context import request_id_var
 from .levels import STD_LEVEL, LogLevel
