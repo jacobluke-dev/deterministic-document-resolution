@@ -1,6 +1,6 @@
 from concurrent.futures import ProcessPoolExecutor
 import asyncio
-from typing import Optional
+from typing import Optional, Any
 from dataclasses import replace as dc_replace
 
 from observability.logger.decorator import logger
@@ -29,15 +29,33 @@ def _build_occurrence_from_match(
     conf: float,
 ) -> tuple[Occurrence, str]:
     """
-    Build a single Occurrence with consistent policy:
-    - dotted display policy ('strip'|'preserve')
-    - optional trailing '.' preservation (without touching the regex)
-    - normalized_key for display
-    - (optional) canonical_key if you want for dedupe (here we return only display key;
-      use normalize_key(..., dotted_mode='strip') separately if you dedupe canonically)
-    Returns (occurrence, display_key_for_firsts).
+    Build an `Occurrence` from a single candidate span and return it with its display key.
+
+    Applies the dotted-display policy from `cfg.dotted_display` ("strip" or "preserve").
+    If preserving and the next character in `text` is a trailing '.', the dot is included
+    in the displayed surface and the end offset is advanced by one. The surface is then
+    normalized (and plural stripped) to compute a display key for first-occurrence maps.
+    When `cfg.debug_reasons` is enabled, reason tags are attached.
+
+    Args:
+        cfg: Detection configuration (uses `allow_chars`, `window_chars`,
+            `dotted_display`, and optionally `debug_reasons`).
+        text: Full source text.
+        surface: Matched surface form (typically `text[s:e]`).
+        s: Start offset (inclusive) of the match.
+        e: End offset (exclusive) of the match before any trailing-dot adjustment.
+        conf: Confidence score for this match.
+
+    Returns:
+        tuple[Occurrence, str]: The constructed `Occurrence` and its normalized
+        display key (used for deduping/first-occurrence tracking).
+
+    Notes:
+        * Trailing-dot handling is offset-based only; no regex is modified.
+        * `context_window` is derived from the adjusted `(s, end_for_occ)` span.
+        * Normalization uses `normalize_key(..., dotted_mode=cfg.dotted_display)`.
     """
-    display_mode = getattr(cfg, "dotted_display", "strip")          # 'strip' or 'preserve'
+    display_mode = getattr(cfg, "dotted_display", "strip")
     has_trailing_dot = (e < len(text) and text[e] == ".")
 
     # Surface to display (may include the trailing dot if preserving)
@@ -57,9 +75,8 @@ def _build_occurrence_from_match(
     # Optional reason tags; keep the same in serial + parallel
     rsn = tuple(reason_tags(surface, text, s, end_for_occ, cfg)) if getattr(cfg, "debug_reasons", False) else None
 
-    # IMPORTANT: construct with keyword args to avoid field-order bugs
     occ = Occurrence(
-        acronym=base,               # string; never assign an int here
+        acronym=base,
         start_offset=s,
         end_offset=end_for_occ,
         confidence=conf,
@@ -70,19 +87,36 @@ def _build_occurrence_from_match(
     return occ, display_key
 
 
-def _score_chunk_worker(cfg: DetectorConfig, text: str, cands: list[tuple[str,int,int]]):
+def _score_chunk_worker(cfg: DetectorConfig, text: str, cands: list[tuple[str, int, int]]) -> list[Occurrence]:
+    """
+    Score and filter a chunk of candidate acronym spans.
+
+    Processes (surface, start, end) tuples, drops blacklisted contexts and
+    below-threshold matches, and builds `Occurrence` objects for accepted items.
+    Intended for use in a `ProcessPoolExecutor`.
+
+    Args:
+        cfg: Detection configuration used for scoring and thresholds.
+        text: Source text the candidate spans refer to.
+        cands: Candidate tuples as (surface, start_offset, end_offset).
+
+    Returns:
+        list[Occurrence]: Accepted occurrences for this chunk.
+
+    """
     out: list[Occurrence] = []
     for surface, s, e in cands:
         if blacklist_context_drop(surface, text, s, e, cfg):
             continue
         conf = score(surface, text, s, e, cfg)
-        eff  = threshold_len(surface, cfg.allow_chars)
-        th   = cfg.min_confidence_by_len.get(eff, cfg.min_confidence_default)
+        eff = threshold_len(surface, cfg.allow_chars)
+        th = cfg.min_confidence_by_len.get(eff, cfg.min_confidence_default)
         if conf < th:
             continue
         occ, _ = _build_occurrence_from_match(cfg, text, surface, s, e, conf)
         out.append(occ)
     return out
+
 
 
 class Detector:
@@ -95,7 +129,19 @@ class Detector:
         self._max_workers = max_workers
         self.sink = sink
 
-    def _with_auto_domains(self, text: str) -> DetectorConfig:
+    def _with_auto_domains(self, text: str) -> DetectorConfig | dict[str, Any]:
+        """
+            Return a config updated with any domains auto-detected from the text.
+
+            Merges inferred domains with the current `enabled_domains`. If nothing new
+            is detected, the existing config is returned unchanged.
+
+            Args:
+                text: Input text to scan for domain cues.
+
+            Returns:
+                DetectorConfig | dict[str|Any]: Config with augmented `enabled_domains` when applicable.
+        """
         auto = autodetect_domains(text, self.cfg)  # frozenset[str]
         if auto:
             merged = self.cfg.enabled_domains | auto
@@ -105,6 +151,24 @@ class Detector:
 
     @logger(message="detector.detect", db_sink="sink")  # decorator logs duration, function, args map
     def detect(self, text: str) -> DetectorResult:
+        """
+            Run acronym detection over the given text and return matches.
+
+            Applies auto-domain detection to augment the active config, scans for
+            candidate acronyms, filters by context/thresholds, and builds both the
+            full list of occurrences and the first-occurrence map per normalized key.
+
+            Structured logging:
+              - Emits a lightweight “start” and “summary” event.
+              - The @logger decorator also records duration/function metadata.
+              - message_logs at points providing structured detail.
+
+            Args:
+                text: Input text to analyze.
+
+            Returns:
+                DetectorResult: Contains `occurrences` and `unique_acronyms`.
+        """
         cfg0 = self.cfg
         cfg = self._with_auto_domains(text)
 
@@ -185,6 +249,28 @@ class Detector:
 
     @logger(message="detector.parallel", db_sink="sink")
     def detect_parallel(self, text: str, threshold: int = 1000, chunk_size: int = 256) -> DetectorResult:
+        """
+            Run detection with optional multiprocess fan-out for large inputs.
+
+            Computes candidates, and if their count is below `threshold` defers to
+            `detect()`. Otherwise, splits work into `chunk_size` batches and processes
+            them via a lazily-created `ProcessPoolExecutor`, then merges results and
+            builds the first-occurrence map.
+
+            Structured logging:
+              - Emits pool creation and parallel-selection events.
+              - Logs per-chunk failures (with a traceback).
+              - The @logger decorator also records duration/function metadata.
+              - message_logs at points providing structured detail.
+
+            Args:
+                text: Input text to analyze.
+                threshold: Minimum candidate count to trigger parallel execution.
+                chunk_size: Number of candidates per process task.
+
+            Returns:
+                DetectorResult: Contains `occurrences` and `unique_acronyms`.
+            """
         cfg = self._with_auto_domains(text)
         cands = list(iter_candidates_with(text, cfg, self._pat))
         if len(cands) < threshold:
