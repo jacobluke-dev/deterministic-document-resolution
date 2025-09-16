@@ -58,7 +58,7 @@ def _sentence_slice(text: str, s: int, e: int, max_chars: int) -> tuple[int, int
 def keep_guard(surface, text, s, e, cfg: BioConfig) -> bool:
     if surface in cfg.rna_like:
         return True
-    if len(surface) == 2 and surface in cfg.two_letter_keep:
+    if len(surface) == 2 and surface in cfg.two_letter_keep and surface.isupper():
         a, b = _sentence_slice(text, s, e, cfg.stats_window_chars or 60)
         r = text[a:b]
         return bool(_STATS_CI_RE.search(r) or _STATS_OR_HR_RR_RE.search(r))

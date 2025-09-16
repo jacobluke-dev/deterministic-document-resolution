@@ -1,11 +1,11 @@
 import re
 
-from plainera_unacronym.domains.bio.config import BioConfig, _STATS_CI_RE, _STATS_OR_HR_RR_RE
+from plainera_unacronym.domains.bio.config import BioConfig
 from plainera_unacronym.domains.bio.patterns import bio_pattern
 from plainera_unacronym.nlp import DetectorConfig
 from plainera_unacronym.nlp.heuristics.gate import should_enable_bio
 from plainera_unacronym.nlp.plugins.registry import register_plugin
-
+from plainera_unacronym.domains.bio.rules import keep_guard as bio_keep_guard
 
 _BIO_SNIFF_RE = re.compile(
     r"\b(?:mRNA|miRNA|sgRNA|SARS-CoV-2|MERS-CoV|H\d{1,2}N\d{1,2}|IL-\d{1,3}|[35][′'\"]-?UTR)\b"
@@ -36,13 +36,7 @@ class BioPlugin:
     def keep_guard(self, surface: str, text: str, s: int, e: int, cfg: DetectorConfig) -> bool:
         if self.name not in cfg.enabled_domains:
             return False
-        bcfg = self._cfg(cfg)
-        if surface in bcfg.rna_like:
-            return True
-        if len(surface) == 2 and surface in bcfg.two_letter_keep:
-            r = text[max(0, s-20):min(len(text), e+20)]
-            return bool(_STATS_CI_RE.search(r) or _STATS_OR_HR_RR_RE.search(r))
-        return False
+        return bio_keep_guard(surface, text, s, e, self._cfg(cfg))
 
 
 register_plugin(BioPlugin())
