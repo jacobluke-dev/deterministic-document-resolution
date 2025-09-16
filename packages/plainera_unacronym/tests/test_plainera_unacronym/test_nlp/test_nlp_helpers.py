@@ -98,19 +98,19 @@ class TestRoundSig:
         assert math.isclose(out, expected, rel_tol=0, abs_tol=1e-12)
 
     @pytest.mark.parametrize("sig", [1, 2, 3, 6])
-    def test_idempotent_when_already_at_sig_figs(self, sig):
-        # Pick values already at the desired sig figs
+    def test_idempotent_on_already_rounded_values(self, sig):
+        # Values already at the target significant figures should not change if rounded again.
         samples = [1.2, 12.0, 1200.0, 0.34, 0.00340, 9.99, -4.56]
         for x in samples:
             once = _round_sig(x, sig)
             twice = _round_sig(once, sig)
             assert once == twice
 
-    def test_monotonicity_local(self):
-        # Around a boundary, ordering should be preserved after rounding
-        left = _round_sig(0.9949, 3)  # 0.995 boundary
-        mid = _round_sig(0.9950, 3)
-        right = _round_sig(0.9951, 3)
+    def test_order_preserving_near_boundary(self):
+        # Near a rounding threshold, rounding must not flip the order (non-decreasing).
+        left = _round_sig(0.9949, 3)  # just below the 0.995 edge
+        mid = _round_sig(0.9950, 3)  # at the edge
+        right = _round_sig(0.9951, 3)  # just above the edge
         assert left <= mid <= right
 
     def test_sig_parameter_effect(self):
