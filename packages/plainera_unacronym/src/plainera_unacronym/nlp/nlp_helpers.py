@@ -1,5 +1,6 @@
 import hashlib, json
 import heapq
+from decimal import Decimal, ROUND_HALF_UP
 from typing import Any
 
 from plainera_unacronym.nlp import FirstOccurrence, DetectorConfig
@@ -42,6 +43,31 @@ def _cfg_fingerprint(cfg: DetectorConfig) -> str:
     return hashlib.sha256(json.dumps(data, sort_keys=True).encode()).hexdigest()[:12]
 
 
+
+def _round_sig(x: float, sig: int = 3) -> float:
+    """
+        Round x to `sig` significant figures using Decimal(…, ROUND_HALF_UP).
+
+        Examples:
+            0.5555 @ 3sf → 0.556
+            0.9999 @ 3sf → 1.0
+            12345  @ 3sf → 12300
+            0.00012345 @ 3sf → 0.000123
+            -9.995 @ 3sf → -10.0
+        Notes:
+            * Converts via str() before Decimal to keep results predictable.
+            * Returns a float for ease of use in normal code paths.
+            * 0.0 is returned unchanged.
+            * found round(x, k) wouldn't work i.e. round(0.5555,3) -> 0.555 WRONG!
+    """
+    d = Decimal(str(x))
+    if d.is_zero():
+        return 0.0
+    exp = d.adjusted() - sig + 1
+    q = Decimal(1).scaleb(exp)
+    return float(d.quantize(q, rounding=ROUND_HALF_UP))
+
+
 def top_n_values(firsts: dict[str, "FirstOccurrence"], n: int = 5)-> list[dict[str, str | float]] | list[Any]:
     """
         Return a compact preview of the top-N acronyms by confidence.
@@ -63,4 +89,4 @@ def top_n_values(firsts: dict[str, "FirstOccurrence"], n: int = 5)-> list[dict[s
     if n <= 0 or not firsts:
         return []
     items = heapq.nlargest(n, firsts.items(), key=lambda kv: kv[1].confidence)
-    return [{"key": k, "conf": round(fo.confidence, 3)} for k, fo in items]
+    return [{"key": k, "conf": _round_sig(fo.confidence, 3)} for k, fo in items]
