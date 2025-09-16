@@ -2,15 +2,15 @@ import pytest
 from dataclasses import dataclass
 
 from plainera_unacronym.nlp import Occurrence, DetectorConfig
-from plainera_unacronym.nlp.detector import _build_occurrence_from_match
+from plainera_unacronym.nlp.detector import _build_occurrence_from_match, _score_chunk_worker
 import plainera_unacronym.nlp.detector as det
 
 
 @dataclass(frozen=True, slots=True)
-class _Cfg(DetectorConfig):
-    allow_chars: str = "-./"
+class _TestCfg(DetectorConfig):
+    allow_chars: str = "&/-"
     window_chars: int = 80
-    dotted_display: str = "strip"         # "strip" | "preserve"
+    dotted_display: str = "strip"
     debug_reasons: bool = False
 
 
@@ -28,9 +28,8 @@ class TestBuildOccurrenceFromMatch:
 
         def fake_context_window(text, s, e, win):
             calls["context_window"] = (text, s, e, win)
-            return (111, 222)
+            return 111, 222
 
-        # No need to mock strip_terminal_plural: test uses a form without plural suffix.
         monkeypatch.setattr(
             "plainera_unacronym.nlp.detector.normalize_key", fake_normalize_key, raising=True
         )
@@ -38,7 +37,7 @@ class TestBuildOccurrenceFromMatch:
             "plainera_unacronym.nlp.detector.context_window", fake_context_window, raising=True
         )
 
-        cfg = _Cfg(dotted_display="strip")
+        cfg = _TestCfg(dotted_display="strip")
         text = "NASA."
         surface = "NASA"
         s, e = 0, 4  # 'NASA' ends at 4, '.' is at index 4
@@ -75,7 +74,7 @@ class TestBuildOccurrenceFromMatch:
 
         def fake_context_window(text, s, e, win):
             calls["context_window"] = (text, s, e, win)
-            return (5, 10)
+            return 5, 10
 
         monkeypatch.setattr(
             "plainera_unacronym.nlp.detector.normalize_key", fake_normalize_key, raising=True
@@ -84,7 +83,7 @@ class TestBuildOccurrenceFromMatch:
             "plainera_unacronym.nlp.detector.context_window", fake_context_window, raising=True
         )
 
-        cfg = _Cfg(dotted_display="preserve")
+        cfg = _TestCfg(dotted_display="preserve")
         text = "NASA."
         surface = "NASA"
         s, e = 0, 4  # '.' at index 4
@@ -111,7 +110,7 @@ class TestBuildOccurrenceFromMatch:
             return "NK"
 
         def fake_context_window(text, s, e, win):
-            return (0, 7)
+            return 0, 7
 
         def fake_reason_tags(surface, text, s, e_passed, cfg):
             # Assert we got the adjusted end (includes the trailing dot)
@@ -122,7 +121,7 @@ class TestBuildOccurrenceFromMatch:
         monkeypatch.setattr(det, "context_window", fake_context_window, raising=True)
         monkeypatch.setattr(det, "reason_tags", fake_reason_tags, raising=True)
 
-        cfg = _Cfg(dotted_display="preserve", debug_reasons=True)
+        cfg = _TestCfg(dotted_display="preserve", debug_reasons=True)
         text = "N.A.S.A."
         s = text.index("N.A.S.A")
         e = s + len("N.A.S.A")  # == 7; text[e] is the '.' after the matched surface
@@ -150,7 +149,7 @@ class TestBuildOccurrenceFromMatch:
             raising=True,
         )
 
-        cfg = _Cfg(dotted_display="strip")
+        cfg = _TestCfg(dotted_display="strip")
         text = "API."
         surface = "API"
         s, e = 0, 3
@@ -243,3 +242,171 @@ class TestBuildOccurrenceFromMatch:
         # We expect the window to include up to and including the '!'
         right_expected = len(text)  # '!' is last char; function includes the terminator
         assert occ.context_window == (left_expected, right_expected)
+
+
+class TestScoreChunkWorkerUnit:
+    def test_drops_blacklisted_candidates(self, monkeypatch):
+        """
+        If blacklist_context_drop(...) returns True, the candidate must be skipped.
+        """
+        cfg = _TestCfg()
+
+        # Candidate set: first blacklisted, second allowed
+        cands = [("GPU", 0, 3), ("API", 5, 8)]
+
+        calls = {"build": []}
+
+        # Stub: first candidate blacklisted only
+        def fake_blacklist(surface, text, s, e, cfg_):
+            return surface == "GPU"
+
+        # Stub: give everyone a high score
+        def fake_score(surface, text, s, e, cfg_):
+            return 0.99
+
+        # Stub: effective length (doesn't matter here)
+        def fake_threshold_len(surface, allow_chars):
+            return 3
+
+        # Stub: build a minimal Occurrence
+        def fake_build(cfg_, text, surface, s, e, conf):
+            occ = Occurrence(
+                acronym=surface,
+                start_offset=s,
+                end_offset=e,
+                confidence=conf,
+                context_window=(0, 0),
+                normalized_key=surface,
+                reasons=None,
+            )
+            calls["build"].append(surface)
+            return occ, surface
+
+        monkeypatch.setattr(det, "blacklist_context_drop", fake_blacklist, raising=True)
+        monkeypatch.setattr(det, "score", fake_score, raising=True)
+        monkeypatch.setattr(det, "threshold_len", fake_threshold_len, raising=True)
+        monkeypatch.setattr(det, "_build_occurrence_from_match", fake_build, raising=True)
+
+        out = _score_chunk_worker(cfg, text="GPU and API", cands=cands)
+        # Only "API" should pass through
+        assert [o.acronym for o in out] == ["API"]
+        assert calls["build"] == ["API"]
+
+    def test_threshold_gate_by_effective_length(self, monkeypatch):
+        """
+        Conf < threshold → drop; conf == threshold → keep.
+        Ensure the threshold chosen comes from threshold_len(surface,...).
+        """
+        cfg = _TestCfg()
+
+        cands = [("AI", 0, 2), ("R&D", 4, 7)]  # "AI" eff=2, "R&D" eff>=3
+
+        # Map per-surface scores
+        scores = {"AI": 0.71, "R&D": 0.60}  # AI below 0.72 → drop; R&D == 0.60 → keep
+
+        def fake_blacklist(surface, text, s, e, cfg_):
+            return False
+
+        def fake_score(surface, text, s, e, cfg_):
+            return scores[surface]
+
+        def fake_threshold_len(surface, allow_chars):
+            return 2 if surface == "AI" else 3
+
+        def fake_build(cfg_, text, surface, s, e, conf):
+            return Occurrence(surface, s, e, conf, (0, 0), surface, None), surface
+
+        monkeypatch.setattr(det, "blacklist_context_drop", fake_blacklist, raising=True)
+        monkeypatch.setattr(det, "score", fake_score, raising=True)
+        monkeypatch.setattr(det, "threshold_len", fake_threshold_len, raising=True)
+        monkeypatch.setattr(det, "_build_occurrence_from_match", fake_build, raising=True)
+
+        out = _score_chunk_worker(cfg, text="AI & R&D", cands=cands)
+        # Only "R&D" should survive at equality
+        assert [o.acronym for o in out] == ["R&D"]
+        assert out[0].confidence == pytest.approx(0.60)
+
+    def test_order_preserved_and_confidence_propagated(self, monkeypatch):
+        """
+        Accepted occurrences are appended in input order, and their confidence equals score(...).
+        """
+        cfg = _TestCfg()
+        cands = [("A", 0, 1), ("B", 2, 3), ("C", 4, 5)]
+
+        # Drop B via blacklist; A and C accepted with distinct scores
+        def fake_blacklist(surface, *_):
+            return surface == "B"
+
+        def fake_score(surface, *_):
+            return {"A": 0.8, "B": 0.1, "C": 0.9}[surface]
+
+        def fake_threshold_len(surface, *_):
+            return 3  # so threshold = 0.60 for all
+
+        def fake_build(cfg_, text, surface, s, e, conf):
+            return Occurrence(surface, s, e, conf, (0, 0), surface, None), surface
+
+        monkeypatch.setattr(det, "blacklist_context_drop", fake_blacklist, raising=True)
+        monkeypatch.setattr(det, "score", fake_score, raising=True)
+        monkeypatch.setattr(det, "threshold_len", fake_threshold_len, raising=True)
+        monkeypatch.setattr(det, "_build_occurrence_from_match", fake_build, raising=True)
+
+        out = _score_chunk_worker(cfg, text="A B C", cands=cands)
+        assert [o.acronym for o in out] == ["A", "C"]
+        assert [o.confidence for o in out] == [pytest.approx(0.8), pytest.approx(0.9)]
+
+    def test_filters_and_builds_occurrences_end_to_end(self):
+        """
+        End-to-end through the real helpers:
+        - Drops known non-acronym 'OK' when followed by punctuation.
+        - Accepts 'R&D' (separator bumps effective len to >=3 so threshold = 0.60).
+        - Accepts dotted initialism 'N.A.S.A' and, in 'preserve' mode, includes trailing '.'.
+        """
+        text = "OK, the R&D team met N.A.S.A. scientists."
+        #             012345678901234567890123456789012345678901
+        #             0         1         2         3         4
+        s_ok = text.index("OK")
+        e_ok = s_ok + 2
+        s_rnd = text.index("R&D")
+        e_rnd = s_rnd + 3
+        s_nasa = text.index("N.A.S.A")
+        e_nasa = s_nasa + len("N.A.S.A")  # '.' at e_nasa
+
+        cfg = DetectorConfig(
+            dotted_display="preserve",
+            enable_dotted=True,
+            allow_chars="&/-",       # allows '&' for 'R&D'
+            window_chars=80,
+        )
+
+        cands = [
+            ("OK", s_ok, e_ok),           # should be dropped
+            ("R&D", s_rnd, e_rnd),        # should be accepted
+            ("N.A.S.A", s_nasa, e_nasa),  # should be accepted; dot preserved
+        ]
+
+        out = _score_chunk_worker(cfg, text, cands)
+
+        # Expect only 'R&D' and 'N.A.S.A.' (order preserved)
+        assert [o.acronym for o in out] == ["R&D", "N.A.S.A."]
+        assert all(isinstance(o, Occurrence) for o in out)
+
+        # 'R&D' — no trailing dot added; end offset unchanged
+        rnd = out[0]
+        assert rnd.start_offset == s_rnd
+        assert rnd.end_offset == e_rnd
+        assert rnd.confidence >= 0.60  # score() baseline hits threshold
+
+        # 'N.A.S.A' — preserve mode includes trailing '.' so end offset advances by 1
+        nasa = out[1]
+        assert nasa.start_offset == s_nasa
+        assert nasa.end_offset == e_nasa + 1
+        # Confidence should be >= threshold (effective len >= 3 → 0.60)
+        assert nasa.confidence >= 0.60
+
+        # Context-window sanity (bounds and containment)
+        n = len(text)
+        for o in out:
+            l, r = o.context_window
+            assert 0 <= l < r <= n
+            assert l <= o.start_offset < o.end_offset <= r
