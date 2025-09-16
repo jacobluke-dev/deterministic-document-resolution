@@ -2,10 +2,10 @@ import hashlib, json
 import heapq
 from typing import Any
 
-from plainera_unacronym.nlp import FirstOccurrence
+from plainera_unacronym.nlp import FirstOccurrence, DetectorConfig
 
 
-def _cfg_fingerprint(cfg: dict) -> str:
+def _cfg_fingerprint(cfg: DetectorConfig) -> str:
     """
         Compute a short, deterministic fingerprint of a detector configuration.
 
@@ -21,7 +21,7 @@ def _cfg_fingerprint(cfg: dict) -> str:
           - enabled_domains (sorted)
 
         Args:
-            cfg (dict): An object exposing the attributes above (e.g., `DetectorConfig`).
+            cfg (DetectorConfig): An object exposing the attributes above (e.g., `DetectorConfig`).
                  Missing attributes are treated as `None`.
         Returns:
             str: A 12-character lowercase hex fingerprint (stable for the same
