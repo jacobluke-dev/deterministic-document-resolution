@@ -325,9 +325,13 @@ class Detector:
                 )
                 continue
 
-            display_key = getattr(occ, "normalized_key", normalize_key(
-                occ.acronym, cfg.allow_chars, dotted_mode=getattr(cfg, "dotted_display", "strip")
-            ))
+            display_key = getattr(occ, "normalized_key", None)
+            if not isinstance(display_key, str) or not display_key:
+                display_key = normalize_key(
+                    occ.acronym,
+                    cfg.allow_chars,
+                    dotted_mode=getattr(cfg, "dotted_display", "strip"),
+                )
             if display_key not in firsts:
                 firsts[display_key] = FirstOccurrence(
                     acronym=occ.acronym,

@@ -152,6 +152,62 @@ def at_sentence_boundary(text: str, pos: int) -> bool:
 
 
 def blacklist_context_drop(surface: str, text: str, start: int, end: int, cfg: DetectorConfig) -> bool:
+    """
+    Decide whether to **drop** a candidate acronym based on local context.
+
+    This applies a series of short-circuit heuristics to reject spans that are
+    likely not acronyms (e.g., shouty interjections, headings, time tokens, or
+    known non-acronym uppers followed by punctuation/lowercase). The checks are
+    ordered from strongest “keep” signals to more general drop rules.
+
+    The function returns **True** to drop/reject the candidate, **False** to keep it.
+
+    Args:
+        surface (str): The matched surface text (typically `text[start:end]`), e.g. "OK", "R&D", "IT".
+        text (str): Full source text.
+        start (int): Start offset (inclusive) of `surface` in `text`.
+        end (int): End offset (exclusive) of `surface` in `text`.
+        cfg (DetectorConfig): Detection config. Uses:
+            - `allow_chars` (for separator checks via other helpers),
+            - `non_acronym_upper` (known uppercase tokens like "OK", "PM"),
+            - optional `blacklist` (extra tokens to always consider for dropping).
+
+    Returns:
+        bool: `True` if the candidate should be dropped; `False` to keep.
+
+    Decision order:
+        0. **Never drop** when near explicit definitions:
+           - Inside brackets/parentheses (`in_brackets`), or
+           - Followed by parenthetical definition (`has_paren_definition`), or
+           - “stands for …” pattern to the right (`has_stands_for_follow`).
+        1. **Drop** shouty ALL-CAPS interjections:
+           - `is_in_caps_interjection_context` (or the previous-token variant).
+        1b. **Drop** ALL-CAPS headings:
+           - If `is_all_caps_word(surface, cfg.allow_chars)` and `is_all_caps_heading(...)`.
+        2. Token-specific polysemes:
+           - `"IT"` → drop when at a sentence boundary **and** the next word is lowercase.
+           - `"AM"` → drop when preceded by a time token (e.g., `"9 AM"`), or sentence-start `"I AM …"`.
+        3. If `surface` is **not** in `cfg.blacklist` **and** not in `cfg.non_acronym_upper` → keep (`False`).
+        4. Known non-acronym uppers:
+           - **Drop** if followed by punctuation `, . ! ? ; :` (after spaces), or if the next word is lowercase.
+        5. Generic fallback:
+           - **Drop** when at a sentence boundary **and** the next word is lowercase.
+
+    Notes:
+        - Offsets are `[start, end)` (end-exclusive).
+        - Helper predicates used: `in_brackets`, `has_paren_definition`, `has_stands_for_follow`,
+          `is_in_caps_interjection_context`, `is_in_caps_interjection_context_prev`,
+          `is_all_caps_word`, `is_all_caps_heading`, `at_sentence_boundary`,
+          `next_word_lowercase`, `prev_token`, and `TIME_RE`.
+        - The rules are conservative and ordered to minimize false drops of genuine acronyms.
+
+    Examples:
+        - `"OK,"` at the start of a clause → dropped (known non-acronym upper followed by punctuation).
+        - `"R&D"` in running text → kept (not blacklisted; separators handled elsewhere).
+        - `"IT"` at sentence start followed by lowercase word → dropped.
+        - `"9 AM"` → dropped (time pattern).
+        - `"(ABC) stands for …"` → kept (definition context).
+    """
     tok = surface
 
     # 0) Never drop inside/around definitions
