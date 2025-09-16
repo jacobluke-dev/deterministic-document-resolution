@@ -51,10 +51,9 @@ class Occurrence:
     start_offset: int
     end_offset: int              # end-exclusive
     confidence: float
-    context_window: tuple[int, int]
-    normalized_key: str
-    reasons: tuple[str, ...] | None = None
+    context_window: tuple[int, int]  # (left_idx, right_idx) in the original text
     normalized_key: str | None = None
+    reasons: tuple[str, ...] | None = None
 
 
 @dataclass(frozen=True, slots=True)
