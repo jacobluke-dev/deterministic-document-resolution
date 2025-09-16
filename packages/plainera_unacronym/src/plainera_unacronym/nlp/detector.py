@@ -8,7 +8,7 @@ from observability.logger.levels import LogLevel
 from observability.logger.message_logger import message_logger
 from plainera_unacronym.nlp.config import ALLOW_CHARS, DOT_MODE
 from plainera_unacronym.nlp.heuristics.core import score, threshold_len, normalize_key, context_window, compile_pattern, \
-    iter_candidates_with, iter_candidates, reason_tags
+    iter_candidates_with, reason_tags
 from plainera_unacronym.nlp.heuristics.general import blacklist_context_drop, strip_terminal_plural
 from plainera_unacronym.nlp.nlp_helpers import top_n_values, _cfg_fingerprint
 from plainera_unacronym.nlp.plugins.activation import autodetect_domains
@@ -275,82 +275,3 @@ class Detector:
            """
         # Run parallel path off the event loop; won’t block FastAPI
         return await asyncio.to_thread(self.detect_parallel, text)
-
-
-def detect_acronyms(text: str,
-                    config: DetectorConfig = DEFAULT_CONFIG,
-                    allowed_chars=ALLOW_CHARS_DEFAULTS,
-                    dot_mode=DEFAULT_DOT_MODE) -> DetectorResult:
-    """
-    One-pass detector. Returns stable schema + first-occurrence map with normalized keys.
-    """
-    occurrences: list[Occurrence] = []
-    firsts: dict[str, FirstOccurrence] = {}
-
-    for surface, s, e in iter_candidates(text, config):
-        if blacklist_context_drop(surface, text, s, e, config):
-            continue
-
-        conf = score(surface, text, s, e, config)
-        ctx = context_window(text, s, e, config.window_chars)
-
-        occ = Occurrence(
-            acronym=surface,
-            start_offset=s,
-            end_offset=e,
-            confidence=conf,
-            context_window=ctx,
-        )
-        occurrences.append(occ)
-
-        key = normalize_key(surface, allowed_chars, dot_mode)
-        if key not in firsts:
-            firsts[key] = FirstOccurrence(
-                acronym=surface,
-                start_offset=s,
-                end_offset=e,
-                confidence=conf,
-            )
-
-    return DetectorResult(unique_acronyms=firsts, occurrences=occurrences)
-
-"""
-def detect_acronyms(text: str,
-                    config: DetectorConfig = DEFAULT_CONFIG,
-                    allowed_chars=ALLOW_CHARS_DEFAULTS,
-                    dot_mode=DEFAULT_DOT_MODE) -> DetectorResult:
-
-    # One-pass detector. Returns stable schema + first-occurrence map with normalized keys.
-
-    occurrences: list[Occurrence] = []
-    firsts: dict[str, FirstOccurrence] = {}
-
-    for surface, s, e in iter_candidates(text, config):
-        if blacklist_context_drop(surface, text, s, e, config):
-            continue
-
-        conf = score(surface, text, s, e, config)
-        ctx = context_window(text, s, e, config.window_chars)
-
-        occ = Occurrence(
-            acronym=surface,
-            start_offset=s,
-            end_offset=e,
-            confidence=conf,
-            context_window=ctx,
-        )
-        occurrences.append(occ)
-
-        key = normalize_key(surface, allowed_chars, dot_mode)
-        if key not in firsts:
-            firsts[key] = FirstOccurrence(
-                acronym=surface,
-                start_offset=s,
-                end_offset=e,
-                confidence=conf,
-            )
-
-    return DetectorResult(unique_acronyms=firsts, occurrences=occurrences)
-
-also I have this function driven runner I feel it serves little or no purpose in the grand scheme of things. It's just over head to maintain, thoughts?
-"""

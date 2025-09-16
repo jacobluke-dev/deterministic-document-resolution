@@ -234,11 +234,6 @@ def _has_lower_and_upper(tok: str) -> bool:
     return any(c.islower() for c in tok if c.isalpha()) and any(c.isupper() for c in tok if c.isalpha())
 
 
-def iter_candidates(text: str, cfg: DetectorConfig) -> Iterator[Span]:
-    pat = compile_pattern(cfg)
-    yield from iter_candidates_with(text, cfg, pat)
-
-
 def _accept_candidate(text: str, cfg: DetectorConfig, s: int, e: int) -> Span | None:
     """Apply the standard gating to a raw (s, e) span and return a normalized Span or None.
 
