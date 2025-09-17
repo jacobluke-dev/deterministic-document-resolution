@@ -1,8 +1,8 @@
 import json
 import logging
 
-from observability.observability.levels import LogLevel
-from observability.observability.message_logger import message_logger
+from observability.logger.levels import LogLevel
+from observability.logger.message_logger import message_logger
 
 
 def _last_json(caplog):
