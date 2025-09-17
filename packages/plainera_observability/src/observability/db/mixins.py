@@ -1,5 +1,3 @@
-# plainera_observability/db/mixins.py
-from __future__ import annotations
 from datetime import datetime
 from typing import Any
 from sqlalchemy import Integer, String, Text, TIMESTAMP, func
