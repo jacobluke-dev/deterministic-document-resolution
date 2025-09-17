@@ -91,7 +91,7 @@ class TestMessageLogger:
 
         assert payload["event"] == "custom_event"
         assert payload["level"] == "warning"         # lower-cased level name
-        assert payload["logger_type"] == "inline"    # default passthrough
+        assert payload["logger_type"] == "message_logger.inline"    # default passthrough
         assert payload["args"]["authorization"] == "[REDACTED]"
         assert payload["args"]["other"] == 1
         # Caller function auto-captured
@@ -145,7 +145,7 @@ class TestMessageLogger:
         caplog.set_level(logging.INFO, logger="plainera")
         message_logger("evt", level=LogLevel.INFO, logger_type="audit")
         payload, _ = _last_json(caplog)
-        assert payload["logger_type"] == "audit"
+        assert payload["logger_type"] == "message_logger.audit"
 
     def test_args_none_and_details_none_are_handled(self, caplog):
         caplog.set_level(logging.INFO, logger="plainera")
