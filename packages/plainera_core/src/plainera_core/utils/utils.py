@@ -1,4 +1,6 @@
 import os
+from functools import lru_cache
+from pathlib import Path
 from typing import Literal, Optional, overload
 
 from dotenv import load_dotenv
@@ -68,7 +70,9 @@ def is_integration_env() -> bool:
     return get_environment() == 'INTEGRATION'
 
 
-def get_project_root() -> str:
+@lru_cache(maxsize=1)
+def find_project_root(start: str | Path | None = None,
+                      markers: tuple[str, ...] = ("pyproject.toml", ".git", ".gitlab-ci.yml")) -> Path:
     """Returns the project root directory.
 
     This function determines the project root directory by assuming the file is
@@ -78,9 +82,22 @@ def get_project_root() -> str:
     Returns:
         str: The absolute path to the project root directory.
     """
-    current_dir = os.path.dirname(os.path.abspath(__file__))
-    project_root = os.path.abspath(os.path.join(current_dir, '..', '..', '..', '..', '..'))
-    return project_root
+    p = Path(start).resolve() if start else Path.cwd().resolve()
+    parents = [p, *p.parents]
+    candidates: list[Path] = []
+    for q in parents:
+        if any((q / m).exists() for m in markers):
+            candidates.append(q)
+
+    if not candidates:
+        return p  # fallback: no markers found
+
+    # Prefer the top-most (repo root). If multiple, bias to the one that has .git.
+    top = candidates[-1]
+    for q in reversed(candidates):
+        if (q / ".git").exists():
+            return q
+    return top
 
 
 
@@ -122,7 +139,7 @@ def get_project_path(
     Raises:
         FileNotFoundError: If the path does not exist and raise_error=True.
     """
-    project_root = get_project_root()
+    project_root = find_project_root()
     absolute_path = os.path.join(project_root, relative_path)
     if not os.path.exists(absolute_path):
         if return_path:

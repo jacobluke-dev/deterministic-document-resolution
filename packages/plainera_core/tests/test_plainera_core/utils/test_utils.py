@@ -96,7 +96,7 @@ class TestGetProjectRoot:
         )
         monkeypatch.setattr(utils, "__file__", fake_file)
 
-        root = utils.get_project_root()
+        root = utils.find_project_root()
 
         # 6 levels up from fake_file
         expected = os.path.abspath(os.path.join(fake_file, "..", "..", "..", "..", "..", ".."))
@@ -108,7 +108,7 @@ class TestGetProjectRoot:
 class TestGetProjectPath:
     @pytest.fixture
     def mock_project_root(self):
-        with mock.patch('plainera_core.utils.utils.get_project_root') as mock_root:
+        with mock.patch('plainera_core.utils.utils.find_project_root') as mock_root:
             mock_root.return_value = '/home/user/project'
             yield mock_root
 

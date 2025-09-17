@@ -1,30 +1,46 @@
-import os
-import time
 
+import os
+
+from plainera_core.utils.utils import find_project_root
+
+# --- only now import modules that may construct settings/engines ---
+import time
 import pytest
 from alembic import command
 from alembic.config import Config
 from httpx import ASGITransport, AsyncClient
-from plainera_core.utils.utils import get_project_path
 from public_api.core import deps
 from public_api.core.settings import AppSettings, db_settings
 from public_api.main import create_app
 from test_kit.fixtures import TestDBManager
+from plainera_core.utils.utils import get_project_path
 
 # --- env ---------------------------------------------------------------------
+
+ROOT = find_project_root(__file__, markers=(".git", "pyproject.toml"))
+ENV_PATH = ROOT / ".env"
+
+try:
+    from dotenv import load_dotenv
+    load_dotenv(ENV_PATH)  # loads the project-root .env
+except Exception:
+    pass
+
+os.environ.setdefault("ENVIRONMENT", "TEST")
+
 
 IN_CI = os.getenv("CI") == "true" or os.getenv("GITLAB_CI") == "true"
 os.environ.setdefault("ENVIRONMENT", "TEST")
 if not IN_CI:
-    os.environ.pop("DATABASE_URL", None)
+    os.getenv("DATABASE_URL", None)
 
 # --- postgres boot ------------------------------------------------------------
 
 
 @pytest.fixture(scope="session", autouse=True)
 def _db_ready(TEST_DB_URL):
-   """ Only wait when using an external CI service URL"""
-   if os.getenv("DATABASE_URL"):
+    """ Only wait when using an external CI service URL"""
+    if os.getenv("DATABASE_URL"):
         import psycopg
         dsn = os.environ["DATABASE_URL"].replace("+psycopg", "")
         for _ in range(120):
@@ -59,7 +75,7 @@ async def client(engine_factory, session_factory, monkeypatch):
 
     # Force lifespan to use OUR DBM/engine (single engine everywhere)
     monkeypatch.setattr(
-        "src.public_api.main.make_dbm",
+        "public_api.main.make_dbm",
         lambda test_mode=False: TestDBManager(
             engine=engine_factory,
             session_factory=session_factory,
