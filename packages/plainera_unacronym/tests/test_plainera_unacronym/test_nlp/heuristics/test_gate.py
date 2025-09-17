@@ -4,7 +4,6 @@ from plainera_unacronym.nlp.heuristics.gate import _slice, RNA_RE, CYTOKINE, PCR
     GREEK, bio_signal_score, should_enable_bio
 
 
-@pytest.mark.unit
 class TestSlice:
     def test_slice_truncates_when_over_max(self):
         text = "x" * 100
@@ -16,7 +15,6 @@ class TestSlice:
         assert _slice(text, max_chars=5) == "hello"
 
 
-@pytest.mark.unit
 class TestRegexesMinimalMatches:
     @pytest.mark.parametrize(
         "pattern,sample",

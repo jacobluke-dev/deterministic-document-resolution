@@ -64,7 +64,6 @@ class TestCfgFingerprint:
         assert _cfg_fingerprint(a) == _cfg_fingerprint(b)
 
 
-@pytest.mark.unit
 class TestRoundSig:
     @pytest.mark.parametrize(
         "x,sig,expected",

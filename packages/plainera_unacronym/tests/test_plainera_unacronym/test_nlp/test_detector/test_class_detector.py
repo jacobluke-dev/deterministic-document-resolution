@@ -42,7 +42,6 @@ def _occ(acr: str, s: int, e: int, conf: float, key: str | None = None) -> Occur
     )
 
 
-@pytest.mark.unit
 class TestDetectorUnit:
     def test__with_auto_domains_merges_and_short_circuits(self, cfg_factory, monkeypatch):
         cfg0 = cfg_factory(enabled_domains=frozenset({"bio"}))
