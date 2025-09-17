@@ -7,6 +7,29 @@ from .levels import LogLevel
 
 
 def _to_text(v: Any, limit: int = 2048) -> Optional[str]:
+    """
+        Convert a value into a log-safe string, with optional truncation.
+
+        Conversion rules:
+          - None → returns None
+          - bytes → UTF-8 decode (errors="replace")
+          - str → unchanged
+          - other → compact JSON via json.dumps(v, default=str, separators=(",", ":"))
+            (falls back to str(v) if serialization fails)
+
+        Truncation:
+            If the resulting string exceeds `limit` characters, it is truncated to the
+            first `limit` characters and suffixed with:
+                ...(+N chars)
+            where N is the number of omitted characters.
+
+        Args:
+            v (Any): Any input value to convert.
+            limit (int): Maximum string length before truncation (default: 2048).
+
+        Returns:
+            str | None: A log-safe string representation or None.
+    """
     if v is None:
         return None
     try:
@@ -32,12 +55,36 @@ def message_logger(
     db_sink=None,
 ) -> None:
     """
-    Ad-hoc structured logger.
+        Ad-hoc structured logger.
 
-    - `message` -> event
-    - `args` -> captured as `args` (payload key)
-    - `details` -> mapped to `info` (stringified) so it persists with current mapper
-    - `function` -> auto-resolved from caller
+        Mappings:
+          - `message`  → `event`
+          - `args`     → `args` (passed through; sensitive fields may be redacted by emit)
+          - `details`  → `info` (stringified via `_to_text` for DB persistence)
+          - `function` → auto-resolved caller name (via `inspect`)
+
+        Behavior:
+          - Emits a single structured log entry through `emit(...)`.
+          - `logger_type` is included as a passthrough field (default: "inline").
+          - `level` is converted to the normalized textual level by `emit`.
+          - If provided, `db_sink` is forwarded to `emit` for DB write paths.
+
+        Args:
+            message: Event name to record.
+            level: Log severity (default: `LogLevel.INFO`).
+            logger_type: Logical channel/type for the log (e.g., "inline", "audit").
+            args: Arbitrary key/value payload to attach under `args`.
+            details: Additional rich info (mapping or string) serialized into `info`.
+            db_sink: Optional sink used by `emit` for database persistence.
+
+        Returns:
+            None
+
+        Notes:
+            - The caller function name is captured without retaining frames (to avoid cycles).
+            - `_to_text` handles string/bytes directly and JSON-serializes other objects,
+              truncating long values with a `...(+N chars)` suffix.
+            - Redaction (e.g., `authorization` → `[REDACTED]`) is applied inside `emit`.
     """
     frame = inspect.currentframe()
     try:
@@ -50,7 +97,7 @@ def message_logger(
     emit(
         message,
         level=level,
-        logger_type=logger_type,
+        logger_type=f"message_logger.{logger_type}",
         db_sink=db_sink,
         function=func_name,
         args=dict(args) if args else None,
