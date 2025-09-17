@@ -10,7 +10,13 @@ def _to_text(v: Any, limit: int = 2048) -> Optional[str]:
     if v is None:
         return None
     try:
-        s = json.dumps(v, default=str)
+        if isinstance(v, bytes):
+            s = v.decode(errors="replace")
+        elif isinstance(v, str):
+            s = v
+        else:
+            # compact JSON (smaller logs) and stable formatting
+            s = json.dumps(v, default=str, separators=(",", ":"))
     except Exception:
         s = str(v)
     return s if len(s) <= limit else s[:limit] + f"...(+{len(s)-limit} chars)"
