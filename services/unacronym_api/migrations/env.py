@@ -5,13 +5,9 @@ from alembic import context
 from sqlalchemy import engine_from_config, pool
 
 from observability.db.models.base import  Base
+# Import models once to populate Base.metadata
 
-#registering tables...
-import public_api.db.models.glossary_entry
-import public_api.db.models.acronym_alias
-import public_api.db.models.logger
-from packages.plainera_unacronym.src.plainera_unacronym.db.models.logger import PackageLogger
-
+import plainera_unacronym.db.models  # noqa: F401
 
 config = context.config
 
