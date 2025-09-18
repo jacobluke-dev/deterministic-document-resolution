@@ -1,6 +1,8 @@
 
 import os
 
+import pytest_asyncio
+
 from plainera_core.utils.utils import find_project_root
 
 # --- only now import modules that may construct settings/engines ---
@@ -14,6 +16,11 @@ from public_api.core.settings import AppSettings, db_settings
 from public_api.main import create_app
 from test_kit.fixtures import TestDBManager
 from plainera_core.utils.utils import get_project_path
+
+@pytest.fixture
+def anyio_backend():
+    # Force AnyIO tests to run on asyncio, we don't need Trio installed.
+    return "asyncio"
 
 # --- env ---------------------------------------------------------------------
 
@@ -68,7 +75,8 @@ def _apply_migrations_once(engine_factory):
 
 # --- app client ---------------------------------------------------------------
 
-@pytest.fixture()
+
+@pytest_asyncio.fixture
 async def client(engine_factory, session_factory, monkeypatch):
     # Ensure anything that reads env gets a valid DSN (not strictly required once we patch make_dbm)
     os.environ["DATABASE_URL"] = engine_factory.url.render_as_string(hide_password=False)
