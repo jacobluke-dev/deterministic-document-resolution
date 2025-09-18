@@ -1,12 +1,18 @@
 import importlib
-import os
+import sys
 import types
 import pytest
 
 
 class TestAppSettings:
-    def _reload(self, monkeypatch, env: dict[str, str] | None = None) -> types.ModuleType:
-        # Clear relevant env, then set what we need, then reload the module
+    def _reload(self, monkeypatch, env: dict[str, str] | None = None):
+        # stop .env from repopulating vars
+        monkeypatch.setitem(
+            sys.modules,
+            "dotenv",
+            types.SimpleNamespace(load_dotenv=lambda *a, **k: False),
+        )
+        # clear app & db env, then set desired
         for k in ("APP_ENV","PORT","LOG_LEVEL","CORS_ORIGINS","MAX_BODY_BYTES",
                   "ENABLE_DOCS","REQUEST_TIMEOUT_MS","DEFAULT_LOCALE",
                   "DEFAULT_WINDOW_CHARS","MAX_INFLIGHT","SENTRY_DSN",
@@ -31,7 +37,7 @@ class TestAppSettings:
         assert s.DEFAULT_LOCALE == "en-GB"
         assert s.DEFAULT_WINDOW_CHARS == 120
         assert s.MAX_INFLIGHT == 0
-        assert s.SENTRY_DSN is ''
+        assert s.SENTRY_DSN is None
         assert s.RUN_DB_MIGRATIONS is True
 
     @pytest.mark.parametrize(
@@ -49,7 +55,13 @@ class TestAppSettings:
 
 class TestDatabaseSettings:
     def _reload(self, monkeypatch, env: dict[str, str] | None = None):
-        # Only clear DB-related vars here
+        # stop .env from repopulating vars
+        import sys, types
+        monkeypatch.setitem(
+            sys.modules,
+            "dotenv",
+            types.SimpleNamespace(load_dotenv=lambda *a, **k: False),
+        )
         for k in ("DATABASE_URL","DB_SCHEMA","APP_ENV","AUTH_DISABLED"):
             monkeypatch.delenv(k, raising=False)
         if env:
@@ -61,8 +73,8 @@ class TestDatabaseSettings:
     def test_db_defaults(self, monkeypatch):
         settings = self._reload(monkeypatch)
         ds = settings.db_settings
-        assert ds.APP_ENV == "development"  # set in .env
-        assert ds.AUTH_DISABLED is True # set in .env
+        assert ds.APP_ENV == "local"
+        assert ds.AUTH_DISABLED is False
         assert ds.DB_SCHEMA == "unacronym"
         # Naming convention has expected keys
         for k in ("ix","uq","ck","fk","pk"):
@@ -81,6 +93,4 @@ class TestDatabaseSettings:
         # Use a valid AnyUrl for Pydantic; psycopg driver string
         url = "postgresql+psycopg://user:pass@localhost:5432/unacronym"
         settings = self._reload(monkeypatch, {"DATABASE_URL": url})
-        val = settings.db_settings.database_url
-        assert isinstance(val, str)
-        assert val == url
+        assert settings.db_settings.database_url == url

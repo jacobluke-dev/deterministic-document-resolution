@@ -6,7 +6,6 @@ from plainera_core.utils.utils import find_project_root
 
 ROOT = find_project_root(__file__)
 ENV_PATH = ROOT / ".env"
-print("ENV_PATH", ENV_PATH)
 
 try:
     from dotenv import load_dotenv
@@ -29,7 +28,6 @@ class AppSettings(BaseSettings):
     SENTRY_DSN: str | None = None
 
     RUN_DB_MIGRATIONS: bool = True
-    print("MAX BODY BYTES", MAX_BODY_BYTES)
 
     @property
     def cors_origins(self) -> list[str]:
