@@ -1,8 +1,9 @@
 from __future__ import annotations
-from sqlalchemy import Integer, Identity, String, CheckConstraint, Index
-from sqlalchemy.orm import Mapped, mapped_column
+
 from observability.db.mixins import LoggerCommonMixin
 from observability.db.models.base import Base
+from sqlalchemy import CheckConstraint, Identity, Index, Integer, String
+from sqlalchemy.orm import Mapped, mapped_column
 
 
 class Logger(Base, LoggerCommonMixin):

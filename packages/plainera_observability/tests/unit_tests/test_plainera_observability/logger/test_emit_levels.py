@@ -2,9 +2,8 @@ import json
 import logging
 
 import pytest
-
 from observability.logger.emit import emit
-from observability.logger.levels import LogLevel, STD_LEVEL
+from observability.logger.levels import STD_LEVEL, LogLevel
 
 
 def _last_json(caplog) -> tuple[dict, logging.LogRecord]:

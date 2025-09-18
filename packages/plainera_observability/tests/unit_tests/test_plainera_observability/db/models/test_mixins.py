@@ -1,8 +1,8 @@
 # tests/test_logger_mixin_shape.py
-from sqlalchemy.orm import declarative_base, Mapped, mapped_column
-from sqlalchemy import Integer, inspect as sai
-
 from observability.db.mixins import LoggerCommonMixin
+from sqlalchemy import Integer
+from sqlalchemy import inspect as sai
+from sqlalchemy.orm import Mapped, declarative_base, mapped_column
 
 Base = declarative_base()
 

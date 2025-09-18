@@ -1,7 +1,7 @@
 from behave import given, then, when
 from behave.runner import Context
-
 from observability.observability.decorator import logger
+
 from tests.features.logger_io import log_exists, save_to_db
 
 

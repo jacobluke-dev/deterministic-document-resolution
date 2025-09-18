@@ -4,7 +4,6 @@ import logging
 import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
-
 from observability.config import REQ_ID_HEADER
 from observability.logger.access_middleware import access_middleware
 

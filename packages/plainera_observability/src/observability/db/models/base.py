@@ -1,9 +1,8 @@
 from datetime import datetime, timezone
 
+from public_api.core.settings import db_settings
 from sqlalchemy import DateTime, Integer, MetaData, func
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
-
-from public_api.core.settings import db_settings
 
 
 class Base(DeclarativeBase):
@@ -17,13 +16,13 @@ class BaseWithTimestamps(Base):
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         nullable=False,
-        server_default=func.now(),   # DB default
-        default=lambda: datetime.now(timezone.utc),   # client default (safe fallback)
+        server_default=func.now(),  # DB default
+        default=lambda: datetime.now(timezone.utc),  # client default (safe fallback)
     )
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         nullable=False,
-        server_default=func.now(),   # initial insert default at DB
+        server_default=func.now(),  # initial insert default at DB
         onupdate=lambda: datetime.now(timezone.utc),  # app-driven updates
         # If you add a DB trigger for updated_at, you can drop onupdate.
     )

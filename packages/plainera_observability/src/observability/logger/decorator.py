@@ -41,16 +41,12 @@ def _resolve_sink(db_sink, args):
     #  - a callable: lambda self_or_cls: sink  (or lambda: sink for free functions)
     if isinstance(db_sink, str):
         if not args:
-            raise RuntimeError(
-                f"db_sink='{db_sink}' expects a bound method (needs self/cls)"
-            )
+            raise RuntimeError(f"db_sink='{db_sink}' expects a bound method (needs self/cls)")
         owner = args[0]  # self for instance methods, cls for classmethods
         try:
             return getattr(owner, db_sink)
         except AttributeError as e:
-            raise RuntimeError(
-                f"Attribute '{db_sink}' not found on {owner!r}"
-            ) from e
+            raise RuntimeError(f"Attribute '{db_sink}' not found on {owner!r}") from e
 
     if callable(db_sink):
         # Try passing self/cls if present; fall back to no-arg callable.
@@ -61,7 +57,6 @@ def _resolve_sink(db_sink, args):
 
     # Already a sink object
     return db_sink
-
 
 
 def logger(  # noqa: C901
@@ -147,7 +142,13 @@ def logger(  # noqa: C901
             except Exception:
                 val = "<result_transform_failed>"
             fields["result"] = _preview(val, limit=result_max_len)
-        emit(message or func.__name__, level=_level_norm(level), logger_type=logger_type, db_sink=_resolve_sink(db_sink, args), **fields)
+        emit(
+            message or func.__name__,
+            level=_level_norm(level),
+            logger_type=logger_type,
+            db_sink=_resolve_sink(db_sink, args),
+            **fields,
+        )
 
     async def _finalize_async(level: LogLevel, res: Any, start: float, func, args, kwargs) -> None:
         duration_ms = int((monotonic() - start) * 1000) if log_duration else None
@@ -164,7 +165,11 @@ def logger(  # noqa: C901
                 val = "<result_transform_failed>"
             fields["result"] = _preview(val, limit=result_max_len)
         await emit_async(
-            message or func.__name__, level=_level_norm(level), logger_type=logger_type, db_sink=_resolve_sink(db_sink, args), **fields
+            message or func.__name__,
+            level=_level_norm(level),
+            logger_type=logger_type,
+            db_sink=_resolve_sink(db_sink, args),
+            **fields,
         )
 
     def decorate(func: Callable[P, R]) -> Callable[P, R]:

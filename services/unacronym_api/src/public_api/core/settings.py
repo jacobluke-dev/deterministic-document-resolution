@@ -1,8 +1,6 @@
+from plainera_core.utils.utils import find_project_root
 from pydantic import AnyUrl
 from pydantic_settings import BaseSettings
-
-from plainera_core.utils.utils import find_project_root
-
 
 ROOT = find_project_root(__file__)
 ENV_PATH = ROOT / ".env"

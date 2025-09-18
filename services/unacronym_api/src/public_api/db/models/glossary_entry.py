@@ -2,9 +2,9 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
+from observability.db.models.base import BaseWithTimestamps
 from sqlalchemy import Index, Integer, String, Text, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
-from observability.db.models.base import BaseWithTimestamps
 
 if TYPE_CHECKING:
     from .acronym_alias import AcronymAlias

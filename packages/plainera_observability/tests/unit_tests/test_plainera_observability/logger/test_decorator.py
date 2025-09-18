@@ -2,7 +2,6 @@ import json
 import logging
 
 import pytest
-
 from observability.logger.context import request_id_var
 from observability.logger.decorator import logger
 from observability.logger.levels import STD_LEVEL, LogLevel

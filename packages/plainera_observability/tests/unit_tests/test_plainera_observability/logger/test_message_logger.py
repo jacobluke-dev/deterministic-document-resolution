@@ -3,14 +3,22 @@ import logging
 import re
 
 import pytest
-
 from observability.logger.levels import LogLevel
 from observability.logger.message_logger import (
+    _to_text,
     message_logger,
-    info as log_info,
+)
+from observability.logger.message_logger import (
     debug as log_debug,
+)
+from observability.logger.message_logger import (
+    error as log_error,
+)
+from observability.logger.message_logger import (
+    info as log_info,
+)
+from observability.logger.message_logger import (
     warning as log_warning,
-    error as log_error, _to_text,
 )
 
 
@@ -33,7 +41,7 @@ class TestToText:
         assert s == "hello"
 
     def test_bytes_decodes_utf8(self):
-        s = _to_text("héllo".encode("utf-8"), limit=10)
+        s = _to_text("héllo".encode(), limit=10)
         assert s == "héllo"
 
     def test_json_serializable_mapping_to_compact_json_string(self):

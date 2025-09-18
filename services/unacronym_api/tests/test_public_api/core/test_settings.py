@@ -1,6 +1,7 @@
 import importlib
 import sys
 import types
+
 import pytest
 
 
@@ -56,7 +57,8 @@ class TestAppSettings:
 class TestDatabaseSettings:
     def _reload(self, monkeypatch, env: dict[str, str] | None = None):
         # stop .env from repopulating vars
-        import sys, types
+        import sys
+        import types
         monkeypatch.setitem(
             sys.modules,
             "dotenv",

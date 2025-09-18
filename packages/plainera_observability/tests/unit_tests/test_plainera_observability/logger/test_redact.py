@@ -2,7 +2,6 @@ import copy
 import json
 
 import pytest
-
 from observability.logger.redact import _scrub_str, scrub
 
 

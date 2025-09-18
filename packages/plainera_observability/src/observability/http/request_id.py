@@ -1,4 +1,3 @@
-# observability/http/request_id.py
 import uuid
 
 from starlette.datastructures import MutableHeaders
