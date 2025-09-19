@@ -1,18 +1,27 @@
-from concurrent.futures import ProcessPoolExecutor
 import asyncio
-from typing import Optional, Any
+from concurrent.futures import ProcessPoolExecutor
 from dataclasses import replace as dc_replace
+from typing import Any, Optional
 
 from observability.logger.decorator import logger
 from observability.logger.levels import LogLevel
 from observability.logger.message_logger import message_logger
+
 from plainera_unacronym.nlp.config import ALLOW_CHARS, DOT_MODE
-from plainera_unacronym.nlp.heuristics.core import score, threshold_len, normalize_key, context_window, compile_pattern, \
-    iter_candidates_with, reason_tags
-from plainera_unacronym.nlp.heuristics.general import blacklist_context_drop, strip_terminal_plural
-from plainera_unacronym.nlp.nlp_helpers import top_n_values, _cfg_fingerprint
+from plainera_unacronym.nlp.heuristics.context import blacklist_context_drop
+from plainera_unacronym.nlp.heuristics.core import (
+    compile_pattern,
+    context_window,
+    iter_candidates_with,
+    normalize_key,
+    reason_tags,
+    score,
+    threshold_len,
+)
+from plainera_unacronym.nlp.heuristics.general import strip_terminal_plural
+from plainera_unacronym.nlp.nlp_helpers import _cfg_fingerprint, top_n_values
 from plainera_unacronym.nlp.plugins.activation import autodetect_domains
-from plainera_unacronym.nlp.types import DetectorConfig, DetectorResult, Occurrence, FirstOccurrence
+from plainera_unacronym.nlp.types import DetectorConfig, DetectorResult, FirstOccurrence, Occurrence
 from plainera_unacronym.wiring.composition import sink
 
 DEFAULT_CONFIG = DetectorConfig()
@@ -56,7 +65,7 @@ def _build_occurrence_from_match(
         * Normalization uses `normalize_key(..., dotted_mode=cfg.dotted_display)`.
     """
     display_mode = getattr(cfg, "dotted_display", "strip")
-    has_trailing_dot = (e < len(text) and text[e] == ".")
+    has_trailing_dot = e < len(text) and text[e] == "."
 
     # Surface to display (may include the trailing dot if preserving)
     surface_for_display = surface + "." if (display_mode == "preserve" and has_trailing_dot) else surface
@@ -118,11 +127,8 @@ def _score_chunk_worker(cfg: DetectorConfig, text: str, cands: list[tuple[str, i
     return out
 
 
-
 class Detector:
-    def __init__(self,
-                 config: DetectorConfig = DEFAULT_CONFIG,
-                 max_workers: Optional[int] = None):
+    def __init__(self, config: DetectorConfig = DEFAULT_CONFIG, max_workers: Optional[int] = None):
         self.cfg = config
         self._pat = compile_pattern(config)  # precompiled once
         self._pool: Optional[ProcessPoolExecutor] = None
@@ -131,16 +137,16 @@ class Detector:
 
     def _with_auto_domains(self, text: str) -> DetectorConfig | dict[str, Any]:
         """
-            Return a config updated with any domains auto-detected from the text.
+        Return a config updated with any domains auto-detected from the text.
 
-            Merges inferred domains with the current `enabled_domains`. If nothing new
-            is detected, the existing config is returned unchanged.
+        Merges inferred domains with the current `enabled_domains`. If nothing new
+        is detected, the existing config is returned unchanged.
 
-            Args:
-                text: Input text to scan for domain cues.
+        Args:
+            text: Input text to scan for domain cues.
 
-            Returns:
-                DetectorConfig | dict[str|Any]: Config with augmented `enabled_domains` when applicable.
+        Returns:
+            DetectorConfig | dict[str|Any]: Config with augmented `enabled_domains` when applicable.
         """
         auto = autodetect_domains(text, self.cfg)  # frozenset[str]
         if auto:
@@ -152,22 +158,22 @@ class Detector:
     @logger(message="detector.detect", db_sink="sink")  # decorator logs duration, function, args map
     def detect(self, text: str) -> DetectorResult:
         """
-            Run acronym detection over the given text and return matches.
+        Run acronym detection over the given text and return matches.
 
-            Applies auto-domain detection to augment the active config, scans for
-            candidate acronyms, filters by context/thresholds, and builds both the
-            full list of occurrences and the first-occurrence map per normalized key.
+        Applies auto-domain detection to augment the active config, scans for
+        candidate acronyms, filters by context/thresholds, and builds both the
+        full list of occurrences and the first-occurrence map per normalized key.
 
-            Structured logging:
-              - Emits a lightweight “start” and “summary” event.
-              - The @logger decorator also records duration/function metadata.
-              - message_logs at points providing structured detail.
+        Structured logging:
+          - Emits a lightweight “start” and “summary” event.
+          - The @logger decorator also records duration/function metadata.
+          - message_logs at points providing structured detail.
 
-            Args:
-                text: Input text to analyze.
+        Args:
+            text: Input text to analyze.
 
-            Returns:
-                DetectorResult: Contains `occurrences` and `unique_acronyms`.
+        Returns:
+            DetectorResult: Contains `occurrences` and `unique_acronyms`.
         """
         cfg0 = self.cfg
         cfg = self._with_auto_domains(text)
@@ -250,27 +256,27 @@ class Detector:
     @logger(message="detector.parallel", db_sink="sink")
     def detect_parallel(self, text: str, threshold: int = 1000, chunk_size: int = 256) -> DetectorResult:
         """
-            Run detection with optional multiprocess fan-out for large inputs.
+        Run detection with optional multiprocess fan-out for large inputs.
 
-            Computes candidates, and if their count is below `threshold` defers to
-            `detect()`. Otherwise, splits work into `chunk_size` batches and processes
-            them via a lazily-created `ProcessPoolExecutor`, then merges results and
-            builds the first-occurrence map.
+        Computes candidates, and if their count is below `threshold` defers to
+        `detect()`. Otherwise, splits work into `chunk_size` batches and processes
+        them via a lazily-created `ProcessPoolExecutor`, then merges results and
+        builds the first-occurrence map.
 
-            Structured logging:
-              - Emits pool creation and parallel-selection events.
-              - Logs per-chunk failures (with a traceback).
-              - The @logger decorator also records duration/function metadata.
-              - message_logs at points providing structured detail.
+        Structured logging:
+          - Emits pool creation and parallel-selection events.
+          - Logs per-chunk failures (with a traceback).
+          - The @logger decorator also records duration/function metadata.
+          - message_logs at points providing structured detail.
 
-            Args:
-                text: Input text to analyze.
-                threshold: Minimum candidate count to trigger parallel execution.
-                chunk_size: Number of candidates per process task.
+        Args:
+            text: Input text to analyze.
+            threshold: Minimum candidate count to trigger parallel execution.
+            chunk_size: Number of candidates per process task.
 
-            Returns:
-                DetectorResult: Contains `occurrences` and `unique_acronyms`.
-            """
+        Returns:
+            DetectorResult: Contains `occurrences` and `unique_acronyms`.
+        """
         cfg = self._with_auto_domains(text)
         cands = list(iter_candidates_with(text, cfg, self._pat))
         if len(cands) < threshold:
@@ -278,6 +284,7 @@ class Detector:
 
         if self._pool is None:
             from os import cpu_count
+
             self._pool = ProcessPoolExecutor(max_workers=self._max_workers)
             message_logger(
                 "detector.pool.created",
@@ -296,7 +303,7 @@ class Detector:
 
         futures = []
         for i in range(0, len(cands), chunk_size):
-            futures.append(self._pool.submit(_score_chunk_worker, cfg, text, cands[i:i + chunk_size]))
+            futures.append(self._pool.submit(_score_chunk_worker, cfg, text, cands[i : i + chunk_size]))
 
         occurrences: list[Occurrence] = []
         for idx, f in enumerate(futures):
@@ -304,6 +311,7 @@ class Detector:
                 occurrences.extend(f.result())
             except Exception as e:
                 import traceback
+
                 message_logger(
                     "detector.chunk.failed",
                     level=LogLevel.ERROR,
@@ -345,23 +353,23 @@ class Detector:
 
     async def detect_async(self, text: str) -> DetectorResult:
         """
-           Asynchronously run acronym detection without blocking the event loop.
+        Asynchronously run acronym detection without blocking the event loop.
 
-           Async wrapper that offloads the sync detection pipeline to the event loop's default
-           executor (a thread pool) by calling `detect_parallel` in a background thread. Use
-           in FastAPI so the loop remains responsive while CPU-bound work executes off-loop.
-           Depending on input size, the underlying `detect_parallel` method may further split work across processes.
+        Async wrapper that offloads the sync detection pipeline to the event loop's default
+        executor (a thread pool) by calling `detect_parallel` in a background thread. Use
+        in FastAPI so the loop remains responsive while CPU-bound work executes off-loop.
+        Depending on input size, the underlying `detect_parallel` method may further split work across processes.
 
-           Args:
-               text: The raw input text to scan for acronyms.
-           Returns:
-               DetectorResult: The detection result containing all occurrences and
-               a mapping of first occurrences keyed by normalized acronym.
-           Raises:
-               Exception: Propagates any exception raised by the detection pipeline.
-           See Also:
-               detect: Synchronous, single-process path for smaller inputs.
-               detect_parallel: Potentially multi-process path used under the hood for large inputs.
-           """
+        Args:
+            text: The raw input text to scan for acronyms.
+        Returns:
+            DetectorResult: The detection result containing all occurrences and
+            a mapping of first occurrences keyed by normalized acronym.
+        Raises:
+            Exception: Propagates any exception raised by the detection pipeline.
+        See Also:
+            detect: Synchronous, single-process path for smaller inputs.
+            detect_parallel: Potentially multi-process path used under the hood for large inputs.
+        """
         # Run parallel path off the event loop; won’t block FastAPI
         return await asyncio.to_thread(self.detect_parallel, text)

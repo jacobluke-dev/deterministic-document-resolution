@@ -1,9 +1,9 @@
-import pytest
 from dataclasses import dataclass
 
-from plainera_unacronym.nlp import Occurrence, DetectorConfig
-from plainera_unacronym.nlp.detector import _build_occurrence_from_match, _score_chunk_worker
 import plainera_unacronym.nlp.detector as det
+import pytest
+from plainera_unacronym.nlp import DetectorConfig, Occurrence
+from plainera_unacronym.nlp.detector import _build_occurrence_from_match, _score_chunk_worker
 
 
 @dataclass(frozen=True, slots=True)
@@ -195,10 +195,10 @@ class TestBuildOccurrenceFromMatch:
         l_s, r_s = occ_s.context_window
         l_p, r_p = occ_p.context_window
         n = len(text)
-        for l, r, st, en in [(l_s, r_s, occ_s.start_offset, occ_s.end_offset),
+        for left, right, strt, end in [(l_s, r_s, occ_s.start_offset, occ_s.end_offset),
                              (l_p, r_p, occ_p.start_offset, occ_p.end_offset)]:
-            assert 0 <= l < r <= n
-            assert l <= st < en <= r
+            assert 0 <= left < right <= n
+            assert left <= strt < end <= right
 
 
     def test_reason_tags_inside_parens_and_dotted(self):
@@ -407,6 +407,6 @@ class TestScoreChunkWorkerUnit:
         # Context-window sanity (bounds and containment)
         n = len(text)
         for o in out:
-            l, r = o.context_window
-            assert 0 <= l < r <= n
-            assert l <= o.start_offset < o.end_offset <= r
+            left, right = o.context_window
+            assert 0 <= left < right <= n
+            assert left <= o.start_offset < o.end_offset <= right

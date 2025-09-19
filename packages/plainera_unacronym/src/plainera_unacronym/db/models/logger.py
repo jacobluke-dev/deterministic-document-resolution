@@ -1,7 +1,7 @@
 from observability.db.mixins import LoggerCommonMixin
 from observability.db.models.base import Base
+from sqlalchemy import Identity, Index, Integer
 from sqlalchemy.orm import Mapped, mapped_column
-from sqlalchemy import Integer, Identity, Index
 
 
 class PackageLogger(Base, LoggerCommonMixin):

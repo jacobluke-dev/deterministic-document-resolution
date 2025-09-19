@@ -1,6 +1,6 @@
 import re
-from plainera_unacronym.nlp.heuristics.shared import DottedMode
 
+from plainera_unacronym.nlp.heuristics.shared import DottedMode
 
 APOSTROPHE_VARIANTS = {
     "’": "'",  # U+2019
@@ -12,23 +12,26 @@ APOSTROPHE_VARIANTS = {
     "'": "'",  # U+0027
 }
 
-DASH_MAP = {"–": "-", "—": "-", "-": "-"}   # en/em/minus -> "-"
+DASH_MAP = {"–": "-", "—": "-", "-": "-"}  # en/em/minus -> "-"
 
 TRAILING_PUNCT = ",.;:!?)]}»”"
-LEADING_BRACK  = "([«“["
-CLOSING_BRACK  = ")]»”]"
+LEADING_BRACK = "([«“["
+CLOSING_BRACK = ")]»”]"
 
-STANDS_FOR_RE  = re.compile(r"\bstands\s+for\b", re.IGNORECASE)
+STANDS_FOR_RE = re.compile(r"\bstands\s+for\b", re.IGNORECASE)
 
-BOUNDARY_TERMINATORS = ".!?…"            # includes unicode ellipsis
-CLOSING_QUOTES_BRACKETS = "\")]}»”’"
+BOUNDARY_TERMINATORS = ".!?…"  # includes unicode ellipsis
+CLOSING_QUOTES_BRACKETS = '")]}»”’'
 BOUNDARY = ".!?\n\r\"'“”‘’([{"
-TIME_RE  = re.compile(r"^(?:[01]?\d|2[0-3])(?::[0-5]\d)?$")  # 7, 10:30, 23:59
+TIME_RE = re.compile(r"^(?:[01]?\d|2[0-3])(?::[0-5]\d)?$")  # 7, 10:30, 23:59
+POST_SPAN_TOKEN_RE = re.compile(
+    r"\s+|[A-Za-z]+|!|\S", re.ASCII
+)  # tokens after `e`: whitespace, alpha word, '!', or any other single char
 
 ALLOW_CHARS = "&/’'--–"
 TOKEN_SEPARATORS = "-&/._"
 EXCLAMS = ("!", "！", "‼")
 
-DOT_MODE : DottedMode = "strip"
+DOT_MODE: DottedMode = "strip"
 
 PLURAL_SUFFIXES = ("’s", "'s", "s")

@@ -1,16 +1,18 @@
 import re
 from typing import Iterator
 
-from plainera_unacronym.nlp.config import (TRAILING_PUNCT,
-                                           LEADING_BRACK,
-                                           CLOSING_BRACK,
-                                           STANDS_FOR_RE,
-                                           APOSTROPHE_VARIANTS,
-                                           DASH_MAP,
-                                           TIME_RE)
+from plainera_unacronym.nlp.config import (
+    APOSTROPHE_VARIANTS,
+    CLOSING_BRACK,
+    DASH_MAP,
+    LEADING_BRACK,
+    STANDS_FOR_RE,
+    TIME_RE,
+    TRAILING_PUNCT,
+)
 from plainera_unacronym.nlp.heuristics.shared import has_paren_definition
 from plainera_unacronym.nlp.plugins.registry import DOMAIN_PLUGINS
-from plainera_unacronym.nlp.types import pattern_cache, DetectorConfig
+from plainera_unacronym.nlp.types import DetectorConfig, pattern_cache
 
 Span = tuple[str, int, int]
 
@@ -138,7 +140,7 @@ def prev_token(text: str, start: int) -> str:
     j = i
     while j >= 0 and (text[j].isalnum() or text[j] in ":."):
         j -= 1
-    return text[j + 1:i + 1]
+    return text[j + 1 : i + 1]
 
 
 def normalize_key(
@@ -202,10 +204,12 @@ def score(surface: str, text: str, start: int, end: int, cfg: DetectorConfig) ->
         score += 0.25
     elif adjacent:
         score += 0.15
-    if has_paren_definition(text, end): score += 0.25
+    if has_paren_definition(text, end):
+        score += 0.25
     if has_stands_for_follow(text, end):
         score += 0.15
-    if surface in cfg.soft_blacklist: score -= 0.2
+    if surface in cfg.soft_blacklist:
+        score -= 0.2
     return max(0.0, min(1.0, score))
 
 
@@ -213,7 +217,8 @@ def context_window(text: str, start: int, end: int, window_chars: int) -> tuple[
     # Left: back to previous terminator (or start), then skip spaces
     left = start
     while left > 0 and text[left - 1] not in ".!?\n\r":
-        if start - left >= window_chars: break
+        if start - left >= window_chars:
+            break
         left -= 1
     while left < start and text[left].isspace():
         left += 1
@@ -222,7 +227,8 @@ def context_window(text: str, start: int, end: int, window_chars: int) -> tuple[
     n = len(text)
     right = end
     while right < n and text[right] not in ".!?\n\r":
-        if right - end >= window_chars: break
+        if right - end >= window_chars:
+            break
         right += 1
     if right < n and text[right] in ".!?\n\r":
         right += 1  # include the terminator
@@ -285,11 +291,11 @@ def _collect_domain_hits(text: str, cfg: DetectorConfig) -> list[Span]:
     Sorted by (start asc, length desc) so longer domain spans come first.
     """
     hits: list[Span] = []
-    for name in (cfg.enabled_domains or ()):
+    for name in cfg.enabled_domains or ():
         plug = DOMAIN_PLUGINS.get(name)
         if not plug:
             continue
-        for _, s, e in (plug.extra_candidates(text, cfg) or ()):
+        for _, s, e in plug.extra_candidates(text, cfg) or ():
             hit = _accept_candidate(text, cfg, s, e)
             if hit:
                 hits.append(hit)
@@ -337,56 +343,67 @@ def iter_candidates_with(text: str, cfg: DetectorConfig, pat: re.Pattern[str]) -
         yield surface, s, e
 
 
-def reason_tags(surface: str, text: str, start: int, end: int, cfg: DetectorConfig) -> list[str]:
+def reason_tags(surface: str, text: str, start: int, end: int, cfg: DetectorConfig) -> list[str]:  # noqa: C901
     """
-        Derive lightweight “reason” tags for a matched acronym span, based on local
-        context and config. Tags highlight cues that may boost or penalize confidence.
+    Derive lightweight “reason” tags for a matched acronym span, based on local
+    context and config. Tags highlight cues that may boost or penalize confidence.
 
-        Tag rules (added in this order when true):
-          - "inside_parens"         → span is fully inside (...) or [...]
-          - "adjacent_parens"       → span touches a bracket/paren boundary
-          - "paren_definition_right"→ a parenthetical definition immediately follows
-          - "stands_for_right"      → “stands for …” pattern appears to the right
-          - "soft_blacklist_penalty"→ surface is in cfg.soft_blacklist
-          - "non_acronym_upper"     → surface is in cfg.non_acronym_upper
-          - "next_word_lowercase"   → next lexical word after `end` starts lowercase
-          - "prev_time_token"       → previous token matches TIME_RE (e.g. “8PM”)
-          - "has_separator"         → surface contains any character from cfg.allow_chars
-          - "dotted_initialism"     → surface contains '.' and cfg.enable_dotted is True
+    Tag rules (added in this order when true):
+      - "inside_parens"         → span is fully inside (...) or [...]
+      - "adjacent_parens"       → span touches a bracket/paren boundary
+      - "paren_definition_right"→ a parenthetical definition immediately follows
+      - "stands_for_right"      → “stands for …” pattern appears to the right
+      - "soft_blacklist_penalty"→ surface is in cfg.soft_blacklist
+      - "non_acronym_upper"     → surface is in cfg.non_acronym_upper
+      - "next_word_lowercase"   → next lexical word after `end` starts lowercase
+      - "prev_time_token"       → previous token matches TIME_RE (e.g. “8PM”)
+      - "has_separator"         → surface contains any character from cfg.allow_chars
+      - "dotted_initialism"     → surface contains '.' and cfg.enable_dotted is True
 
-        Args:
-            surface: The matched surface text (typically text[start:end]).
-            text: Full source text.
-            start: Start offset (inclusive) of the match in `text`.
-            end: End offset (exclusive) of the match in `text`.
-            cfg: Detector configuration (uses `soft_blacklist`, `non_acronym_upper`,
-                 `allow_chars`, and `enable_dotted`).
+    Args:
+        surface: The matched surface text (typically text[start:end]).
+        text: Full source text.
+        start: Start offset (inclusive) of the match in `text`.
+        end: End offset (exclusive) of the match in `text`.
+        cfg: Detector configuration (uses `soft_blacklist`, `non_acronym_upper`,
+             `allow_chars`, and `enable_dotted`).
 
-        Returns:
-            list[str]: Ordered list of tags describing contextual/lexical cues.
+    Returns:
+        list[str]: Ordered list of tags describing contextual/lexical cues.
 
-        Notes:
-            - Bracket/parenthesis checks come from `in_brackets(text, start, end)`.
-            - Right-hand cues use `has_paren_definition(text, end)` and
-              `has_stands_for_follow(text, end)`.
-            - Lowercase-next-word uses `next_word_lowercase(text, end)`.
-            - The previous token is obtained via `prev_token(text, start)` and tested
-              against `TIME_RE`.
-            - Separator and dotted checks are purely character-based on `surface`.
+    Notes:
+        - Bracket/parenthesis checks come from `in_brackets(text, start, end)`.
+        - Right-hand cues use `has_paren_definition(text, end)` and
+          `has_stands_for_follow(text, end)`.
+        - Lowercase-next-word uses `next_word_lowercase(text, end)`.
+        - The previous token is obtained via `prev_token(text, start)` and tested
+          against `TIME_RE`.
+        - Separator and dotted checks are purely character-based on `surface`.
     """
-    tags: list[str] = []
     inside, adjacent = in_brackets(text, start, end)
-    if inside:
-        tags.append("inside_parens")
-    elif adjacent:
-        tags.append("adjacent_parens")
-    if has_paren_definition(text, end):  tags.append("paren_definition_right")
-    if has_stands_for_follow(text, end): tags.append("stands_for_right")
-    if surface in cfg.soft_blacklist:    tags.append("soft_blacklist_penalty")
-    if surface in cfg.non_acronym_upper: tags.append("non_acronym_upper")
-    if next_word_lowercase(text, end):  tags.append("next_word_lowercase")
     prev = prev_token(text, start)
-    if TIME_RE.match(prev):              tags.append("prev_time_token")
-    if any(ch in cfg.allow_chars for ch in surface): tags.append("has_separator")
-    if "." in surface and cfg.enable_dotted: tags.append("dotted_initialism")
-    return tags
+
+    is_inside_parens = inside
+    is_adjacent_parens = (not inside) and adjacent
+    has_paren_def_right = has_paren_definition(text, end)
+    has_stands_for = has_stands_for_follow(text, end)
+    is_soft_blacklisted = surface in cfg.soft_blacklist
+    is_non_acronym_upper = surface in cfg.non_acronym_upper
+    next_word_is_lower = next_word_lowercase(text, end)
+    prev_is_time = bool(TIME_RE.match(prev))
+    has_sep = any(ch in cfg.allow_chars for ch in surface)
+    is_dotted_init = ("." in surface) and cfg.enable_dotted
+
+    candidates = [
+        ("inside_parens", is_inside_parens),
+        ("adjacent_parens", is_adjacent_parens),
+        ("paren_definition_right", has_paren_def_right),
+        ("stands_for_right", has_stands_for),
+        ("soft_blacklist_penalty", is_soft_blacklisted),
+        ("non_acronym_upper", is_non_acronym_upper),
+        ("next_word_lowercase", next_word_is_lower),
+        ("prev_time_token", prev_is_time),
+        ("has_separator", has_sep),
+        ("dotted_initialism", is_dotted_init),
+    ]
+    return [tag for tag, ok in candidates if ok]

@@ -1,7 +1,17 @@
 import pytest
-
-from plainera_unacronym.nlp.heuristics.gate import _slice, RNA_RE, CYTOKINE, PCR_RE, UNITS, STATS, VIRUS, SECTIONS, \
-    GREEK, bio_signal_score, should_enable_bio
+from plainera_unacronym.nlp.heuristics.gate import (
+    CYTOKINE,
+    GREEK,
+    PCR_RE,
+    RNA_RE,
+    SECTIONS,
+    STATS,
+    UNITS,
+    VIRUS,
+    _slice,
+    bio_signal_score,
+    should_enable_bio,
+)
 
 
 class TestSlice:
@@ -88,7 +98,7 @@ class TestBioSignalScore:
             # cytokine (5) + greek (1)
             assert score == 6
             assert set(reasons) == {"cytokine", "greek"}
-            assert is_strong == True
+            assert is_strong is True
 
     def test_combined_signals(self):
         text = (
@@ -99,7 +109,7 @@ class TestBioSignalScore:
         # sections(1) + rna(5) + pcr(2) + units(1) + stats(2) + virus(5) = 12
         assert score == 16
         assert set(reasons) == {"sections", "rna", "pcr", "units", "stats", "virus"}
-        assert is_strong == True
+        assert is_strong is True
 
 
 class TestShouldEnableBio:

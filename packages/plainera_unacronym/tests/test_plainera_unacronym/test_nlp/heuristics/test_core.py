@@ -1,29 +1,29 @@
 import re
-import pytest
-
-from plainera_unacronym.nlp import DetectorConfig
-import plainera_unacronym.nlp.plugins.registry as domain_mod
-from plainera_unacronym.nlp.config import TRAILING_PUNCT, APOSTROPHE_VARIANTS
-from plainera_unacronym.nlp.heuristics.core import (next_word_lowercase,
-                                                    _has_lower_and_upper,
-                                                    iter_candidates_with,
-                                                    context_window,
-                                                    has_letter,
-                                                    core_len_for_bounds,
-                                                    normalize_key,
-                                                    prev_token,
-                                                    has_stands_for_follow,
-                                                    in_brackets,
-                                                    strip_trailing_punct,
-                                                    caps_ratio,
-                                                    letters,
-                                                    _contained_in_any,
-                                                    _collect_domain_hits,
-                                                    _collect_core_hits,
-                                                    _accept_candidate)
 
 import plainera_unacronym.nlp.detector as det
 import plainera_unacronym.nlp.heuristics.core as core
+import plainera_unacronym.nlp.plugins.registry as domain_mod
+import pytest
+from plainera_unacronym.nlp import DetectorConfig
+from plainera_unacronym.nlp.config import APOSTROPHE_VARIANTS, TRAILING_PUNCT
+from plainera_unacronym.nlp.heuristics.core import (
+    _collect_core_hits,
+    _collect_domain_hits,
+    _contained_in_any,
+    _has_lower_and_upper,
+    caps_ratio,
+    context_window,
+    core_len_for_bounds,
+    has_letter,
+    has_stands_for_follow,
+    in_brackets,
+    iter_candidates_with,
+    letters,
+    next_word_lowercase,
+    normalize_key,
+    prev_token,
+    strip_trailing_punct,
+)
 
 
 def _idx(text: str, token: str) -> tuple[int, int]:
@@ -388,10 +388,6 @@ class TestNormalizeKey:
         # '&' is not allowed here → spaces remain
         assert normalize_key("R & D", allow_chars="-/", dotted_mode="strip") == "R & D"
 
-    def test_apostrophe_variants_are_canonicalized(self):
-        # Curly apostrophe should normalize to ASCII "'"
-        assert normalize_key("O’Reilly", allow_chars="&-/", dotted_mode="preserve") == "O'Reilly"
-
     @staticmethod
     def _norm(s: str) -> str:
         return normalize_key(s, allow_chars="&-/", dotted_mode="preserve")
@@ -403,6 +399,9 @@ class TestNormalizeKey:
         assert self._norm(f"rock{variant}n{variant}roll") == "rock'n'roll"
         # Works in all-caps tokens too (your acronym path)
         assert self._norm(f"O{variant}RAN") == "O'RAN"
+        # Curly apostrophe should normalize to ASCII "'"
+        assert normalize_key("O’Reilly", allow_chars="&-/", dotted_mode="preserve") == "O'Reilly"
+
 
     def test_apostrophe_normalization_is_idempotent(self) -> None:
         assert self._norm("O'Reilly") == "O'Reilly"

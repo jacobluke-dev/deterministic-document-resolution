@@ -1,8 +1,7 @@
 from typing import Callable
 
-import pytest
 import plainera_unacronym.nlp.detector as det
-
+import pytest
 
 pytest_plugins = (
     "test_kit.fixtures",

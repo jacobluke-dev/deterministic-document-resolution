@@ -3,7 +3,7 @@ from dataclasses import asdict
 from pathlib import Path
 
 from plainera_unacronym.nlp.detector import Detector
-from plainera_unacronym.nlp.types import DetectorConfig, DetectorResult, SCHEMA_VERSION
+from plainera_unacronym.nlp.types import SCHEMA_VERSION, DetectorConfig, DetectorResult
 
 
 def _serialize(result: DetectorResult, *, pretty: bool = False) -> str:
@@ -23,7 +23,7 @@ def run_detection(
     pretty: bool = False,
     as_json: bool = True,
     debug_reasons: bool = False,
-    enable_dotted: bool = False
+    enable_dotted: bool = False,
 ) -> str | DetectorResult:
     cfg = DetectorConfig(
         require_caps_ratio=caps_ratio,
@@ -33,7 +33,6 @@ def run_detection(
     det = Detector(cfg)
     result = det.detect_parallel(text) if parallel else det.detect(text)
     return _serialize(result, pretty=pretty) if as_json else result
-
 
 
 def execute_acronym_locator(
@@ -103,10 +102,12 @@ def execute_acronym_locator(
       ['NHS', 'IT', 'R&D']
     """
     text = Path(file_path).read_text(encoding="utf-8")
-    return run_detection(text,
-                         parallel=parallel,
-                         caps_ratio=caps_ratio,
-                         pretty=pretty,
-                         as_json=as_json,
-                         debug_reasons=debug_reasons,
-                         enable_dotted=enable_dotted)
+    return run_detection(
+        text,
+        parallel=parallel,
+        caps_ratio=caps_ratio,
+        pretty=pretty,
+        as_json=as_json,
+        debug_reasons=debug_reasons,
+        enable_dotted=enable_dotted,
+    )

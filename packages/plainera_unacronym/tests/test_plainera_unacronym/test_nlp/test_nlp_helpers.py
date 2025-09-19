@@ -2,9 +2,8 @@ import math
 import re
 
 import pytest
-
+from plainera_unacronym.nlp.nlp_helpers import _cfg_fingerprint, _round_sig, top_n_values
 from plainera_unacronym.nlp.types import DetectorConfig, FirstOccurrence
-from plainera_unacronym.nlp.nlp_helpers import _cfg_fingerprint, top_n_values, _round_sig
 
 
 class TestCfgFingerprint:

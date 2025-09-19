@@ -1,4 +1,3 @@
-import pytest
 
 from plainera_unacronym.nlp.heuristics.shared import has_paren_definition
 

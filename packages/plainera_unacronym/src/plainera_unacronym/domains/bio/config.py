@@ -1,9 +1,10 @@
 import re
 from dataclasses import dataclass
 from typing import Optional
+
 from plainera_unacronym.nlp.types import DetectorConfig
 
-BIO_GREEK = "\u03B1-\u03C9"  # α–ω
+BIO_GREEK = "\u03b1-\u03c9"  # α–ω
 _STATS_CI_RE = re.compile(r"\b\d{1,3}%\s*CI\b")
 _STATS_OR_HR_RR_RE = re.compile(r"\b(OR|HR|RR)\s*(?:=|≈|~)?\s*\d")
 
