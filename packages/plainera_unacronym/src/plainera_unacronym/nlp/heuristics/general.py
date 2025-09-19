@@ -1,4 +1,4 @@
-from typing import Collection
+from typing import TYPE_CHECKING, Collection, Union
 
 from plainera_unacronym.nlp.config import (
     BOUNDARY_TERMINATORS,
@@ -8,6 +8,9 @@ from plainera_unacronym.nlp.config import (
     POST_SPAN_TOKEN_RE,
 )
 from plainera_unacronym.nlp.types import DetectorConfig
+
+if TYPE_CHECKING:
+    from plainera_unacronym.nlp.heuristics.context import HeuristicCfg
 
 
 def _alpha_len(s: str) -> int:
@@ -94,7 +97,9 @@ def _has_upper_after_with_fillers(text: str, start: int, max_fillers: int = 2) -
     return False
 
 
-def is_in_caps_interjection_context(surface: str, text: str, s: int, e: int, cfg: DetectorConfig) -> bool:
+def is_in_caps_interjection_context(
+    surface: str, text: str, s: int, e: int, cfg: Union[DetectorConfig, "HeuristicCfg"]
+) -> bool:
     if len(surface) < 4:
         return False
     if not is_all_caps_word(surface, cfg.allow_chars):
@@ -104,7 +109,9 @@ def is_in_caps_interjection_context(surface: str, text: str, s: int, e: int, cfg
     return _has_upper_after_with_fillers(text, e, max_fillers=2)
 
 
-def is_in_caps_interjection_context_prev(surface: str, text: str, s: int, e: int, cfg: DetectorConfig) -> bool:
+def is_in_caps_interjection_context_prev(
+    surface: str, text: str, s: int, e: int, cfg: Union[DetectorConfig, "HeuristicCfg"]
+) -> bool:
     """
     True if SURFACE is the second ALL-CAPS word (len≥3) in a shouty pair,
     and there is a preceding ALL-CAPS word (len≥4) after a nearby comma.

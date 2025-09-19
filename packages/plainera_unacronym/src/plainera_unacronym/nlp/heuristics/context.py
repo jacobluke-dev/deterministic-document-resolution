@@ -1,5 +1,6 @@
-from typing import TYPE_CHECKING, AbstractSet, Protocol
+from typing import TYPE_CHECKING, FrozenSet, Protocol
 
+from plainera_unacronym.nlp import DetectorConfig
 from plainera_unacronym.nlp.config import BOUNDARY, TIME_RE
 from plainera_unacronym.nlp.heuristics.core import has_stands_for_follow, in_brackets, next_word_lowercase, prev_token
 from plainera_unacronym.nlp.heuristics.general import (
@@ -13,24 +14,25 @@ from plainera_unacronym.nlp.heuristics.shared import has_paren_definition
 
 
 class HeuristicCfg(Protocol):
-    """Structural subset of `HeuristicCfg` used by `heuristics.context`.
+    """Structural subset of DetectorConfig used by context.py.
 
-    Any object with these attributes is accepted. This keeps `context.py`
-    decoupled from the full config type and avoids import cycles.
+    Read-only properties so it matches a frozen/dataclass or @property-based config.
     """
 
-    allow_chars: str
-    non_acronym_upper: AbstractSet[str]
-    # optional in some callers; we’ll still guarded-get it
-    # declare as present for typing, or keep getattr(...) below
-    soft_blacklist: AbstractSet[str] | frozenset[str]
-    enable_dotted: bool
+    @property
+    def allow_chars(self) -> FrozenSet[str]: ...
+    @property
+    def non_acronym_upper(self) -> FrozenSet[str]: ...
+    @property
+    def soft_blacklist(self) -> FrozenSet[str]: ...
+    @property
+    def enable_dotted(self) -> bool: ...
 
 
 if TYPE_CHECKING:
     from plainera_unacronym.nlp.types import DetectorConfig
 
-    def _assert_subset(x: DetectorConfig) -> HeuristicCfg:
+    def _assert_subset(x: DetectorConfig) -> DetectorConfig:
         return x
 
 
