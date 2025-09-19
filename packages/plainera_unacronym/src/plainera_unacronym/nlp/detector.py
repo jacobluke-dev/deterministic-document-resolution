@@ -1,7 +1,7 @@
 import asyncio
 from concurrent.futures import ProcessPoolExecutor
 from dataclasses import replace as dc_replace
-from typing import Any, Optional
+from typing import Optional
 
 from observability.logger.decorator import logger
 from observability.logger.levels import LogLevel
@@ -118,7 +118,7 @@ def _score_chunk_worker(cfg: DetectorConfig, text: str, cands: list[tuple[str, i
         if blacklist_context_drop(surface, text, s, e, cfg):
             continue
         conf = score(surface, text, s, e, cfg)
-        eff = threshold_len(surface, cfg.allow_chars)
+        eff = threshold_len(surface, cfg)
         th = cfg.min_confidence_by_len.get(eff, cfg.min_confidence_default)
         if conf < th:
             continue
@@ -135,7 +135,7 @@ class Detector:
         self._max_workers = max_workers
         self.sink = sink
 
-    def _with_auto_domains(self, text: str) -> DetectorConfig | dict[str, Any]:
+    def _with_auto_domains(self, text: str) -> DetectorConfig:
         """
         Return a config updated with any domains auto-detected from the text.
 
@@ -180,14 +180,14 @@ class Detector:
 
         if cfg is not cfg0:
             # log domains auto-added (diff only)
-            added = sorted((cfg.enabled_domains or set()) - (cfg0.enabled_domains or set()))
+            added = sorted(cfg.enabled_domains - cfg0.enabled_domains)
             if added:
                 message_logger(
                     "detector.autodetect_domains",
                     level=LogLevel.INFO,
                     logger_type="nlp",
                     args={"text_len": len(text)},
-                    details={"added": added, "total_domains": len(cfg.enabled_domains or ())},
+                    details={"added": added, "total_domains": len(cfg.enabled_domains)},
                     db_sink=self.sink,
                 )
 

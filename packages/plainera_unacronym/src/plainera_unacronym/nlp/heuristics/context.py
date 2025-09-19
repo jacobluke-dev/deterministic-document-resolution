@@ -1,4 +1,4 @@
-from typing import TYPE_CHECKING, FrozenSet, Protocol
+from typing import TYPE_CHECKING, FrozenSet, Protocol, overload
 
 from plainera_unacronym.nlp import DetectorConfig
 from plainera_unacronym.nlp.config import BOUNDARY, TIME_RE
@@ -81,6 +81,12 @@ def _non_acronym_punct_or_lowercase_follow(text: str, end: int) -> bool:
     if i < n and text[i] in ",.!?;:":
         return True
     return next_word_lowercase(text, end)
+
+
+@overload
+def blacklist_context_drop(surface: str, text: str, start: int, end: int, cfg: HeuristicCfg) -> bool: ...
+@overload
+def blacklist_context_drop(surface: str, text: str, start: int, end: int, cfg: "DetectorConfig") -> bool: ...
 
 
 def blacklist_context_drop(surface: str, text: str, start: int, end: int, cfg: HeuristicCfg) -> bool:
