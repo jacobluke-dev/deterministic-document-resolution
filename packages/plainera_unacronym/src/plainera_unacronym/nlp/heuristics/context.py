@@ -1,4 +1,4 @@
-from typing import TYPE_CHECKING, FrozenSet, Protocol, overload
+from typing import TYPE_CHECKING, FrozenSet, Protocol, cast, overload
 
 from plainera_unacronym.nlp import DetectorConfig
 from plainera_unacronym.nlp.config import BOUNDARY, TIME_RE
@@ -32,8 +32,12 @@ class HeuristicCfg(Protocol):
 if TYPE_CHECKING:
     from plainera_unacronym.nlp.types import DetectorConfig
 
+    CfgLike = HeuristicCfg | DetectorConfig
+
     def _assert_subset(x: DetectorConfig) -> DetectorConfig:
         return x
+else:
+    CfgLike = HeuristicCfg
 
 
 def _in_definition_context(text: str, start: int, end: int) -> bool:
@@ -41,9 +45,12 @@ def _in_definition_context(text: str, start: int, end: int) -> bool:
     return inside or has_paren_definition(text, end) or has_stands_for_follow(text, end)
 
 
-def _drop_interjection(surface: str, text: str, s: int, e: int, cfg: HeuristicCfg) -> bool:
-    return is_in_caps_interjection_context(surface, text, s, e, cfg) or is_in_caps_interjection_context_prev(
-        surface, text, s, e, cfg
+def _drop_interjection(surface: str, text: str, s: int, e: int, cfg: CfgLike) -> bool:
+    # general.py expects HeuristicCfg; cast once here
+
+    hcfg = cast(HeuristicCfg, cfg)
+    return is_in_caps_interjection_context(surface, text, s, e, hcfg) or is_in_caps_interjection_context_prev(
+        surface, text, s, e, hcfg
     )
 
 
@@ -89,7 +96,7 @@ def blacklist_context_drop(surface: str, text: str, start: int, end: int, cfg: H
 def blacklist_context_drop(surface: str, text: str, start: int, end: int, cfg: "DetectorConfig") -> bool: ...
 
 
-def blacklist_context_drop(surface: str, text: str, start: int, end: int, cfg: HeuristicCfg) -> bool:
+def blacklist_context_drop(surface: str, text: str, start: int, end: int, cfg: CfgLike) -> bool:
     """
     Decide whether to **drop** a candidate acronym based on local context.
 
@@ -157,7 +164,7 @@ def blacklist_context_drop(surface: str, text: str, start: int, end: int, cfg: H
         return True
 
     # 1b) ALL-CAPS heading
-    if _drop_all_caps_heading(surface, text, start, end, cfg):
+    if _drop_all_caps_heading(surface, text, start, end, cast(HeuristicCfg, cfg)):
         return True
 
     # 2) Token-specific polysemes

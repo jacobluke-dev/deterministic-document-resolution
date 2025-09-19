@@ -118,7 +118,7 @@ def _score_chunk_worker(cfg: DetectorConfig, text: str, cands: list[tuple[str, i
         if blacklist_context_drop(surface, text, s, e, cfg):
             continue
         conf = score(surface, text, s, e, cfg)
-        eff = threshold_len(surface, cfg)
+        eff = threshold_len(surface, cfg.allow_chars)
         th = cfg.min_confidence_by_len.get(eff, cfg.min_confidence_default)
         if conf < th:
             continue
