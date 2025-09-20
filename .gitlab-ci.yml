@@ -87,9 +87,23 @@ core:
 unacronym:
   stage: core
   image: python:3.13
+  services:
+    - name: postgres:15-alpine
+      alias: db
+      command: [ "postgres", "-c", "log_statement=none" ]
+  variables:
+    POETRY_VERSION: "1.8.3"
+    POETRY_VIRTUALENVS_IN_PROJECT: "true"
+    PIP_DISABLE_PIP_VERSION_CHECK: "1"
+    # Single source for DB; use it for sync
+    TEST_DB_URL: "postgresql+psycopg://unacronym:test-password@db:5432/unacronym"
+    POSTGRES_DB: "unacronym"
+    POSTGRES_USER: "unacronym"
+    POSTGRES_PASSWORD: "test-password"
+    # What composition.py expects:
+    DATABASE_URL_SYNC: "$TEST_DB_URL"
+    DATABASE_URL: "postgresql+asyncpg://unacronym:test-password@db:5432/unacronym"
   rules:
-    - if: $CI_PIPELINE_SOURCE == "merge_request_event" && $CI_MERGE_REQUEST_DRAFT == "true"
-      when: never
     - if: $CI_PIPELINE_SOURCE == "merge_request_event"
       changes:
         - packages/plainera_unacronym/**/*
@@ -97,7 +111,23 @@ unacronym:
       changes:
         - packages/plainera_unacronym/**/*
     - when: never
-  <<: *before-poetry
+  before_script:
+    - python --version
+    - pip install "poetry==$POETRY_VERSION"
+    - poetry install --with dev
+    - export VENV_BIN="$(poetry env info --path)/bin"
+    # Wait for DB to be ready
+    - |
+      "$VENV_BIN/python" - <<'PY'
+      import socket, time, sys
+      for _ in range(60):
+          try:
+              with socket.create_connection(("db", 5432), timeout=2):
+                  sys.exit(0)
+          except OSError:
+              time.sleep(1)
+      print("DB not ready in time", file=sys.stderr); sys.exit(2)
+      PY
   script:
     - make -C packages/plainera_unacronym lint      RUN="$VENV_BIN/python -m"
     - make -C packages/plainera_unacronym typecheck RUN="$VENV_BIN/python -m"
