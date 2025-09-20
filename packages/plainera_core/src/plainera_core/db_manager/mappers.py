@@ -27,7 +27,7 @@ def _level_name(raw: Any) -> str:
     return s if s in _LEVEL_NAME_TO_CODE else "info"
 
 
-def _parse_ts(ts: Any) -> datetime:
+def _parse_ts(val: Any) -> datetime:
     """Parse a timestamp-like value and return a timezone-aware UTC
     ``datetime``.
 
@@ -39,13 +39,28 @@ def _parse_ts(ts: Any) -> datetime:
         datetime: A timezone-aware UTC ``datetime`` for strings and fallback;
         for aware ``datetime`` inputs, the original object is returned unchanged.
     """
-    if isinstance(ts, datetime):
-        return ts if ts.tzinfo else ts.replace(tzinfo=timezone.utc)
-    if isinstance(ts, str):
+    # already a datetime?
+    if isinstance(val, datetime):
+        return val if val.tzinfo is not None else val.replace(tzinfo=timezone.utc)
+
+    # string?
+    if isinstance(val, str):
+        s = val.strip()
+        # Reject bare dates: default to now()
+        if "T" not in s:
+            return datetime.now(timezone.utc)
         try:
-            return datetime.fromisoformat(ts.replace("Z", "+00:00")).astimezone(timezone.utc)
+            # Normalize 'Z' to '+00:00' for fromisoformat
+            s_norm = s.replace("Z", "+00:00")
+            dt = datetime.fromisoformat(s_norm)
         except Exception:
-            pass
+            return datetime.now(timezone.utc)
+        # Make UTC-aware
+        if dt.tzinfo is None:
+            return dt.replace(tzinfo=timezone.utc)
+        return dt.astimezone(timezone.utc)
+
+    # everything else → now()
     return datetime.now(timezone.utc)
 
 
