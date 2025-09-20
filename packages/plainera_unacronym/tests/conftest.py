@@ -1,6 +1,6 @@
 from typing import Callable
 
-import plainera_unacronym.nlp.detector as det
+import plainera_unacronym.nlp.detection.detector as det
 import pytest
 
 pytest_plugins = (

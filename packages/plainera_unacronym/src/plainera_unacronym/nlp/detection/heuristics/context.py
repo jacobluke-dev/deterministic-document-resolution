@@ -1,7 +1,7 @@
 from typing import TYPE_CHECKING, FrozenSet, Protocol, cast, overload
 
 from plainera_unacronym.nlp import DetectorConfig
-from plainera_unacronym.nlp.common.config import BOUNDARY, TIME_RE
+from plainera_unacronym.nlp.common.constants import BOUNDARY, TIME_RE
 from plainera_unacronym.nlp.detection.heuristics.core import has_stands_for_follow, in_brackets, next_word_lowercase, prev_token
 from plainera_unacronym.nlp.detection.heuristics.general import (
     at_sentence_boundary,

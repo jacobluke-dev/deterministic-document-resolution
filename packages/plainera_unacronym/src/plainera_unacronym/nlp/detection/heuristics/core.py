@@ -1,14 +1,12 @@
 import re
 from typing import Iterator
 
-from plainera_unacronym.nlp.common.config import (
-    APOSTROPHE_VARIANTS,
+from plainera_unacronym.nlp.common.constants import (
     CLOSING_BRACK,
-    DASH_MAP,
     LEADING_BRACK,
     STANDS_FOR_RE,
     TIME_RE,
-    TRAILING_PUNCT,
+    TRAILING_PUNCT_DEFAULT,
 )
 from plainera_unacronym.nlp.common.shared import has_paren_definition
 from plainera_unacronym.nlp.plugins.registry import DOMAIN_PLUGINS
@@ -91,7 +89,7 @@ def caps_ratio(token: str) -> float:
 
 def strip_trailing_punct(text: str, start: int, end: int) -> tuple[int, int]:
     # Exclude common trailing punctuation from offsets.
-    while end > start and text[end - 1] in TRAILING_PUNCT:
+    while end > start and text[end - 1] in TRAILING_PUNCT_DEFAULT:
         end -= 1
     return start, end
 
@@ -141,37 +139,6 @@ def prev_token(text: str, start: int) -> str:
     while j >= 0 and (text[j].isalnum() or text[j] in ":."):
         j -= 1
     return text[j + 1 : i + 1]
-
-
-def normalize_key(
-    surface: str,
-    allow_chars: str,
-    dotted_mode: str,  # "strip" or "preserve"
-) -> str:
-    # canonicalize look-alikes first
-    s = "".join(APOSTROPHE_VARIANTS.get(ch, DASH_MAP.get(ch, ch)) for ch in surface)
-
-    # dotted policy
-    if dotted_mode == "strip":
-        s = s.replace(".", "")
-    # else "preserve" and do nothing
-
-    # swallow spaces around allowed internal separators (R & D -> R&D)
-    parts: list[str] = []
-    i = 0
-    while i < len(s):
-        ch = s[i]
-        if ch in allow_chars:
-            if parts and parts[-1] == " ":
-                parts.pop()
-            parts.append(ch)
-            i += 1
-            while i < len(s) and s[i] == " ":
-                i += 1
-            continue
-        parts.append(ch)
-        i += 1
-    return "".join(parts)
 
 
 def core_len_for_bounds(token: str) -> int:
