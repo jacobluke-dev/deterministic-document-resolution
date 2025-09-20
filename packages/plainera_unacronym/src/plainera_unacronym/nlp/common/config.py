@@ -1,6 +1,6 @@
 import re
 
-from plainera_unacronym.nlp.heuristics.shared import DottedMode
+from .shared import DottedMode
 
 APOSTROPHE_VARIANTS = {
     "’": "'",  # U+2019

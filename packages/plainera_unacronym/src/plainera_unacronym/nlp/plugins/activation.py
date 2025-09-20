@@ -1,8 +1,9 @@
 from typing import FrozenSet
 
-from ..types import DetectorConfig
+
 from .interface import SupportsSniff
 from .registry import DOMAIN_PLUGINS
+from plainera_unacronym.nlp.common.types import DetectorConfig
 
 
 def autodetect_domains(text: str, cfg: DetectorConfig, *, cap: int = 80_000) -> FrozenSet[str]:

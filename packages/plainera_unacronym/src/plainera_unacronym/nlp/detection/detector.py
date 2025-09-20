@@ -7,9 +7,9 @@ from observability.logger.decorator import logger
 from observability.logger.levels import LogLevel
 from observability.logger.message_logger import message_logger
 
-from plainera_unacronym.nlp.config import ALLOW_CHARS, DOT_MODE
-from plainera_unacronym.nlp.heuristics.context import blacklist_context_drop
-from plainera_unacronym.nlp.heuristics.core import (
+from plainera_unacronym.nlp.common.config import ALLOW_CHARS, DOT_MODE
+from .heuristics.context import blacklist_context_drop
+from .heuristics.core import (
     compile_pattern,
     context_window,
     iter_candidates_with,
@@ -18,10 +18,10 @@ from plainera_unacronym.nlp.heuristics.core import (
     score,
     threshold_len,
 )
-from plainera_unacronym.nlp.heuristics.general import strip_terminal_plural
-from plainera_unacronym.nlp.nlp_helpers import _cfg_fingerprint, top_n_values
+from .heuristics.general import strip_terminal_plural
+from .nlp_helpers import _cfg_fingerprint, top_n_values
 from plainera_unacronym.nlp.plugins.activation import autodetect_domains
-from plainera_unacronym.nlp.types import (
+from plainera_unacronym.nlp.common.types import (
     DetectorConfig,
     DetectorResult,
     FirstOccurrence,

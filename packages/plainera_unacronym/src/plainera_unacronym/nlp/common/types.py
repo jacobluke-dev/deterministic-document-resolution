@@ -2,8 +2,8 @@ import re
 from dataclasses import dataclass, field
 from typing import Any, FrozenSet, Mapping
 
-from plainera_unacronym.nlp.config import ALLOW_CHARS
-from plainera_unacronym.nlp.heuristics.shared import DottedMode
+from .config import ALLOW_CHARS
+from .shared import DottedMode
 
 SCHEMA_VERSION = "1.1.0"
 

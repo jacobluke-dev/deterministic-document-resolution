@@ -1,7 +1,7 @@
 import re
 from typing import Iterator
 
-from plainera_unacronym.nlp.config import (
+from plainera_unacronym.nlp.common.config import (
     APOSTROPHE_VARIANTS,
     CLOSING_BRACK,
     DASH_MAP,
@@ -10,9 +10,9 @@ from plainera_unacronym.nlp.config import (
     TIME_RE,
     TRAILING_PUNCT,
 )
-from plainera_unacronym.nlp.heuristics.shared import has_paren_definition
+from plainera_unacronym.nlp.common.shared import has_paren_definition
 from plainera_unacronym.nlp.plugins.registry import DOMAIN_PLUGINS
-from plainera_unacronym.nlp.types import DetectorConfig, pattern_cache
+from plainera_unacronym.nlp.common.types import DetectorConfig, pattern_cache
 
 Span = tuple[str, int, int]
 

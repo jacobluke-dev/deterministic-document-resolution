@@ -2,7 +2,7 @@ import re
 from dataclasses import dataclass
 from typing import Optional
 
-from plainera_unacronym.nlp.types import DetectorConfig
+from plainera_unacronym.nlp.common.types import DetectorConfig
 
 BIO_GREEK = "\u03b1-\u03c9"  # α–ω
 _STATS_CI_RE = re.compile(r"\b\d{1,3}%\s*CI\b")
