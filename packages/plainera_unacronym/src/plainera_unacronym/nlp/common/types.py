@@ -1,9 +1,8 @@
 import re
 from dataclasses import dataclass, field
-from typing import Any, FrozenSet, Mapping
+from typing import Any, FrozenSet, Mapping, Literal
 
-from .config import ALLOW_CHARS
-from .shared import DottedMode
+from .constants import ALLOW_CHARS, DottedMode
 
 SCHEMA_VERSION = "1.1.0"
 
@@ -27,7 +26,7 @@ class DetectorConfig:
     )
 
     locale: str = "en_GB"
-    window_chars: int = 80
+    window_chars: int = 140
     # Letters only: ratio of uppercase letters over letters (digits ignored).
     require_caps_ratio: float = 0.7
     enable_dotted: bool = False
@@ -64,6 +63,29 @@ class FirstOccurrence:
 class DetectorResult:
     unique_acronyms: dict[str, FirstOccurrence]  # key = normalized_key
     occurrences: list[Occurrence]
+
+# -------------------------- EXTRACTION -------------------------------------
+
+@dataclass(frozen=True, slots=True)
+class ExtractedDefinition:
+    acronym: str
+    definition: str           # normalized
+    source: str               # "in_text"
+    confidence: float
+    acr_start: int
+    acr_end: int
+    def_start: int
+    def_end: int
+    original_definition: str
+
+@dataclass(frozen=True, slots=True)
+class InTextPick:
+    definition: str
+    acr_span: tuple[int, int]
+    def_span: tuple[int, int]
+    confidence: float
+    original_definition: str
+
 
 
 class OccurrenceBuildError(Exception):

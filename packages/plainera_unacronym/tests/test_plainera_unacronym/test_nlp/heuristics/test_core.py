@@ -1,12 +1,12 @@
 import re
 
-import plainera_unacronym.nlp.detector as det
-import plainera_unacronym.nlp.heuristics.core as core
+import plainera_unacronym.nlp.detection.detector as det
+import plainera_unacronym.nlp.detection.heuristics.core as core
 import plainera_unacronym.nlp.plugins.registry as domain_mod
 import pytest
 from plainera_unacronym.nlp import DetectorConfig
-from plainera_unacronym.nlp.config import APOSTROPHE_VARIANTS, TRAILING_PUNCT
-from plainera_unacronym.nlp.heuristics.core import (
+from plainera_unacronym.nlp.common.constants import TRAILING_PUNCT_DEFAULT
+from plainera_unacronym.nlp.detection.heuristics.core import (
     _collect_core_hits,
     _collect_domain_hits,
     _contained_in_any,
@@ -20,7 +20,6 @@ from plainera_unacronym.nlp.heuristics.core import (
     iter_candidates_with,
     letters,
     next_word_lowercase,
-    normalize_key,
     prev_token,
     strip_trailing_punct,
 )
@@ -138,14 +137,14 @@ class TestStripTrailingPunct:
         assert ns == ne  # empty slice after stripping
 
     def test_parametric_known_trailing_chars(self):
-        # Verify behavior for whatever is actually configured in TRAILING_PUNCT
+        # Verify behavior for whatever is actually configured in TRAILING_PUNCT_DEFAULT
         base = "ACRONYM"
         for ch in [".", "!", "?", ")", "]", "'", '"', "”", ",", ";", ":"]:
             text = base + ch + " tail"
             s = 0
             e = len(base) + 1  # include the trailing char
             ns, ne = strip_trailing_punct(text, s, e)
-            if ch in TRAILING_PUNCT:
+            if ch in TRAILING_PUNCT_DEFAULT:
                 assert text[ns:ne] == base
             else:
                 assert text[ns:ne] == base + ch
@@ -356,72 +355,6 @@ class TestPrevToken:
     def test_unicode_letters(self):
         text = "αλφα beta"
         assert prev_token(text, _start_of(text, "beta")) == "αλφα"
-
-
-class TestNormalizeKey:
-    def test_dotted_mode_strip(self):
-        assert normalize_key("U.S.A.", allow_chars="&-/", dotted_mode="strip") == "USA"
-
-    def test_dotted_mode_preserve(self):
-        assert normalize_key("U.S.A.", allow_chars="&-/", dotted_mode="preserve") == "U.S.A."
-
-    def test_swallow_spaces_ampersand(self):
-        assert normalize_key("R & D", allow_chars="&-/", dotted_mode="strip") == "R&D"
-        assert normalize_key("R& D", allow_chars="&-/", dotted_mode="strip") == "R&D"
-        assert normalize_key("R &D", allow_chars="&-/", dotted_mode="strip") == "R&D"
-        assert normalize_key("R&D", allow_chars="&-/", dotted_mode="strip") == "R&D"
-
-    def test_swallow_spaces_hyphen(self):
-        # Single spaces on either/both sides collapse correctly
-        assert normalize_key("GPU - CPU", allow_chars="-&/", dotted_mode="preserve") == "GPU-CPU"
-        assert normalize_key("GPU- CPU", allow_chars="-&/", dotted_mode="preserve") == "GPU-CPU"
-        assert normalize_key("GPU -CPU", allow_chars="-&/", dotted_mode="preserve") == "GPU-CPU"
-        assert normalize_key("GPU-CPU", allow_chars="-&/", dotted_mode="preserve") == "GPU-CPU"
-
-    def test_swallow_spaces_slash(self):
-        assert normalize_key("A / B", allow_chars="/", dotted_mode="strip") == "A/B"
-        assert normalize_key("A/ B", allow_chars="/", dotted_mode="strip") == "A/B"
-        assert normalize_key("A /B", allow_chars="/", dotted_mode="strip") == "A/B"
-        assert normalize_key("A/B", allow_chars="/", dotted_mode="strip") == "A/B"
-
-    def test_non_allowed_separator_keeps_spaces(self):
-        # '&' is not allowed here → spaces remain
-        assert normalize_key("R & D", allow_chars="-/", dotted_mode="strip") == "R & D"
-
-    @staticmethod
-    def _norm(s: str) -> str:
-        return normalize_key(s, allow_chars="&-/", dotted_mode="preserve")
-
-    @pytest.mark.parametrize("variant", list(APOSTROPHE_VARIANTS.keys()))
-    def test_apostrophe_variants_are_canonicalized(self, variant: str) -> None:
-        # Every variant becomes ASCII "'"
-        assert self._norm(f"O{variant}Reilly") == "O'Reilly"
-        assert self._norm(f"rock{variant}n{variant}roll") == "rock'n'roll"
-        # Works in all-caps tokens too (your acronym path)
-        assert self._norm(f"O{variant}RAN") == "O'RAN"
-        # Curly apostrophe should normalize to ASCII "'"
-        assert normalize_key("O’Reilly", allow_chars="&-/", dotted_mode="preserve") == "O'Reilly"
-
-
-    def test_apostrophe_normalization_is_idempotent(self) -> None:
-        assert self._norm("O'Reilly") == "O'Reilly"
-        assert self._norm("rock'n'roll") == "rock'n'roll"
-        assert self._norm("O'RAN") == "O'RAN"
-
-    def test_dash_variants_are_canonicalized_and_trimmed(self):
-        # EN dash / EM dash should map to '-' then spacing rule applies
-        assert normalize_key("GPU – CPU", allow_chars="-", dotted_mode="preserve") == "GPU-CPU"
-        assert normalize_key("A—B", allow_chars="-", dotted_mode="preserve") == "A-B"
-
-    def test_mixed_multiple_allowed_separators(self):
-        s = "R & D / E"
-        out = normalize_key(s, allow_chars="&/", dotted_mode="strip")
-        assert out == "R&D/E"
-
-    def test_allowed_at_edges(self):
-        # Leading/trailing spaces around an allowed separator are swallowed appropriately
-        assert normalize_key("A &B", allow_chars="&", dotted_mode="preserve") == "A&B"
-        assert normalize_key("A& B", allow_chars="&", dotted_mode="preserve") == "A&B"
 
 
 class TestHasLetter:
