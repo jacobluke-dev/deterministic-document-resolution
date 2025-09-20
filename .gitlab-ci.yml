@@ -7,7 +7,7 @@ workflow:
     - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH                                            # default branch
     - when: never
 
-stages: [core]
+stages: [ core ]
 
 variables:
   ENVIRONMENT: "CI"
@@ -38,7 +38,7 @@ core:
   services:
     - name: postgres:15-alpine
       alias: db
-      command: ["postgres", "-c", "log_statement=none"]
+      command: [ "postgres", "-c", "log_statement=none" ]
   variables:
     POETRY_VERSION: "1.8.3"
     PIP_DISABLE_PIP_VERSION_CHECK: "1"
@@ -84,7 +84,33 @@ core:
         path: packages/plainera_core/coverage.xml
     expire_in: 1 week
 
-
+unacronym:
+  stage: core
+  image: python:3.13
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event" && $CI_MERGE_REQUEST_DRAFT == "true"
+      when: never
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+      changes:
+        - packages/plainera_unacronym/**/*
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+      changes:
+        - packages/plainera_unacronym/**/*
+    - when: never
+  <<: *before-poetry
+  script:
+    - make -C packages/plainera_unacronym lint      RUN="$VENV_BIN/python -m"
+    - make -C packages/plainera_unacronym typecheck RUN="$VENV_BIN/python -m"
+    - make -C packages/plainera_unacronym test      RUN="$VENV_BIN/python -m"
+  artifacts:
+    when: always
+    paths:
+      - packages/plainera_unacronym/coverage.xml
+    reports:
+      coverage_report:
+        coverage_format: cobertura
+        path: packages/plainera_unacronym/coverage.xml
+    expire_in: 1 week
 
 observability:
   stage: core
@@ -114,14 +140,13 @@ observability:
         path: packages/plainera_observability/coverage.xml
     expire_in: 1 week
 
-
 api:
   stage: core
   image: python:3.13
   services:
     - name: postgres:15-alpine
       alias: db
-      command: ["postgres", "-c", "log_statement=none"]
+      command: [ "postgres", "-c", "log_statement=none" ]
   variables:
     POSTGRES_DB: "unacronym"
     POSTGRES_USER: "unacronym"
