@@ -12,6 +12,7 @@ class _TestCfg(DetectorConfig):
     window_chars: int = 80
     dotted_display: str = "strip"
     debug_reasons: bool = False
+    debug_anomalies: bool = False
 
 
 class TestBuildOccurrenceFromMatch:
@@ -49,9 +50,9 @@ class TestBuildOccurrenceFromMatch:
 
         # Occurrence fields
         assert isinstance(occ, Occurrence)
-        assert occ.acronym == "NASA"           # dot NOT included
+        assert occ.acronym == "NASA"  # dot NOT included
         assert occ.start_offset == 0
-        assert occ.end_offset == 4             # NOT advanced
+        assert occ.end_offset == 4  # NOT advanced
         assert occ.confidence == 0.87
         assert occ.context_window == (111, 222)
         assert occ.normalized_key == display_key
@@ -91,8 +92,8 @@ class TestBuildOccurrenceFromMatch:
         occ, display_key = _build_occurrence_from_match(cfg, text, surface, s, e, conf=0.9)
 
         assert display_key == "NK[NASA.|preserve]"
-        assert occ.acronym == "NASA."          # dot INCLUDED
-        assert occ.end_offset == 5             # advanced
+        assert occ.acronym == "NASA."  # dot INCLUDED
+        assert occ.end_offset == 5  # advanced
         assert occ.context_window == (5, 10)
 
         # Helper call args used the adjusted end offset
@@ -196,10 +197,9 @@ class TestBuildOccurrenceFromMatch:
         l_p, r_p = occ_p.context_window
         n = len(text)
         for left, right, strt, end in [(l_s, r_s, occ_s.start_offset, occ_s.end_offset),
-                             (l_p, r_p, occ_p.start_offset, occ_p.end_offset)]:
+                                       (l_p, r_p, occ_p.start_offset, occ_p.end_offset)]:
             assert 0 <= left < right <= n
             assert left <= strt < end <= right
-
 
     def test_reason_tags_inside_parens_and_dotted(self):
         text = "The (N.A.S.A.) rocket launched."
@@ -375,13 +375,13 @@ class TestScoreChunkWorkerUnit:
         cfg = DetectorConfig(
             dotted_display="preserve",
             enable_dotted=True,
-            allow_chars="&/-",       # allows '&' for 'R&D'
+            allow_chars="&/-",  # allows '&' for 'R&D'
             window_chars=80,
         )
 
         cands = [
-            ("OK", s_ok, e_ok),           # should be dropped
-            ("R&D", s_rnd, e_rnd),        # should be accepted
+            ("OK", s_ok, e_ok),  # should be dropped
+            ("R&D", s_rnd, e_rnd),  # should be accepted
             ("N.A.S.A", s_nasa, e_nasa),  # should be accepted; dot preserved
         ]
 
@@ -410,3 +410,92 @@ class TestScoreChunkWorkerUnit:
             left, right = o.context_window
             assert 0 <= left < right <= n
             assert left <= o.start_offset < o.end_offset <= right
+
+    def test_builder_exception_skips_when_not_strict_and_logs(self, monkeypatch):
+        cfg = _TestCfg(debug_anomalies=True)
+
+        cands = [("GPU", 0, 3), ("API", 5, 8)]
+
+        # blacklist: let both through to builder
+        monkeypatch.setattr(det, "blacklist_context_drop", lambda *a, **k: False, raising=True)
+        # scores high enough to pass threshold
+        monkeypatch.setattr(det, "score", lambda *a, **k: 0.99, raising=True)
+        # fixed effective length
+        monkeypatch.setattr(det, "threshold_len", lambda *a, **k: 3, raising=True)
+
+        # raise for "GPU", succeed for "API"
+        def fake_build(cfg_, text, surface, s, e, conf):
+            if surface == "GPU":
+                raise det.OccurrenceBuildError("synthetic build error")
+            return det.Occurrence(surface, s, e, conf, (0, 0), surface, None), surface
+
+        monkeypatch.setattr(det, "_build_occurrence_from_match", fake_build, raising=True)
+
+        # capture logs
+        calls = {"events": []}
+
+        def fake_logger(event, **kw):
+            calls["events"].append((event, kw))
+
+        monkeypatch.setattr(det, "message_logger", fake_logger, raising=True)
+
+        out = _score_chunk_worker(cfg, text="GPU and API", cands=cands)
+
+        # GPU skipped due to builder exception; API survives
+        assert [o.acronym for o in out] == ["API"]
+        # one anomaly log
+        assert any(evt == "detector.bad_occurrence" for (evt, _kw) in calls["events"])
+
+    def test_builder_exception_is_skipped(self, monkeypatch):
+        cfg = _TestCfg()
+        cands = [("GPU", 0, 3), ("API", 5, 8)]
+
+        monkeypatch.setattr(det, "blacklist_context_drop", lambda *a, **k: False, raising=True)
+        monkeypatch.setattr(det, "score", lambda *a, **k: 0.99, raising=True)
+        monkeypatch.setattr(det, "threshold_len", lambda *a, **k: 3, raising=True)
+
+        def fake_build(cfg_, text, surface, s, e, conf):
+            if surface == "GPU":
+                raise det.OccurrenceBuildError("boom")
+            return det.Occurrence(surface, s, e, conf, (0, 0), surface, None), surface
+
+        monkeypatch.setattr(det, "_build_occurrence_from_match", fake_build, raising=True)
+
+        out = _score_chunk_worker(cfg, text="GPU and API", cands=cands)
+        assert [o.acronym for o in out] == ["API"]
+
+    def test_builder_exception_logs_when_debug_anomalies_on(self, monkeypatch):
+        cfg = _TestCfg(debug_anomalies=True)
+
+        cands = [("GPU", 0, 3), ("API", 5, 8)]
+        monkeypatch.setattr(det, "blacklist_context_drop", lambda *a, **k: False, raising=True)
+        monkeypatch.setattr(det, "score", lambda *a, **k: 0.99, raising=True)
+        monkeypatch.setattr(det, "threshold_len", lambda *a, **k: 3, raising=True)
+        monkeypatch.setattr(det, "_build_occurrence_from_match",
+                            lambda *a, **k: (_ for _ in ()).throw(det.OccurrenceBuildError("boom"))
+                            if a[2] == "GPU" else (det.Occurrence("API", 5, 8, 0.99, (0, 0), "API", None), "API"),
+                            raising=True)
+
+        events = []
+        monkeypatch.setattr(det, "message_logger", lambda event, **kw: events.append(event), raising=True)
+
+        out = _score_chunk_worker(cfg, text="GPU and API", cands=cands)
+        assert [o.acronym for o in out] == ["API"]
+        assert "detector.bad_occurrence" in events
+
+    def test_builder_exception_does_not_log_when_flag_off(self, monkeypatch):
+        cfg = _TestCfg()  # debug_anomalies defaults False
+        cands = [("GPU", 0, 3)]
+        monkeypatch.setattr(det, "blacklist_context_drop", lambda *a, **k: False, raising=True)
+        monkeypatch.setattr(det, "score", lambda *a, **k: 0.99, raising=True)
+        monkeypatch.setattr(det, "threshold_len", lambda *a, **k: 3, raising=True)
+        monkeypatch.setattr(det, "_build_occurrence_from_match",
+                            lambda *a, **k: (_ for _ in ()).throw(det.OccurrenceBuildError("boom")),
+                            raising=True)
+
+        events = []
+        monkeypatch.setattr(det, "message_logger", lambda event, **kw: events.append(event), raising=True)
+
+        out = _score_chunk_worker(cfg, text="GPU", cands=cands)
+        assert out == []
+        assert events == []  # no log when flag off

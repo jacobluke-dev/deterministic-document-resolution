@@ -21,7 +21,13 @@ from plainera_unacronym.nlp.heuristics.core import (
 from plainera_unacronym.nlp.heuristics.general import strip_terminal_plural
 from plainera_unacronym.nlp.nlp_helpers import _cfg_fingerprint, top_n_values
 from plainera_unacronym.nlp.plugins.activation import autodetect_domains
-from plainera_unacronym.nlp.types import DetectorConfig, DetectorResult, FirstOccurrence, Occurrence
+from plainera_unacronym.nlp.types import (
+    DetectorConfig,
+    DetectorResult,
+    FirstOccurrence,
+    Occurrence,
+    OccurrenceBuildError,
+)
 from plainera_unacronym.wiring.composition import sink
 
 DEFAULT_CONFIG = DetectorConfig()
@@ -59,6 +65,10 @@ def _build_occurrence_from_match(
         tuple[Occurrence, str]: The constructed `Occurrence` and its normalized
         display key (used for deduping/first-occurrence tracking).
 
+    Raises:
+        OccurrenceBuildError: If occurrence is invalid, not of type `str`, or empty, or poor
+        offsets.
+
     Notes:
         * Trailing-dot handling is offset-based only; no regex is modified.
         * `context_window` is derived from the adjusted `(s, end_for_occ)` span.
@@ -70,14 +80,21 @@ def _build_occurrence_from_match(
     # Surface to display (may include the trailing dot if preserving)
     surface_for_display = surface + "." if (display_mode == "preserve" and has_trailing_dot) else surface
     end_for_occ = e + 1 if (display_mode == "preserve" and has_trailing_dot) else e
+    if not (0 <= s < end_for_occ <= len(text)):
+        raise OccurrenceBuildError("bad_offsets")
 
     base = strip_terminal_plural(surface_for_display)
+    if not base.strip():
+        raise OccurrenceBuildError("empty_acronym")
 
     display_key = normalize_key(
         base,
         cfg.allow_chars,
         dotted_mode=display_mode,
     )
+
+    if not display_key:
+        raise OccurrenceBuildError("empty_display_key")
 
     ctx = context_window(text, s, end_for_occ, cfg.window_chars)
 
@@ -122,7 +139,18 @@ def _score_chunk_worker(cfg: DetectorConfig, text: str, cands: list[tuple[str, i
         th = cfg.min_confidence_by_len.get(eff, cfg.min_confidence_default)
         if conf < th:
             continue
-        occ, _ = _build_occurrence_from_match(cfg, text, surface, s, e, conf)
+        try:
+            occ, _ = _build_occurrence_from_match(cfg, text, surface, s, e, conf)
+        except OccurrenceBuildError as err:
+            if getattr(cfg, "debug_anomalies", False):
+                message_logger(
+                    "detector.bad_occurrence",
+                    level=LogLevel.ERROR,
+                    logger_type="message_logger.nlp",
+                    details={"reason": str(err), "surface": surface, "s": s, "e": e},
+                    db_sink=sink,
+                )
+            continue
         out.append(occ)
     return out
 
@@ -221,8 +249,18 @@ class Detector:
             if conf < th:
                 below_threshold += 1
                 continue
+            try:
+                occ, display_key = _build_occurrence_from_match(cfg, text, surface, s, e, conf)
+            except OccurrenceBuildError as err:
+                message_logger(
+                    "detector.bad_occurrence",
+                    level=LogLevel.ERROR,
+                    logger_type="message_logger.nlp",
+                    details={"reason": str(err), "surface": surface, "s": s, "e": e},
+                    db_sink=sink,
+                )
+                continue
 
-            occ, display_key = _build_occurrence_from_match(cfg, text, surface, s, e, conf)
             occurrences.append(occ)
             accepted += 1
 
@@ -323,16 +361,6 @@ class Detector:
 
         firsts: dict[str, FirstOccurrence] = {}
         for occ in occurrences:
-            if not isinstance(occ.acronym, str):
-                message_logger(
-                    "detector.bad_occurrence",
-                    level=LogLevel.ERROR,
-                    logger_type="message_logger.nlp",
-                    details={"type": str(type(occ.acronym)), "occ": repr(occ)[:200]},
-                    db_sink=self.sink,
-                )
-                continue
-
             display_key = getattr(occ, "normalized_key", None)
             if not isinstance(display_key, str) or not display_key:
                 display_key = normalize_key(

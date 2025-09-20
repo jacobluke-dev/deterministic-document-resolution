@@ -37,6 +37,7 @@ class DetectorConfig:
     require_caps_ratio_mixed: float = 0.5
     enabled_domains: FrozenSet[str] = frozenset()
     domain_cfg: Mapping[str, Any] = field(default_factory=dict)
+    debug_anomalies: bool = False  # set to true if we want to run  message logger in dev / live envs
 
 
 @dataclass(frozen=True, slots=True)
@@ -63,6 +64,10 @@ class FirstOccurrence:
 class DetectorResult:
     unique_acronyms: dict[str, FirstOccurrence]  # key = normalized_key
     occurrences: list[Occurrence]
+
+
+class OccurrenceBuildError(Exception):
+    pass
 
 
 pattern_cache: dict[tuple[Any, ...], re.Pattern[str]] = {}
