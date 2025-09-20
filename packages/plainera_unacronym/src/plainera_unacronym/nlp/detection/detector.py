@@ -7,13 +7,12 @@ from observability.logger.decorator import logger
 from observability.logger.levels import LogLevel
 from observability.logger.message_logger import message_logger
 
-from plainera_unacronym.nlp.common.config import ALLOW_CHARS, DOT_MODE
+from plainera_unacronym.nlp.common.constants import ALLOW_CHARS, DOT_MODE_DEFAULT
 from .heuristics.context import blacklist_context_drop
 from .heuristics.core import (
     compile_pattern,
     context_window,
     iter_candidates_with,
-    normalize_key,
     reason_tags,
     score,
     threshold_len,
@@ -29,10 +28,11 @@ from plainera_unacronym.nlp.common.types import (
     OccurrenceBuildError,
 )
 from plainera_unacronym.wiring.composition import sink
+from ..common.shared import normalize_acronym_key
 
 DEFAULT_CONFIG = DetectorConfig()
 ALLOW_CHARS_DEFAULTS = ALLOW_CHARS
-DEFAULT_DOT_MODE = DOT_MODE
+DEFAULT_DOT_MODE_DEFAULT = DOT_MODE_DEFAULT
 
 
 def _build_occurrence_from_match(
@@ -87,7 +87,7 @@ def _build_occurrence_from_match(
     if not base.strip():
         raise OccurrenceBuildError("empty_acronym")
 
-    display_key = normalize_key(
+    display_key = normalize_acronym_key(
         base,
         cfg.allow_chars,
         dotted_mode=display_mode,
@@ -363,7 +363,7 @@ class Detector:
         for occ in occurrences:
             display_key = getattr(occ, "normalized_key", None)
             if not isinstance(display_key, str) or not display_key:
-                display_key = normalize_key(
+                display_key = normalize_acronym_key(
                     occ.acronym,
                     cfg.allow_chars,
                     dotted_mode=getattr(cfg, "dotted_display", "strip"),
