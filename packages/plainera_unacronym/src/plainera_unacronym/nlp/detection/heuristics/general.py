@@ -1,10 +1,10 @@
 from typing import TYPE_CHECKING, Collection, Union
 
-from plainera_unacronym.nlp.common.config import (
+from plainera_unacronym.nlp.common.constants import (
     BOUNDARY_TERMINATORS,
     CLOSING_QUOTES_BRACKETS,
     EXCLAMS,
-    PLURAL_SUFFIXES,
+    PLURAL_SUFFIXES_DEFAULT,
     POST_SPAN_TOKEN_RE)
 from plainera_unacronym.nlp.common.types import DetectorConfig
 
@@ -17,7 +17,7 @@ def _alpha_len(s: str) -> int:
 
 
 def strip_terminal_plural(surface: str) -> str:
-    for suf in PLURAL_SUFFIXES:
+    for suf in PLURAL_SUFFIXES_DEFAULT:
         if surface.endswith(suf) and surface[: -len(suf)].isupper():
             return surface[: -len(suf)]
     return surface
