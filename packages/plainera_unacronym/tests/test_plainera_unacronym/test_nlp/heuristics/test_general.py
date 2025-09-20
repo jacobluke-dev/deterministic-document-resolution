@@ -1,6 +1,6 @@
 import pytest
 from plainera_unacronym.nlp import DetectorConfig
-from plainera_unacronym.nlp.heuristics.general import (
+from plainera_unacronym.nlp.detection.heuristics.general import (
     _alpha_len,
     _comma_near_left,
     at_sentence_boundary,

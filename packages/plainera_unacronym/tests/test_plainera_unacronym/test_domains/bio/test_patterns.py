@@ -1,4 +1,4 @@
-from plainera_unacronym.domains.bio.patterns import bio_pattern
+from plainera_unacronym.nlp.detection.domains.bio.patterns import bio_pattern
 
 
 class TestBioPattern:

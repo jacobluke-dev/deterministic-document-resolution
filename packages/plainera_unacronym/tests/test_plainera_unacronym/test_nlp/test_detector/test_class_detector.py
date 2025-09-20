@@ -2,9 +2,9 @@ import asyncio
 from dataclasses import replace
 from types import SimpleNamespace
 
-import plainera_unacronym.nlp.detector as det
+import plainera_unacronym.nlp.detection.detector as det
 import pytest
-from plainera_unacronym.nlp.detector import (
+from plainera_unacronym.nlp.detection.detector import (
     Detector,
     DetectorConfig,
     Occurrence,

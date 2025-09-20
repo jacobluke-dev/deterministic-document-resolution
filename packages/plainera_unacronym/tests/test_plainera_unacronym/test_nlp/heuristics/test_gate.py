@@ -1,5 +1,5 @@
 import pytest
-from plainera_unacronym.nlp.heuristics.gate import (
+from plainera_unacronym.nlp.detection.heuristics.gate import (
     CYTOKINE,
     GREEK,
     PCR_RE,

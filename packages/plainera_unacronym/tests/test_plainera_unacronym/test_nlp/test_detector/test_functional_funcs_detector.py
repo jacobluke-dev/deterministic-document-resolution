@@ -1,9 +1,9 @@
 from dataclasses import dataclass
 
-import plainera_unacronym.nlp.detector as det
+import plainera_unacronym.nlp.detection.detector as det
 import pytest
 from plainera_unacronym.nlp import DetectorConfig, Occurrence
-from plainera_unacronym.nlp.detector import _build_occurrence_from_match, _score_chunk_worker
+from plainera_unacronym.nlp.detection.detector import _build_occurrence_from_match, _score_chunk_worker
 
 
 @dataclass(frozen=True, slots=True)
@@ -105,7 +105,7 @@ class TestBuildOccurrenceFromMatch:
         When cfg.debug_reasons=True, reasons should be attached as a tuple from reason_tags(...).
         Also verify preserve mode advances end to include the trailing '.'.
         """
-        import plainera_unacronym.nlp.detector as det
+        import plainera_unacronym.nlp.detection.detector as det
 
         def fake_normalize_key(base, allow_chars, dotted_mode):
             return "NK"

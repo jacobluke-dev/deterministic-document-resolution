@@ -1,5 +1,5 @@
 from plainera_unacronym.nlp import DetectorConfig
-from plainera_unacronym.nlp.heuristics.context import blacklist_context_drop
+from plainera_unacronym.nlp.detection.heuristics.context import blacklist_context_drop
 
 
 def mk_cfg(**overrides) -> DetectorConfig:

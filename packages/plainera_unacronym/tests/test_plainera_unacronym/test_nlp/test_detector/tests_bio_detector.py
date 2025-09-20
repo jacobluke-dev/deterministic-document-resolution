@@ -1,8 +1,8 @@
-import plainera_unacronym.nlp.detector as det
+import plainera_unacronym.nlp.detection.detector as det
 import plainera_unacronym.nlp.plugins.activation as act
 import pytest
-from plainera_unacronym.domains.bio.plugin import BioPlugin
-from plainera_unacronym.nlp.detector import Detector, DetectorConfig, autodetect_domains
+from plainera_unacronym.nlp.detection.domains.bio.plugin import BioPlugin
+from plainera_unacronym.nlp.detection.detector import Detector, DetectorConfig, autodetect_domains
 
 
 @pytest.fixture(autouse=True)
