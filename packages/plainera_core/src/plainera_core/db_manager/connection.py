@@ -159,7 +159,7 @@ class DBManager:
 
        Args:
            table_fqn (str): Fully qualified table name (e.g. "public.users").
-           columns (Sequence[str]): List or tuple of column names.
+           columns (Sequence[str]): list or tuple of column names.
            values (Sequence[Any]): Values to insert, in the same order
                as `columns`.
 
@@ -196,7 +196,7 @@ class DBManager:
 
         Args:
             table_fqn (str): Fully qualified table name.
-            columns (Sequence[str] | None): List of column names to select.
+            columns (Sequence[str] | None): list of column names to select.
                 If None, selects all columns ("*").
             where (str | None): Optional WHERE clause (without the "WHERE"
                 keyword).
@@ -204,7 +204,7 @@ class DBManager:
                 clause.
 
         Returns:
-            list[tuple]: List of rows returned by the query.
+            list[tuple]: list of rows returned by the query.
 
         Raises:
             ValueError: If the table is not in `allowed_tables`.

@@ -1,4 +1,4 @@
-from typing import List, Optional
+from typing import Optional
 
 from pydantic import Field, confloat, conint, constr
 
@@ -62,7 +62,7 @@ class ResolveRequest(BaseSchema):
 
 
 class ResolveResponse(BaseSchema):
-    acronyms: List[AcronymBlock] = Field(default_factory=list)
+    acronyms: list[AcronymBlock] = Field(default_factory=list)
     meta: ResolveMeta
 
     class Config:

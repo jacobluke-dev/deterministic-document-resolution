@@ -8,6 +8,7 @@ from typing import Any
 
 SENSITIVE_HEADERS = {"authorization", "x-api-key"}
 
+
 class JsonFormatter(logging.Formatter):
     def format(self, record: logging.LogRecord) -> str:
         payload: dict[str, Any] = {

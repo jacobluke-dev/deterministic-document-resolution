@@ -8,7 +8,7 @@ APP_VERSION ?= 0.1.0
 GIT_SHA := $(shell git rev-parse --short HEAD 2>/dev/null || echo dev)
 
 # Always use the compose file in ../
-COMPOSE := docker compose -f ../docker-compose.yml
+COMPOSE := docker compose -f ../../docker-compose.yml
 
 .PHONY: install run fmt lint style typecheck test cover htmlcov clean hooks \
         build all build-remove-cache up down logs nuke help migrate makemigration downgrade \
@@ -52,7 +52,7 @@ print-env:
 	@env
 
 # ---- Migrations (Alembic) --------------------------------------
-ALEMBIC_INI := unacronym_api/alembic.ini
+ALEMBIC_INI := ./services/unacronym_api/alembic.ini
 alembic-help:
 	$(COMPOSE) exec -T -w /app api python -m alembic -h || (echo "Alembic not available in image" && exit 1)
 

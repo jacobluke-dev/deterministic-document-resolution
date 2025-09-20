@@ -1,4 +1,4 @@
-from typing import List, Optional
+from typing import Optional
 
 from pydantic import Field
 
@@ -12,11 +12,11 @@ class AcronymBlock(BaseSchema):
     first_occurrence: Span = Field(
         ..., description="First occurrence offsets in Python-slice semantics (end exclusive)."
     )
-    definitions: List[Definition] = Field(
+    definitions: list[Definition] = Field(
         default_factory=list,
         description="Candidate definitions for this acronym (ranked by confidence).",
     )
-    occurrences: Optional[List[Span]] = Field(
+    occurrences: Optional[list[Span]] = Field(
         None, description="All occurrences when return_occurrences=true."
     )
     glossary: Optional[GlossaryBlock] = Field(

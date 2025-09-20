@@ -36,6 +36,6 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY services/unacronym_api/src ./src
 
 EXPOSE 8000
-HEALTHCHECK --interval=30s --timeout=3s --start-period=10s CMD curl -fsS http://localhost:${PORT}/healthz || exit 1
+HEALTHCHECK --interval=120s --timeout=3s --start-period=10s CMD curl -fsS http://localhost:${PORT}/healthz || exit 1
 USER app
 CMD ["uvicorn", "--app-dir", "/app/src", "public_api.main:create_app", "--factory", "--host", "0.0.0.0", "--port", "8000"]
