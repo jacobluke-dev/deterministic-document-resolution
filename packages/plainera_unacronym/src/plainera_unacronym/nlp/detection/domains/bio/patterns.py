@@ -1,7 +1,7 @@
 import re
 from functools import lru_cache
 
-from plainera_unacronym.nlp.domains.bio.config import BIO_GREEK
+from plainera_unacronym.nlp.detection.domains.bio.config import BIO_GREEK
 
 
 @lru_cache(maxsize=1)

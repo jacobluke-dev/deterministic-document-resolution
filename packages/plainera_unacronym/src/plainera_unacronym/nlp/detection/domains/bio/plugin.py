@@ -1,8 +1,8 @@
 import re
 
-from plainera_unacronym.nlp.domains.bio.config import BioConfig
-from plainera_unacronym.nlp.domains.bio.patterns import bio_pattern
-from plainera_unacronym.nlp.domains.bio.rules import keep_guard as bio_keep_guard
+from plainera_unacronym.nlp.detection.domains.bio.config import BioConfig
+from plainera_unacronym.nlp.detection.domains.bio.patterns import bio_pattern
+from plainera_unacronym.nlp.detection.domains.bio.rules import keep_guard as bio_keep_guard
 from plainera_unacronym.nlp import DetectorConfig
 from plainera_unacronym.nlp.detection.heuristics.gate import should_enable_bio
 
