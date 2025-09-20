@@ -1,4 +1,4 @@
-from typing import List, Literal, Optional
+from typing import Literal, Optional
 
 from pydantic import Field, confloat, constr
 
@@ -14,18 +14,18 @@ class GlossaryMatch(BaseSchema):
     source: Literal["system"] = "system"
 
 class GlossaryBlock(BaseSchema):
-    matches: List[GlossaryMatch] = Field(default_factory=list)
+    matches: list[GlossaryMatch] = Field(default_factory=list)
 
 class AcronymBlock(BaseSchema):
     acronym: str = Field(..., description="Surface form exactly as detected (no lowercasing).")
     first_occurrence: Span = Field(
         ..., description="First occurrence offsets in Python-slice semantics (end exclusive)."
     )
-    definitions: List[Definition] = Field(
+    definitions: list[Definition] = Field(
         default_factory=list,
         description="Candidate definitions for this acronym (ranked by confidence).",
     )
-    occurrences: Optional[List[Span]] = Field(
+    occurrences: Optional[list[Span]] = Field(
         None, description="All occurrences when return_occurrences=true."
     )
     glossary: Optional[GlossaryBlock] = Field(

@@ -7,7 +7,7 @@ from fastapi import FastAPI
 from fastapi.exceptions import RequestValidationError
 from observability.http.body_limit import BodySizeLimitMiddleware
 from observability.http.request_id import RequestIDMiddleware
-from observability.observability.access_middleware import access_middleware
+from observability.logger.access_middleware import access_middleware
 from plainera_core.db_manager.factory import make_dbm
 from sqlalchemy.engine import Engine
 from starlette.middleware.cors import CORSMiddleware

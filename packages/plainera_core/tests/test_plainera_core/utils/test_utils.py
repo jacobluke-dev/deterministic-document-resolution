@@ -1,9 +1,10 @@
-import os
+from pathlib import Path
 from unittest import mock
 
 import plainera_core.utils.utils as utils
 import pytest
 from plainera_core.utils.utils import (
+    find_project_root,
     get_environment,
     get_project_path,
     is_integration_env,
@@ -88,27 +89,99 @@ class TestEnvironmentFuncs:
         assert func() is expected
 
 
-class TestGetProjectRoot:
-    def test_returns_expected_path_from_fake_file(self, monkeypatch):
+@pytest.fixture(autouse=True)
+def _clear_cache():
+    # Ensure LRU cache doesn't leak between tests
+    find_project_root.cache_clear()
+    yield
+    find_project_root.cache_clear()
 
-        fake_file = os.path.join(
-            os.sep, "a", "b", "c", "src", "utils", "foo", "bar", "utils.py"
-        )
-        monkeypatch.setattr(utils, "__file__", fake_file)
 
-        root = utils.get_project_root()
+class TestFindProjectRoot:
 
-        # 6 levels up from fake_file
-        expected = os.path.abspath(os.path.join(fake_file, "..", "..", "..", "..", "..", ".."))
-        assert root == expected
-        # should be an absolute path
-        assert os.path.isabs(root)
+    def test_returns_repo_root_when_git_present(self, tmp_path: Path):
+        """
+        Start inside src/utils; repo root has .git → should return repo root.
+        """
+        repo = tmp_path / "repo"
+        git = repo / ".git"
+        utils = repo / "src" / "utils"
+        git.mkdir(parents=True)
+        utils.mkdir(parents=True)
+
+        root = find_project_root(start=utils)
+        assert root == repo
+
+    def test_biases_to_git_when_multiple_markers(self, tmp_path: Path):
+        """
+        If both a lower pyproject and an upper .git exist, prefer the .git
+        root.
+        """
+        repo = tmp_path / "repo"
+        pkg = repo / "packages" / "pkg"
+        utils = pkg / "src" / "utils"
+
+        # markers
+        (repo / ".git").mkdir(parents=True)
+        utils.mkdir(parents=True)
+        (pkg / "pyproject.toml").touch()
+
+        root = find_project_root(start=utils)
+        assert root == repo  # prefer repo due to .git
+
+    def test_top_most_when_no_git(self, tmp_path: Path):
+        """
+        With multiple pyproject markers but no .git, choose the top-most
+        candidate.
+        """
+        top = tmp_path / "top"
+        sub = top / "subproj"
+        deep = sub / "src" / "utils"
+        deep.mkdir(parents=True)
+        (top / "pyproject.toml").touch()
+        (sub / "pyproject.toml").touch()
+
+        root = find_project_root(start=deep)
+        assert root == top  # top-most candidate wins
+
+    def test_returns_start_when_no_markers(self, tmp_path: Path, monkeypatch):
+        """
+        If no markers found, return the resolved start (or CWD if start=None).
+        """
+        leaf = tmp_path / "a" / "b" / "c"
+        leaf.mkdir(parents=True)
+
+        # Explicit start (Path)
+        root = find_project_root(start=leaf)
+        assert root == leaf.resolve()
+
+        # Explicit start (str)
+        root2 = find_project_root(start=str(leaf))
+        assert root2 == leaf.resolve()
+
+        # start=None → uses CWD
+        monkeypatch.chdir(leaf)
+        root3 = find_project_root()
+        assert root3 == leaf.resolve()
+
+    def test_handles_marker_tuple_override(self, tmp_path: Path):
+        """
+        Verify custom markers tuple is respected.
+        """
+        repo = tmp_path / "repo"
+        utils = repo / "src" / "utils"
+        utils.mkdir(parents=True)
+        # Only write a .gitlab-ci.yml marker
+        (repo / ".gitlab-ci.yml").touch()
+
+        root = find_project_root(start=utils, markers=("pyproject.toml", ".git", ".gitlab-ci.yml"))
+        assert root == repo
 
 
 class TestGetProjectPath:
     @pytest.fixture
     def mock_project_root(self):
-        with mock.patch('plainera_core.utils.utils.get_project_root') as mock_root:
+        with mock.patch('plainera_core.utils.utils.find_project_root') as mock_root:
             mock_root.return_value = '/home/user/project'
             yield mock_root
 

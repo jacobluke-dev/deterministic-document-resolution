@@ -1,11 +1,16 @@
-from pathlib import Path
-
-from dotenv import load_dotenv
+from plainera_core.utils.utils import find_project_root
 from pydantic import AnyUrl
 from pydantic_settings import BaseSettings
 
-ENV_PATH = Path(__file__).resolve().parents[4] / ".env"
-load_dotenv(dotenv_path=ENV_PATH, override=False)
+ROOT = find_project_root(__file__)
+ENV_PATH = ROOT / ".env"
+
+try:
+    from dotenv import load_dotenv
+    load_dotenv(ENV_PATH)
+except Exception:
+    pass
+
 
 class AppSettings(BaseSettings):
     APP_ENV: str = "development"
@@ -21,7 +26,6 @@ class AppSettings(BaseSettings):
     SENTRY_DSN: str | None = None
 
     RUN_DB_MIGRATIONS: bool = True
-    print("MAX BODY BYTES", MAX_BODY_BYTES)
 
     @property
     def cors_origins(self) -> list[str]:

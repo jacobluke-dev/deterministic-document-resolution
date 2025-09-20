@@ -9,6 +9,7 @@ PYTHON ?= python3.13
 SUBDIRS := \
     packages/plainera_core \
     packages/plainera_observability \
+    packages/plainera_unacronym \
     services/unacronym_api
 
 STEPS := install lint typecheck test build

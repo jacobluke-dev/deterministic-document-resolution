@@ -2,10 +2,9 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
+from observability.db.models.base import BaseWithTimestamps
 from sqlalchemy import ForeignKey, Index, Integer, String
 from sqlalchemy.orm import Mapped, mapped_column, relationship
-
-from public_api.db.models.base import BaseWithTimestamps
 
 if TYPE_CHECKING:
     from .glossary_entry import GlossaryEntry
