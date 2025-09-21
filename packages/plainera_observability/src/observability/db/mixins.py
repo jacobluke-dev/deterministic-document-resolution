@@ -15,7 +15,7 @@ class LoggerCommonMixin:
     level_code: Mapped[int] = mapped_column(Integer, nullable=False)
     level_name: Mapped[str] = mapped_column(String(16), nullable=False)
     event: Mapped[str] = mapped_column(String(128), nullable=False)
-    logger_type: Mapped[str] = mapped_column(String(32), nullable=False)
+    logger_type: Mapped[str] = mapped_column(String(64), nullable=False)
 
     # optional metadata
     function_name: Mapped[str | None] = mapped_column(String(128))

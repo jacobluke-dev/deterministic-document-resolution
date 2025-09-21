@@ -29,8 +29,12 @@ COPY --from=builder /app/requirements.txt ./
 # 2) copy packages to **/app/packages** to match file:///app/packages/... in requirements.txt
 COPY packages /app/packages
 
-# 3) install (you can drop the explicit installs; the exported reqs will cover them)
-RUN pip install --no-cache-dir -r requirements.txt
+# 3) install requirements
+RUN pip install --no-cache-dir -r requirements.txt \
+    && pip install --no-cache-dir \
+         -e /app/packages/plainera_core \
+         -e /app/packages/plainera_observability[fastapi] \
+         -e /app/packages/plainera_unacronym
 
 # 4) app code
 COPY services/unacronym_api/src ./src

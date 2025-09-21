@@ -4,7 +4,7 @@ services:
   api:
     environment:
       DB_HOST: localhost
-      DATABASE_URL: postgresql+psycopg://user:pass@${DB_HOST}:5432/unacronym
+      DATABASE_URL: postgresql+psycopg://unacronym:test-password@db:5432/unacronym
     build:
       context: .
       dockerfile: services/unacronym_api/Dockerfile

@@ -6,7 +6,7 @@ from plainera_unacronym.nlp.common.constants import (
     LEADING_BRACK,
     STANDS_FOR_RE,
     TIME_RE,
-    TRAILING_PUNCT_DEFAULT,
+    TRAILING_PUNCT_DEFAULT, TRAILING_PUNCT_CHARS,
 )
 from plainera_unacronym.nlp.common.shared import has_paren_definition
 from plainera_unacronym.nlp.plugins.registry import DOMAIN_PLUGINS
@@ -89,7 +89,7 @@ def caps_ratio(token: str) -> float:
 
 def strip_trailing_punct(text: str, start: int, end: int) -> tuple[int, int]:
     # Exclude common trailing punctuation from offsets.
-    while end > start and text[end - 1] in TRAILING_PUNCT_DEFAULT:
+    while end > start and text[end - 1] in TRAILING_PUNCT_CHARS:
         end -= 1
     return start, end
 

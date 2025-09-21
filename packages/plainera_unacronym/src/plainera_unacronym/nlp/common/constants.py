@@ -13,7 +13,8 @@ APOSTROPHE_VARIANTS = {
 
 DASH_MAP = {"–": "-", "—": "-", "-": "-"}  # en/em/minus -> "-"
 
-TRAILING_PUNCT_DEFAULT = ",.;:!?)]}»”"
+TRAILING_PUNCT_CHARS = ",.;:!?)]}»”"
+TRAILING_PUNCT_DEFAULT = re.compile(rf"[{re.escape(TRAILING_PUNCT_CHARS)}\s]+$")
 LEADING_BRACK = "([«“["
 CLOSING_BRACK = ")]»”]"
 

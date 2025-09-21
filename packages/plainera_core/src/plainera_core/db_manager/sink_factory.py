@@ -125,6 +125,7 @@ def make_universal_sink(
     mapper = _mapper_for(spec.model, spec.default_logger_type)
     async_sink = SqlAlchemyModelSink(sessionmaker, spec.model, mapper)
     sync_sink = SyncSqlAlchemyModelSink(sync_url, spec.model, mapper)
+    print("HELLLO!!! SINK, ", async_sink, sync_sink)
     return UniversalSink(async_sink, sync_sink)
 
 

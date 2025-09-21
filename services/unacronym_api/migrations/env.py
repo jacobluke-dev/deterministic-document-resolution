@@ -7,7 +7,7 @@ from sqlalchemy import engine_from_config, pool
 from observability.db.models.base import  Base
 # Import models once to populate Base.metadata
 
-import plainera_unacronym.db.models  # noqa: F401
+import public_api.db.models  # noqa: F401
 
 config = context.config
 

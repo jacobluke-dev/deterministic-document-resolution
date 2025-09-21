@@ -1,113 +1,187 @@
 import json
 from dataclasses import asdict
-from pathlib import Path
+from typing import Optional, Dict, Tuple, List
 
+from plainera_unacronym.nlp.common.shared import normalize_acronym_key
 from plainera_unacronym.nlp.detection.detector import Detector
-from plainera_unacronym.nlp.common.types import SCHEMA_VERSION, DetectorConfig, DetectorResult
+from plainera_unacronym.nlp.common.types import (
+    SCHEMA_VERSION,
+    DetectorConfig, DetectorResult,
+    ExtractionResult, ExtractedDefinition, InTextPick, FirstOccurrence
+)
+from plainera_unacronym.nlp.extraction.config import ExtractionConfig
+from plainera_unacronym.nlp.extraction.extract_first_occ import extract_near_firsts
+from plainera_unacronym.nlp.extraction.extract import extract_iter
 
 
-def _serialize(result: DetectorResult, *, pretty: bool = False) -> str:
+def serialize_detection_and_extraction(det: DetectorResult, extr: ExtractionResult, *, pretty: bool = False) -> str:
+    """Serialize detection and in-text extraction results to a JSON string.
+
+        Produces a Unicode JSON payload (``ensure_ascii=False``) that combines the
+        detector output and the extraction summary under a stable schema version.
+
+        Payload structure:
+          - ``schema_version`` (str): Version tag (from ``SCHEMA_VERSION``).
+          - ``detection`` (object):
+              - ``unique_acronyms`` (dict[str, FirstOccurrence]): Map of normalized
+                acronym key → first occurrence fields (``acronym``, offsets,
+                ``confidence``, ``normalized_key``).
+              - ``occurrences`` (list[Occurrence]): All accepted acronym occurrences,
+                including context windows and optional ``reasons`` when enabled.
+          - ``extraction`` (object):
+              - ``strategy`` (str): One of ``"anchored"``, ``"hybrid-filled"``, or ``"global"``.
+              - ``coverage`` (float): Fraction of acronyms that received an in-text definition.
+              - ``missing_keys`` (list[str]): Normalized keys with no in-text definition.
+              - ``picks`` (dict[str, InTextPick | null]): Best in-text definition per key
+                (or ``null`` if none). ``InTextPick`` includes ``definition``,
+                ``acr_span``, ``def_span``, ``confidence``, and ``original_definition``.
+              - ``definitions`` (list[ExtractedDefinition]): All definition locations considered/returned.
+                ``ExtractedDefinition`` includes ``acronym``, normalized ``definition``,
+                ``source`` (always ``"in_text"``), ``confidence``, acronym/definition spans,
+                and ``original_definition``.
+
+        Args:
+            det (DetectorResult): The detector output containing first occurrences and all occurrences.
+            extr (ExtractionResult): The extraction output with per-key picks and definition locations.
+            pretty (bool, optional): If ``True``, pretty-prints JSON with indentation.
+                Defaults to ``False``.
+
+        Returns:
+            str: A JSON string with the fields described above. Unicode characters are preserved
+            (``ensure_ascii=False``).
+
+        Example:
+            >>> json_str = serialize_detection_and_extraction(det_res, extr, pretty=True)
+            >>> data = json.loads(json_str)
+            >>> data["extraction"]["strategy"]
+            'anchored'
+        """
     payload = {
         "schema_version": SCHEMA_VERSION,
-        "unique_acronyms": {k: asdict(v) for k, v in result.unique_acronyms.items()},
-        "occurrences": [asdict(o) for o in result.occurrences],
+        "detection": {
+            "unique_acronyms": {k: asdict(v) for k, v in det.unique_acronyms.items()},
+            "occurrences": [asdict(o) for o in det.occurrences],
+        },
+        "extraction": {
+            "strategy": extr.strategy,
+            "coverage": extr.coverage,
+            "missing_keys": list(extr.missing_keys),
+            "picks": {k: (asdict(v) if v else None) for k, v in extr.picks.items()},
+            "definitions": [asdict(d) for d in extr.definitions],
+        },
     }
     return json.dumps(payload, ensure_ascii=False, indent=2 if pretty else None)
 
 
-def run_detection(
+def _nearest_from_global(
+    text: str,
+    firsts: Dict[str, FirstOccurrence],
+    det_cfg: DetectorConfig,
+    ext_cfg: ExtractionConfig,
+) -> Tuple[Dict[str, Optional[InTextPick]], List[ExtractedDefinition]]:
+    """
+    Single global scan; index by detector's key and pick nearest per FO.
+    Returns (picks_by_key, all_defs).
+    """
+    defs = list(extract_iter(text, ext_cfg))
+    # index by normalized key
+    dotted_mode = getattr(det_cfg, "dotted_display", "strip")
+    index: Dict[str, List[ExtractedDefinition]] = {}
+    for d in defs:
+        k = normalize_acronym_key(d.acronym, det_cfg.allow_chars, dotted_mode)
+        if not k:
+            continue
+        index.setdefault(k, []).append(d)
+
+    picks: Dict[str, Optional[InTextPick]] = {}
+    for key, fo in firsts.items():
+        cands = index.get(key, [])
+        if not cands:
+            picks[key] = None
+            continue
+        # nearest by acronym start; prefer higher confidence on ties
+        best = min(cands, key=lambda c: (abs(c.acr_start - fo.start_offset), -c.confidence, c.acr_start))
+        picks[key] = InTextPick(
+            definition=best.definition,
+            acr_span=(best.acr_start, best.acr_end),
+            def_span=(best.def_start, best.def_end),
+            confidence=best.confidence,
+            original_definition=best.original_definition,
+        )
+    return picks, defs
+
+
+def detect_and_extract(
     text: str,
     *,
-    parallel: bool = False,
-    caps_ratio: float = 0.7,
-    pretty: bool = False,
-    as_json: bool = True,
-    debug_reasons: bool = False,
-    enable_dotted: bool = False,
-) -> str | DetectorResult:
-    cfg = DetectorConfig(
-        require_caps_ratio=caps_ratio,
-        debug_reasons=debug_reasons,
-        enable_dotted=enable_dotted,
-    )
-    det = Detector(cfg)
-    result = det.detect_parallel(text) if parallel else det.detect(text)
-    return _serialize(result, pretty=pretty) if as_json else result
-
-
-def execute_acronym_locator(
-    file_path: str,
-    *,
-    parallel: bool = False,
-    caps_ratio: float = 0.7,
-    pretty: bool = False,
-    as_json: bool = True,
-    debug_reasons: bool = False,
-    enable_dotted: bool = False,
-) -> str | DetectorResult:
+    det_cfg: Optional[DetectorConfig] = None,
+    ext_cfg: Optional[ExtractionConfig] = None,
+    window_left: int = 320,
+    window_right: int = 280,
+) -> Tuple[DetectorResult, ExtractionResult]:
     """
-    Run the acronym detector on the contents of a file and return results.
-
-    This is a convenience wrapper around `run_detection(...)` that:
-    1) reads `file_path` as UTF-8 text,
-    2) invokes the detector with the given options, and
-    3) returns either a JSON string (default) or a `DetectorResult` object.
-
-    Args:
-      file_path: Path to a UTF-8 text file to analyze.
-      parallel: If True, may use a process pool for large inputs (same results as serial).
-      caps_ratio: Required ratio of uppercase letters over letters for a token to be considered
-        (digits ignored). Typical range: 0.6–0.8. Higher values are stricter.
-      pretty: If True and `as_json=True`, pretty-prints the JSON with indentation.
-      as_json: If True (default), return a JSON string. If False, return a `DetectorResult`.
-      debug_reasons: If True, include a `reasons` list per occurrence explaining which
-        heuristics fired and the effective threshold used (useful for logging/debugging).
-      enable_dotted: If True, detect dotted initialisms like “U.S.” / “U.S.A.” and normalize
-        their keys by stripping dots (e.g., “U.S.” → key “US”).
-
-    Returns:
-      str | DetectorResult:
-        - If `as_json=True`: a JSON string with keys `schema_version`, `unique_acronyms`,
-          and `occurrences`. Each occurrence includes `acronym`, offsets, confidence,
-          `context_window`, `normalized_key`, and (optionally) `reasons`.
-        - If `as_json=False`: a `DetectorResult` dataclass with the same information.
-
-    Raises:
-      FileNotFoundError: If `file_path` does not exist.
-      PermissionError: If the file cannot be read due to permissions.
-      UnicodeDecodeError: If the file is not valid UTF-8.
-      OSError: For other I/O errors encountered while reading the file.
-
-    Notes:
-      - Offsets are Python code-point indices into the original text.
-      - Parallel mode preserves determinism and first-occurrence selection.
-      - Normalized keys canonicalize separators (e.g., “R & D” → “R&D”); when
-        `enable_dotted=True`, dots are removed (“U.S.” → “US”).
-
-    Examples:
-      >>> # Return pretty JSON (good for logging or API responses)
-      >>> json_str = execute_acronym_locator(
-      ...     "sample.txt",
-      ...     parallel=True,
-      ...     debug_reasons=True,
-      ...     enable_dotted=False,
-      ...     pretty=True,
-      ...     as_json=True,
-      ... )
-      >>> print(json_str[:120])
-
-      >>> # Return structured result (good for programmatic use)
-      >>> result = execute_acronym_locator("sample.txt", as_json=False)
-      >>> list(result.unique_acronyms.keys())
-      ['NHS', 'IT', 'R&D']
+    1) detect acronyms
+    2) anchored extraction near FirstOccurrence for each acronym
+    3) if any missing -> one global extraction to fill gaps
+    4) return both the detector result and an ExtractionResult data class
     """
-    text = Path(file_path).read_text(encoding="utf-8")
-    return run_detection(
+    det = Detector(config=det_cfg or DetectorConfig())
+    det_res = det.detect(text)  # or detect_parallel per your caller
+
+    # Step 2: anchored
+    ext_cfg = ext_cfg or ExtractionConfig()
+    anchored_picks = extract_near_firsts(
         text,
-        parallel=parallel,
-        caps_ratio=caps_ratio,
-        pretty=pretty,
-        as_json=as_json,
-        debug_reasons=debug_reasons,
-        enable_dotted=enable_dotted,
+        firsts=det_res.unique_acronyms,
+        cfg=ext_cfg,
+        window_left=window_left,
+        window_right=window_right,
     )
+
+    missing = tuple(sorted(k for k, v in anchored_picks.items() if v is None))
+    if not missing:
+        # No need for global scan; reconstruct minimal 'definitions' from picks for completeness
+        defs: List[ExtractedDefinition] = []
+        for key, pick in anchored_picks.items():
+            if pick is None:
+                continue
+            a0, a1 = pick.acr_span
+            # reconstruct acronym surface from text (consistent with offsets)
+            acr_surface = text[a0:a1]
+            defs.append(
+                ExtractedDefinition(
+                    acronym=acr_surface.upper(),  # normalized acronym form for consistency
+                    definition=pick.definition,
+                    source="in_text",
+                    confidence=pick.confidence,
+                    acr_start=a0, acr_end=a1,
+                    def_start=pick.def_span[0], def_end=pick.def_span[1],
+                    original_definition=pick.original_definition,
+                )
+            )
+        extr = ExtractionResult(
+            picks=anchored_picks,
+            definitions=defs,
+            strategy="anchored",
+            coverage=(len(anchored_picks) - len(missing)) / max(1, len(anchored_picks)),
+            missing_keys=missing,
+        )
+        return det_res, extr
+
+    # Step 3: global fallback once
+    global_picks, global_defs = _nearest_from_global(text, det_res.unique_acronyms, det.cfg, ext_cfg)
+
+    # fill anchored gaps with global picks
+    merged: Dict[str, Optional[InTextPick]] = dict(anchored_picks)
+    for k in missing:
+        merged[k] = global_picks.get(k)
+
+    remaining_missing = tuple(sorted(k for k, v in merged.items() if v is None))
+    extr = ExtractionResult(
+        picks=merged,
+        definitions=global_defs,       # global provides a full set of locations
+        strategy="hybrid-filled",
+        coverage=(len(merged) - len(remaining_missing)) / max(1, len(merged)),
+        missing_keys=remaining_missing,
+    )
+    return det_res, extr

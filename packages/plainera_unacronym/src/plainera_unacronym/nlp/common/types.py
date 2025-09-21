@@ -1,6 +1,6 @@
 import re
 from dataclasses import dataclass, field
-from typing import Any, FrozenSet, Mapping, Literal
+from typing import Any, FrozenSet, Mapping, Literal, Optional
 
 from .constants import ALLOW_CHARS, DottedMode
 
@@ -86,6 +86,20 @@ class InTextPick:
     confidence: float
     original_definition: str
 
+
+@dataclass(frozen=True, slots=True)
+class ExtractionResult:
+    # map normalized_key -> pick (nearest in-text definition) or None if not found
+    picks: dict[str, Optional[InTextPick]]
+    # all definition locations considered (anchored-window matches if no global run,
+    # or full global matches if we did the fallback)
+    definitions: list[ExtractedDefinition]
+    # which strategy ultimately produced 'picks' / 'definitions'
+    strategy: Literal["anchored", "hybrid-filled", "global"]
+    # convenience metric: fraction of acronyms with a pick
+    coverage: float
+    # normalized keys that had no in-text definition
+    missing_keys: tuple[str, ...]
 
 
 class OccurrenceBuildError(Exception):

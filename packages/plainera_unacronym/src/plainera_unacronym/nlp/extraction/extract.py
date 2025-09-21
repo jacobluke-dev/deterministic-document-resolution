@@ -24,11 +24,9 @@ def _compile_parenthetical(cfg: ExtractionConfig) -> tuple[Pattern[str], Pattern
     rev = re.compile(rf"\b{acr}\s*\(\s*{phr}\s*\)", re.IGNORECASE | re.MULTILINE)
     return fwd, rev
 
-def _compile_inline(cfg: ExtractionConfig) -> list[Pattern[str]]:
+def _compile_inline(cfg: ExtractionConfig, cues: tuple[str, ...]) -> list[Pattern[str]]:
     acr, phr = _acr_pat(cfg), _def_pat(cfg)
-    return [re.compile(rf"\b{acr}\b\s*,?\s*{cue}\s+{phr}",
-                       re.IGNORECASE | re.MULTILINE)
-            for cue in cfg.inline_cues]
+    return [re.compile(rf"\b{acr}\b\s*,?\s*{cue}\s+{phr}", re.IGNORECASE | re.MULTILINE) for cue in cues]
 
 # ---------- Cheap validators ----------
 def _has_letters(s: str) -> bool:
@@ -97,7 +95,7 @@ def _parenthetical_allowed(cfg: ExtractionConfig, definition: str, acronym: str)
 
 # ---------- Core API ----------
 def extract_iter(text: str, cfg: ExtractionConfig = ExtractionConfig()) -> Iterator[ExtractedDefinition]:
-    _build_plan(cfg)
+    plan = _build_plan(cfg)
     seen: set[tuple[int, int, int, int]] = set()
 
     def collect(pat: Pattern[str], base_conf: float, is_parenthetical: bool) -> Iterator[ExtractedDefinition]:
@@ -119,7 +117,8 @@ def extract_iter(text: str, cfg: ExtractionConfig = ExtractionConfig()) -> Itera
             if cfg.require_two_words and not _two_words(definition):
                 continue
             if is_parenthetical and not _parenthetical_allowed(cfg, definition, acronym):
-                continue
+                if plan.parenthetical_allows and not all(fn(definition, acronym) for fn in plan.parenthetical_allows):
+                    continue
 
             a0, a1 = m.span("acr")
             d0, d1 = m.span("def")
@@ -145,7 +144,7 @@ def extract_iter(text: str, cfg: ExtractionConfig = ExtractionConfig()) -> Itera
         yield from collect(rev, cfg.conf_parenthetical, True)
 
     if cfg.enabled_inline:
-        for pat in _compile_inline(cfg):
+        for pat in _compile_inline(cfg, plan.inline_cues):
             yield from collect(pat, cfg.conf_inline, False)
 
 def extract_in_text_definitions(text: str, cfg: ExtractionConfig = ExtractionConfig()) -> list[ExtractedDefinition]:
