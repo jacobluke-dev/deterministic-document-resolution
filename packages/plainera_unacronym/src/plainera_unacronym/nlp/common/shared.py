@@ -90,6 +90,29 @@ def normalize_acronym_key(surface: str, allow_chars: str, dotted_mode: str) -> s
     s = _swallow_spaces_around_allowed(s, allow_chars)
     return s
 
+# punctuation / clause boundaries
+_BOUNDARY_RE = re.compile(r"[\.!?;:,—–-]\s+")
+# last TitleCase/UPPER run (optionally joined by common linkers)
+_TITLECASE_TAIL_RE = re.compile(
+    r"(?:^|[\s,])([A-Z][\w’'-]*(?:\s+(?:[A-Z][\w’'-]*|of|and|for|to|in|on|with|the|&)){0,12})\s*$",
+    flags=re.UNICODE,
+)
+
+
+def tighten_definition_span(s: str) -> str:
+    s = s.strip()
+
+    # 1) keep only the last clause
+    parts = _BOUNDARY_RE.split(s)
+    tail = parts[-1].strip() if parts else s
+
+    # 2) prefer a TitleCase/UPPER tail if present
+    m = _TITLECASE_TAIL_RE.search(tail)
+    if m:
+        tail = m.group(1).strip()
+
+    return tail
+
 def normalize_definition(s: str) -> str:
     """
     UX/display normalisation for definitions:

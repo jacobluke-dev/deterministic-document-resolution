@@ -3,7 +3,7 @@ from typing import Iterator, Pattern, Iterable, Callable
 import re
 
 from .config import ExtractionConfig
-from ..common.shared import normalize_definition
+from ..common.shared import normalize_definition, tighten_definition_span
 from ..common.types import ExtractedDefinition
 
 
@@ -109,7 +109,7 @@ def extract_iter(text: str, cfg: ExtractionConfig = ExtractionConfig()) -> Itera
                 continue
 
             original_def = def_raw
-            definition = normalize_definition(def_raw)
+            definition = normalize_definition(tighten_definition_span(def_raw))
             if not definition or len(definition) > cfg.max_phrase_chars:
                 continue
             if not _has_letters(definition):

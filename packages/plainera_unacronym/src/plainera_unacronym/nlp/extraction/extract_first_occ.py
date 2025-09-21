@@ -2,7 +2,7 @@ from __future__ import annotations
 import re
 from typing import Mapping, Optional, Pattern
 from .config import ExtractionConfig
-from ..common.shared import normalize_definition
+from ..common.shared import normalize_definition, tighten_definition_span
 from ..common.types import FirstOccurrence, ExtractedDefinition, InTextPick
 
 
@@ -55,7 +55,7 @@ def extract_near_firsts(
                 if a1 <= fo.start_offset or a0 >= fo.end_offset:
                     continue
                 orig = m.group("def")
-                definition = normalize_definition(orig)
+                definition = normalize_definition(tighten_definition_span(orig))
                 if not definition or len(definition) > cfg.max_phrase_chars:
                     continue
                 # score: base + small distance penalty
