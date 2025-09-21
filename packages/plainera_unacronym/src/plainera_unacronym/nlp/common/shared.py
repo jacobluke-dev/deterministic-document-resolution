@@ -3,6 +3,7 @@ import unicodedata
 
 from plainera_unacronym.nlp.common.config import CANON_TABLE, TRAILING_PUNCT
 
+
 def has_paren_definition(text: str, end: int, max_chars: int = 80) -> bool:
     """Return whether a parenthetical definition follows immediately after a token.
 
@@ -54,15 +55,19 @@ def has_paren_definition(text: str, end: int, max_chars: int = 80) -> bool:
     # valid only if we hit a closing ')' within the limit
     return (j < n and text[j] == ")") and (alpha >= 5)
 
-def _canonicalize(s: str) -> str:
+
+def canonicalize(s: str) -> str:
     # NFKC normalisation + map look-alikes (apostrophes, dashes)
     return unicodedata.normalize("NFKC", s).translate(CANON_TABLE)
 
-def _collapse_ws(s: str) -> str:
+
+def collapse_ws(s: str) -> str:
     return re.sub(r"\s+", " ", s).strip()
 
-def _strip_trailing_punct(s: str) -> str:
+
+def strip_trailing_punct(s: str) -> str:
     return re.sub(TRAILING_PUNCT, "", s)
+
 
 def _swallow_spaces_around_allowed(s: str, allow_chars: str) -> str:
     # R & D -> R&D ; keep everything else unchanged
@@ -76,6 +81,7 @@ def _swallow_spaces_around_allowed(s: str, allow_chars: str) -> str:
     pat_left = re.compile(rf"\s+([{re.escape(allow_chars)}])")
     return pat_left.sub(r"\1", s)
 
+
 def normalize_acronym_key(surface: str, allow_chars: str, dotted_mode: str) -> str:
     """
     Canonical form for acronym keys:
@@ -84,11 +90,12 @@ def normalize_acronym_key(surface: str, allow_chars: str, dotted_mode: str) -> s
       - swallow spaces around allowed internal separators (&-/.) only
     NO lowercasing here; upstream chooses case policy.
     """
-    s = _canonicalize(surface)
+    s = canonicalize(surface)
     if dotted_mode == "strip":
         s = s.replace(".", "")
     s = _swallow_spaces_around_allowed(s, allow_chars)
     return s
+
 
 # punctuation / clause boundaries
 _BOUNDARY_RE = re.compile(r"[\.!?;:,—–-]\s+")
@@ -113,6 +120,7 @@ def tighten_definition_span(s: str) -> str:
 
     return tail
 
+
 def normalize_definition(s: str) -> str:
     """
     UX/display normalisation for definitions:
@@ -120,4 +128,42 @@ def normalize_definition(s: str) -> str:
       - collapse whitespace
       - strip trailing punctuation
     """
-    return _strip_trailing_punct(_collapse_ws(_canonicalize(s)))
+    return strip_trailing_punct(collapse_ws(canonicalize(s)))
+
+
+_LEADING_CONNECTORS = re.compile(
+    r"^(?:while|whereas|and|or|but|that|which|who|as|for|to)\b[\s,:-]*",
+    flags=re.IGNORECASE,
+)
+_ARTICLE = re.compile(r"^(?:the|an|a)\s+", flags=re.IGNORECASE)
+
+# Last Proper-Noun chunk, e.g. "North American Saxophone Alliance"
+_LAST_PROPER_CHUNK = re.compile(
+    r"([A-Z][\w’'-]+(?:\s+[A-Z][\w’'-]+){1,})$"
+)
+
+
+def tighten_label(s: str) -> str:
+    s = normalize_definition(s)
+
+    # drop leading connectors (run twice to be safe)
+    for _ in range(2):
+        s = _LEADING_CONNECTORS.sub("", s).strip()
+
+    # if we have a trailing proper-noun chunk, use it
+    m = _LAST_PROPER_CHUNK.search(s)
+    if m:
+        chunk = m.group(1)
+        return _ARTICLE.sub("", chunk).strip()
+
+    # else: remove leading article only
+    s = _ARTICLE.sub("", s).strip()
+
+    # common “X is/means/stands for Y” patterns → keep the RHS
+    for splitter in (" stands for ", " means ", " is ", " are "):
+        parts = s.split(splitter, 1)
+        if len(parts) == 2:
+            return parts[1].strip()
+
+    # fallback: return as-is (already normalized)
+    return s

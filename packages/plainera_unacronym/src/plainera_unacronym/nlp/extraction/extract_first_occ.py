@@ -2,7 +2,8 @@ from __future__ import annotations
 import re
 from typing import Mapping, Optional, Pattern
 from .config import ExtractionConfig
-from ..common.shared import normalize_definition, tighten_definition_span
+from .tighten import tighten_label_by_acronym
+from ..common.shared import tighten_definition_span, tighten_label
 from ..common.types import FirstOccurrence, ExtractedDefinition, InTextPick
 
 
@@ -55,16 +56,22 @@ def extract_near_firsts(
                 if a1 <= fo.start_offset or a0 >= fo.end_offset:
                     continue
                 orig = m.group("def")
-                definition = normalize_definition(tighten_definition_span(orig))
-                if not definition or len(definition) > cfg.max_phrase_chars:
+                clean = tighten_label(tighten_definition_span(orig))
+                if not clean or len(clean) > cfg.max_phrase_chars:
                     continue
                 # score: base + small distance penalty
                 dist = abs(a0 - fo.start_offset)
                 conf = min(base_conf - min(dist, 200) * 0.0005, 0.99)  # gently prefer nearer matches
                 cand = ExtractedDefinition(
-                    acronym=acr_norm, definition=definition, source="in_text",
-                    confidence=conf, acr_start=a0, acr_end=a1,
-                    def_start=d0, def_end=d1, original_definition=orig,
+                    acronym=acr_norm,
+                    definition=tighten_label_by_acronym(clean, acr_norm.upper()),
+                    source="in_text",
+                    confidence=conf,
+                    acr_start=a0,
+                    acr_end=a1,
+                    def_start=d0,
+                    def_end=d1,
+                    original_definition=orig,
                 )
                 if (best is None) or (cand.confidence > best[0].confidence) \
                    or (cand.confidence == best[0].confidence and dist < abs(best[0].acr_start - fo.start_offset)):

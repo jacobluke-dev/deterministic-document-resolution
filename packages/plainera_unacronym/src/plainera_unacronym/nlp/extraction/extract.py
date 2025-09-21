@@ -3,6 +3,7 @@ from typing import Iterator, Pattern, Iterable, Callable
 import re
 
 from .config import ExtractionConfig
+from .tighten import tighten_label_by_acronym
 from ..common.shared import normalize_definition, tighten_definition_span
 from ..common.types import ExtractedDefinition
 
@@ -130,7 +131,7 @@ def extract_iter(text: str, cfg: ExtractionConfig = ExtractionConfig()) -> Itera
             conf = min(base_conf + (0.03 if _acrostic_ok(acronym, definition) else 0.0), 0.99)
             yield ExtractedDefinition(
                 acronym=acronym,
-                definition=definition,
+                definition=tighten_label_by_acronym(definition, acronym.upper()),
                 source="in_text",
                 confidence=conf,
                 acr_start=a0, acr_end=a1,

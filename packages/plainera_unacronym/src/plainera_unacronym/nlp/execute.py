@@ -7,11 +7,16 @@ from plainera_unacronym.nlp.detection.detector import Detector
 from plainera_unacronym.nlp.common.types import (
     SCHEMA_VERSION,
     DetectorConfig, DetectorResult,
-    ExtractionResult, ExtractedDefinition, InTextPick, FirstOccurrence
+    ExtractionResult, ExtractedDefinition, InTextPick, FirstOccurrence, OccurrenceLite
 )
 from plainera_unacronym.nlp.extraction.config import ExtractionConfig
+from plainera_unacronym.nlp.extraction.defs_utils import defs_from_picks
 from plainera_unacronym.nlp.extraction.extract_first_occ import extract_near_firsts
 from plainera_unacronym.nlp.extraction.extract import extract_iter
+from plainera_unacronym.nlp.extraction.harvest import harvest_defs_all
+from plainera_unacronym.nlp.extraction.helper_patterns import dedupe_defs
+from plainera_unacronym.nlp.senses.disambiguate import disambiguate_occurrences
+from plainera_unacronym.nlp.senses.sense_build import build_senses
 
 
 def serialize_detection_and_extraction(det: DetectorResult, extr: ExtractionResult, *, pretty: bool = False) -> str:
@@ -119,69 +124,67 @@ def detect_and_extract(
     window_left: int = 320,
     window_right: int = 280,
 ) -> Tuple[DetectorResult, ExtractionResult]:
-    """
-    1) detect acronyms
-    2) anchored extraction near FirstOccurrence for each acronym
-    3) if any missing -> one global extraction to fill gaps
-    4) return both the detector result and an ExtractionResult data class
-    """
     det = Detector(config=det_cfg or DetectorConfig())
-    det_res = det.detect(text)  # or detect_parallel per your caller
+    det_res = det.detect(text)
 
-    # Step 2: anchored
     ext_cfg = ext_cfg or ExtractionConfig()
+
     anchored_picks = extract_near_firsts(
-        text,
-        firsts=det_res.unique_acronyms,
-        cfg=ext_cfg,
-        window_left=window_left,
-        window_right=window_right,
+        text, firsts=det_res.unique_acronyms, cfg=ext_cfg,
+        window_left=window_left, window_right=window_right,
     )
 
+    # 1) defs from anchored + 2) harvest extra
+    anchored_defs = defs_from_picks(text, anchored_picks)
+    extra_defs = harvest_defs_all(text, det_res.occurrences, ext_cfg)
+
+    # 3) dedupe + choose strategy fields
+    all_defs = dedupe_defs(anchored_defs + extra_defs)
+
+    # Optionally still run your global gap-fill if you want picks for missing keys
     missing = tuple(sorted(k for k, v in anchored_picks.items() if v is None))
-    if not missing:
-        # No need for global scan; reconstruct minimal 'definitions' from picks for completeness
-        defs: List[ExtractedDefinition] = []
-        for key, pick in anchored_picks.items():
-            if pick is None:
-                continue
-            a0, a1 = pick.acr_span
-            # reconstruct acronym surface from text (consistent with offsets)
-            acr_surface = text[a0:a1]
-            defs.append(
-                ExtractedDefinition(
-                    acronym=acr_surface.upper(),  # normalized acronym form for consistency
-                    definition=pick.definition,
-                    source="in_text",
-                    confidence=pick.confidence,
-                    acr_start=a0, acr_end=a1,
-                    def_start=pick.def_span[0], def_end=pick.def_span[1],
-                    original_definition=pick.original_definition,
-                )
-            )
-        extr = ExtractionResult(
-            picks=anchored_picks,
-            definitions=defs,
-            strategy="anchored",
-            coverage=(len(anchored_picks) - len(missing)) / max(1, len(anchored_picks)),
-            missing_keys=missing,
-        )
-        return det_res, extr
+    if missing:
+        global_picks, global_defs = _nearest_from_global(text, det_res.unique_acronyms, det.cfg, ext_cfg)
+        merged = dict(anchored_picks)
+        for k in missing:
+            merged[k] = global_picks.get(k)
+        picks = merged
+        strategy = "anchored+harvest+global"
+        coverage = (len(merged) - sum(1 for v in merged.values() if v is None)) / max(1, len(merged))
+        missing_keys = tuple(sorted(k for k, v in merged.items() if v is None))
+        # Optionally merge global_defs into the pool as well:
+        all_defs = dedupe_defs(all_defs + list(global_defs))
+    else:
+        picks = anchored_picks
+        strategy = "anchored+harvest"
+        coverage = (len(picks) - 0) / max(1, len(picks))
+        missing_keys = ()
 
-    # Step 3: global fallback once
-    global_picks, global_defs = _nearest_from_global(text, det_res.unique_acronyms, det.cfg, ext_cfg)
+    # 4) senses + disambiguation
+    senses_by_acr = build_senses(all_defs)
+    sense_index = {s.sense_id: s for senses in senses_by_acr.values() for s in senses}
+    ambiguous = tuple(sorted(k for k, v in senses_by_acr.items() if len(v) > 1))
 
-    # fill anchored gaps with global picks
-    merged: Dict[str, Optional[InTextPick]] = dict(anchored_picks)
-    for k in missing:
-        merged[k] = global_picks.get(k)
+    occs = [OccurrenceLite(o.acronym, o.start_offset, o.end_offset) for o in det_res.occurrences]
+    resolutions = disambiguate_occurrences(
+        text=text,
+        occurrences=occs,
+        senses=senses_by_acr,
+        window_chars=getattr(det.cfg, "window_chars", 320),
+        margin_threshold=0.20,
+    )
+    undecided = [r for r in resolutions if r.chosen_sense_id is None]
 
-    remaining_missing = tuple(sorted(k for k, v in merged.items() if v is None))
     extr = ExtractionResult(
-        picks=merged,
-        definitions=global_defs,       # global provides a full set of locations
-        strategy="hybrid-filled",
-        coverage=(len(merged) - len(remaining_missing)) / max(1, len(merged)),
-        missing_keys=remaining_missing,
+        picks=picks,
+        definitions=all_defs,  # <-- now includes both EMA senses, etc.
+        strategy=strategy,
+        coverage=coverage,
+        missing_keys=missing_keys,
+        senses_by_acronym=senses_by_acr,
+        sense_index=sense_index,
+        resolutions=resolutions,
+        ambiguous_keys=ambiguous,
+        undecided=undecided,
     )
     return det_res, extr
