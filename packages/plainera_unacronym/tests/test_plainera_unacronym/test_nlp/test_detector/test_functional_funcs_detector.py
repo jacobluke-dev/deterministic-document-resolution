@@ -23,8 +23,8 @@ class TestBuildOccurrenceFromMatch:
         """
         calls = {}
 
-        def fake_normalize_key(base, allow_chars, dotted_mode):
-            calls["normalize_key"] = (base, allow_chars, dotted_mode)
+        def fake_normalize_acronym_key(base, allow_chars, dotted_mode):
+            calls["normalize_acronym_key"] = (base, allow_chars, dotted_mode)
             return f"NK[{base}|{dotted_mode}]"
 
         def fake_context_window(text, s, e, win):
@@ -32,10 +32,10 @@ class TestBuildOccurrenceFromMatch:
             return 111, 222
 
         monkeypatch.setattr(
-            "plainera_unacronym.nlp.detector.normalize_key", fake_normalize_key, raising=True
+            "plainera_unacronym.nlp.detection.detector.normalize_acronym_key", fake_normalize_acronym_key, raising=True
         )
         monkeypatch.setattr(
-            "plainera_unacronym.nlp.detector.context_window", fake_context_window, raising=True
+            "plainera_unacronym.nlp.detection.detector.context_window", fake_context_window, raising=True
         )
 
         cfg = _TestCfg(dotted_display="strip")
@@ -59,7 +59,7 @@ class TestBuildOccurrenceFromMatch:
         assert occ.reasons is None
 
         # Assert helper call args
-        assert calls["normalize_key"] == ("NASA", cfg.allow_chars, "strip")
+        assert calls["normalize_acronym_key"] == ("NASA", cfg.allow_chars, "strip")
         assert calls["context_window"] == (text, s, 4, cfg.window_chars)
 
     def test_preserve_mode_includes_trailing_dot(self, monkeypatch):
@@ -69,8 +69,8 @@ class TestBuildOccurrenceFromMatch:
         """
         calls = {}
 
-        def fake_normalize_key(base, allow_chars, dotted_mode):
-            calls["normalize_key"] = (base, allow_chars, dotted_mode)
+        def fake_normalize_acronym_key(base, allow_chars, dotted_mode):
+            calls["normalize_acronym_key"] = (base, allow_chars, dotted_mode)
             return f"NK[{base}|{dotted_mode}]"
 
         def fake_context_window(text, s, e, win):
@@ -78,10 +78,10 @@ class TestBuildOccurrenceFromMatch:
             return 5, 10
 
         monkeypatch.setattr(
-            "plainera_unacronym.nlp.detector.normalize_key", fake_normalize_key, raising=True
+            "plainera_unacronym.nlp.detection.detector.normalize_acronym_key", fake_normalize_acronym_key, raising=True
         )
         monkeypatch.setattr(
-            "plainera_unacronym.nlp.detector.context_window", fake_context_window, raising=True
+            "plainera_unacronym.nlp.detection.detector.context_window", fake_context_window, raising=True
         )
 
         cfg = _TestCfg(dotted_display="preserve")
@@ -97,7 +97,7 @@ class TestBuildOccurrenceFromMatch:
         assert occ.context_window == (5, 10)
 
         # Helper call args used the adjusted end offset
-        assert calls["normalize_key"] == ("NASA.", cfg.allow_chars, "preserve")
+        assert calls["normalize_acronym_key"] == ("NASA.", cfg.allow_chars, "preserve")
         assert calls["context_window"] == (text, s, 5, cfg.window_chars)
 
     def test_debug_reasons_attached_when_enabled(self, monkeypatch):
@@ -107,7 +107,7 @@ class TestBuildOccurrenceFromMatch:
         """
         import plainera_unacronym.nlp.detection.detector as det
 
-        def fake_normalize_key(base, allow_chars, dotted_mode):
+        def fake_normalize_acronym_key(base, allow_chars, dotted_mode):
             return "NK"
 
         def fake_context_window(text, s, e, win):
@@ -118,7 +118,7 @@ class TestBuildOccurrenceFromMatch:
             assert e_passed == e + 1
             return ["EDGE", "PUNCT"]
 
-        monkeypatch.setattr(det, "normalize_key", fake_normalize_key, raising=True)
+        monkeypatch.setattr(det, "normalize_acronym_key", fake_normalize_acronym_key, raising=True)
         monkeypatch.setattr(det, "context_window", fake_context_window, raising=True)
         monkeypatch.setattr(det, "reason_tags", fake_reason_tags, raising=True)
 
@@ -139,7 +139,7 @@ class TestBuildOccurrenceFromMatch:
         # Patch where the function looks up the names (the detector module)
         monkeypatch.setattr(
             det,
-            "normalize_key",
+            "normalize_acronym_key",
             lambda base, allow_chars, dotted_mode=None: f"{base.lower()}::{dotted_mode}",
             raising=True,
         )
@@ -178,7 +178,7 @@ class TestBuildOccurrenceFromMatch:
         assert occ_s.acronym == "GPU"  # plural removed
         assert occ_s.end_offset == e_gpu  # trailing '.' NOT included
         assert occ_s.normalized_key == key_s
-        # normalize_key in strip mode removes dots; no dots present anyway, key equals base
+        # normalize_acronym_key in strip mode removes dots; no dots present anyway, key equals base
         assert key_s == "GPU"
 
         # preserve mode → include trailing dot in surface & end_offset

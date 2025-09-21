@@ -28,7 +28,7 @@ from plainera_unacronym.nlp.common.types import (
     OccurrenceBuildError,
 )
 from plainera_unacronym.wiring.composition import sink
-from ..common.shared import normalize_acronym_key
+from plainera_unacronym.nlp.common.shared import normalize_acronym_key
 
 DEFAULT_CONFIG = DetectorConfig()
 ALLOW_CHARS_DEFAULTS = ALLOW_CHARS

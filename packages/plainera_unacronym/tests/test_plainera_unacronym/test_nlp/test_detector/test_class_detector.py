@@ -166,7 +166,7 @@ class TestDetectorUnit:
 
         monkeypatch.setattr(det, "_score_chunk_worker", fake_worker, raising=True)
         # normalize_key used for fallback
-        monkeypatch.setattr(det, "normalize_key", lambda acr, allow, dotted_mode=None: f"N[{acr}]", raising=True)
+        monkeypatch.setattr(det, "normalize_acronym_key", lambda acr, allow, dotted_mode=None: f"N[{acr}]", raising=True)
         monkeypatch.setattr(det, "message_logger", lambda *a, **k: None, raising=True)
         monkeypatch.setattr(det, "autodetect_domains", lambda *_: frozenset(), raising=True)
 
@@ -198,7 +198,7 @@ class TestDetectorUnit:
                             lambda *_: [Occurrence("GPU", 0, 3, 0.9, (0, 0), None, None)],  # key=None
                             raising=True
                             )
-        monkeypatch.setattr(det, "normalize_key",
+        monkeypatch.setattr(det, "normalize_acronym_key",
                             lambda acr, allow, dotted_mode=None: f"N[{acr}]",
                             raising=True
                             )

@@ -61,8 +61,8 @@ def _patch_near(monkeypatch, left_gap: int, right_gap: int):
             dist += 1
         return i < n and dist <= right_gap
 
-    monkeypatch.setattr("plainera_unacronym.nlp.heuristics.general._comma_near_left", comma_near_left, raising=True)
-    monkeypatch.setattr("plainera_unacronym.nlp.heuristics.general.exclam_near_right", exclam_near_right, raising=True)
+    monkeypatch.setattr("plainera_unacronym.nlp.detection.heuristics.general._comma_near_left", comma_near_left, raising=True)
+    monkeypatch.setattr("plainera_unacronym.nlp.detection.heuristics.general.exclam_near_right", exclam_near_right, raising=True)
 
 
 @pytest.fixture(autouse=True)
