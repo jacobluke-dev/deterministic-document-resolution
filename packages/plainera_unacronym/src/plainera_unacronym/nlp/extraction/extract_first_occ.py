@@ -1,10 +1,8 @@
-# extraction/near_firsts.py
 from __future__ import annotations
 import re
-from dataclasses import dataclass
 from typing import Mapping, Optional, Pattern
 from .config import ExtractionConfig
-from .extract import normalize_extract
+from ..common.shared import normalize_definition
 from ..common.types import FirstOccurrence, ExtractedDefinition, InTextPick
 
 
@@ -31,6 +29,7 @@ def _compile_anchored(acr_norm: str, cfg: ExtractionConfig) -> list[tuple[Patter
     flags = re.IGNORECASE | re.MULTILINE
     return [(re.compile(p, flags), base, kind) for p, base, kind in pats]
 
+
 def extract_near_firsts(
     text: str,
     firsts: Mapping[str, FirstOccurrence],  # key = normalized_key
@@ -56,7 +55,7 @@ def extract_near_firsts(
                 if a1 <= fo.start_offset or a0 >= fo.end_offset:
                     continue
                 orig = m.group("def")
-                definition = normalize_extract(orig)
+                definition = normalize_definition(orig)
                 if not definition or len(definition) > cfg.max_phrase_chars:
                     continue
                 # score: base + small distance penalty

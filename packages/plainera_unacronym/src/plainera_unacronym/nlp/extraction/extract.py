@@ -3,26 +3,14 @@ from typing import Iterator, Pattern, Iterable, Callable
 import re
 
 from .config import ExtractionConfig
-
-# ---------- Result type ----------
-
-__all__ = ["ExtractionConfig", "ExtractedDefinition",
-           "extract_iter", "extract_in_text_definitions"]
-
-from ..common.constants import TRAILING_PUNCT_DEFAULT, APOSTROPHE_VARIANTS, DASH_MAP
-
+from ..common.shared import normalize_definition
 from ..common.types import ExtractedDefinition
 
 
-# ---------- Minimal normalization ----------
-
-
-def normalize_extract(s: str) -> str:
-    s = "".join(APOSTROPHE_VARIANTS.get(ch, DASH_MAP.get(ch, ch)) for ch in s)
-    s = re.sub(r"\s+", " ", s).strip()
-    return re.sub(TRAILING_PUNCT_DEFAULT, "", s)
+__all__ = ["ExtractionConfig", "extract_iter", "extract_in_text_definitions"]
 
 # ---------- Pattern builders ----------
+
 def _acr_pat(cfg: ExtractionConfig) -> str:
     return rf"(?P<acr>[{cfg.acr_allowed}]{{{cfg.min_acr_len},{cfg.max_acr_len}}})"
 
@@ -123,7 +111,7 @@ def extract_iter(text: str, cfg: ExtractionConfig = ExtractionConfig()) -> Itera
                 continue
 
             original_def = def_raw
-            definition = normalize_extract(def_raw)
+            definition = normalize_definition(def_raw)
             if not definition or len(definition) > cfg.max_phrase_chars:
                 continue
             if not _has_letters(definition):

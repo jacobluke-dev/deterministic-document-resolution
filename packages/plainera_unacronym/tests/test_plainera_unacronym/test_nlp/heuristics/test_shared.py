@@ -1,7 +1,7 @@
 import pytest
 
 from plainera_unacronym.nlp.common.constants import APOSTROPHE_VARIANTS
-from plainera_unacronym.nlp.common.shared import has_paren_definition, normalize_acronym_key
+from plainera_unacronym.nlp.common.shared import has_paren_definition, normalize_acronym_key, normalize_definition
 
 
 def _end_of(text: str, token: str) -> int:
@@ -127,3 +127,17 @@ class TestNormalizeKey:
         # Leading/trailing spaces around an allowed separator are swallowed appropriately
         assert normalize_acronym_key("A &B", allow_chars="&", dotted_mode="preserve") == "A&B"
         assert normalize_acronym_key("A& B", allow_chars="&", dotted_mode="preserve") == "A&B"
+
+
+
+    def test_key_dotted_and_separators(self):
+        assert normalize_acronym_key("U.S.A.", "&-./", "strip") == "USA"
+        assert normalize_acronym_key("R & D", "&-./", "strip") == "R&D"
+        assert normalize_acronym_key("R – D", "&-./", "strip") == "R-D"  # dash folded
+
+#
+# class TestNormalizeDefinition:
+#     def test_definition_cleaning(self):
+#         s = "machine–learning,   methods (ML)…  "
+#         out = normalize_definition(s)
+#         assert out == "machine-learning, methods (ML)…".rstrip("…")  # depending on TRAILING_PUNCT
