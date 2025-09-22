@@ -2,6 +2,7 @@ import re
 import unicodedata
 
 from plainera_unacronym.nlp.common.config import CANON_TABLE, TRAILING_PUNCT
+from plainera_unacronym.nlp.common.constants import LEADING_CONNECTORS, ARTICLE, TITLECASE_TAIL_RE, BOUNDARY_RE
 
 
 def has_paren_definition(text: str, end: int, max_chars: int = 80) -> bool:
@@ -96,25 +97,15 @@ def normalize_acronym_key(surface: str, allow_chars: str, dotted_mode: str) -> s
     s = _swallow_spaces_around_allowed(s, allow_chars)
     return s
 
-
-# punctuation / clause boundaries
-_BOUNDARY_RE = re.compile(r"[\.!?;:,—–-]\s+")
-# last TitleCase/UPPER run (optionally joined by common linkers)
-_TITLECASE_TAIL_RE = re.compile(
-    r"(?:^|[\s,])([A-Z][\w’'-]*(?:\s+(?:[A-Z][\w’'-]*|of|and|for|to|in|on|with|the|&)){0,12})\s*$",
-    flags=re.UNICODE,
-)
-
-
 def tighten_definition_span(s: str) -> str:
     s = s.strip()
 
     # 1) keep only the last clause
-    parts = _BOUNDARY_RE.split(s)
+    parts = BOUNDARY_RE.split(s)
     tail = parts[-1].strip() if parts else s
 
     # 2) prefer a TitleCase/UPPER tail if present
-    m = _TITLECASE_TAIL_RE.search(tail)
+    m = TITLECASE_TAIL_RE.search(tail)
     if m:
         tail = m.group(1).strip()
 
@@ -130,13 +121,6 @@ def normalize_definition(s: str) -> str:
     """
     return strip_trailing_punct(collapse_ws(canonicalize(s)))
 
-
-_LEADING_CONNECTORS = re.compile(
-    r"^(?:while|whereas|and|or|but|that|which|who|as|for|to)\b[\s,:-]*",
-    flags=re.IGNORECASE,
-)
-_ARTICLE = re.compile(r"^(?:the|an|a)\s+", flags=re.IGNORECASE)
-
 # Last Proper-Noun chunk, e.g. "North American Saxophone Alliance"
 _LAST_PROPER_CHUNK = re.compile(
     r"([A-Z][\w’'-]+(?:\s+[A-Z][\w’'-]+){1,})$"
@@ -148,16 +132,16 @@ def tighten_label(s: str) -> str:
 
     # drop leading connectors (run twice to be safe)
     for _ in range(2):
-        s = _LEADING_CONNECTORS.sub("", s).strip()
+        s = LEADING_CONNECTORS.sub("", s).strip()
 
     # if we have a trailing proper-noun chunk, use it
     m = _LAST_PROPER_CHUNK.search(s)
     if m:
         chunk = m.group(1)
-        return _ARTICLE.sub("", chunk).strip()
+        return ARTICLE.sub("", chunk).strip()
 
     # else: remove leading article only
-    s = _ARTICLE.sub("", s).strip()
+    s = ARTICLE.sub("", s).strip()
 
     # common “X is/means/stands for Y” patterns → keep the RHS
     for splitter in (" stands for ", " means ", " is ", " are "):
