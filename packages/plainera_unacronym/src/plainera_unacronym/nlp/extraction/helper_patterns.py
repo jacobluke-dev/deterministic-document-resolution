@@ -1,16 +1,8 @@
-# extraction/helpers_patterns.py (or wherever you keep extraction helpers)
-from dataclasses import dataclass
 import re
 from typing import List
 
-from plainera_unacronym.nlp.common.types import ExtractedDefinition
+from plainera_unacronym.nlp.common.types import ExtractedDefinition, LocalDefMatch
 
-
-@dataclass
-class LocalDefMatch:
-    def_start: int   # start index within the snippet you passed
-    def_end: int     # end index (exclusive) within the snippet
-    definition: str  # raw definition text as captured
 
 # --- small label normalizer used before turning a capture into a "sense" label ---
 def tighten_label(s: str) -> str:
@@ -26,7 +18,7 @@ def tighten_label(s: str) -> str:
 
 # -------------- pattern finders ----------------
 
-def find_longform_after_acr(snippet: str, acr: str, cfg) -> List[LocalDefMatch]:
+def find_longform_after_acr(snippet: str, cfg) -> List[LocalDefMatch]:
     """
     Look for:  ACR ( Long form ... )  immediately after the ACR.
     Caller should slice `snippet` so its index 0 == position right after ACR,
@@ -58,7 +50,7 @@ def find_longform_before_acr(snippet: str, acr: str, cfg) -> List[LocalDefMatch]
     """
     Look for:  Long form ... ( ACR )  ending right before the ACR.
     Caller should slice `snippet` so its end == position at ACR start,
-    or pass full snippet and we anchor to the end.
+    or pass full snippet, and we anchor to the end.
     Here we anchor to the end of the given substring.
     """
     max_chars = getattr(cfg, "max_phrase_chars", 80)
@@ -84,7 +76,7 @@ def find_longform_before_acr(snippet: str, acr: str, cfg) -> List[LocalDefMatch]
 
 
 def dedupe_defs(defs: list[ExtractedDefinition]) -> list[ExtractedDefinition]:
-    """Dedupe on (acronym.upper(), tighten_label(definition)). Keep earliest span, merge support later."""
+    """Dedupe on (acronym.upper(), tighten_label(definition)). Keep the earliest span, merge support later."""
     seen = set()
     out = []
     for d in defs:

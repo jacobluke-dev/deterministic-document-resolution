@@ -1,87 +1,94 @@
-from __future__ import annotations
 import re
-from typing import Mapping, Optional, Pattern
+from typing import Mapping, Optional
 from .config import ExtractionConfig
 from .tighten import tighten_label_by_acronym
-from ..common.shared import tighten_definition_span, tighten_label
+from ..common.shared import tighten_definition_span, normalize_definition
 from ..common.types import FirstOccurrence, ExtractedDefinition, InTextPick
 
 
-def _acr_literal_pattern(acr_norm: str) -> str:
-    # Match dotted or undotted variants (N.A.T.O. / NATO). Only letters get optional dots.
-    parts = []
-    for ch in acr_norm:
-        if "A" <= ch <= "Z":
-            parts.append(fr"{re.escape(ch)}\.?")
-        else:
-            parts.append(re.escape(ch))
-    return "".join(parts)
+def _compile_anchored_exact(acr: str, cfg: ExtractionConfig):
+    ACR = re.escape(acr)
+    DEF = r"(?P<def>[^){}]{1,%d}?)" % cfg.max_phrase_chars
 
-def _compile_anchored(acr_norm: str, cfg: ExtractionConfig) -> list[tuple[Pattern[str], float, str]]:
-    A = _acr_literal_pattern(acr_norm)
-    P = rf"(?P<def>[^){{}}]{{1,{cfg.max_phrase_chars}}}?)"
-    pats: list[tuple[str, float, str]] = [
-        (rf"\b{P}\s*\(\s*(?P<acr>{A})\s*\)", cfg.conf_parenthetical, "paren-fwd"),
-        (rf"\b(?P<acr>{A})\s*\(\s*{P}\s*\)",  cfg.conf_parenthetical, "paren-rev"),
+    # Definition before (ACRONYM in parens)
+    fwd = re.compile(rf"\b{DEF}\s*\(\s*(?P<acr>{ACR})\s*\)", re.IGNORECASE | re.MULTILINE)
+    # Definition after (ACRONYM (definition))
+    rev = re.compile(rf"\b(?P<acr>{ACR})\s*\(\s*{DEF}\s*\)", re.IGNORECASE | re.MULTILINE)
+
+    inlines = [
+        re.compile(rf"\b(?P<acr>{ACR})\b\s*,?\s*{cue}\s+{DEF}",
+                   re.IGNORECASE | re.MULTILINE)
+        for cue in cfg.inline_cues
     ]
-    if cfg.enabled_inline:
-        for cue in cfg.inline_cues:
-            pats.append((rf"\b(?P<acr>{A})\b\s*,?\s*{cue}\s+{P}", cfg.conf_inline, "inline"))
-    flags = re.IGNORECASE | re.MULTILINE
-    return [(re.compile(p, flags), base, kind) for p, base, kind in pats]
+    return (
+        (fwd,  cfg.conf_parenthetical, "def_before"),
+        (rev,  cfg.conf_parenthetical, "def_after"),
+        *[(p, cfg.conf_inline, "inline") for p in inlines],
+    )
 
 
 def extract_near_firsts(
     text: str,
-    firsts: Mapping[str, FirstOccurrence],  # key = normalized_key
+    firsts: Mapping[str, FirstOccurrence],
+    *,
+    window_left: int,
+    window_right: int,
     cfg: ExtractionConfig = ExtractionConfig(),
-    window_left: int = 220,
-    window_right: int = 280,
 ) -> dict[str, Optional[InTextPick]]:
     picks: dict[str, Optional[InTextPick]] = {}
     for key, fo in firsts.items():
-        # Use the normalized key when anchoring; fallback to FO.acronym upper
-        acr_norm = (key or fo.acronym.upper())
-        L = max(0, fo.start_offset - window_left)
-        R = min(len(text), fo.end_offset + window_right)
-        seg = text[L:R]
+        acr_norm = key or fo.acronym.upper()
 
-        best: Optional[tuple[ExtractedDefinition, float, str]] = None
-        for pat, base_conf, kind in _compile_anchored(acr_norm, cfg):
+        left = max(0, fo.start_offset - window_left)
+        right = min(len(text), fo.end_offset + window_right)
+        seg = text[left:right]
+
+        # FO position in the local segment
+        fo_a0_local = fo.start_offset - left
+        fo_a1_local = fo.end_offset   - left
+
+        best: Optional[ExtractedDefinition] = None
+        for pat, base_conf, _kind in _compile_anchored_exact(acr_norm, cfg):
             for m in pat.finditer(seg):
-                # local → global coords
-                a0, a1 = m.span("acr"); d0, d1 = m.span("def")
-                a0 += L; a1 += L; d0 += L; d1 += L
-                # require that acronym overlap FO’s acronym span (guards cross-attachment)
-                if a1 <= fo.start_offset or a0 >= fo.end_offset:
+                a0_local, a1_local = m.span("acr")
+                # Require exact alignment with the known FO span
+                if a0_local != fo_a0_local or a1_local != fo_a1_local:
                     continue
+
+                d0_local, d1_local = m.span("def")
                 orig = m.group("def")
-                clean = tighten_label(tighten_definition_span(orig))
+
+                clean = tighten_label_by_acronym(
+                    tighten_definition_span(orig), acr_norm
+                )
+
+                clean = normalize_definition(clean)
                 if not clean or len(clean) > cfg.max_phrase_chars:
                     continue
-                # score: base + small distance penalty
-                dist = abs(a0 - fo.start_offset)
-                conf = min(base_conf - min(dist, 200) * 0.0005, 0.99)  # gently prefer nearer matches
+
+                # distance is effectively 0 when it’s the FO itself, but keep formula for consistency
+                dist = abs((a0_local + left) - fo.start_offset)
+                conf = min(base_conf - min(dist, 200) * 0.0005, 0.99)
+
                 cand = ExtractedDefinition(
                     acronym=acr_norm,
-                    definition=tighten_label_by_acronym(clean, acr_norm.upper()),
+                    definition=clean,
                     source="in_text",
                     confidence=conf,
-                    acr_start=a0,
-                    acr_end=a1,
-                    def_start=d0,
-                    def_end=d1,
+                    acr_start=a0_local + left,
+                    acr_end=a1_local + left,
+                    def_start=d0_local + left,
+                    def_end=d1_local + left,
                     original_definition=orig,
                 )
-                if (best is None) or (cand.confidence > best[0].confidence) \
-                   or (cand.confidence == best[0].confidence and dist < abs(best[0].acr_start - fo.start_offset)):
-                    best = (cand, conf, kind)
+                if (best is None) or (cand.confidence > best.confidence):
+                    best = cand
 
         picks[key] = None if best is None else InTextPick(
-            definition=best[0].definition,
-            acr_span=(best[0].acr_start, best[0].acr_end),
-            def_span=(best[0].def_start, best[0].def_end),
-            confidence=best[0].confidence,
-            original_definition=best[0].original_definition,
+            definition=best.definition,
+            acr_span=(best.acr_start, best.acr_end),
+            def_span=(best.def_start, best.def_end),
+            confidence=best.confidence,
+            original_definition=best.original_definition,
         )
     return picks

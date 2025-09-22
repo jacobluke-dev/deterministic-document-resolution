@@ -3,7 +3,7 @@ from typing import List
 
 from plainera_unacronym.nlp.common.types import ExtractedDefinition
 from plainera_unacronym.nlp.extraction.helper_patterns import (
-    find_longform_after_acr, find_longform_before_acr, tighten_label
+    find_longform_after_acr, find_longform_before_acr
 )
 from plainera_unacronym.nlp.extraction.tighten import tighten_label_by_acronym
 

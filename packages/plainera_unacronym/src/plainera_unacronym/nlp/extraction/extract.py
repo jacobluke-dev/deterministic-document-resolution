@@ -8,7 +8,7 @@ from ..common.shared import normalize_definition, tighten_definition_span
 from ..common.types import ExtractedDefinition
 
 
-__all__ = ["ExtractionConfig", "extract_iter", "extract_in_text_definitions"]
+__all__ = ["ExtractionConfig", "extract_iter", "ExtractedDefinition", "extract_in_text_definitions"]
 
 # ---------- Pattern builders ----------
 
@@ -95,12 +95,21 @@ def _parenthetical_allowed(cfg: ExtractionConfig, definition: str, acronym: str)
     return all(fn(definition, acronym) for fn in allows) if allows else True
 
 # ---------- Core API ----------
-def extract_iter(text: str, cfg: ExtractionConfig = ExtractionConfig()) -> Iterator[ExtractedDefinition]:
+def extract_iter(
+    text: str,
+    cfg: ExtractionConfig | None = None,
+    *,
+    start: int | None = None,
+    end: int | None = None,
+) -> Iterator[ExtractedDefinition]:
+    cfg = cfg or ExtractionConfig()
     plan = _build_plan(cfg)
     seen: set[tuple[int, int, int, int]] = set()
+    s = 0 if start is None else max(0, start)
+    e = len(text) if end is None else min(len(text), end)
 
     def collect(pat: Pattern[str], base_conf: float, is_parenthetical: bool) -> Iterator[ExtractedDefinition]:
-        for m in pat.finditer(text):
+        for m in pat.finditer(text, s, e):
             acr_raw, def_raw = m.group("acr"), m.group("def")
             if not acr_raw or not def_raw:
                 continue
@@ -148,5 +157,5 @@ def extract_iter(text: str, cfg: ExtractionConfig = ExtractionConfig()) -> Itera
         for pat in _compile_inline(cfg, plan.inline_cues):
             yield from collect(pat, cfg.conf_inline, False)
 
-def extract_in_text_definitions(text: str, cfg: ExtractionConfig = ExtractionConfig()) -> list[ExtractedDefinition]:
+def extract_in_text_definitions(text: str, cfg: ExtractionConfig | None = None) -> list[ExtractedDefinition]:
     return list(extract_iter(text, cfg))

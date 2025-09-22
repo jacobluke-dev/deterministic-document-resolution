@@ -129,13 +129,15 @@ def detect_and_extract(
 
     ext_cfg = ext_cfg or ExtractionConfig()
 
+    # 0) obtain FirstOccurrences
     anchored_picks = extract_near_firsts(
         text, firsts=det_res.unique_acronyms, cfg=ext_cfg,
         window_left=window_left, window_right=window_right,
     )
 
-    # 1) defs from anchored + 2) harvest extra
+    # 1) defs from anchored
     anchored_defs = defs_from_picks(text, anchored_picks)
+    # 2) harvest additional Occurrences that may duplicate FirstOccurrence but unique in definition
     extra_defs = harvest_defs_all(text, det_res.occurrences, ext_cfg)
 
     # 3) dedupe + choose strategy fields

@@ -5,12 +5,13 @@ from plainera_unacronym.nlp.common.shared import canonicalize, collapse_ws, stri
 
 DEFAULT_STOPWORDS = {
     # english-ish function words—expand as needed
-    "of","and","the","for","to","in","on","with","a","an","at","by","from","as","per",
+    "of", "and", "the", "for", "to", "in", "on", "with", "a", "an", "at", "by", "from", "as", "per",
     # a few common non-English determiners/preps for names
-    "de","la","le","du","des","del","da","di","von","und"
+    "de", "la", "le", "du", "des", "del", "da", "di", "von", "und"
 }
 
 _word_re = re.compile(r"[A-Za-z0-9'’\-\/&\.]+", flags=re.UNICODE)
+
 
 def _split_compound(token: str) -> List[str]:
     """Split hyphen/slash/dot compounds for initial extraction."""
@@ -18,8 +19,10 @@ def _split_compound(token: str) -> List[str]:
     parts = re.split(r"[\-\/\.\&]", token)
     return [p for p in parts if p]
 
+
 def _tokenize_preserve(text: str) -> List[str]:
     return _word_re.findall(text)
+
 
 def _initials_seq(tokens: List[str], stopwords: set) -> Tuple[List[str], List[int]]:
     """
@@ -40,7 +43,8 @@ def _initials_seq(tokens: List[str], stopwords: set) -> Tuple[List[str], List[in
                     break
     return letters, owners
 
-def _best_window_for_acronym(tokens: List[str], acronym: str, stopwords: set) -> Optional[Tuple[int,int]]:
+
+def _best_window_for_acronym(tokens: List[str], acronym: str, stopwords: set) -> Optional[Tuple[int, int]]:
     """
     Find the shortest contiguous token window whose (non-stopword) initials
     match the acronym as a subsequence in order. Returns (start_idx, end_idx_inclusive) or None.
@@ -67,11 +71,12 @@ def _best_window_for_acronym(tokens: List[str], acronym: str, stopwords: set) ->
             lj += 1
         if ai == nA:
             tok_start = owners[li]
-            tok_end   = owners[lj-1]
+            tok_end = owners[lj - 1]
             if best is None or (tok_end - tok_start) < (best[1] - best[0]):
                 best = (tok_start, tok_end)
 
     return best
+
 
 def tighten_label_by_acronym(raw_label: str, acronym: str, stopwords=None) -> str:
     """
@@ -93,7 +98,7 @@ def tighten_label_by_acronym(raw_label: str, acronym: str, stopwords=None) -> st
         i, j = win
         # Reconstruct exact surface from tokens i..j using original spacing:
         #  - join tokens with single space, then run your normal strip/collapse.
-        phrase = " ".join(tokens[i:j+1])
+        phrase = " ".join(tokens[i:j + 1])
         return strip_trailing_punct(collapse_ws(phrase))
 
     # Fallback: your prior tightening (canonicalize+collapse+strip)

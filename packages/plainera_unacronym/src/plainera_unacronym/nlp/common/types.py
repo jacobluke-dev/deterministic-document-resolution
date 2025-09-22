@@ -118,6 +118,12 @@ class InTextPick:
     confidence: float
     original_definition: str
 
+@dataclass
+class LocalDefMatch:
+    def_start: int   # start index within the snippet you passed
+    def_end: int     # end index (exclusive) within the snippet
+    definition: str  # raw definition text as captured
+
 
 @dataclass(frozen=True, slots=True)
 class ExtractionResult:
