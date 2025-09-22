@@ -1,4 +1,3 @@
-# nlp/extraction/harvest.py
 from typing import List
 
 from plainera_unacronym.nlp.common.types import ExtractedDefinition
@@ -35,7 +34,7 @@ def harvest_defs_all(text: str, occs, cfg) -> List[ExtractedDefinition]:
 
         # ACR (Long form) after
         right = snippet[rel_a1:]
-        for m in find_longform_after_acr(right, o.acronym, cfg):
+        for m in find_longform_after_acr(right,cfg=cfg, acr=o.acronym):
             ds, de = (L + rel_a1) + m.def_start, (L + rel_a1) + m.def_end
             out.append(ExtractedDefinition(
                 acronym=o.acronym,

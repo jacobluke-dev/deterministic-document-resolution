@@ -1,24 +1,37 @@
 import re
-from typing import List
+from typing import Optional
+from plainera_unacronym.nlp.common.types import ExtractedDefinition
+from ..common.shared import tighten_definition_span, normalize_definition, tighten_label
 
-from plainera_unacronym.nlp.common.types import ExtractedDefinition, LocalDefMatch
+
+class LocalDefMatch:
+    def __init__(self, def_start: int, def_end: int, definition: str):
+        self.def_start = def_start
+        self.def_end = def_end
+        self.definition = definition
 
 
-# --- small label normalizer used before turning a capture into a "sense" label ---
-def tighten_label(s: str) -> str:
-    """
-    Keep definition crisp for senses:
-      - use your normalize_definition (NFKC, collapse ws, strip trailing punct)
-      - drop leading determiners like 'the', 'a', 'an'
-    """
-    from plainera_unacronym.nlp.common.shared import normalize_definition
-    s = normalize_definition(s)
-    s = re.sub(r'^(?:the|a|an)\s+', '', s, flags=re.IGNORECASE)
-    return s
+def _has_letters(s: str) -> bool:
+    return any(ch.isalpha() for ch in s)
 
-# -------------- pattern finders ----------------
 
-def find_longform_after_acr(snippet: str, cfg) -> List[LocalDefMatch]:
+def _acrostic_ok(acr: str, phrase: str) -> bool:
+    initials = "".join(w[0].upper() for w in phrase.split() if w and w[0].isalpha())
+    j = 0
+    for ch in acr:
+        if ch.isalpha():
+            j = initials.find(ch, j) + 1
+            if j == 0:
+                return False
+    return True
+
+
+def find_longform_after_acr(
+    snippet: str,
+    cfg,
+    acr: Optional[str] = None,
+    require_acrostic: bool = True,
+) -> list[LocalDefMatch]:
     """
     Look for:  ACR ( Long form ... )  immediately after the ACR.
     Caller should slice `snippet` so its index 0 == position right after ACR,
@@ -26,27 +39,30 @@ def find_longform_after_acr(snippet: str, cfg) -> List[LocalDefMatch]:
     For simplicity here we assume the caller already sliced to start at acr_end.
     """
     max_chars = getattr(cfg, "max_phrase_chars", 80)
-    # Immediately optional spaces, then a parenthetical
-    pat = re.compile(
-        r"""\A              # start of the given substring
-            \s*             # optional spaces
-            \(
-              (?P<def>[^()]{1,%d})
-            \)
-        """ % max_chars,
-        re.VERBOSE,
-    )
+    pat = re.compile(rf"\A\s*\((?P<def>[^()]{{1,{max_chars}}})\)", re.VERBOSE)
+
     m = pat.match(snippet)
     if not m:
         return []
-    raw = m.group("def").strip()
-    # quick sanity: require a few letters so we don't capture junk
-    if sum(ch.isalpha() for ch in raw) < 3:
+
+    raw = m.group("def")
+    if not _has_letters(raw):
         return []
-    return [LocalDefMatch(def_start=m.start("def"), def_end=m.end("def"), definition=raw)]
+
+    # normalize & tighten like the main pipeline
+    norm = normalize_definition(tighten_definition_span(raw))
+    if not norm:
+        return []
+
+    # Optional acrostic guard to reduce junk like "(see below)"
+    if acr and require_acrostic:
+        if not _acrostic_ok(acr.upper(), norm):
+            return []
+
+    return [LocalDefMatch(def_start=m.start("def"), def_end=m.end("def"), definition=norm)]
 
 
-def find_longform_before_acr(snippet: str, acr: str, cfg) -> List[LocalDefMatch]:
+def find_longform_before_acr(snippet: str, acr: str, cfg) -> list[LocalDefMatch]:
     """
     Look for:  Long form ... ( ACR )  ending right before the ACR.
     Caller should slice `snippet` so its end == position at ACR start,
@@ -54,25 +70,25 @@ def find_longform_before_acr(snippet: str, acr: str, cfg) -> List[LocalDefMatch]
     Here we anchor to the end of the given substring.
     """
     max_chars = getattr(cfg, "max_phrase_chars", 80)
-    # We want "...(ACR)" flush at the end of the substring
-    # Capture the long form immediately before the "(ACR)".
     acr_escaped = re.escape(acr)
     pat = re.compile(
-        rf"""
-        (?P<def>[^\(\)]{{1,{max_chars}}})   # long form with no parentheses
-        \s*                                 # optional spaces
-        \(\s*{acr_escaped}\s*\)            # literal (ACR)
-        \s*$                                # then end of substring
-        """,
+        rf"(?P<def>[^\(\)]{{1,{max_chars}}})\s*\(\s*{acr_escaped}\s*\)\s*$",
         re.VERBOSE,
     )
     m = pat.search(snippet)
     if not m:
         return []
-    raw = m.group("def").strip()
-    if sum(ch.isalpha() for ch in raw) < 3:
+
+    raw = m.group("def")
+    if not _has_letters(raw):
         return []
-    return [LocalDefMatch(def_start=m.start("def"), def_end=m.end("def"), definition=raw)]
+
+    norm = normalize_definition(tighten_definition_span(raw))
+    if not norm:
+        return []
+
+    # Before-ACR is already anchored on the correct (ACR)
+    return [LocalDefMatch(def_start=m.start("def"), def_end=m.end("def"), definition=norm)]
 
 
 def dedupe_defs(defs: list[ExtractedDefinition]) -> list[ExtractedDefinition]:
