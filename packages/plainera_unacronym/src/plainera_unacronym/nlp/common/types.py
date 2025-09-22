@@ -66,6 +66,7 @@ class DetectorConfig:
     non_acronym_upper: frozenset[str] = frozenset(
         {"OK", "PM", "MR", "MRS", "MS", "DR", "JR", "SR", "LTD", "PLC", "LLP", "LLC", "INC", "YES", "NO", "ON", "OFF"}
     )
+    whitelist_two_letter = frozenset({"US", "UK", "EU", "UN"})
 
     max_len: int = 10
     # Allowed internal punctuation in acronyms (normalized for keying).
@@ -117,12 +118,6 @@ class InTextPick:
     def_span: tuple[int, int]
     confidence: float
     original_definition: str
-
-@dataclass
-class LocalDefMatch:
-    def_start: int   # start index within the snippet you passed
-    def_end: int     # end index (exclusive) within the snippet
-    definition: str  # raw definition text as captured
 
 
 @dataclass(frozen=True, slots=True)

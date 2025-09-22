@@ -15,7 +15,7 @@ from .heuristics.core import (
     iter_candidates_with,
     reason_tags,
     score,
-    threshold_len,
+    threshold_len, boost_confidence_if_whitelisted,
 )
 from .heuristics.general import strip_terminal_plural
 from .nlp_helpers import _cfg_fingerprint, top_n_values
@@ -92,7 +92,7 @@ def _build_occurrence_from_match(
         cfg.allow_chars,
         dotted_mode=display_mode,
     )
-
+    print("DISPLAY:", display_key)
     if not display_key:
         raise OccurrenceBuildError("empty_display_key")
 
@@ -239,16 +239,26 @@ class Detector:
 
         for surface, s, e in iter_candidates_with(text, cfg, self._pat):
             total += 1
+
             if blacklist_context_drop(surface, text, s, e, cfg):
                 dropped_blacklist += 1
                 continue
 
+            # 1) raw score
             conf = score(surface, text, s, e, cfg)
+
+            # 2) compute length bucket / threshold (using your existing helper)
             eff = threshold_len(surface, cfg.allow_chars)
             th = cfg.min_confidence_by_len.get(eff, cfg.min_confidence_default)
+
+            # 3) optional boost for allow-listed 2-letter acronyms (boost the SCORE, not the threshold)
+            conf = boost_confidence_if_whitelisted(surface, conf, cfg)  # returns min(conf+boost, 0.99)
+
+            # 4) gate
             if conf < th:
                 below_threshold += 1
                 continue
+
             try:
                 occ, display_key = _build_occurrence_from_match(cfg, text, surface, s, e, conf)
             except OccurrenceBuildError as err:
@@ -257,7 +267,7 @@ class Detector:
                     level=LogLevel.ERROR,
                     logger_type="message_logger.nlp",
                     details={"reason": str(err), "surface": surface, "s": s, "e": e},
-                    db_sink=sink,
+                    db_sink=self.sink,  # make sure this is self.sink, not a bare 'sink'
                 )
                 continue
 

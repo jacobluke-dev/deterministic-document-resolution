@@ -6,9 +6,9 @@ from plainera_unacronym.nlp.common.constants import (
     LEADING_BRACK,
     STANDS_FOR_RE,
     TIME_RE,
-    TRAILING_PUNCT_DEFAULT, TRAILING_PUNCT_CHARS,
+    TRAILING_PUNCT_DEFAULT, TRAILING_PUNCT_CHARS, DEFAULT_TWO_LETTER_BOOST,
 )
-from plainera_unacronym.nlp.common.shared import has_paren_definition
+from plainera_unacronym.nlp.common.shared import has_paren_definition, normalize_acronym_key
 from plainera_unacronym.nlp.plugins.registry import DOMAIN_PLUGINS
 from plainera_unacronym.nlp.common.types import DetectorConfig, pattern_cache
 
@@ -162,6 +162,27 @@ def threshold_len(surface: str, allow_chars: str) -> int:
     if any(ch in allow_chars for ch in surface) or "." in surface:
         return max(3, clen)
     return clen
+
+
+def boost_confidence_if_whitelisted(surface: str, confidence_score: float, cfg: DetectorConfig)-> float:
+    """
+    Checking if surface is in 2 letter whitelist, if so increase confidence_score
+    is returned.
+    Args:
+        surface (str): surface to check
+        confidence_score (float): confidence score
+        cfg (DetectorConfig): detector configuration
+    Returns:
+        float: confidence score
+    """
+    dotted_mode = getattr(cfg, "dotted_display", "strip")
+    allow_chars = getattr(cfg, "allow_chars", "&-/.")
+    key = normalize_acronym_key(surface, allow_chars=allow_chars, dotted_mode=dotted_mode)
+
+    if len(key) == 2 and key in cfg.whitelist_two_letter:
+        boost = getattr(cfg, "two_letter_boost", DEFAULT_TWO_LETTER_BOOST)
+        return min(confidence_score + boost, 0.99)
+    return confidence_score
 
 
 def score(surface: str, text: str, start: int, end: int, cfg: DetectorConfig) -> float:

@@ -1,5 +1,5 @@
 import re
-from typing import Literal
+from typing import Literal, Final
 
 APOSTROPHE_VARIANTS = {
     "’": "'",  # U+2019
@@ -15,6 +15,8 @@ ARTICLE = re.compile(r"^(?:the|an|a)\s+", flags=re.IGNORECASE)
 
 # punctuation / clause boundaries
 BOUNDARY_RE = re.compile(r"[\.!?;:,—–-]\s+")
+
+DEFAULT_TWO_LETTER_BOOST: Final[float] = 0.75
 
 # last TitleCase/UPPER run (optionally joined by common linkers)
 TITLECASE_TAIL_RE = re.compile(
