@@ -30,3 +30,6 @@ pytest-results.xml
 .venv
 
 .ipynb_checkpoints/
+
+# local comparison file
+output.json
