@@ -6,7 +6,7 @@ import plainera_unacronym.nlp.detection.heuristics.core as core
 import plainera_unacronym.nlp.plugins.registry as domain_mod
 import pytest
 from plainera_unacronym.nlp import DetectorConfig
-from plainera_unacronym.nlp.common.constants import TRAILING_PUNCT_DEFAULT
+from plainera_unacronym.nlp.common.constants import TRAILING_PUNCT_DEFAULT, TRAILING_PUNCT_CHARS
 from plainera_unacronym.nlp.detection.heuristics.core import (
     _collect_core_hits,
     _collect_domain_hits,
@@ -145,7 +145,7 @@ class TestStripTrailingPunct:
             s = 0
             e = len(base) + 1  # include the trailing char
             ns, ne = strip_trailing_punct(text, s, e)
-            if ch in TRAILING_PUNCT_DEFAULT:
+            if ch in TRAILING_PUNCT_CHARS:
                 assert text[ns:ne] == base
             else:
                 assert text[ns:ne] == base + ch
