@@ -1,8 +1,6 @@
-from typing import Dict
-
 from .interface import DomainPlugin
 
-DOMAIN_PLUGINS: Dict[str, DomainPlugin] = {}
+DOMAIN_PLUGINS: dict[str, DomainPlugin] = {}
 
 
 def register_plugin(p: DomainPlugin) -> None:

@@ -1,10 +1,10 @@
 import re
-from typing import Iterator, Tuple
+from typing import Iterator
 
 from .config import _STATS_CI_RE, _STATS_OR_HR_RR_RE, BioConfig
 from .patterns import bio_pattern
 
-Span = Tuple[str, int, int]
+Span = tuple[str, int, int]
 
 
 def extra_candidates(text: str, cfg: BioConfig) -> Iterator[Span]:

@@ -1,6 +1,6 @@
 import json
 from dataclasses import asdict
-from typing import Optional, Dict, Tuple, List
+from typing import Optional
 
 from plainera_unacronym.nlp.common.shared import normalize_acronym_key
 from plainera_unacronym.nlp.detection.detector import Detector
@@ -80,10 +80,10 @@ def serialize_detection_and_extraction(det: DetectorResult, extr: ExtractionResu
 
 def _nearest_from_global(
     text: str,
-    firsts: Dict[str, FirstOccurrence],
+    firsts: dict[str, FirstOccurrence],
     det_cfg: DetectorConfig,
     ext_cfg: ExtractionConfig,
-) -> Tuple[Dict[str, Optional[InTextPick]], List[ExtractedDefinition]]:
+) -> tuple[dict[str, Optional[InTextPick]], list[ExtractedDefinition]]:
     """
     Single global scan; index by detector's key and pick nearest per FO.
     Returns (picks_by_key, all_defs).
@@ -91,14 +91,14 @@ def _nearest_from_global(
     defs = list(extract_iter(text, ext_cfg))
     # index by normalized key
     dotted_mode = getattr(det_cfg, "dotted_display", "strip")
-    index: Dict[str, List[ExtractedDefinition]] = {}
+    index: dict[str, list[ExtractedDefinition]] = {}
     for d in defs:
         k = normalize_acronym_key(d.acronym, det_cfg.allow_chars, dotted_mode)
         if not k:
             continue
         index.setdefault(k, []).append(d)
 
-    picks: Dict[str, Optional[InTextPick]] = {}
+    picks: dict[str, Optional[InTextPick]] = {}
     for key, fo in firsts.items():
         cands = index.get(key, [])
         if not cands:
@@ -123,7 +123,7 @@ def detect_and_extract(
     ext_cfg: Optional[ExtractionConfig] = None,
     window_left: int = 320,
     window_right: int = 280,
-) -> Tuple[DetectorResult, ExtractionResult]:
+) -> tuple[DetectorResult, ExtractionResult]:
     det = Detector(config=det_cfg or DetectorConfig())
     det_res = det.detect(text)
 

@@ -1,6 +1,6 @@
-from typing import Iterator, Protocol, Tuple, runtime_checkable
+from typing import Iterator, Protocol, runtime_checkable
 
-Span = Tuple[str, int, int]
+Span = tuple[str, int, int]
 # TODO move this somewhere globally
 """A candidate acronym span.
 

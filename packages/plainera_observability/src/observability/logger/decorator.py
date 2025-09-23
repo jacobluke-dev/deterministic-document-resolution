@@ -107,7 +107,7 @@ def logger(  # noqa: C901
 
     Logged fields:
         - ``function``: The wrapped function's ``__name__``.
-        - ``args``: Dict of selected arguments (from ``arg_names``; redacted as configured).
+        - ``args``: dict of selected arguments (from ``arg_names``; redacted as configured).
         - ``duration_ms``: Included when ``log_duration`` is True.
         - ``result``: Included when ``log_result`` is True.
         - ``error``: Included on exceptions (stringified).

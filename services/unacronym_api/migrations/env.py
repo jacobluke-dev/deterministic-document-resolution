@@ -33,7 +33,7 @@ Base.metadata.naming_convention = {
 
 url = _normalize(os.getenv("DATABASE_URL") or config.get_main_option("sqlalchemy.url"))
 if not url:
-    raise RuntimeError("No database URL. Set DATABASE_URL or sqlalchemy.url")
+    raise RuntimeError("No database URL. set DATABASE_URL or sqlalchemy.url")
 config.set_main_option("sqlalchemy.url", url)
 
 SCHEMA = "unacronym"

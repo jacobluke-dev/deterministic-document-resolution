@@ -1,13 +1,13 @@
 
-from typing import Dict, List, Optional, Tuple, Set
+from typing import Optional
 
 from plainera_unacronym.nlp.common.shared import tighten_label
 from plainera_unacronym.nlp.common.types import InTextPick, ExtractedDefinition
 from plainera_unacronym.nlp.extraction.tighten import tighten_label_by_acronym
 
 
-def defs_from_picks(text: str, picks: Dict[str, Optional[InTextPick]]) -> List[ExtractedDefinition]:
-    out: List[ExtractedDefinition] = []
+def defs_from_picks(text: str, picks: dict[str, Optional[InTextPick]]) -> list[ExtractedDefinition]:
+    out: list[ExtractedDefinition] = []
     for _, pick in picks.items():
         if pick is None:
             continue
@@ -27,13 +27,13 @@ def defs_from_picks(text: str, picks: Dict[str, Optional[InTextPick]]) -> List[E
     return out
 
 
-def _sense_key(acr: str, label: str) -> Tuple[str, str]:
+def _sense_key(acr: str, label: str) -> tuple[str, str]:
     return acr.upper(), tighten_label(label).lower()
 
 
-def dedupe_defs(defs: List[ExtractedDefinition]) -> List[ExtractedDefinition]:
-    seen: Set[Tuple[str, str]] = set()
-    out: List[ExtractedDefinition] = []
+def dedupe_defs(defs: list[ExtractedDefinition]) -> list[ExtractedDefinition]:
+    seen: set[tuple[str, str]] = set()
+    out: list[ExtractedDefinition] = []
     for d in defs:
         k = _sense_key(d.acronym, d.definition)
         if k in seen:

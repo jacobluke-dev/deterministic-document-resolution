@@ -1,4 +1,4 @@
-from typing import Mapping, Optional, Dict
+from typing import Mapping, Optional
 
 from ..common.shared import normalize_acronym_key
 from ..common.types import FirstOccurrence, DetectorConfig, InTextPick
@@ -10,7 +10,7 @@ def picks_from_global(
     firsts: Mapping[str, FirstOccurrence],              # key = normalized_key from detector
     det_cfg: DetectorConfig,                            # for normalize_key (allow_chars, dotted policy)
     ext_cfg: ExtractionConfig = ExtractionConfig(),
-) -> Dict[str, Optional[InTextPick]]:
+) -> dict[str, Optional[InTextPick]]:
     """
     Single global pass over `text`, then for each FirstOccurrence key choose the
     nearest matching in-text definition (parenthetical > inline via confidence).
@@ -30,7 +30,7 @@ def picks_from_global(
         index.setdefault(k, []).append(d)
 
     # 3) For each FO, pick nearest candidate (tie-break by higher confidence)
-    picks: Dict[str, Optional[InTextPick]] = {}
+    picks: dict[str, Optional[InTextPick]] = {}
     for key, fo in firsts.items():
         cands = index.get(key, [])
         if not cands:

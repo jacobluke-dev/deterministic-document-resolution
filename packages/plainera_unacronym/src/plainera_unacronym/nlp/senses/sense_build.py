@@ -1,5 +1,4 @@
 import re
-from typing import Dict, List
 
 from plainera_unacronym.nlp.common.shared import tighten_label
 from plainera_unacronym.nlp.common.types import AcronymSense
@@ -10,8 +9,8 @@ def _slug(s: str) -> str:
     s = re.sub(r"[^a-z0-9]+", "_", s).strip("_")
     return s or "x"
 
-def build_senses(defs) -> Dict[str, List[AcronymSense]]:
-    senses_by: Dict[str, Dict[str, AcronymSense]] = {}
+def build_senses(defs) -> dict[str, list[AcronymSense]]:
+    senses_by: dict[str, dict[str, AcronymSense]] = {}
     for d in dedupe_defs(list(defs)):
         acr = d.acronym.upper()
         label = tighten_label(d.definition)

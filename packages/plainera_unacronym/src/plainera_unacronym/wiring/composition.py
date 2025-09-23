@@ -1,4 +1,3 @@
-# src/plainera_unacronym/wiring/composition.py
 import os
 from dotenv import load_dotenv
 from plainera_core.db_manager.sessions import make_async_sessionmaker
