@@ -18,6 +18,22 @@ BOUNDARY_RE = re.compile(r"[\.!?;:,—–-]\s+")
 
 DEFAULT_TWO_LETTER_BOOST: Final[float] = 0.75
 
+DEFAULT_WORDS_SHARED: frozenset[str] = frozenset({
+    # English-ish function words—expand as needed
+    "of", "and", "the", "for", "to", "in", "on", "with", "a", "an", "at", "by", "from", "as", "per",
+})
+
+NAMED_STOPWORDS: frozenset[str] = frozenset({
+    # Common non-English determiners/prepositions for names
+    "de", "la", "le", "du", "des", "del", "da", "di", "von", "und",
+})
+
+DEFAULT_STOPWORDS: frozenset[str] = frozenset(DEFAULT_WORDS_SHARED | NAMED_STOPWORDS)
+
+# Bridges are the words you're willing to keep for readability inside the span
+BRIDGES_DEFAULT: frozenset[str] = DEFAULT_WORDS_SHARED
+
+
 # last TitleCase/UPPER run (optionally joined by common linkers)
 TITLECASE_TAIL_RE = re.compile(
     r"(?:^|[\s,])([A-Z][\w’'-]*(?:\s+(?:[A-Z][\w’'-]*|of|and|for|to|in|on|with|the|&)){0,12})\s*$",
