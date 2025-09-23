@@ -137,13 +137,13 @@ def detect_and_extract(
 
     # 1) defs from anchored
     anchored_defs = defs_from_picks(text, anchored_picks)
-    # 2) harvest additional Occurrences that may duplicate FirstOccurrence but unique in definition
+    # 2) harvest additional Occurrences that may duplicate FirstOccurrence but have a unique in definition
     extra_defs = harvest_defs_all(text, det_res.occurrences, ext_cfg)
 
     # 3) dedupe + choose strategy fields
     all_defs = dedupe_defs(anchored_defs + extra_defs)
 
-    # Optionally still run your global gap-fill if you want picks for missing keys
+    # Optionally still run global gap-fill if you want picks for missing keys
     missing = tuple(sorted(k for k, v in anchored_picks.items() if v is None))
     if missing:
         global_picks, global_defs = _nearest_from_global(text, det_res.unique_acronyms, det.cfg, ext_cfg)

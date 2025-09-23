@@ -92,7 +92,6 @@ def _build_occurrence_from_match(
         cfg.allow_chars,
         dotted_mode=display_mode,
     )
-    print("DISPLAY:", display_key)
     if not display_key:
         raise OccurrenceBuildError("empty_display_key")
 
@@ -267,7 +266,7 @@ class Detector:
                     level=LogLevel.ERROR,
                     logger_type="message_logger.nlp",
                     details={"reason": str(err), "surface": surface, "s": s, "e": e},
-                    db_sink=self.sink,  # make sure this is self.sink, not a bare 'sink'
+                    db_sink=self.sink,
                 )
                 continue
 

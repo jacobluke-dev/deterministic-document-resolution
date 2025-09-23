@@ -1,4 +1,5 @@
 import re
+import types
 
 import plainera_unacronym.nlp.detection.detector as det
 import plainera_unacronym.nlp.detection.heuristics.core as core
@@ -436,6 +437,85 @@ class TestThresholdLen:
         tok = "PlainToken"
         expected = core.core_len_for_bounds(tok)
         assert core.threshold_len(tok, allow_chars="&/-") == expected
+
+
+class TestBoostConfidenceIfWhitelisted:
+    def _cfg(self, **overrides):
+        # Minimal, flexible config object
+        base = {
+            "whitelist_two_letter": {"AI", "UK"},
+            "two_letter_boost": 0.75,
+            "dotted_display": "strip",
+            "allow_chars": "&-/."
+        }
+        base.update(overrides)
+        return types.SimpleNamespace(**base)
+
+    def test_boosts_when_two_letter_and_whitelisted(self, monkeypatch):
+        # Force the normalized key to 'AI'
+        monkeypatch.setattr(core, "normalize_acronym_key",
+                            lambda surface, **_: "AI",
+                            raising=True)
+
+        cfg = self._cfg()
+        result = core.boost_confidence_if_whitelisted("A.I.", 0.20, cfg)
+        assert result == pytest.approx(0.95)  # 0.20 + 0.75
+
+    def test_caps_at_point_99(self, monkeypatch):
+        monkeypatch.setattr(core, "normalize_acronym_key",
+                            lambda surface, **_: "AI",
+                            raising=True)
+
+        cfg = self._cfg(two_letter_boost=0.75)
+        result = core.boost_confidence_if_whitelisted("AI", 0.50, cfg)
+        assert result == pytest.approx(0.99)  # capped
+
+    def test_no_boost_when_not_whitelisted(self, monkeypatch):
+        monkeypatch.setattr(core, "normalize_acronym_key",
+                            lambda surface, **_: "TV",  # not in whitelist
+                            raising=True)
+
+        cfg = self._cfg()
+        result = core.boost_confidence_if_whitelisted("TV", 0.40, cfg)
+        assert result == pytest.approx(0.40)
+
+    def test_no_boost_when_not_two_letters(self, monkeypatch):
+        # Even if present in whitelist, length != 2 should not boost
+        monkeypatch.setattr(core, "normalize_acronym_key",
+                            lambda surface, **_: "GPU",
+                            raising=True)
+
+        cfg = self._cfg(whitelist_two_letter={"GPU"})  # irrelevant; len != 2
+        result = core.boost_confidence_if_whitelisted("GPU", 0.33, cfg)
+        assert result == pytest.approx(0.33)
+
+    def test_respects_custom_boost_from_cfg(self, monkeypatch):
+        monkeypatch.setattr(core, "normalize_acronym_key",
+                            lambda surface, **_: "UK",
+                            raising=True)
+
+        cfg = self._cfg(two_letter_boost=0.10)
+        result = core.boost_confidence_if_whitelisted("U.K.", 0.50, cfg)
+        assert result == pytest.approx(0.60)
+
+    def test_uses_defaults_when_cfg_lacks_optional_attrs(self, monkeypatch):
+        # Capture kwargs to ensure defaults (allow_chars, dotted_mode) are passed
+        seen = {}
+        def _fake_normalize(surface, **kwargs):
+            seen.update(kwargs)
+            return "AI"
+
+        monkeypatch.setattr(core, "normalize_acronym_key", _fake_normalize, raising=True)
+
+        # cfg without dotted_display / allow_chars / two_letter_boost
+        cfg = types.SimpleNamespace(whitelist_two_letter={"AI"})
+        result = core.boost_confidence_if_whitelisted("A.I.", 0.10, cfg)
+
+        # Default boost = 0.75 ⇒ 0.85
+        assert result == pytest.approx(0.85)
+        # Function should fall back to defaults inside getattr calls
+        assert seen.get("allow_chars") == "&-/."
+        assert seen.get("dotted_mode") == "strip"
 
 
 class TestScoreUnit:
