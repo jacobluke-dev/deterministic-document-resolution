@@ -145,7 +145,7 @@ def _score_chunk_worker(cfg: DetectorConfig, text: str, cands: list[tuple[str, i
                 message_logger(
                     "detector.bad_occurrence",
                     level=LogLevel.ERROR,
-                    logger_type="message_logger.nlp",
+                    logger_type="nlp",
                     details={"reason": str(err), "surface": surface, "s": s, "e": e},
                     db_sink=sink,
                 )
@@ -264,7 +264,7 @@ class Detector:
                 message_logger(
                     "detector.bad_occurrence",
                     level=LogLevel.ERROR,
-                    logger_type="message_logger.nlp",
+                    logger_type="nlp",
                     details={"reason": str(err), "surface": surface, "s": s, "e": e},
                     db_sink=self.sink,
                 )
@@ -285,7 +285,7 @@ class Detector:
         message_logger(
             "detector.detect.summary",
             level=LogLevel.INFO,
-            logger_type="message_logger.nlp",
+            logger_type="nlp",
             args={
                 "text_len": len(text),
                 "candidates": total,
@@ -335,7 +335,7 @@ class Detector:
             self._pool = ProcessPoolExecutor(max_workers=self._max_workers)
             message_logger(
                 "detector.pool.created",
-                logger_type="message_logger.nlp",
+                logger_type="nlp",
                 args={"max_workers": self._max_workers or cpu_count() or 1},
                 db_sink=self.sink,
             )
@@ -343,7 +343,7 @@ class Detector:
         num_chunks = (len(cands) + chunk_size - 1) // chunk_size
         message_logger(
             "detector.parallel.selected",
-            logger_type="message_logger.nlp",
+            logger_type="nlp",
             args={"candidates": len(cands), "chunk_size": chunk_size, "num_chunks": num_chunks},
             db_sink=self.sink,
         )
@@ -362,7 +362,7 @@ class Detector:
                 message_logger(
                     "detector.chunk.failed",
                     level=LogLevel.ERROR,
-                    logger_type="message_logger.nlp",
+                    logger_type="nlp",
                     args={"chunk_index": idx},
                     details={"error": str(e), "trace": traceback.format_exc()},
                     db_sink=self.sink,
