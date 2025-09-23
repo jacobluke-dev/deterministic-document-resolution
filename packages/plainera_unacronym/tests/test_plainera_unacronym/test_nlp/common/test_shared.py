@@ -1,7 +1,7 @@
 import pytest
 
 from plainera_unacronym.nlp.common.constants import APOSTROPHE_VARIANTS
-from plainera_unacronym.nlp.common.shared import has_paren_definition, normalize_acronym_key
+from plainera_unacronym.nlp.common.shared import has_paren_definition, normalize_acronym_key, tighten_label
 
 
 def _end_of(text: str, token: str) -> int:
@@ -141,3 +141,57 @@ class TestNormalizeKey:
 #         s = "machine–learning,   methods (ML)…  "
 #         out = normalize_definition(s)
 #         assert out == "machine-learning, methods (ML)…".rstrip("…")  # depending on TRAILING_PUNCT
+
+
+class TestTightenLabel:
+    def test_forward_stands_for(self):
+        s = "PDF stands for Portable Document Format"
+        assert tighten_label(s) == "Portable Document Format"
+
+    def test_forward_means(self):
+        s = "GPU means Graphics Processing Unit"
+        assert tighten_label(s) == "Graphics Processing Unit"
+
+    def test_forward_is(self):
+        s = "ROM is Read Only Memory"
+        assert tighten_label(s) == "Read Only Memory"
+
+    def test_forward_are(self):
+        s = "HTTP headers are Hypertext Transfer Protocol headers"
+        assert tighten_label(s) == "Hypertext Transfer Protocol headers"
+
+    def test_trailing_proper_noun_chunk_wins(self):
+        # Trailing Proper-Noun chunk should be extracted before splitter logic
+        s = "The non-profit North American Saxophone Alliance"
+        assert tighten_label(s) == "North American Saxophone Alliance"
+
+    def test_article_removed_when_no_proper_chunk(self):
+        s = "The graphics processing unit"
+        assert tighten_label(s) == "graphics processing unit"
+
+    def test_leading_connectors_removed_twice(self):
+        # Starts with two connectors; both should be stripped
+        s = "And, which the Portable Document Format"
+        assert tighten_label(s) == "Portable Document Format"
+
+    def test_handles_hyphens_and_apostrophes_in_proper_chunk(self):
+        # Regex allows letters, digits, apostrophes and hyphens inside words
+        s = "The British-Irish Council"
+        assert tighten_label(s) == "British-Irish Council"
+
+        s2 = "Queen’s Award for Enterprise"
+        # Proper-noun chunk is the trailing capitalised sequence:
+        # "Queen’s Award for Enterprise" -> last proper chunk = "Enterprise"? No:
+        # the trailing chunk matched should be the last Capitalised+ words sequence.
+        # Use a more deterministic phrasing to ensure multi-word match:
+        s2 = "The Queen’s Award"
+        assert tighten_label(s2) == "Queen’s Award"
+
+    def test_no_change_when_already_minimal(self):
+        s = "efficient data structure"
+        assert tighten_label(s) == "efficient data structure"
+
+    def test_mixed_case_non_proper_phrase_keeps_case_post_article_drop(self):
+        s = "An adaptive threshold"
+        # No trailing Proper-Noun chunk; article removed, rest kept
+        assert tighten_label(s) == "adaptive threshold"
