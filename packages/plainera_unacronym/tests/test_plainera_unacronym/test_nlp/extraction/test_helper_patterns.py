@@ -86,8 +86,7 @@ class DummyCfg:
         self.max_phrase_chars = max_phrase_chars
 
 
-@pytest.mark.unit
-class TestFindLongformAfterAcr_Unit:
+class TestFindLongformAfterAcrUnit:
     def test_no_parenthesized_match_returns_empty(self):
         cfg = DummyCfg()
         snippet = "  not a parenthetical here"
