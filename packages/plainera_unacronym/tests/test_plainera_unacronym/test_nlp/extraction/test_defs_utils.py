@@ -1,14 +1,8 @@
-import importlib
-
 import pytest
 
-# defs_from_picks = getattr(mod, "defs_from_picks")
-
-# Real dataclass
 from plainera_unacronym.nlp.common.types import InTextPick  # noqa: E402
-from plainera_unacronym.nlp.extraction.defs_utils import defs_from_picks, _sense_key
+from plainera_unacronym.nlp.extraction.defs_utils import defs_from_picks, _sense_key, dedupe_defs
 import plainera_unacronym.nlp.extraction.defs_utils as mod
-from plainera_unacronym.nlp.extraction.helper_patterns import dedupe_defs
 
 
 def _span(text: str, needle: str) -> tuple[int, int]:

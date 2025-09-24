@@ -12,10 +12,38 @@ class LocalDefMatch:
 
 
 def _has_letters(s: str) -> bool:
+    """True if the string contains any Unicode letter.
+
+    Args:
+      s (str): String to check.
+
+    Returns:
+      bool: True if any character in ``s`` satisfies ``str.isalpha()``; else False.
+    """
     return any(ch.isalpha() for ch in s)
 
 
-def _acrostic_ok(acr: str, phrase: str) -> bool:
+def _initials_match(acr: str, phrase: str) -> bool:
+    """Check if an acronym fits the phrase's initials as an ordered subsequence.
+
+        Builds an uppercase string of initials from the phrase by taking the first
+        character of each word **only if** that character is alphabetic. Then checks
+        whether the alphabetic characters of ``acr`` (ignoring any non-letters in
+        ``acr``) appear in order within those initials.
+
+        This is case-insensitive for matching and does not require contiguity—only
+        order. Words that begin with non-letters (e.g., ``"3M"``, ``"7-Document"``)
+        do not contribute an initial.
+
+        Args:
+          acr (str): The Acronym to test.
+          phrase (str): Candidate long-form phrase used to derive initials.
+
+        Returns:
+          bool: True if the acronym's letters appear in order within the phrase initials;
+          otherwise False.
+
+        """
     initials = "".join(w[0].upper() for w in phrase.split() if w and w[0].isalpha())
     j = 0
     for ch in acr:
@@ -56,7 +84,7 @@ def find_longform_after_acr(
 
     # Optional acrostic guard to reduce junk like "(see below)"
     if acr and require_acrostic:
-        if not _acrostic_ok(acr.upper(), norm):
+        if not _initials_match(acr.upper(), norm):
             return []
 
     return [LocalDefMatch(def_start=m.start("def"), def_end=m.end("def"), definition=norm)]
