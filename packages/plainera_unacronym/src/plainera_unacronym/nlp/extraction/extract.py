@@ -36,7 +36,7 @@ def _has_letters(s: str) -> bool:
 def _two_words(s: str) -> bool:
     return len([w for w in s.split() if re.search(r"[A-Za-z]", w)]) >= 2
 
-def _acrostic_ok(acr: str, phrase: str) -> bool:
+def _initials_match(acr: str, phrase: str) -> bool:
     initials = "".join(w[0].upper() for w in phrase.split() if w and w[0].isalpha())
     j = 0
     for ch in acr:
@@ -137,7 +137,7 @@ def extract_iter(
                 continue
             seen.add(key)
 
-            conf = min(base_conf + (0.03 if _acrostic_ok(acronym, definition) else 0.0), 0.99)
+            conf = min(base_conf + (0.03 if _initials_match(acronym, definition) else 0.0), 0.99)
             yield ExtractedDefinition(
                 acronym=acronym,
                 definition=tighten_label_by_acronym(definition, acronym.upper()),

@@ -1,6 +1,7 @@
 import pytest
 
-from plainera_unacronym.nlp.extraction.helper_patterns import _has_letters, _initials_match, find_longform_after_acr
+from plainera_unacronym.nlp.extraction.helper_patterns import _has_letters, _initials_match, find_longform_after_acr, \
+    find_longform_before_acr
 
 
 class TestHasLetters:
@@ -35,7 +36,6 @@ def _msg(acr, phrase):
     return f"acr={acr!r}, phrase={phrase!r}"
 
 
-@pytest.mark.unit
 class TestAcrosticOk:
     @pytest.mark.parametrize(
         "acr,phrase,expected",
@@ -87,7 +87,7 @@ class DummyCfg:
         self.max_phrase_chars = max_phrase_chars
 
 
-class TestFindLongformAfterAcrUnit:
+class TestFindLongformAfterAcrIntegration:
     def test_no_parenthesized_match_returns_empty(self):
         cfg = DummyCfg()
         snippet = "  not a parenthetical here"
@@ -151,8 +151,6 @@ class TestFindLongformAfterAcrUnit:
         # Ensure the span points exactly to the definition characters within snippet
         assert snippet[m.def_start:m.def_end] == raw_def
 
-
-class TestFindLongformAfterAcrIntegration:
     def test_forward_form_pdf(self):
         cfg = DummyCfg()
         # Caller slices snippet to start at acr_end; we simulate by starting at '('
@@ -194,3 +192,155 @@ class TestFindLongformAfterAcrIntegration:
         snippet = "(Hypertext Transfer Protocol)"
         # Longer than max → no match at all
         assert find_longform_after_acr(snippet, cfg, acr="HTTP") == []
+
+
+def _patch(monkeypatch, func, **replacements):
+    g = func.__globals__
+    for name, impl in replacements.items():
+        monkeypatch.setitem(g, name, impl)
+
+
+class TestFindLongformAfterAcrUnit:
+    def test_no_parenthesized_match_returns_empty(self, monkeypatch):
+        # Patching anyway to prove independence; they won't be called
+        _patch(
+            monkeypatch, find_longform_after_acr,
+            _has_letters=lambda s: True,
+            tighten_definition_span=lambda s: s,
+            normalize_definition=lambda s: s,
+            _initials_match=lambda acr, phrase: True,
+        )
+        cfg = DummyCfg()
+        assert find_longform_after_acr("no parens here", cfg, acr="PDF") == []
+
+    def test_requires_letters_gate(self, monkeypatch):
+        calls = {}
+        def spy_has_letters(s):
+            calls["raw"] = s
+            return False  # force gate fail
+        _patch(
+            monkeypatch, find_longform_after_acr,
+            _has_letters=spy_has_letters,
+            tighten_definition_span=lambda s: "IGNORED",
+            normalize_definition=lambda s: "IGNORED",
+            _initials_match=lambda acr, phrase: True,
+        )
+        cfg = DummyCfg()
+        snip = "   (1234) tail"
+        assert find_longform_after_acr(snip, cfg, acr="X") == []
+        # ensure we passed the raw inner text to _has_letters
+        assert calls["raw"] == "1234"
+
+    def test_normalize_pipeline_and_span_preserved(self, monkeypatch):
+        seen = {}
+        def fake_tighten(s):
+            seen["tighten_in"] = s
+            return " Foo   Bar... "
+        def fake_normalize(s):
+            seen["normalize_in"] = s
+            return "Foo Bar"  # collapsed + stripped
+        _patch(
+            monkeypatch, find_longform_after_acr,
+            _has_letters=lambda s: True,
+            tighten_definition_span=fake_tighten,
+            normalize_definition=fake_normalize,
+            _initials_match=lambda acr, phrase: True,
+        )
+        cfg = DummyCfg()
+        raw = " noisy    RAW "
+        snip = f"  ({raw}) and more"
+        out = find_longform_after_acr(snip, cfg, acr="FB")
+        assert len(out) == 1
+        m = out[0]
+        # Output definition is the normalized value
+        assert m.definition == "Foo Bar"
+
+        # Indices hug the content (no inner padding)
+        assert snip[m.def_start:m.def_end] == raw.strip()
+
+        # Verify pipeline call args: we now feed the *tight* captured def
+        assert seen["tighten_in"] == raw.strip()
+
+        # And normalize is called with whatever tighten returned
+        assert seen["normalize_in"] == " Foo   Bar... "
+
+    def test_acrostic_guard_true_allows(self, monkeypatch):
+        seen = {}
+
+        def ok(acr, phrase):
+            seen["acr"] = acr
+            seen["phrase"] = phrase
+            return True
+
+        _patch(
+            monkeypatch, find_longform_after_acr,
+            _has_letters=lambda s: True,
+            tighten_definition_span=lambda s: s,
+            normalize_definition=lambda s: s.strip(),
+            _initials_match=ok,
+        )
+
+        cfg = DummyCfg()
+        snip = "(Portable Document Format)"
+        out = find_longform_after_acr(snip, cfg, acr="PDF", require_acrostic=True)
+        assert len(out) == 1
+        assert out[0].definition == "Portable Document Format"
+
+        # Now the guard should have been called
+        assert seen["acr"] == "PDF"
+        assert seen["phrase"] == "Portable Document Format"
+
+    def test_acrostic_guard_false_blocks(self, monkeypatch):
+        _patch(
+            monkeypatch, find_longform_after_acr,
+            _has_letters=lambda s: True,
+            tighten_definition_span=lambda s: s,
+            normalize_definition=lambda s: s,
+            _initials_match=lambda acr, phrase: False,
+        )
+        cfg = DummyCfg()
+        snip = "(Portable Document Format)"
+        assert find_longform_after_acr(snip, cfg, acr="PDF", require_acrostic=True) == []
+
+    def test_max_chars_respected(self, monkeypatch):
+        # No need to patch helpers: regex should fail pre-helpers
+        cfg = DummyCfg(max_phrase_chars=3)
+        assert find_longform_after_acr("(Portable)", cfg, acr="P") == []
+
+
+class TestFindLongformBeforeAcrIntegration:
+    def test_basic_forward_phrase_then_acr(self):
+        cfg = DummyCfg()
+        snippet = "Portable Document Format (PDF)"
+        out = find_longform_before_acr(snippet, "PDF", cfg)
+        assert len(out) == 1
+        assert out[0].definition == "Portable Document Format"
+
+    def test_trailing_punctuation_is_normalized(self):
+        cfg = DummyCfg()
+        snippet = "Graphics   Processing   Unit...   (GPU)"
+        out = find_longform_before_acr(snippet, "GPU", cfg)
+        assert len(out) == 1
+        assert out[0].definition == "Graphics Processing Unit"
+
+    def test_titlecase_tail_preference_is_respected(self):
+        cfg = DummyCfg()
+        # If your tighten_definition_span favors the last TitleCase/UPPER chunk,
+        # ensure we still get the meaningful tail.
+        snippet = "See also the HyperText Transfer Protocol (HTTP)"
+        out = find_longform_before_acr(snippet, "HTTP", cfg)
+        assert len(out) == 1
+        assert out[0].definition == "HyperText Transfer Protocol"
+
+    def test_boundary_and_whitespace_variants(self):
+        cfg = DummyCfg()
+        snippet = "Read Only Memory   ( ROM )   "
+        out = find_longform_before_acr(snippet, "ROM", cfg)
+        assert len(out) == 1
+        assert out[0].definition == "Read Only Memory"
+
+    def test_respects_max_chars_integration(self):
+        cfg = DummyCfg(max_phrase_chars=10)
+        snippet = "Hypertext Transfer Protocol (HTTP)"
+        # Def > 10 chars → no match
+        assert find_longform_before_acr(snippet, "HTTP", cfg) == []

@@ -67,7 +67,10 @@ def find_longform_after_acr(
     For simplicity here we assume the caller already sliced to start at acr_end.
     """
     max_chars = getattr(cfg, "max_phrase_chars", 80)
-    pat = re.compile(rf"\A\s*\((?P<def>[^()]{{1,{max_chars}}})\)", re.VERBOSE)
+    pat = re.compile(
+        rf"\A\s*\(\s*(?P<def>[^()]{{1,{max_chars}}}?)(?=\s*\))\s*\)",
+        re.VERBOSE,
+    )
 
     m = pat.match(snippet)
     if not m:
@@ -100,9 +103,15 @@ def find_longform_before_acr(snippet: str, acr: str, cfg) -> list[LocalDefMatch]
     max_chars = getattr(cfg, "max_phrase_chars", 80)
     acr_escaped = re.escape(acr)
     pat = re.compile(
-        rf"(?P<def>[^\(\)]{{1,{max_chars}}})\s*\(\s*{acr_escaped}\s*\)\s*$",
+        rf"""
+            \A\s*                                         # start of snippet
+            (?P<def>[^\(\)]{{1,{max_chars}}}?)(?=\s*\(\s*{acr_escaped}\s*\)\s*$)
+                                                         # lookahead to "(ACR)" at end
+            \s*\(\s*{acr_escaped}\s*\)\s*$               # the "(ACR)" itself
+            """,
         re.VERBOSE,
     )
+
     m = pat.search(snippet)
     if not m:
         return []
@@ -115,5 +124,4 @@ def find_longform_before_acr(snippet: str, acr: str, cfg) -> list[LocalDefMatch]
     if not norm:
         return []
 
-    # Before-ACR is already anchored on the correct (ACR)
     return [LocalDefMatch(def_start=m.start("def"), def_end=m.end("def"), definition=norm)]
