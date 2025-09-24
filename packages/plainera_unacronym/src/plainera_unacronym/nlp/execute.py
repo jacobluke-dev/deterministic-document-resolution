@@ -10,11 +10,10 @@ from plainera_unacronym.nlp.common.types import (
     ExtractionResult, ExtractedDefinition, InTextPick, FirstOccurrence, OccurrenceLite
 )
 from plainera_unacronym.nlp.extraction.config import ExtractionConfig
-from plainera_unacronym.nlp.extraction.defs_utils import defs_from_picks
+from plainera_unacronym.nlp.extraction.defs_utils import defs_from_picks, dedupe_defs
 from plainera_unacronym.nlp.extraction.extract_first_occ import extract_near_firsts
 from plainera_unacronym.nlp.extraction.extract import extract_iter
 from plainera_unacronym.nlp.extraction.harvest import harvest_defs_all
-from plainera_unacronym.nlp.extraction.helper_patterns import dedupe_defs
 from plainera_unacronym.nlp.senses.disambiguate import disambiguate_occurrences
 from plainera_unacronym.nlp.senses.sense_build import build_senses
 

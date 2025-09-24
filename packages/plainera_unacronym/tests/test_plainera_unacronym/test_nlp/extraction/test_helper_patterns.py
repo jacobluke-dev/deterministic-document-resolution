@@ -174,9 +174,12 @@ class TestFindLongformAfterAcrIntegration:
         cfg = DummyCfg()
         # Non-alpha-leading words are ignored; we also avoid TitleCase tail trimming
         snippet = "(3M Portable format)"
-        # Initials after normalization: "PF"
-        assert find_longform_after_acr(snippet, cfg, acr="PF", require_acrostic=True)
-        assert find_longform_after_acr(snippet, cfg, acr="PDF", require_acrostic=True) == []
+        out = find_longform_after_acr(snippet, cfg, acr="PF", require_acrostic=True)
+        assert len(out) == 1
+        assert out[0].definition == "3M Portable format"
+        # PF != PDF
+        out2 = find_longform_after_acr(snippet, cfg, acr="PDF", require_acrostic=True)
+        assert out2 == []
 
     def test_require_acrostic_false_allows_generic_parenthetical(self):
         cfg = DummyCfg()

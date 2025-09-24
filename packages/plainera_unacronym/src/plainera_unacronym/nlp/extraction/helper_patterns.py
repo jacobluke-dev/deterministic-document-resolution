@@ -117,16 +117,3 @@ def find_longform_before_acr(snippet: str, acr: str, cfg) -> list[LocalDefMatch]
 
     # Before-ACR is already anchored on the correct (ACR)
     return [LocalDefMatch(def_start=m.start("def"), def_end=m.end("def"), definition=norm)]
-
-
-def dedupe_defs(defs: list[ExtractedDefinition]) -> list[ExtractedDefinition]:
-    """Dedupe on (acronym.upper(), tighten_label(definition)). Keep the earliest span, merge support later."""
-    seen = set()
-    out = []
-    for d in defs:
-        key = (d.acronym.upper(), tighten_label(d.definition))
-        if key in seen:
-            continue
-        seen.add(key)
-        out.append(d)
-    return out
