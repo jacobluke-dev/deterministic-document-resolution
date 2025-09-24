@@ -10,7 +10,6 @@ def _span(text: str, needle: str) -> tuple[int, int]:
     return i, i + len(needle)
 
 
-
 class TestDefsFromPicks:
     def test_returns_empty_for_empty_input(self, monkeypatch):
         # Tighten shouldn't be called, but keep deterministic just in case
@@ -47,7 +46,7 @@ class TestDefsFromPicks:
         item = out[0]
 
         assert item.source == "in_text"
-        assert item.acronym == "PTO"                         # uppercased
+        assert item.acronym == "PTO"  # uppercased
         assert item.definition == "TIGHT[Please turn over|PTO]"
         assert item.original_definition == long
         assert (item.acr_start, item.acr_end) == (a0, a1)
@@ -214,6 +213,7 @@ class TestDefsFromPicksIntegration:
             pytest.approx(0.66),
         ]
 
+
 class TestSenseKeyIntegration:
     def test_trailing_proper_noun_chunk(self):
         key = _sense_key("BIC", "The British-Irish Council")
@@ -227,6 +227,7 @@ class TestSenseKeyIntegration:
         # Intentional mismatch: function does not relate acronym to label
         key = _sense_key("GPU", "Portable Document Format")
         assert key == ("GPU", "portable document format")
+
 
 from plainera_unacronym.nlp.common.types import ExtractedDefinition  # noqa: E402
 
@@ -251,7 +252,7 @@ class TestDedupeDefsUnit:
         # Same sense after real normalization
         d1 = _ed("PDF", "Portable Document Format")
         d2 = _ed("Pdf", "And, which the Portable Document Format")  # dup of d1
-        d3 = _ed("GPU", "Gamma three")                               # distinct
+        d3 = _ed("GPU", "Gamma three")  # distinct
 
         out = dedupe_defs([d1, d2, d3])
         assert [o.definition for o in out] == ["Portable Document Format", "Gamma three"]
