@@ -21,70 +21,38 @@ def _tokenize_preserve(text: str) -> list[str]:
 
 def _initials_seq(tokens: list[str], stopwords: set[str]) -> tuple[list[str], list[int]]:
     """
-    Build a sequence of initials (letters+digits) from tokens, skipping stopwords.
-    owners[k] = token index that produced letters[k].
+        Build a sequence of initials (letters+digits) from tokens, skipping stopwords.
+        owners[k] = token index that produced letters[k].
+
+        Unicode-aware: picks the first character in each part where ch.isalpha() or ch.isdigit().
     """
     letters, owners = [], []
     for ti, tok in enumerate(tokens):
         if tok.lower() in stopwords:
             continue
         for part in _split_compound(tok):
-            # initial = first alnum in the part
-            m = re.search(r"[A-Za-z0-9]", part)
-            if m:
-                letters.append(m.group(0).upper())
-                owners.append(ti)
+            for ch in part:
+                if ch.isalpha() or ch.isdigit():
+                    letters.append(ch.upper())
+                    owners.append(ti)
+                    break
     return letters, owners
 
-def _match_from(letters: list[str], A: list[str], start: int) -> Optional[tuple[int, list[int]]]:
+def _match_from(letters: list[str], acronym_list: list[str], start: int) -> Optional[tuple[int, list[int]]]:
     """
     Greedily align A as a subsequence of letters starting at index `start`.
     Returns (end_index_exclusive_in_letters, matched_letter_positions) or None.
     """
     li, ai = start, 0
     used = []
-    while li < len(letters) and ai < len(A):
-        if letters[li] == A[ai]:
+    while li < len(letters) and ai < len(acronym_list):
+        if letters[li] == acronym_list[ai]:
             used.append(li)
             ai += 1
         li += 1
-    if ai == len(A):
+    if ai == len(acronym_list):
         return li, used
     return None
-
-
-# def _best_window_for_acronym(tokens: list[str], acronym: str, stopwords: set) -> Optional[tuple[int, int]]:
-#     """
-#     Find the shortest contiguous token window whose (non-stopword) initials
-#     match the acronym as a subsequence in order. Returns (start_idx, end_idx_inclusive) or None.
-#     """
-#     A = [c for c in acronym if c.isalnum()]
-#     if not A:
-#         return None
-#     A = [c.upper() for c in A]
-#
-#     letters, owners = _initials_seq(tokens, stopwords)
-#     if not letters:
-#         return None
-#
-#     best = None  # (tok_start, tok_end)
-#     nL, nA = len(letters), len(A)
-#
-#     # Slide over the initials sequence; for each possible start, greedily match A
-#     for li in range(nL):
-#         ai = 0
-#         lj = li
-#         while lj < nL and ai < nA:
-#             if letters[lj] == A[ai]:
-#                 ai += 1
-#             lj += 1
-#         if ai == nA:
-#             tok_start = owners[li]
-#             tok_end = owners[lj - 1]
-#             if best is None or (tok_end - tok_start) < (best[1] - best[0]):
-#                 best = (tok_start, tok_end)
-#
-#     return best
 
 
 def _best_window_for_acronym(tokens: list[str], acronym: str, stopwords: set[str]
