@@ -108,45 +108,69 @@ class TestHarvestDefsAllUnit:
         assert (item.acr_start, item.acr_end) == (acr0, acr1)
 
     def test_window_clamps_and_multiple_occs_accumulate(self, monkeypatch):
-        # Occ #1 near start; Occ #2 near end; ensure window clamps 0..len(text)
         text = "PDF (Portable Document Format) ... lead-in ... GPU (Graphics Processing Unit)"
-        pdf0 = text.index("PDF")
+        pdf0 = text.index("PDF");
         pdf1 = pdf0 + 3
-        gpu0 = text.index("GPU")
+        gpu0 = text.index("GPU");
         gpu1 = gpu0 + 3
 
-        cfg = Cfg(window_chars=10)  # small, forces clamps
+        cfg = Cfg(window_chars=len(text))  # big window: include both phrases
 
-        def fake_before(snippet, acr, cfg_):
-            if acr == "PDF":
-                # pre covers "(Portable Document Format)" in this snippet
-                start = snippet.index("Portable")
-                end = start + len("Portable Document Format")
-                return [SimpleNamespace(def_start=start, def_end=end, definition="Portable Document Format")]
+        def fake_before(snippet, acr, cfg):
+            if acr != "PDF": return []
+            phrase = "Portable Document Format"
+            if phrase in snippet:
+                s = snippet.index(phrase);
+                e = s + len(phrase)
+                return [SimpleNamespace(def_start=s, def_end=e, definition=phrase)]
             return []
 
-        def fake_after(snippet, cfg_, acr=None):
-            if acr == "GPU":
-                start = snippet.index("Graphics")
-                end = start + len("Graphics Processing Unit")
-                return [SimpleNamespace(def_start=start, def_end=end, definition="Graphics Processing Unit")]
+        def fake_after(snippet, cfg, acr=None, **_):
+            mapping = {
+                "PDF": "Portable Document Format",
+                "GPU": "Graphics Processing Unit",
+            }
+            phrase = mapping.get(acr)
+            if not phrase:
+                return []
+            if phrase in snippet:
+                s = snippet.index(phrase)
+                e = s + len(phrase)
+                return [SimpleNamespace(def_start=s, def_end=e, definition=phrase)]
             return []
 
         _patch(
             monkeypatch, harvest_defs_all,
-            find_longform_before_acr=lambda *a, **k: [],
+            find_longform_before_acr=fake_before,
             find_longform_after_acr=fake_after,
-            tighten_label_by_acronym=lambda raw, acr_up: raw,
+            tighten_label_by_acronym=lambda raw, up: raw,
         )
 
         occs = [Occ("PDF", pdf0, pdf1), Occ("GPU", gpu0, gpu1)]
         out = harvest_defs_all(text, occs, cfg)
-        # Both definitions harvested
+
         assert [o.acronym for o in out] == ["PDF", "GPU"]
         assert [o.definition for o in out] == [
             "Portable Document Format",
             "Graphics Processing Unit",
         ]
+
+    def test_small_window_finds_nothing(self, monkeypatch):
+        text = "PDF (Portable Document Format) ... GPU (Graphics Processing Unit)"
+        pdf0 = text.index("PDF"); pdf1 = pdf0 + 3
+        gpu0 = text.index("GPU"); gpu1 = gpu0 + 3
+        cfg = Cfg(window_chars=3)
+
+        _patch(
+            monkeypatch, harvest_defs_all,
+            find_longform_before_acr=lambda *a, **k: [],
+            find_longform_after_acr=lambda *a, **k: [],
+            tighten_label_by_acronym=lambda raw, up: raw,
+        )
+
+        out = harvest_defs_all(text, [Occ("PDF", pdf0, pdf1), Occ("GPU", gpu0, gpu1)], cfg)
+        assert out == []
+
 
 
 class TestHarvestDefsAllIntegration:
