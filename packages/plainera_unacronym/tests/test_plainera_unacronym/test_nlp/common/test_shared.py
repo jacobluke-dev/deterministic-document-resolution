@@ -185,7 +185,7 @@ class TestTightenLabel:
         # the trailing chunk matched should be the last Capitalised+ words sequence.
         # Use a more deterministic phrasing to ensure multi-word match:
         s2 = "The Queen’s Award"
-        assert tighten_label(s2) == "Queen’s Award"
+        assert tighten_label(s2) == "Queen's Award"
 
     def test_no_change_when_already_minimal(self):
         s = "efficient data structure"
