@@ -104,11 +104,11 @@ def find_longform_before_acr(snippet: str, acr: str, cfg) -> list[LocalDefMatch]
     acr_escaped = re.escape(acr)
     pat = re.compile(
         rf"""
-            \A\s*                                         # start of snippet
-            (?P<def>[^\(\)]{{1,{max_chars}}}?)(?=\s*\(\s*{acr_escaped}\s*\)\s*$)
-                                                         # lookahead to "(ACR)" at end
-            \s*\(\s*{acr_escaped}\s*\)\s*$               # the "(ACR)" itself
-            """,
+        \A\s*  # start of snippet
+        (?P<def>[^\(\)]{{1,{max_chars}}}?)(?=\s*\(\s*{acr_escaped}\s*\)\s*$)
+        # lookahead to "(ACR)" at end
+        \s*\(\s*{acr_escaped}\s*\)\s*$ # the "(ACR)" itself
+        """,
         re.VERBOSE,
     )
 
@@ -120,8 +120,21 @@ def find_longform_before_acr(snippet: str, acr: str, cfg) -> list[LocalDefMatch]
     if not _has_letters(raw):
         return []
 
-    norm = normalize_definition(tighten_definition_span(raw))
+    # ⬇️ Gate on the literal raw capture length (after trimming inner padding)
+    raw_trim = raw.strip()
+    if len(raw_trim) > max_chars:
+        return []
+
+    norm = normalize_definition(tighten_definition_span(raw_trim))
     if not norm:
         return []
 
-    return [LocalDefMatch(def_start=m.start("def"), def_end=m.end("def"), definition=norm)]
+    # tighten the returned span to the normalized content when possible
+    inner = raw_trim.find(norm)
+    if inner != -1:
+        ds = m.start("def") + raw[:len(raw) - len(raw.lstrip())].__len__() + inner
+        de = ds + len(norm)
+    else:
+        ds, de = m.start("def"), m.end("def")
+
+    return [LocalDefMatch(def_start=ds, def_end=de, definition=norm)]
