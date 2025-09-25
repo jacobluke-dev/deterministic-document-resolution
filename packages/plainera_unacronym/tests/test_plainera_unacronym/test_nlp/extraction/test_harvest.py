@@ -109,9 +109,9 @@ class TestHarvestDefsAllUnit:
 
     def test_window_clamps_and_multiple_occs_accumulate(self, monkeypatch):
         text = "PDF (Portable Document Format) ... lead-in ... GPU (Graphics Processing Unit)"
-        pdf0 = text.index("PDF");
+        pdf0 = text.index("PDF")
         pdf1 = pdf0 + 3
-        gpu0 = text.index("GPU");
+        gpu0 = text.index("GPU")
         gpu1 = gpu0 + 3
 
         cfg = Cfg(window_chars=len(text))  # big window: include both phrases
@@ -120,7 +120,7 @@ class TestHarvestDefsAllUnit:
             if acr != "PDF": return []
             phrase = "Portable Document Format"
             if phrase in snippet:
-                s = snippet.index(phrase);
+                s = snippet.index(phrase)
                 e = s + len(phrase)
                 return [SimpleNamespace(def_start=s, def_end=e, definition=phrase)]
             return []
