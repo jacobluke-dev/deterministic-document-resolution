@@ -11,11 +11,23 @@ def picks_from_global(
     det_cfg: DetectorConfig,                            # for normalize_key (allow_chars, dotted policy)
     ext_cfg: ExtractionConfig = ExtractionConfig(),
 ) -> dict[str, Optional[InTextPick]]:
-    """
-    Single global pass over `text`, then for each FirstOccurrence key choose the
-    nearest matching in-text definition (parenthetical > inline via confidence).
+    """Pick the nearest definition per detected acronym key from a single global pass.
 
-    Returns: { normalized_key: InTextPick | None }
+    Runs `extract_iter(text, ext_cfg)` once, normalizes each extracted acronym to the
+    detector’s key space (`normalize_acronym_key` honoring `det_cfg.allow_chars` and
+    `det_cfg.dotted_display`), buckets definitions by key, and for each
+    `FirstOccurrence` selects the candidate whose acronym start is nearest to
+    `fo.start_offset` (tie-break by higher `confidence`, then earlier position).
+
+    Args:
+        text: Full document text.
+        firsts: Mapping of detector-normalized acronym keys to first occurrences.
+        det_cfg: Detector configuration (allowed chars, dotted policy).
+        ext_cfg: Extraction configuration for `extract_iter`.
+
+    Returns:
+        Dict mapping each key in `firsts` to an `InTextPick`, or `None` if no
+        extracted definitions matched that key.
     """
     # 1) Run global extraction once
     defs = list(extract_iter(text, ext_cfg))
