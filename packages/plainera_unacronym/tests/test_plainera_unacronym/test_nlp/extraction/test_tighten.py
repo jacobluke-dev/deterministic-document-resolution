@@ -335,10 +335,17 @@ class TestTightenLabelByAcronymUnit:
         # canonicalize should be called and then fallback through collapse_ws + strip_trailing_punct
         calls = {}
 
-        def fake_canon(s): calls["canon"] = s; return s
-        def fake_tokenize(_): return []
-        def fake_collapse(s): calls["collapse"] = s; return "Foo Bar  "
-        def fake_strip(s): calls["strip"] = s; return "Foo Bar"
+        def fake_canon(s):
+            calls["canon"] = s
+            return s
+        def fake_tokenize(_):
+            return []
+        def fake_collapse(s):
+            calls["collapse"] = s
+            return "Foo Bar  "
+        def fake_strip(s):
+            calls["strip"] = s
+            return "Foo Bar"
 
         _patch(
             monkeypatch, tighten_label_by_acronym,
