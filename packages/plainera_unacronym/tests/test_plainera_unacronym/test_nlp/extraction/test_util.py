@@ -20,10 +20,10 @@ class TestPicksFromGlobalUnit:
             ExtractedDefinition("Pdf", "Portable Doc Format",      "in_text", 0.95, 100,103, 150, 175, "Portable Doc Format"),
         ]
         monkeypatch.setattr('plainera_unacronym.nlp.extraction.util.extract_iter', lambda t,cfg: iter(defs))
-        normal = lambda acr, allowed, dotted_display='strip': acr.lower()
+        normal = lambda acr, allowed, dotted_mode='strip': acr.lower()
         monkeypatch.setattr('plainera_unacronym.nlp.extraction.util.normalize_acronym_key', normal)
 
-        det_cfg = NS(allow_chars=set(), dotted_display='strip')
+        det_cfg = NS(allow_chars=set(), dotted_mode='strip')
         firsts = {"pdf": NS(start_offset=120)}
         out = picks_from_global("text", firsts, det_cfg)
         pick = out["pdf"]
