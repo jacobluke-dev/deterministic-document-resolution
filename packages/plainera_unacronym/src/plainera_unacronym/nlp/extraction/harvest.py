@@ -1,6 +1,6 @@
 from plainera_unacronym.nlp.common.types import ExtractedDefinition
 from plainera_unacronym.nlp.extraction.helper_patterns import (
-    find_longform_after_acr, find_longform_before_acr
+    find_parenthetical_longform_after_acr, find_parenthetical_longform_before_acr
 )
 from plainera_unacronym.nlp.extraction.tighten import tighten_label_by_acronym
 
@@ -18,7 +18,7 @@ def harvest_defs_all(text: str, occs, cfg) -> list[ExtractedDefinition]:
 
         # Long form (ACR) before
         pre = snippet[:min(len(snippet), rel_a1 + 1)]
-        for m in find_longform_before_acr(pre, o.acronym, cfg):
+        for m in find_parenthetical_longform_before_acr(pre, o.acronym, cfg):
             ds, de = L + m.def_start, L + m.def_end
             out.append(ExtractedDefinition(
                 acronym=o.acronym,
@@ -32,7 +32,7 @@ def harvest_defs_all(text: str, occs, cfg) -> list[ExtractedDefinition]:
 
         # ACR (Long form) after
         right = snippet[rel_a1:]
-        for m in find_longform_after_acr(right,cfg=cfg, acr=o.acronym):
+        for m in find_parenthetical_longform_after_acr(right, cfg=cfg, acr=o.acronym):
             ds, de = (L + rel_a1) + m.def_start, (L + rel_a1) + m.def_end
             out.append(ExtractedDefinition(
                 acronym=o.acronym,

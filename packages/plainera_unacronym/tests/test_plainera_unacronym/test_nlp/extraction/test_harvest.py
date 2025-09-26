@@ -2,6 +2,7 @@ from types import SimpleNamespace
 import pytest
 
 from plainera_unacronym.nlp.extraction.harvest import harvest_defs_all
+from plainera_unacronym.nlp.extraction.helper_patterns import find_parenthetical_longform_before_acr
 
 
 class Cfg:
@@ -41,14 +42,14 @@ class TestHarvestDefsAllUnit:
         # The after finder should not be called for this test; return empty
         _patch(
             monkeypatch, harvest_defs_all,
-            find_longform_before_acr=lambda snippet, acr, cfg: [
+            find_parenthetical_longform_before_acr=lambda snippet, acr, cfg: [
                 SimpleNamespace(
                     def_start=d0,  # note: in harvest, we expect these to be relative to snippet start L
                     def_end=d1,
                     definition="Portable Document Format",
                 )
             ] if snippet in (text[:acr1+1], text[:acr1]) else [],
-            find_longform_after_acr=lambda right, cfg, acr=None: [],
+            find_parenthetical_longform_after_acr=lambda right, cfg, acr=None: [],
             tighten_label_by_acronym=lambda raw, acr_up: f"TIGHT[{raw}|{acr_up}]",
         )
 
@@ -94,8 +95,8 @@ class TestHarvestDefsAllUnit:
         cfg = Cfg(window_chars=len(text))
         _patch(
             monkeypatch, harvest_defs_all,
-            find_longform_before_acr=lambda *a, **k: [],
-            find_longform_after_acr=fake_after,
+            find_parenthetical_longform_before_acr=lambda *a, **k: [],
+            find_parenthetical_longform_after_acr=fake_after,
             tighten_label_by_acronym=lambda raw, acr_up: raw,
         )
 
@@ -141,8 +142,8 @@ class TestHarvestDefsAllUnit:
 
         _patch(
             monkeypatch, harvest_defs_all,
-            find_longform_before_acr=fake_before,
-            find_longform_after_acr=fake_after,
+            find_parenthetical_longform_before_acr=fake_before,
+            find_parenthetical_longform_after_acr=fake_after,
             tighten_label_by_acronym=lambda raw, up: raw,
         )
 
@@ -163,8 +164,8 @@ class TestHarvestDefsAllUnit:
 
         _patch(
             monkeypatch, harvest_defs_all,
-            find_longform_before_acr=lambda *a, **k: [],
-            find_longform_after_acr=lambda *a, **k: [],
+            find_parenthetical_longform_before_acr=lambda *a, **k: [],
+            find__parenthetical_longform_after_acr=lambda *a, **k: [],
             tighten_label_by_acronym=lambda raw, up: raw,
         )
 

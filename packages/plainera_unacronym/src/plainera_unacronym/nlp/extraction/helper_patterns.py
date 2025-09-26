@@ -62,12 +62,58 @@ def _first_alnum_char_upper(s: str) -> str | None:
             return ch.upper()
     return None
 
-def find_longform_after_acr(
+def find_parenthetical_longform_after_acr(
     snippet: str,
     cfg,
     acr: Optional[str] = None,
     require_initials_match: bool = True,  # renamed flag
 ) -> list[LocalDefMatch]:
+    """Extract a parenthetical long form that appears *immediately after* an acronym.
+
+        Parses ``snippet`` starting at the acronym's end and looks for a tight
+        ``( … )`` that contains the expanded long form. If ``require_initials_match``
+        is True and ``acr`` is provided, the function validates the long form by
+        aligning the acronym letters (ignoring non-alnum) to the initials of the
+        long-form tokens (compound- and CamelCase-aware), with these constraints:
+        uppercase acronym letters must land on non-stopwords; lowercase letters
+        must land on stopwords. The returned span tightly hugs the chosen token
+        window, and the definition text is normalized for display.
+
+        If ``require_initials_match`` is False, the raw inner text of the
+        parentheses is used (after trimming outer spaces) without alignment.
+
+        Args:
+            snippet: Text that begins at, or right after, the acronym; the search
+                is anchored at the start and expects ``( … )`` immediately after.
+            cfg: Config object. Recognized attributes:
+                - ``max_phrase_chars`` (int): Max characters allowed inside the
+                  parentheses (default: 80).
+                - ``stopwords`` (set[str]): Tokens ignored for uppercase letters and
+                  required for lowercase letters during alignment.
+                - ``bridges`` (set[str]): Extra tokens to keep inside the final
+                  window for readability (e.g., “of”, “for”).
+            acr: The acronym to validate against (e.g., ``"PDF"``). Ignored when
+                ``require_initials_match`` is False.
+            require_initials_match: When True, only return a match if the acronym
+                can be aligned to token initials as described above.
+
+        Returns:
+            A list with zero or one ``LocalDefMatch``:
+            - ``def_start`` / ``def_end``: Tight character offsets into ``snippet``
+              covering the chosen window inside the parentheses.
+            - ``definition``: Normalized display string built from matched tokens
+              plus any bridge and numeric-leading tokens within the window.
+
+        Examples:
+            >>> cfg = type("Cfg", (), {"max_phrase_chars": 80})()
+            >>> find_parenthetical_longform_after_acr("(Portable Document Format)", cfg, acr="PDF")
+            [LocalDefMatch(..., definition='Portable Document Format')]
+
+            >>> # Disable alignment if you only want the parenthetical text
+            >>> find_parenthetical_longform_after_acr("(noisy   RAW )", cfg, require_initials_match=False)
+            [LocalDefMatch(..., definition='noisy RAW')]
+        """
+
     max_chars = getattr(cfg, "max_phrase_chars", 80)
 
     # 1) Capture tight inner text "( ... )" right at the start of `snippet`
@@ -80,7 +126,21 @@ def find_longform_after_acr(
     if not _has_letters(raw_trim):
         return []
     if len(raw_trim) > max_chars:
-        return []  # raw length guard (prevents tail slices)
+        return []
+
+    if not require_initials_match:
+        # Tight span over the ORIGINAL inner text (preserve inner spaces)
+        lead_ws = len(raw) - len(raw.lstrip())
+        trail_ws = len(raw) - len(raw.rstrip())
+        ds = m.start("def") + lead_ws
+        de = m.end("def") - trail_ws
+
+        # Run the display pipeline on the trimmed inner text
+        tightened = tighten_definition_span(raw_trim)
+        definition = normalize_definition(tightened)
+        if not definition:
+            return []
+        return [LocalDefMatch(def_start=ds, def_end=de, definition=definition)]
 
     # 2) Tokenize the raw parenthetical (preserve case; no normalization yet)
     tokens = raw_trim.split()  # or your _tokenize_preserve(raw_trim)
@@ -172,11 +232,10 @@ def find_longform_after_acr(
             break
 
     # 4) Tight character spans over the original `snippet`
-    left_str = " ".join(tokens[:i])
-    keep_str = " ".join(tokens[i:j + 1])
-    left_offset = (len(left_str) + 1) if left_str else 0
-    ds = m.start("def") + left_offset
-    de = ds + len(keep_str)
+    lead_ws = len(raw) - len(raw.lstrip())
+    trail_ws = len(raw) - len(raw.rstrip())
+    ds = m.start("def") + lead_ws
+    de = m.end("def") - trail_ws
 
     # 5) Build kept phrase: matched tokens + bridges + numeric-leading tokens inside the window
     bridges = getattr(cfg, "bridges", BRIDGES_DEFAULT)
@@ -196,20 +255,15 @@ def find_longform_after_acr(
     if not phrase:
         return []
 
-    norm = normalize_definition(phrase)
-    if not norm:
+    tight = tighten_definition_span(raw.strip())
+    definition = normalize_definition(tight)
+    if not definition:
         return []
 
-    return [LocalDefMatch(def_start=ds, def_end=de, definition=norm)]
+    return [LocalDefMatch(def_start=ds, def_end=de, definition=definition)]
 
 
-def _first_alnum(s: str) -> str | None:
-    for ch in s:
-        if ch.isalnum():
-            return ch.upper()
-    return None
-
-def find_longform_before_acr(snippet: str, acr: str, cfg) -> list[LocalDefMatch]:
+def find_parenthetical_longform_before_acr(snippet: str, acr: str, cfg) -> list[LocalDefMatch]:
     """
     Find:  Long Form ... (ACR)   anchored at the end of `snippet`.
 
