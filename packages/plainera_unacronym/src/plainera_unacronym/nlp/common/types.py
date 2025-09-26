@@ -1,6 +1,6 @@
 import re
 from dataclasses import dataclass, field
-from typing import Any, FrozenSet, Mapping, Literal, Optional
+from typing import Any, FrozenSet, Literal, Mapping, Optional
 
 from .constants import ALLOW_CHARS, DottedMode
 
@@ -8,6 +8,7 @@ SCHEMA_VERSION = "1.1.0"
 
 
 # -------------------------- OCCURRENCE -------------------------------------
+
 
 @dataclass(frozen=True, slots=True)
 class Occurrence:
@@ -57,6 +58,7 @@ class OccurrenceResolution:
 
 # -------------------------- DETECTION -------------------------------------
 
+
 @dataclass(frozen=True, slots=True)
 class DetectorConfig:
     min_len: int = 2
@@ -97,6 +99,7 @@ class DetectorResult:
 
 
 # -------------------------- EXTRACTION -------------------------------------
+
 
 @dataclass(frozen=True, slots=True)
 class ExtractedDefinition:

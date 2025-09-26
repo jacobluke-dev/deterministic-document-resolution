@@ -1,6 +1,7 @@
 from plainera_unacronym.nlp.common.types import ExtractedDefinition
 from plainera_unacronym.nlp.extraction.helper_patterns import (
-    find_parenthetical_longform_after_acr, find_parenthetical_longform_before_acr
+    find_parenthetical_longform_after_acr,
+    find_parenthetical_longform_before_acr,
 )
 from plainera_unacronym.nlp.extraction.tighten import tighten_label_by_acronym
 
@@ -17,31 +18,39 @@ def harvest_defs_all(text: str, occs, cfg) -> list[ExtractedDefinition]:
         rel_a0, rel_a1 = a0 - L, a1 - L
 
         # Long form (ACR) before
-        pre = snippet[:min(len(snippet), rel_a1 + 1)]
+        pre = snippet[: min(len(snippet), rel_a1 + 1)]
         for m in find_parenthetical_longform_before_acr(pre, o.acronym, cfg):
             ds, de = L + m.def_start, L + m.def_end
-            out.append(ExtractedDefinition(
-                acronym=o.acronym,
-                definition=tighten_label_by_acronym(m.definition, o.acronym.upper()),
-                source="in_text",
-                confidence=0.95,
-                acr_start=a0, acr_end=a1,
-                def_start=ds, def_end=de,
-                original_definition=m.definition,
-            ))
+            out.append(
+                ExtractedDefinition(
+                    acronym=o.acronym,
+                    definition=tighten_label_by_acronym(m.definition, o.acronym.upper()),
+                    source="in_text",
+                    confidence=0.95,
+                    acr_start=a0,
+                    acr_end=a1,
+                    def_start=ds,
+                    def_end=de,
+                    original_definition=m.definition,
+                )
+            )
 
         # ACR (Long form) after
         right = snippet[rel_a1:]
         for m in find_parenthetical_longform_after_acr(right, cfg=cfg, acr=o.acronym):
             ds, de = (L + rel_a1) + m.def_start, (L + rel_a1) + m.def_end
-            out.append(ExtractedDefinition(
-                acronym=o.acronym,
-                definition=tighten_label_by_acronym(m.definition, o.acronym.upper()),
-                source="in_text",
-                confidence=0.95,
-                acr_start=a0, acr_end=a1,
-                def_start=ds, def_end=de,
-                original_definition=m.definition,
-            ))
+            out.append(
+                ExtractedDefinition(
+                    acronym=o.acronym,
+                    definition=tighten_label_by_acronym(m.definition, o.acronym.upper()),
+                    source="in_text",
+                    confidence=0.95,
+                    acr_start=a0,
+                    acr_end=a1,
+                    def_start=ds,
+                    def_end=de,
+                    original_definition=m.definition,
+                )
+            )
 
     return out

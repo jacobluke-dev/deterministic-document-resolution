@@ -1,7 +1,12 @@
 import pytest
-
-from plainera_unacronym.nlp.extraction.tighten import _split_compound, _tokenize_preserve, _initials_seq, _match_from, \
-    _best_window_for_acronym, tighten_label_by_acronym
+from plainera_unacronym.nlp.extraction.tighten import (
+    _best_window_for_acronym,
+    _initials_seq,
+    _match_from,
+    _split_compound,
+    _tokenize_preserve,
+    tighten_label_by_acronym,
+)
 
 
 class TestSplitCompound:

@@ -1,16 +1,16 @@
 import re
 from typing import Optional
 
-from plainera_unacronym.nlp.common.constants import DEFAULT_STOPWORDS, BRIDGES_DEFAULT
+from plainera_unacronym.nlp.common.constants import BRIDGES_DEFAULT, DEFAULT_STOPWORDS
 from plainera_unacronym.nlp.common.shared import canonicalize, collapse_ws, strip_trailing_punct
-
 
 _word_re = re.compile(r"[A-Za-z0-9'’\-\/&\.]+", flags=re.UNICODE)
 _ASCII_CAMEL_RE = re.compile(
-    r"[A-Z]+(?=[A-Z][a-z0-9])"      # e.g., 'XML' in 'XMLHttp'
-    r"|[A-Z]?[a-z]+[0-9]*"          # word with optional trailing digits, e.g., 'v1'
-    r"|[0-9]+"                      # standalone digits
+    r"[A-Z]+(?=[A-Z][a-z0-9])"  # e.g., 'XML' in 'XMLHttp'
+    r"|[A-Z]?[a-z]+[0-9]*"  # word with optional trailing digits, e.g., 'v1'
+    r"|[0-9]+"  # standalone digits
 )
+
 
 def _split_compound(token: str) -> list[str]:
     """Split hyphen/slash/dot/& and (ASCII) CamelCase into parts.
@@ -44,16 +44,17 @@ def _split_compound(token: str) -> list[str]:
 
     return out
 
+
 def _tokenize_preserve(text: str) -> list[str]:
     return _word_re.findall(text)
 
 
 def _initials_seq(tokens: list[str], stopwords: set[str]) -> tuple[list[str], list[int]]:
     """
-        Build a sequence of initials (letters+digits) from tokens, skipping stopwords.
-        owners[k] = token index that produced letters[k].
+    Build a sequence of initials (letters+digits) from tokens, skipping stopwords.
+    owners[k] = token index that produced letters[k].
 
-        Unicode-aware: picks the first character in each part where ch.isalpha() or ch.isdigit().
+    Unicode-aware: picks the first character in each part where ch.isalpha() or ch.isdigit().
     """
     letters, owners = [], []
     for ti, tok in enumerate(tokens):
@@ -66,6 +67,7 @@ def _initials_seq(tokens: list[str], stopwords: set[str]) -> tuple[list[str], li
                     owners.append(ti)
                     break
     return letters, owners
+
 
 def _match_from(letters: list[str], acronym_list: list[str], start: int) -> Optional[tuple[int, list[int]]]:
     """
@@ -84,8 +86,9 @@ def _match_from(letters: list[str], acronym_list: list[str], start: int) -> Opti
     return None
 
 
-def _best_window_for_acronym(tokens: list[str], acronym: str, stopwords: set[str]
-    ) -> Optional[tuple[int, int, set[int]]]:
+def _best_window_for_acronym(
+    tokens: list[str], acronym: str, stopwords: set[str]
+) -> Optional[tuple[int, int, set[int]]]:
     """
     Return (tok_start, tok_end_inclusive, hit_token_indices_set) for the *shortest contiguous*
     token window whose (non-stopword, compound-aware) initials match `acronym` in order.
@@ -153,7 +156,7 @@ def tighten_label_by_acronym(
 
     # if pruning removed everything (edge case), keep the original span
     if not kept:
-        kept = tokens[i:j + 1]
+        kept = tokens[i : j + 1]
 
     phrase = " ".join(kept)
     phrase = strip_trailing_punct(collapse_ws(phrase))

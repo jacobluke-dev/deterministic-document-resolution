@@ -1,23 +1,25 @@
-from dataclasses import dataclass
-from typing import Iterator, Pattern, Iterable, Callable
 import re
+from dataclasses import dataclass
+from typing import Callable, Iterable, Iterator, Pattern
 
-from .config import ExtractionConfig
-from .tighten import tighten_label_by_acronym
 from ..common.shared import normalize_definition, tighten_definition_span
 from ..common.types import ExtractedDefinition
-
+from .config import ExtractionConfig
+from .tighten import tighten_label_by_acronym
 
 __all__ = ["ExtractionConfig", "extract_iter", "ExtractedDefinition", "extract_in_text_definitions"]
 
 # ---------- Pattern builders ----------
 
+
 def _acr_pat(cfg: ExtractionConfig) -> str:
     return rf"(?P<acr>[{cfg.acr_allowed}]{{{cfg.min_acr_len},{cfg.max_acr_len}}})"
+
 
 def _def_pat(cfg: ExtractionConfig) -> str:
     # Up to N chars; conservative: forbid ')'
     return rf"(?P<def>[^){{}}]{{1,{cfg.max_phrase_chars}}}?)"
+
 
 def _compile_parenthetical(cfg: ExtractionConfig) -> tuple[Pattern[str], Pattern[str]]:
     acr, phr = _acr_pat(cfg), _def_pat(cfg)
@@ -25,16 +27,20 @@ def _compile_parenthetical(cfg: ExtractionConfig) -> tuple[Pattern[str], Pattern
     rev = re.compile(rf"\b{acr}\s*\(\s*{phr}\s*\)", re.IGNORECASE | re.MULTILINE)
     return fwd, rev
 
+
 def _compile_inline(cfg: ExtractionConfig, cues: tuple[str, ...]) -> list[Pattern[str]]:
     acr, phr = _acr_pat(cfg), _def_pat(cfg)
     return [re.compile(rf"\b{acr}\b\s*,?\s*{cue}\s+{phr}", re.IGNORECASE | re.MULTILINE) for cue in cues]
+
 
 # ---------- Cheap validators ----------
 def _has_letters(s: str) -> bool:
     return bool(re.search(r"[A-Za-z]", s))
 
+
 def _two_words(s: str) -> bool:
     return len([w for w in s.split() if re.search(r"[A-Za-z]", w)]) >= 2
+
 
 def _initials_match(acr: str, phrase: str) -> bool:
     initials = "".join(w[0].upper() for w in phrase.split() if w and w[0].isalpha())
@@ -79,6 +85,7 @@ def _build_plan(cfg: ExtractionConfig) -> ExtractionPlan:
     if cfg.plugins:
         try:
             from ..plugins.registry import get as get_plugins  # type: ignore
+
             for p in get_plugins(cfg.plugins):
                 if hasattr(p, "extend_extraction"):
                     p.extend_extraction(b)  # type: ignore[attr-defined]
@@ -90,9 +97,11 @@ def _build_plan(cfg: ExtractionConfig) -> ExtractionPlan:
         parenthetical_allows=tuple(b.parenthetical_allows),
     )
 
+
 def _parenthetical_allowed(cfg: ExtractionConfig, definition: str, acronym: str) -> bool:
     allows: list[Callable[[str, str], bool]] = getattr(cfg, "_parenthetical_allows", [])  # type: ignore[attr-defined]
     return all(fn(definition, acronym) for fn in allows) if allows else True
+
 
 # ---------- Core API ----------
 def extract_iter(
@@ -143,8 +152,10 @@ def extract_iter(
                 definition=tighten_label_by_acronym(definition, acronym.upper()),
                 source="in_text",
                 confidence=conf,
-                acr_start=a0, acr_end=a1,
-                def_start=d0, def_end=d1,
+                acr_start=a0,
+                acr_end=a1,
+                def_start=d0,
+                def_end=d1,
                 original_definition=original_def,
             )
 
@@ -156,6 +167,7 @@ def extract_iter(
     if cfg.enabled_inline:
         for pat in _compile_inline(cfg, plan.inline_cues):
             yield from collect(pat, cfg.conf_inline, False)
+
 
 def extract_in_text_definitions(text: str, cfg: ExtractionConfig | None = None) -> list[ExtractedDefinition]:
     return list(extract_iter(text, cfg))

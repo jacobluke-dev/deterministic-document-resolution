@@ -2,7 +2,7 @@ import re
 import unicodedata
 
 from plainera_unacronym.nlp.common.config import CANON_TABLE, TRAILING_PUNCT
-from plainera_unacronym.nlp.common.constants import LEADING_CONNECTORS, ARTICLE, TITLECASE_TAIL_RE, BOUNDARY_RE
+from plainera_unacronym.nlp.common.constants import ARTICLE, BOUNDARY_RE, LEADING_CONNECTORS, TITLECASE_TAIL_RE
 
 
 def has_paren_definition(text: str, end: int, max_chars: int = 80) -> bool:
@@ -97,6 +97,7 @@ def normalize_acronym_key(surface: str, allow_chars: str, dotted_mode: str) -> s
     s = _swallow_spaces_around_allowed(s, allow_chars)
     return s
 
+
 def tighten_definition_span(s: str) -> str:
     s = s.strip()
 
@@ -121,10 +122,9 @@ def normalize_definition(s: str) -> str:
     """
     return strip_trailing_punct(collapse_ws(canonicalize(s)))
 
+
 # Last Proper-Noun chunk, e.g. "North American Saxophone Alliance"
-_LAST_PROPER_CHUNK = re.compile(
-    r"([A-Z][\w’'-]+(?:\s+[A-Z][\w’'-]+){1,})$"
-)
+_LAST_PROPER_CHUNK = re.compile(r"([A-Z][\w’'-]+(?:\s+[A-Z][\w’'-]+){1,})$")
 
 
 def tighten_label(s: str) -> str:

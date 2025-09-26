@@ -1,9 +1,10 @@
 import re
 from typing import Mapping, Optional
+
+from ..common.shared import normalize_definition, tighten_definition_span
+from ..common.types import ExtractedDefinition, FirstOccurrence, InTextPick
 from .config import ExtractionConfig
 from .tighten import tighten_label_by_acronym
-from ..common.shared import tighten_definition_span, normalize_definition
-from ..common.types import FirstOccurrence, ExtractedDefinition, InTextPick
 
 
 def _compile_anchored_exact(acr: str, cfg: ExtractionConfig):
@@ -16,13 +17,11 @@ def _compile_anchored_exact(acr: str, cfg: ExtractionConfig):
     rev = re.compile(rf"\b(?P<acr>{ACR})\s*\(\s*{DEF}\s*\)", re.IGNORECASE | re.MULTILINE)
 
     inlines = [
-        re.compile(rf"\b(?P<acr>{ACR})\b\s*,?\s*{cue}\s+{DEF}",
-                   re.IGNORECASE | re.MULTILINE)
-        for cue in cfg.inline_cues
+        re.compile(rf"\b(?P<acr>{ACR})\b\s*,?\s*{cue}\s+{DEF}", re.IGNORECASE | re.MULTILINE) for cue in cfg.inline_cues
     ]
     return (
-        (fwd,  cfg.conf_parenthetical, "def_before"),
-        (rev,  cfg.conf_parenthetical, "def_after"),
+        (fwd, cfg.conf_parenthetical, "def_before"),
+        (rev, cfg.conf_parenthetical, "def_after"),
         *[(p, cfg.conf_inline, "inline") for p in inlines],
     )
 
@@ -45,7 +44,7 @@ def extract_near_firsts(
 
         # FO position in the local segment
         fo_a0_local = fo.start_offset - left
-        fo_a1_local = fo.end_offset   - left
+        fo_a1_local = fo.end_offset - left
 
         best: Optional[ExtractedDefinition] = None
         for pat, base_conf, _kind in _compile_anchored_exact(acr_norm, cfg):
@@ -58,9 +57,7 @@ def extract_near_firsts(
                 d0_local, d1_local = m.span("def")
                 orig = m.group("def")
 
-                clean = tighten_label_by_acronym(
-                    tighten_definition_span(orig), acr_norm
-                )
+                clean = tighten_label_by_acronym(tighten_definition_span(orig), acr_norm)
 
                 clean = normalize_definition(clean)
                 if not clean or len(clean) > cfg.max_phrase_chars:
@@ -84,11 +81,15 @@ def extract_near_firsts(
                 if (best is None) or (cand.confidence > best.confidence):
                     best = cand
 
-        picks[key] = None if best is None else InTextPick(
-            definition=best.definition,
-            acr_span=(best.acr_start, best.acr_end),
-            def_span=(best.def_start, best.def_end),
-            confidence=best.confidence,
-            original_definition=best.original_definition,
+        picks[key] = (
+            None
+            if best is None
+            else InTextPick(
+                definition=best.definition,
+                acr_span=(best.acr_start, best.acr_end),
+                def_span=(best.def_start, best.def_end),
+                confidence=best.confidence,
+                original_definition=best.original_definition,
+            )
         )
     return picks

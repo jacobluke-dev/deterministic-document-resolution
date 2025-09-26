@@ -18,5 +18,5 @@ def __getattr__(name: str):
 
 
 if TYPE_CHECKING:
-    from ..nlp.detection.detector import Detector
     from ..nlp.common.types import DetectorConfig, FirstOccurrence, Occurrence
+    from ..nlp.detection.detector import Detector

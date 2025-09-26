@@ -1,6 +1,6 @@
-import pytest
 from types import SimpleNamespace as NS
 
+import pytest
 from plainera_unacronym.nlp.common.types import ExtractedDefinition
 from plainera_unacronym.nlp.extraction.util import picks_from_global
 

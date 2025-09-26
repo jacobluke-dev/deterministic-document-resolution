@@ -1,5 +1,5 @@
 import re
-from typing import Literal, Final
+from typing import Final, Literal
 
 APOSTROPHE_VARIANTS = {
     "’": "'",  # U+2019
@@ -18,15 +18,42 @@ BOUNDARY_RE = re.compile(r"[\.!?;:,—–-]\s+")
 
 DEFAULT_TWO_LETTER_BOOST: Final[float] = 0.75
 
-DEFAULT_WORDS_SHARED: frozenset[str] = frozenset({
-    # English-ish function words—expand as needed
-    "of", "and", "the", "for", "to", "in", "on", "with", "a", "an", "at", "by", "from", "as", "per",
-})
+DEFAULT_WORDS_SHARED: frozenset[str] = frozenset(
+    {
+        # English-ish function words—expand as needed
+        "of",
+        "and",
+        "the",
+        "for",
+        "to",
+        "in",
+        "on",
+        "with",
+        "a",
+        "an",
+        "at",
+        "by",
+        "from",
+        "as",
+        "per",
+    }
+)
 
-NAMED_STOPWORDS: frozenset[str] = frozenset({
-    # Common non-English determiners/prepositions for names
-    "de", "la", "le", "du", "des", "del", "da", "di", "von", "und",
-})
+NAMED_STOPWORDS: frozenset[str] = frozenset(
+    {
+        # Common non-English determiners/prepositions for names
+        "de",
+        "la",
+        "le",
+        "du",
+        "des",
+        "del",
+        "da",
+        "di",
+        "von",
+        "und",
+    }
+)
 
 DEFAULT_STOPWORDS: frozenset[str] = frozenset(DEFAULT_WORDS_SHARED | NAMED_STOPWORDS)
 

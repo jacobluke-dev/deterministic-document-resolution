@@ -8,18 +8,7 @@ from observability.logger.levels import LogLevel
 from observability.logger.message_logger import message_logger
 
 from plainera_unacronym.nlp.common.constants import ALLOW_CHARS, DOT_MODE_DEFAULT
-from .heuristics.context import blacklist_context_drop
-from .heuristics.core import (
-    compile_pattern,
-    context_window,
-    iter_candidates_with,
-    reason_tags,
-    score,
-    threshold_len, boost_confidence_if_whitelisted,
-)
-from .heuristics.general import strip_terminal_plural
-from .nlp_helpers import _cfg_fingerprint, top_n_values
-from plainera_unacronym.nlp.plugins.activation import autodetect_domains
+from plainera_unacronym.nlp.common.shared import normalize_acronym_key
 from plainera_unacronym.nlp.common.types import (
     DetectorConfig,
     DetectorResult,
@@ -27,8 +16,21 @@ from plainera_unacronym.nlp.common.types import (
     Occurrence,
     OccurrenceBuildError,
 )
+from plainera_unacronym.nlp.plugins.activation import autodetect_domains
 from plainera_unacronym.wiring.composition import sink
-from plainera_unacronym.nlp.common.shared import normalize_acronym_key
+
+from .heuristics.context import blacklist_context_drop
+from .heuristics.core import (
+    boost_confidence_if_whitelisted,
+    compile_pattern,
+    context_window,
+    iter_candidates_with,
+    reason_tags,
+    score,
+    threshold_len,
+)
+from .heuristics.general import strip_terminal_plural
+from .nlp_helpers import _cfg_fingerprint, top_n_values
 
 DEFAULT_CONFIG = DetectorConfig()
 ALLOW_CHARS_DEFAULTS = ALLOW_CHARS

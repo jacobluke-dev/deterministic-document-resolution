@@ -2,7 +2,13 @@ from typing import TYPE_CHECKING, FrozenSet, Protocol, cast, overload
 
 from plainera_unacronym.nlp import DetectorConfig
 from plainera_unacronym.nlp.common.constants import BOUNDARY, TIME_RE
-from plainera_unacronym.nlp.detection.heuristics.core import has_stands_for_follow, in_brackets, next_word_lowercase, prev_token
+from plainera_unacronym.nlp.common.shared import has_paren_definition
+from plainera_unacronym.nlp.detection.heuristics.core import (
+    has_stands_for_follow,
+    in_brackets,
+    next_word_lowercase,
+    prev_token,
+)
 from plainera_unacronym.nlp.detection.heuristics.general import (
     at_sentence_boundary,
     is_all_caps_heading,
@@ -10,7 +16,6 @@ from plainera_unacronym.nlp.detection.heuristics.general import (
     is_in_caps_interjection_context,
     is_in_caps_interjection_context_prev,
 )
-from plainera_unacronym.nlp.common.shared import has_paren_definition
 
 
 class HeuristicCfg(Protocol):

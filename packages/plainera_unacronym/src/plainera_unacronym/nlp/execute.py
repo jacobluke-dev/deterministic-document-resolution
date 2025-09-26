@@ -3,16 +3,21 @@ from dataclasses import asdict
 from typing import Optional
 
 from plainera_unacronym.nlp.common.shared import normalize_acronym_key
-from plainera_unacronym.nlp.detection.detector import Detector
 from plainera_unacronym.nlp.common.types import (
     SCHEMA_VERSION,
-    DetectorConfig, DetectorResult,
-    ExtractionResult, ExtractedDefinition, InTextPick, FirstOccurrence, OccurrenceLite
+    DetectorConfig,
+    DetectorResult,
+    ExtractedDefinition,
+    ExtractionResult,
+    FirstOccurrence,
+    InTextPick,
+    OccurrenceLite,
 )
+from plainera_unacronym.nlp.detection.detector import Detector
 from plainera_unacronym.nlp.extraction.config import ExtractionConfig
-from plainera_unacronym.nlp.extraction.defs_utils import defs_from_picks, dedupe_defs
-from plainera_unacronym.nlp.extraction.extract_first_occ import extract_near_firsts
+from plainera_unacronym.nlp.extraction.defs_utils import dedupe_defs, defs_from_picks
 from plainera_unacronym.nlp.extraction.extract import extract_iter
+from plainera_unacronym.nlp.extraction.extract_first_occ import extract_near_firsts
 from plainera_unacronym.nlp.extraction.harvest import harvest_defs_all
 from plainera_unacronym.nlp.senses.disambiguate import disambiguate_occurrences
 from plainera_unacronym.nlp.senses.sense_build import build_senses
@@ -21,45 +26,45 @@ from plainera_unacronym.nlp.senses.sense_build import build_senses
 def serialize_detection_and_extraction(det: DetectorResult, extr: ExtractionResult, *, pretty: bool = False) -> str:
     """Serialize detection and in-text extraction results to a JSON string.
 
-        Produces a Unicode JSON payload (``ensure_ascii=False``) that combines the
-        detector output and the extraction summary under a stable schema version.
+    Produces a Unicode JSON payload (``ensure_ascii=False``) that combines the
+    detector output and the extraction summary under a stable schema version.
 
-        Payload structure:
-          - ``schema_version`` (str): Version tag (from ``SCHEMA_VERSION``).
-          - ``detection`` (object):
-              - ``unique_acronyms`` (dict[str, FirstOccurrence]): Map of normalized
-                acronym key → first occurrence fields (``acronym``, offsets,
-                ``confidence``, ``normalized_key``).
-              - ``occurrences`` (list[Occurrence]): All accepted acronym occurrences,
-                including context windows and optional ``reasons`` when enabled.
-          - ``extraction`` (object):
-              - ``strategy`` (str): One of ``"anchored"``, ``"hybrid-filled"``, or ``"global"``.
-              - ``coverage`` (float): Fraction of acronyms that received an in-text definition.
-              - ``missing_keys`` (list[str]): Normalized keys with no in-text definition.
-              - ``picks`` (dict[str, InTextPick | null]): Best in-text definition per key
-                (or ``null`` if none). ``InTextPick`` includes ``definition``,
-                ``acr_span``, ``def_span``, ``confidence``, and ``original_definition``.
-              - ``definitions`` (list[ExtractedDefinition]): All definition locations considered/returned.
-                ``ExtractedDefinition`` includes ``acronym``, normalized ``definition``,
-                ``source`` (always ``"in_text"``), ``confidence``, acronym/definition spans,
-                and ``original_definition``.
+    Payload structure:
+      - ``schema_version`` (str): Version tag (from ``SCHEMA_VERSION``).
+      - ``detection`` (object):
+          - ``unique_acronyms`` (dict[str, FirstOccurrence]): Map of normalized
+            acronym key → first occurrence fields (``acronym``, offsets,
+            ``confidence``, ``normalized_key``).
+          - ``occurrences`` (list[Occurrence]): All accepted acronym occurrences,
+            including context windows and optional ``reasons`` when enabled.
+      - ``extraction`` (object):
+          - ``strategy`` (str): One of ``"anchored"``, ``"hybrid-filled"``, or ``"global"``.
+          - ``coverage`` (float): Fraction of acronyms that received an in-text definition.
+          - ``missing_keys`` (list[str]): Normalized keys with no in-text definition.
+          - ``picks`` (dict[str, InTextPick | null]): Best in-text definition per key
+            (or ``null`` if none). ``InTextPick`` includes ``definition``,
+            ``acr_span``, ``def_span``, ``confidence``, and ``original_definition``.
+          - ``definitions`` (list[ExtractedDefinition]): All definition locations considered/returned.
+            ``ExtractedDefinition`` includes ``acronym``, normalized ``definition``,
+            ``source`` (always ``"in_text"``), ``confidence``, acronym/definition spans,
+            and ``original_definition``.
 
-        Args:
-            det (DetectorResult): The detector output containing first occurrences and all occurrences.
-            extr (ExtractionResult): The extraction output with per-key picks and definition locations.
-            pretty (bool, optional): If ``True``, pretty-prints JSON with indentation.
-                Defaults to ``False``.
+    Args:
+        det (DetectorResult): The detector output containing first occurrences and all occurrences.
+        extr (ExtractionResult): The extraction output with per-key picks and definition locations.
+        pretty (bool, optional): If ``True``, pretty-prints JSON with indentation.
+            Defaults to ``False``.
 
-        Returns:
-            str: A JSON string with the fields described above. Unicode characters are preserved
-            (``ensure_ascii=False``).
+    Returns:
+        str: A JSON string with the fields described above. Unicode characters are preserved
+        (``ensure_ascii=False``).
 
-        Example:
-            >>> json_str = serialize_detection_and_extraction(det_res, extr, pretty=True)
-            >>> data = json.loads(json_str)
-            >>> data["extraction"]["strategy"]
-            'anchored'
-        """
+    Example:
+        >>> json_str = serialize_detection_and_extraction(det_res, extr, pretty=True)
+        >>> data = json.loads(json_str)
+        >>> data["extraction"]["strategy"]
+        'anchored'
+    """
     payload = {
         "schema_version": SCHEMA_VERSION,
         "detection": {
@@ -130,8 +135,11 @@ def detect_and_extract(
 
     # 0) obtain FirstOccurrences
     anchored_picks = extract_near_firsts(
-        text, firsts=det_res.unique_acronyms, cfg=ext_cfg,
-        window_left=window_left, window_right=window_right,
+        text,
+        firsts=det_res.unique_acronyms,
+        cfg=ext_cfg,
+        window_left=window_left,
+        window_right=window_right,
     )
 
     # 1) defs from anchored

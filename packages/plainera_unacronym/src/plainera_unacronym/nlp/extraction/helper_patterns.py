@@ -1,10 +1,9 @@
 import re
 from typing import Optional
 
+from ..common.constants import BRIDGES_DEFAULT, DEFAULT_STOPWORDS
+from ..common.shared import collapse_ws, normalize_definition, strip_trailing_punct, tighten_definition_span
 from .tighten import _initials_seq, _match_from, _split_compound
-from ..common.constants import DEFAULT_STOPWORDS, BRIDGES_DEFAULT
-from ..common.shared import tighten_definition_span, normalize_definition, strip_trailing_punct, \
-    collapse_ws
 
 
 class LocalDefMatch:
@@ -29,24 +28,24 @@ def _has_letters(s: str) -> bool:
 def _initials_match(acr: str, phrase: str) -> bool:
     """Check if an acronym fits the phrase's initials as an ordered subsequence.
 
-        Builds an uppercase string of initials from the phrase by taking the first
-        character of each word **only if** that character is alphabetic. Then checks
-        whether the alphabetic characters of ``acr`` (ignoring any non-letters in
-        ``acr``) appear in order within those initials.
+    Builds an uppercase string of initials from the phrase by taking the first
+    character of each word **only if** that character is alphabetic. Then checks
+    whether the alphabetic characters of ``acr`` (ignoring any non-letters in
+    ``acr``) appear in order within those initials.
 
-        This is case-insensitive for matching and does not require contiguity—only
-        order. Words that begin with non-letters (e.g., ``"3M"``, ``"7-Document"``)
-        do not contribute an initial.
+    This is case-insensitive for matching and does not require contiguity—only
+    order. Words that begin with non-letters (e.g., ``"3M"``, ``"7-Document"``)
+    do not contribute an initial.
 
-        Args:
-          acr (str): The Acronym to test.
-          phrase (str): Candidate long-form phrase used to derive initials.
+    Args:
+      acr (str): The Acronym to test.
+      phrase (str): Candidate long-form phrase used to derive initials.
 
-        Returns:
-          bool: True if the acronym's letters appear in order within the phrase initials;
-          otherwise False.
+    Returns:
+      bool: True if the acronym's letters appear in order within the phrase initials;
+      otherwise False.
 
-        """
+    """
     initials = "".join(w[0].upper() for w in phrase.split() if w and w[0].isalpha())
     j = 0
     for ch in acr:
@@ -56,11 +55,13 @@ def _initials_match(acr: str, phrase: str) -> bool:
                 return False
     return True
 
+
 def _first_alnum_char_upper(s: str) -> str | None:
     for ch in s:
         if ch.isalnum():
             return ch.upper()
     return None
+
 
 def find_parenthetical_longform_after_acr(
     snippet: str,
@@ -70,49 +71,49 @@ def find_parenthetical_longform_after_acr(
 ) -> list[LocalDefMatch]:
     """Extract a parenthetical long form that appears *immediately after* an acronym.
 
-        Parses ``snippet`` starting at the acronym's end and looks for a tight
-        ``( … )`` that contains the expanded long form. If ``require_initials_match``
-        is True and ``acr`` is provided, the function validates the long form by
-        aligning the acronym letters (ignoring non-alnum) to the initials of the
-        long-form tokens (compound- and CamelCase-aware), with these constraints:
-        uppercase acronym letters must land on non-stopwords; lowercase letters
-        must land on stopwords. The returned span tightly hugs the chosen token
-        window, and the definition text is normalized for display.
+    Parses ``snippet`` starting at the acronym's end and looks for a tight
+    ``( … )`` that contains the expanded long form. If ``require_initials_match``
+    is True and ``acr`` is provided, the function validates the long form by
+    aligning the acronym letters (ignoring non-alnum) to the initials of the
+    long-form tokens (compound- and CamelCase-aware), with these constraints:
+    uppercase acronym letters must land on non-stopwords; lowercase letters
+    must land on stopwords. The returned span tightly hugs the chosen token
+    window, and the definition text is normalized for display.
 
-        If ``require_initials_match`` is False, the raw inner text of the
-        parentheses is used (after trimming outer spaces) without alignment.
+    If ``require_initials_match`` is False, the raw inner text of the
+    parentheses is used (after trimming outer spaces) without alignment.
 
-        Args:
-            snippet: Text that begins at, or right after, the acronym; the search
-                is anchored at the start and expects ``( … )`` immediately after.
-            cfg: Config object. Recognized attributes:
-                - ``max_phrase_chars`` (int): Max characters allowed inside the
-                  parentheses (default: 80).
-                - ``stopwords`` (set[str]): Tokens ignored for uppercase letters and
-                  required for lowercase letters during alignment.
-                - ``bridges`` (set[str]): Extra tokens to keep inside the final
-                  window for readability (e.g., “of”, “for”).
-            acr: The acronym to validate against (e.g., ``"PDF"``). Ignored when
-                ``require_initials_match`` is False.
-            require_initials_match: When True, only return a match if the acronym
-                can be aligned to token initials as described above.
+    Args:
+        snippet: Text that begins at, or right after, the acronym; the search
+            is anchored at the start and expects ``( … )`` immediately after.
+        cfg: Config object. Recognized attributes:
+            - ``max_phrase_chars`` (int): Max characters allowed inside the
+              parentheses (default: 80).
+            - ``stopwords`` (set[str]): Tokens ignored for uppercase letters and
+              required for lowercase letters during alignment.
+            - ``bridges`` (set[str]): Extra tokens to keep inside the final
+              window for readability (e.g., “of”, “for”).
+        acr: The acronym to validate against (e.g., ``"PDF"``). Ignored when
+            ``require_initials_match`` is False.
+        require_initials_match: When True, only return a match if the acronym
+            can be aligned to token initials as described above.
 
-        Returns:
-            A list with zero or one ``LocalDefMatch``:
-            - ``def_start`` / ``def_end``: Tight character offsets into ``snippet``
-              covering the chosen window inside the parentheses.
-            - ``definition``: Normalized display string built from matched tokens
-              plus any bridge and numeric-leading tokens within the window.
+    Returns:
+        A list with zero or one ``LocalDefMatch``:
+        - ``def_start`` / ``def_end``: Tight character offsets into ``snippet``
+          covering the chosen window inside the parentheses.
+        - ``definition``: Normalized display string built from matched tokens
+          plus any bridge and numeric-leading tokens within the window.
 
-        Examples:
-            >>> cfg = type("Cfg", (), {"max_phrase_chars": 80})()
-            >>> find_parenthetical_longform_after_acr("(Portable Document Format)", cfg, acr="PDF")
-            [LocalDefMatch(..., definition='Portable Document Format')]
+    Examples:
+        >>> cfg = type("Cfg", (), {"max_phrase_chars": 80})()
+        >>> find_parenthetical_longform_after_acr("(Portable Document Format)", cfg, acr="PDF")
+        [LocalDefMatch(..., definition='Portable Document Format')]
 
-            >>> # Disable alignment if you only want the parenthetical text
-            >>> find_parenthetical_longform_after_acr("(noisy   RAW )", cfg, require_initials_match=False)
-            [LocalDefMatch(..., definition='noisy RAW')]
-        """
+        >>> # Disable alignment if you only want the parenthetical text
+        >>> find_parenthetical_longform_after_acr("(noisy   RAW )", cfg, require_initials_match=False)
+        [LocalDefMatch(..., definition='noisy RAW')]
+    """
 
     max_chars = getattr(cfg, "max_phrase_chars", 80)
 
@@ -205,11 +206,10 @@ def find_parenthetical_longform_after_acr(
 
     # 3) Build kept phrase: matched tokens + bridges inside the window
     bridges = getattr(cfg, "bridges", BRIDGES_DEFAULT)
-    kept = [t for idx, t in enumerate(tokens[i:j + 1])
-            if (i + idx) in hit_tokens or t.lower() in bridges]
+    kept = [t for idx, t in enumerate(tokens[i : j + 1]) if (i + idx) in hit_tokens or t.lower() in bridges]
 
     if not kept:  # edge case: keep original window
-        kept = tokens[i:j + 1]
+        kept = tokens[i : j + 1]
 
     phrase = " ".join(kept)
     phrase = strip_trailing_punct(collapse_ws(phrase))
@@ -249,7 +249,7 @@ def find_parenthetical_longform_after_acr(
             kept.append(tok)
 
     if not kept:
-        kept = tokens[i:j + 1]
+        kept = tokens[i : j + 1]
 
     phrase = strip_trailing_punct(collapse_ws(" ".join(kept)))
     if not phrase:
@@ -316,9 +316,9 @@ def find_parenthetical_longform_before_acr(snippet: str, acr: str, cfg) -> list[
     is_stop = [tok.lower() in stop for tok in tokens]
 
     # 2) Build per-part initials RTL over tokens (compound + CamelCase aware)
-    letters: list[str] = []       # per-part initials (UPPER)
-    owners: list[int] = []        # token index for each letter
-    part_is_stop: list[bool] = [] # stopword status of the owning token
+    letters: list[str] = []  # per-part initials (UPPER)
+    owners: list[int] = []  # token index for each letter
+    part_is_stop: list[bool] = []  # stopword status of the owning token
 
     for ti in range(len(tokens) - 1, -1, -1):  # tokens RTL
         tok = tokens[ti]
@@ -326,7 +326,7 @@ def find_parenthetical_longform_before_acr(snippet: str, acr: str, cfg) -> list[
         parts = _split_compound(tok)
         if not parts:  # very defensive
             continue
-        for part in reversed(parts):           # parts RTL
+        for part in reversed(parts):  # parts RTL
             ch = _first_alnum_char_upper(part)
             if ch is None:
                 continue
@@ -342,13 +342,13 @@ def find_parenthetical_longform_before_acr(snippet: str, acr: str, cfg) -> list[
     if not A:
         return []
 
-    j = len(A) - 1                # index in acronym (RTL)
-    k = 0                         # index in letters (already RTL order)
+    j = len(A) - 1  # index in acronym (RTL)
+    k = 0  # index in letters (already RTL order)
     used_letter_pos: list[int] = []
 
     while k < len(letters) and j >= 0:
         need = A[j].upper()
-        want_stop = A[j].islower()   # lower-case letter forces stopword token
+        want_stop = A[j].islower()  # lower-case letter forces stopword token
         if letters[k] == need and (part_is_stop[k] if want_stop else not part_is_stop[k]):
             used_letter_pos.append(k)
             j -= 1
@@ -381,7 +381,7 @@ def find_parenthetical_longform_before_acr(snippet: str, acr: str, cfg) -> list[
             kept_tokens.append(tok)
 
     if not kept_tokens:  # extreme edge case: keep raw window
-        kept_tokens = tokens[tok_left:tok_right + 1]
+        kept_tokens = tokens[tok_left : tok_right + 1]
 
     phrase = " ".join(kept_tokens)
     phrase = strip_trailing_punct(collapse_ws(phrase))

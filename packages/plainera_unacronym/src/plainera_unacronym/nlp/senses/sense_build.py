@@ -4,10 +4,12 @@ from plainera_unacronym.nlp.common.shared import tighten_label
 from plainera_unacronym.nlp.common.types import AcronymSense
 from plainera_unacronym.nlp.extraction.defs_utils import dedupe_defs
 
+
 def _slug(s: str) -> str:
     s = s.lower()
     s = re.sub(r"[^a-z0-9]+", "_", s).strip("_")
     return s or "x"
+
 
 def build_senses(defs) -> dict[str, list[AcronymSense]]:
     senses_by: dict[str, dict[str, AcronymSense]] = {}

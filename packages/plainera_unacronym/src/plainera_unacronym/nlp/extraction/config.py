@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 from typing import Callable
 
-from plainera_unacronym.nlp.common.constants import DEFAULT_STOPWORDS, BRIDGES_DEFAULT
+from plainera_unacronym.nlp.common.constants import BRIDGES_DEFAULT, DEFAULT_STOPWORDS
 
 
 @dataclass(frozen=True, slots=True)

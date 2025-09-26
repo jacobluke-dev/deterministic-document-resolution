@@ -1,7 +1,10 @@
 import pytest
-
-from plainera_unacronym.nlp.extraction.helper_patterns import _has_letters, _initials_match, find_parenthetical_longform_after_acr, \
-    find_parenthetical_longform_before_acr
+from plainera_unacronym.nlp.extraction.helper_patterns import (
+    _has_letters,
+    _initials_match,
+    find_parenthetical_longform_after_acr,
+    find_parenthetical_longform_before_acr,
+)
 
 
 class TestHasLetters:

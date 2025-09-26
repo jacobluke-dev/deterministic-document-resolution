@@ -1,14 +1,15 @@
 from typing import Mapping, Optional
 
 from ..common.shared import normalize_acronym_key
-from ..common.types import FirstOccurrence, DetectorConfig, InTextPick
+from ..common.types import DetectorConfig, FirstOccurrence, InTextPick
 from .config import ExtractionConfig
-from .extract import extract_iter, ExtractedDefinition
+from .extract import ExtractedDefinition, extract_iter
+
 
 def picks_from_global(
     text: str,
-    firsts: Mapping[str, FirstOccurrence],              # key = normalized_key from detector
-    det_cfg: DetectorConfig,                            # for normalize_key (allow_chars, dotted policy)
+    firsts: Mapping[str, FirstOccurrence],  # key = normalized_key from detector
+    det_cfg: DetectorConfig,  # for normalize_key (allow_chars, dotted policy)
     ext_cfg: ExtractionConfig = ExtractionConfig(),
 ) -> dict[str, Optional[InTextPick]]:
     """Pick the nearest definition per detected acronym key from a single global pass.

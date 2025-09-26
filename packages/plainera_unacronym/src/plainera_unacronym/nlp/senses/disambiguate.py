@@ -1,13 +1,17 @@
 import re
+
 from ..common.types import OccurrenceLite, OccurrenceResolution
+
 
 def _tokens(s: str) -> list[str]:
     return re.findall(r"[A-Za-z0-9][A-Za-z0-9'\-]*", s.lower())
 
+
 def _center(s: int, e: int) -> float:
     return (s + e) / 2.0
 
-def _min_distance_to_spans(pos: float, spans: list[tuple[int,int]]) -> int:
+
+def _min_distance_to_spans(pos: float, spans: list[tuple[int, int]]) -> int:
     best = 10**9
     for s, e in spans:
         c = _center(s, e)
@@ -16,9 +20,10 @@ def _min_distance_to_spans(pos: float, spans: list[tuple[int,int]]) -> int:
             best = int(d)
     return best
 
-def choose_with_tiebreak(occ, cand_probs, senses_by_id, *,
-                         margin_threshold: float = 0.10,
-                         near_tie_margin: float = 0.06) -> tuple[str|None, float]:
+
+def choose_with_tiebreak(
+    occ, cand_probs, senses_by_id, *, margin_threshold: float = 0.10, near_tie_margin: float = 0.06
+) -> tuple[str | None, float]:
     items = sorted(cand_probs.items(), key=lambda kv: kv[1], reverse=True)
     if not items:
         return None, 0.0
@@ -45,6 +50,7 @@ def choose_with_tiebreak(occ, cand_probs, senses_by_id, *,
 
     return None, margin
 
+
 def disambiguate_occurrences(
     text: str,
     occurrences: list[OccurrenceLite],
@@ -57,9 +63,7 @@ def disambiguate_occurrences(
     senses_by_id: dict[str, "AcronymSense"] | None = None,
 ) -> list[OccurrenceResolution]:
     results: list[OccurrenceResolution] = []
-    senses_by_id = senses_by_id or {
-        s.sense_id: s for lst in senses.values() for s in lst
-    }
+    senses_by_id = senses_by_id or {s.sense_id: s for lst in senses.values() for s in lst}
 
     for occ in occurrences:
         cand_scores: dict[str, float] = {}
@@ -78,7 +82,7 @@ def disambiguate_occurrences(
                 # use center of span
                 dists = [abs(occ.start - ((a + b) // 2)) for (a, b) in s.def_spans]
                 d = min(dists)
-                dist_score = 1.0 / (1.0 + d)         # 0..1, sharply favors nearby
+                dist_score = 1.0 / (1.0 + d)  # 0..1, sharply favors nearby
             else:
                 dist_score = 0.0
 
@@ -97,8 +101,7 @@ def disambiguate_occurrences(
             continue
 
         chosen, margin = choose_with_tiebreak(
-            occ, cand_scores, senses_by_id,
-            margin_threshold=margin_threshold, near_tie_margin=0.06
+            occ, cand_scores, senses_by_id, margin_threshold=margin_threshold, near_tie_margin=0.06
         )
         results.append(OccurrenceResolution(occ.acronym, occ.start, occ.end, chosen, cand_scores, margin))
 

@@ -5,7 +5,8 @@ from plainera_unacronym.nlp.common.constants import (
     CLOSING_QUOTES_BRACKETS,
     EXCLAMS,
     PLURAL_SUFFIXES_DEFAULT,
-    POST_SPAN_TOKEN_RE)
+    POST_SPAN_TOKEN_RE,
+)
 from plainera_unacronym.nlp.common.types import DetectorConfig
 
 if TYPE_CHECKING:

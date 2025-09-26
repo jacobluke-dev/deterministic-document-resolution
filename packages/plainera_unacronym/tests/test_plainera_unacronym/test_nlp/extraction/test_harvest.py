@@ -1,8 +1,7 @@
 from types import SimpleNamespace
-import pytest
 
+import pytest
 from plainera_unacronym.nlp.extraction.harvest import harvest_defs_all
-from plainera_unacronym.nlp.extraction.helper_patterns import find_parenthetical_longform_before_acr
 
 
 class Cfg:

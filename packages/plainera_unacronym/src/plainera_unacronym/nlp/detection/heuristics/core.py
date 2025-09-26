@@ -3,14 +3,15 @@ from typing import Iterator
 
 from plainera_unacronym.nlp.common.constants import (
     CLOSING_BRACK,
+    DEFAULT_TWO_LETTER_BOOST,
     LEADING_BRACK,
     STANDS_FOR_RE,
     TIME_RE,
-    TRAILING_PUNCT_DEFAULT, TRAILING_PUNCT_CHARS, DEFAULT_TWO_LETTER_BOOST,
+    TRAILING_PUNCT_CHARS,
 )
 from plainera_unacronym.nlp.common.shared import has_paren_definition, normalize_acronym_key
-from plainera_unacronym.nlp.plugins.registry import DOMAIN_PLUGINS
 from plainera_unacronym.nlp.common.types import DetectorConfig, pattern_cache
+from plainera_unacronym.nlp.plugins.registry import DOMAIN_PLUGINS
 
 Span = tuple[str, int, int]
 
@@ -164,7 +165,7 @@ def threshold_len(surface: str, allow_chars: str) -> int:
     return clen
 
 
-def boost_confidence_if_whitelisted(surface: str, confidence_score: float, cfg: DetectorConfig)-> float:
+def boost_confidence_if_whitelisted(surface: str, confidence_score: float, cfg: DetectorConfig) -> float:
     """
     Checking if surface is in 2 letter whitelist, if so increase confidence_score
     is returned.
