@@ -157,8 +157,10 @@ class TestHarvestDefsAllUnit:
 
     def test_small_window_finds_nothing(self, monkeypatch):
         text = "PDF (Portable Document Format) ... GPU (Graphics Processing Unit)"
-        pdf0 = text.index("PDF"); pdf1 = pdf0 + 3
-        gpu0 = text.index("GPU"); gpu1 = gpu0 + 3
+        pdf0 = text.index("PDF")
+        pdf1 = pdf0 + 3
+        gpu0 = text.index("GPU")
+        gpu1 = gpu0 + 3
         cfg = Cfg(window_chars=3)
 
         _patch(
