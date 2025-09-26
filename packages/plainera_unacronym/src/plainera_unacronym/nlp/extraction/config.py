@@ -1,6 +1,8 @@
 from dataclasses import dataclass
 from typing import Callable
 
+from plainera_unacronym.nlp.common.constants import DEFAULT_STOPWORDS, BRIDGES_DEFAULT
+
 
 @dataclass(frozen=True, slots=True)
 class ExtractionConfig:
@@ -10,6 +12,8 @@ class ExtractionConfig:
     max_phrase_chars: int = 200
     enabled_parenthetical: bool = True
     enabled_inline: bool = True
+    stop: frozenset[str] = frozenset(DEFAULT_STOPWORDS)
+    bridges: frozenset[str] = frozenset(BRIDGES_DEFAULT)
 
     # Acronym policy
     min_acr_len: int = 2

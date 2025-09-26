@@ -225,3 +225,68 @@ class TestHarvestDefsAllIntegration:
         out2 = harvest_defs_all(text, [Occ("PDF", pdf0, pdf1)], cfg2)
         assert len(out2) == 1
         assert out2[0].definition == "Portable Document Format"
+
+    def test_after_pattern_qae_parenthetical(self):
+        # Use the “after ACR” pattern: QAE (Queen's Award for Enterprise)
+        text = (
+            "Winners of QAE (Queen's Award for Enterprise) were announced today."
+        )
+        acr0 = text.index("QAE")
+        acr1 = acr0 + 3  # end offset is exclusive by convention in the codebase
+
+        cfg = Cfg(window_chars=len(text))  # ensure the window covers the whole phrase
+        occs = [Occ("QAE", acr0, acr1)]
+
+        out = harvest_defs_all(text, occs, cfg)
+        assert len(out) == 1
+
+        item = out[0]
+        # Acronym comes from the occurrence as-is
+        assert item.acronym == "QAE"
+        assert item.source == "in_text"
+        assert item.confidence == pytest.approx(0.95)
+        assert (item.acr_start, item.acr_end) == (acr0, acr1)
+
+        # Original definition should be the normalized parenthetical content
+        expected_phrase = "Queen's Award for Enterprise"
+        assert item.original_definition == expected_phrase
+
+        # Span should tightly slice that phrase from the original text
+        assert text[item.def_start: item.def_end] == expected_phrase
+
+        # Tightened label by acronym should keep the matched tokens; depending on bridges,
+        # it may keep “for”. Accept either the full phrase or the pruned variant.
+        assert item.definition in (
+            "Queen's Award for Enterprise",
+            "Queen's Award Enterprise",
+        )
+
+    def test_before_pattern_qae_parenthetical(self):
+        text = "Winners of Queen's Award for Enterprise (QAE) were announced today."
+        acr0 = text.index("QAE")
+        acr1 = acr0 + 3
+
+        cfg = Cfg(window_chars=len(text))  # ensure the window covers the whole phrase
+        occs = [Occ("QAE", acr0, acr1)]
+
+        out = harvest_defs_all(text, occs, cfg)
+        assert len(out) == 1
+
+        item = out[0]
+        assert item.acronym == "QAE"
+        assert item.source == "in_text"
+        assert item.confidence == pytest.approx(0.95)
+        assert (item.acr_start, item.acr_end) == (acr0, acr1)
+
+        expected_phrase = "Queen's Award for Enterprise"
+        # Tight span over the original text:
+        assert text[item.def_start:item.def_end] == expected_phrase
+        # Original definition should match the parenthetical content (after normalization):
+        assert item.original_definition == expected_phrase
+
+        # Tightening may drop bridge/stop words depending on config;
+        # accept either the full phrase or a pruned variant.
+        assert item.definition in {
+            "Queen's Award for Enterprise",
+            "Queen's Award Enterprise",
+        }

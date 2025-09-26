@@ -6,14 +6,43 @@ from plainera_unacronym.nlp.common.shared import canonicalize, collapse_ws, stri
 
 
 _word_re = re.compile(r"[A-Za-z0-9'’\-\/&\.]+", flags=re.UNICODE)
-
+_ASCII_CAMEL_RE = re.compile(
+    r"[A-Z]+(?=[A-Z][a-z0-9])"      # e.g., 'XML' in 'XMLHttp'
+    r"|[A-Z]?[a-z]+[0-9]*"          # word with optional trailing digits, e.g., 'v1'
+    r"|[0-9]+"                      # standalone digits
+)
 
 def _split_compound(token: str) -> list[str]:
-    """Split hyphen/slash/dot compounds for initial extraction."""
-    # Keep only alpha/num for initials; treat .,/,-,& as boundaries
-    parts = re.split(r"[\-\/\.\&]", token)
-    return [p for p in parts if p]
+    """Split hyphen/slash/dot/& and (ASCII) CamelCase into parts.
 
+    Rules:
+    - Non-ASCII pieces (e.g., 'Ångström') are kept intact (no Camel split).
+    - ASCII pieces with both letters and digits that START or END with a digit
+      are kept intact as a single part (e.g., '3D', 'v1').
+    - Otherwise, ASCII CamelCase is split using _ASCII_CAMEL_RE.
+    """
+    pieces = re.split(r"[\-\/\.\&]", token)
+    out: list[str] = []
+    for p in pieces:
+        if not p:
+            continue
+        if not re.fullmatch(r"[A-Za-z0-9]+", p):
+            # Contains non-ASCII or other chars -> keep whole piece
+            out.append(p)
+            continue
+
+        has_alpha = bool(re.search(r"[A-Za-z]", p))
+        has_digit = bool(re.search(r"[0-9]", p))
+
+        # Keep leading-digit+letters or trailing-digit combos intact: '3D', 'v1', 'HTTP2'
+        if has_alpha and has_digit and (p[0].isdigit() or p[-1].isdigit()):
+            out.append(p)
+            continue
+
+        parts = _ASCII_CAMEL_RE.findall(p)
+        out.extend(parts if parts else [p])
+
+    return out
 
 def _tokenize_preserve(text: str) -> list[str]:
     return _word_re.findall(text)

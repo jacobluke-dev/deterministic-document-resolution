@@ -26,6 +26,7 @@ class TestSplitCompound:
             ("3D-Print", ["3D", "Print"]),                 # alnum pieces
             ("A&B&C", ["A", "B", "C"]),                    # multiple &
             ("v1.2.3", ["v1", "2", "3"]),                  # dot with numbers
+            ("HyperText", ["Hyper", "Text"])
         ],
     )
     def test_split_various(self, token, expected):
