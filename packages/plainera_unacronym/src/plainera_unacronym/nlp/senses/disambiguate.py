@@ -1,6 +1,6 @@
 import re
 
-from ..common.types import OccurrenceLite, OccurrenceResolution
+from ..common.types import OccurrenceLite, OccurrenceResolution, AcronymSense
 
 
 def _tokens(s: str) -> list[str]:
@@ -88,10 +88,7 @@ def disambiguate_occurrences(
 
             # 2) label overlap
             label_tokens = set(_tokens(s.definition))
-            if label_tokens:
-                overlap = len(label_tokens & ctx_tokens) / max(1, len(label_tokens))
-            else:
-                overlap = 0.0
+            overlap = len(label_tokens & ctx_tokens) / max(1, len(label_tokens)) if label_tokens else 0.0
 
             score = dist_weight * dist_score + overlap_weight * overlap
             cand_scores[s.sense_id] = score
