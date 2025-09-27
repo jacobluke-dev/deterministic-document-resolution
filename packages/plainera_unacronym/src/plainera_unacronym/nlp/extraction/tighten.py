@@ -125,9 +125,11 @@ def tighten_label_by_acronym(
     keep_case: bool = True,
 ) -> str:
     """
-    Canonicalise -> tokenise (compound-aware) -> find the shortest contiguous window that
-    aligns to the acronym (ignoring stopwords) -> *inside that window* keep only tokens
-    that contributed to the match plus any `bridges`. Fallback to canon+collapse+strip.
+    Canonicalise -> tokenise (compound-aware) -> prefer an initials-in-order window
+    for split acronyms (C/A, R&D, A/B/C), keeping bridge words inside the window;
+    otherwise fall back to the legacy smallest-window alignment.
+
+    Returns a pruned, whitespace-collapsed phrase (case preserved unless keep_case=False).
     """
     if not raw_label or not acronym:
         return raw_label or ""
@@ -139,7 +141,40 @@ def tighten_label_by_acronym(
     tokens = _tokenize_preserve(s)
     if not tokens:
         return strip_trailing_punct(collapse_ws(s))
+    # --- NEW: prefer initials-in-order for split acronyms (e.g., "C/A") ---
+    # Extract alnum letters from acronym, in order.
+    letters = [c for c in re.sub(r"[^A-Za-z0-9]+", "", acronym).upper()]
+    if len(letters) >= 2:
+        # Find the smallest window whose token-initials contain the letters in order.
+        seq_idxs: list[int] = []
+        li = 0
+        for idx, tok in enumerate(tokens):
+            ch = tok[0].upper() if tok else ""
+            if ch == letters[li]:
+                seq_idxs.append(idx)
+                li += 1
+                if li == len(letters):
+                    break
 
+        if len(seq_idxs) == len(letters):
+            low, high = min(seq_idxs), max(seq_idxs)
+            # Build kept: keep matched-initial tokens, plus any bridge words within the window.
+            kept: list[str] = []
+            hit_set = set(seq_idxs)
+            for idx in range(low, high + 1):
+                tok = tokens[idx]
+                if idx in hit_set or tok.lower() in br:
+                    kept.append(tok)
+
+            # If pruning removed everything, keep the full window.
+            if not kept:
+                kept = tokens[low : high + 1]
+
+            phrase = " ".join(kept)
+            phrase = strip_trailing_punct(collapse_ws(phrase))
+            return phrase if keep_case else phrase.lower()
+
+    # Legacy path: choose smallest window aligned to the acronym (ignoring stopwords).
     win = _best_window_for_acronym(tokens, acronym, stop)
     if not win:
         out = strip_trailing_punct(collapse_ws(s))
@@ -154,7 +189,6 @@ def tighten_label_by_acronym(
         if idx in hit_tokens or tok.lower() in br:
             kept.append(tok)
 
-    # if pruning removed everything (edge case), keep the original span
     if not kept:
         kept = tokens[i : j + 1]
 

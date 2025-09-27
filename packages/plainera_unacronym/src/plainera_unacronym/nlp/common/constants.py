@@ -60,10 +60,26 @@ DEFAULT_STOPWORDS: frozenset[str] = frozenset(DEFAULT_WORDS_SHARED | NAMED_STOPW
 # Bridges are the words you're willing to keep for readability inside the span
 BRIDGES_DEFAULT: frozenset[str] = DEFAULT_WORDS_SHARED
 
+LINKERS = (BRIDGES_DEFAULT | {"of", "and", "the", "&"})
+_LINKERS_RE = "(?:" + "|".join(sorted(re.escape(w) for w in LINKERS)) + ")"
 
-# last TitleCase/UPPER run (optionally joined by common linkers)
+# TitleCase token: allow letters/digits/underscore, Unicode apostrophes, NB hyphen (U+2011), ASCII hyphen
+_TITLECASE_TOKEN = r"[A-Z][\w’'\u2011-]*"
+
+# Last TitleCase/UPPER run optionally joined by linkers or a standalone dash (EN/EM/ASCII)
 TITLECASE_TAIL_RE = re.compile(
-    r"(?:^|[\s,])([A-Z][\w’'-]*(?:\s+(?:[A-Z][\w’'-]*|of|and|for|to|in|on|with|the|&)){0,12})\s*$",
+    rf"(?:^|[\s,])"                      # start, space, or comma
+    rf"("                                 # capture the whole tail
+        rf"{_TITLECASE_TOKEN}"
+        rf"(?:\s+(?:{_TITLECASE_TOKEN}|{_LINKERS_RE}|[–—-])){{0,12}}"
+    rf")\s*$",
+    flags=re.UNICODE,
+)
+
+_DASH_LINKER = r"[–—-]"
+
+TITLECASE_RUN_RE = re.compile(
+    rf"({_TITLECASE_TOKEN}(?:\s+(?:{_TITLECASE_TOKEN}|{_LINKERS_RE}|{_DASH_LINKER}))* )",
     flags=re.UNICODE,
 )
 

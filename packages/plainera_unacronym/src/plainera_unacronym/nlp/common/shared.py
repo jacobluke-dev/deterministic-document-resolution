@@ -101,16 +101,21 @@ def normalize_acronym_key(surface: str, allow_chars: str, dotted_mode: str) -> s
 def tighten_definition_span(s: str) -> str:
     s = s.strip()
 
-    # 1) keep only the last clause
+    # Try on the full string first (handles “Office – North” etc.)
+    m_full = TITLECASE_TAIL_RE.search(s)
+    if m_full:
+        return strip_trailing_punct(m_full.group(1).strip())
+
+    # Fallback: last clause
     parts = BOUNDARY_RE.split(s)
     tail = parts[-1].strip() if parts else s
 
-    # 2) prefer a TitleCase/UPPER tail if present
-    m = TITLECASE_TAIL_RE.search(tail)
-    if m:
-        tail = m.group(1).strip()
+    m_tail = TITLECASE_TAIL_RE.search(tail)
+    if m_tail:
+        return strip_trailing_punct(m_tail.group(1).strip())
 
-    return tail
+    # No TitleCase run found — still normalize trailing punctuation
+    return strip_trailing_punct(tail)
 
 
 def normalize_definition(s: str) -> str:

@@ -60,6 +60,7 @@ def extract_near_firsts(
                 clean = tighten_label_by_acronym(tighten_definition_span(orig), acr_norm)
 
                 clean = normalize_definition(clean)
+
                 if not clean or len(clean) > cfg.max_phrase_chars:
                     continue
 

@@ -484,3 +484,17 @@ class TestTightenLabelByAcronymIntegration:
             keep_case=True,
         )
         assert out == "Portable of Document Format"
+
+
+class TestInitialsRuleBenefit:
+    def test_lowercase_span_retained_for_split_acronym(self):
+        # Without initials rule, many implementations collapse to "acquisition"
+        s = "cost per acquisition"
+        # simulate flow: tighten_definition_span -> tighten_label_by_acronym
+        # span function likely returns the whole tail (lowercase), then cleaner kicks in
+        from plainera_unacronym.nlp.extraction.extract_first_occ import (
+            tighten_definition_span, tighten_label_by_acronym
+        )
+        tail = tighten_definition_span(s)
+        out = tighten_label_by_acronym(tail, "C/A", bridges={"per", "of", "and", "&"})
+        assert out == "cost per acquisition"  # passes only with initials-in-order tweak
