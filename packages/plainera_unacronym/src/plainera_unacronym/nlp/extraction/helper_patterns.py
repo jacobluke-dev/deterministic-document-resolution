@@ -399,3 +399,111 @@ def find_parenthetical_longform_before_acr(snippet: str, acr: str, cfg) -> list[
         return []
 
     return [LocalDefMatch(def_start=ds, def_end=de, definition=norm)]
+
+
+def find_inline_longform_after_acr(
+    snippet: str,
+    cfg,
+    acr: str,
+    *,
+    max_chars: int | None = None,
+    require_initials_match: bool = True,
+) -> list[LocalDefMatch]:
+    """
+    From the text *right after* the acronym, find a short inline long form by
+    aligning acronym letters to token initials in order. Bridge words inside
+    the chosen window are kept for readability.
+
+    Returns [] if alignment fails within the search slice.
+    """
+    if not snippet:
+        return []
+
+    stop = getattr(cfg, "stop", DEFAULT_STOPWORDS)
+    bridges = getattr(cfg, "bridges", BRIDGES_DEFAULT)
+    max_phrase_chars = getattr(cfg, "max_phrase_chars", 200)
+    search_cap = max_chars or max_phrase_chars * 2  # small bounded lookahead
+
+    # Limit the snippet we search to avoid runaway scans
+    s = snippet[:search_cap]
+
+    # Tokenize with spans (whitespace-based is sufficient here)
+    tokens: list[str] = []
+    starts: list[int] = []
+    ends: list[int] = []
+    for m in re.finditer(r"\S+", s):
+        tokens.append(m.group(0))
+        starts.append(m.start())
+        ends.append(m.end())
+
+    if not tokens:
+        return []
+
+    # Build target acronym letters (alnum only), keep case to allow future stopword rules
+    A_raw = [c for c in acr if c.isalnum()]
+    if not A_raw:
+        return []
+
+    # Precompute token initials and stopword flags
+    inits: list[str | None] = [_first_alnum_char_upper(t) for t in tokens]
+    is_stop: list[bool] = [t.lower() in stop for t in tokens]
+
+    best: tuple[int, int, set[int]] | None = None  # (i, j, hit_token_indices)
+
+    # Two constraints we support:
+    #  - Uppercase letter in acronym -> must land on a non-stopword token
+    #  - Lowercase letter in acronym -> must land on a stopword token
+    def ok_for_letter(letter: str, tok_idx: int) -> bool:
+        if letter.islower():
+            return is_stop[tok_idx]
+        return not is_stop[tok_idx]
+
+    L = [c.upper() for c in A_raw]  # matching uses uppercase equality
+
+    # Greedy-forward scan for smallest window [i..j] that hits all letters in order
+    for i in range(len(tokens)):
+        li = 0
+        hits: list[int] = []
+        for j in range(i, len(tokens)):
+            init = inits[j]
+            if init == L[li] and ok_for_letter(A_raw[li], j):
+                hits.append(j)
+                li += 1
+                if li == len(L):
+                    # Found a window [i..j] with hit token indices = hits
+                    if (best is None) or ((j - i) < (best[1] - best[0])):
+                        best = (i, j, set(hits))
+                    break  # try to shrink further by moving i forward
+        # Early stop: if remaining tokens are fewer than remaining letters
+        if len(tokens) - i < len(L):
+            break
+
+    if not best:
+        return []
+
+    i, j, hit_tokens = best
+
+    # Keep matched tokens plus bridge words inside the window
+    kept: list[int] = []
+    for idx in range(i, j + 1):
+        tok = tokens[idx]
+        if idx in hit_tokens or tok.lower() in bridges:
+            kept.append(idx)
+
+    if not kept:
+        kept = list(range(i, j + 1))
+
+    ds = starts[kept[0]]
+    de = ends[kept[-1]]
+
+    phrase = " ".join(tokens[k] for k in kept)
+    phrase = strip_trailing_punct(collapse_ws(phrase))
+    if not phrase:
+        return []
+
+    # Respect max_phrase_chars after normalisation
+    disp = normalize_definition(tighten_definition_span(phrase))
+    if not disp or len(disp) > max_phrase_chars:
+        return []
+
+    return [LocalDefMatch(def_start=ds, def_end=de, definition=disp)]

@@ -13,6 +13,7 @@ def _cfg(**overrides):
         inline_cues=(r"short\s+for", r"stands?\s+for", r"is\s+(?:an\s+)?acronym\s+for"),
         conf_parenthetical=0.95,
         conf_inline=0.80,
+        require_two_words=True,
     )
     base.update(overrides)
     return NS(**base)
@@ -384,6 +385,7 @@ class TestExtractNearFirstsIntegration:
             enabled_inline=True,
             conf_parenthetical=0.95,
             conf_inline=0.80,
+            require_two_words=False,
         )
         out_strict = mod.extract_near_firsts(text, firsts, window_left=10, window_right=200, cfg=cfg_strict)
         assert out_strict["PTO"] is None

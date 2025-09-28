@@ -1,6 +1,8 @@
 import re
 from typing import Mapping, Optional
 
+from .helper_patterns import find_parenthetical_longform_after_acr, find_parenthetical_longform_before_acr, \
+    find_inline_longform_after_acr
 from ..common.shared import normalize_definition, tighten_definition_span
 from ..common.types import ExtractedDefinition, FirstOccurrence, InTextPick
 from .config import ExtractionConfig
@@ -35,9 +37,11 @@ def extract_near_firsts(
     cfg: ExtractionConfig = ExtractionConfig(),
 ) -> dict[str, Optional[InTextPick]]:
     picks: dict[str, Optional[InTextPick]] = {}
+
     for key, fo in firsts.items():
         acr_norm = key or fo.acronym.upper()
 
+        # Build a local window around the first occurrence
         left = max(0, fo.start_offset - window_left)
         right = min(len(text), fo.end_offset + window_right)
         seg = text[left:right]
@@ -47,24 +51,90 @@ def extract_near_firsts(
         fo_a1_local = fo.end_offset - left
 
         best: Optional[ExtractedDefinition] = None
-        for pat, base_conf, _kind in _compile_anchored_exact(acr_norm, cfg):
+
+        for pat, base_conf, kind in _compile_anchored_exact(acr_norm, cfg):
             for m in pat.finditer(seg):
                 a0_local, a1_local = m.span("acr")
                 # Require exact alignment with the known FO span
                 if a0_local != fo_a0_local or a1_local != fo_a1_local:
                     continue
 
-                d0_local, d1_local = m.span("def")
-                orig = m.group("def")
+                # We will compute (d0_local, d1_local) and take `orig = seg[d0_local:d1_local]`
+                d0_local = d1_local = None
 
-                clean = tighten_label_by_acronym(tighten_definition_span(orig), acr_norm)
+                if kind == "def_after":
+                    # ACR … (DEF)  → parse parenthetical right AFTER the acronym
+                    snippet = seg[a1_local:]  # helper expects snippet starting at/after ACR
+                    mm = find_parenthetical_longform_after_acr(
+                        snippet, cfg, acr=acr_norm, require_initials_match=True
+                    )
+                    if not mm:
+                        continue
+                    loc = mm[0]
+                    d0_local = a1_local + loc.def_start
+                    d1_local = a1_local + loc.def_end
 
+                elif kind == "def_before":
+                    # DEF … (ACR)  → parse text that ENDS with "(ACR)".
+                    # Use the entire regex match so the closing paren is included.
+                    snippet = seg[: m.end()]  # m.end() includes the trailing “)”
+                    mm = find_parenthetical_longform_before_acr(snippet, acr_norm, cfg)
+                    if not mm:
+                        continue
+                    loc = mm[0]
+                    d0_local = loc.def_start
+                    d1_local = loc.def_end
+
+
+                else:  # "inline" → look-ahead initials alignment (no parentheses)
+
+                    snippet = seg[a1_local:]  # start right after the acronym
+
+                    mm = find_inline_longform_after_acr(
+
+                        snippet, cfg, acr=acr_norm, max_chars=cfg.max_phrase_chars * 2, require_initials_match=True
+
+                    )
+
+                    if not mm:
+                        continue
+
+                    loc = mm[0]
+
+                    d0_local = a1_local + loc.def_start
+
+                    d1_local = a1_local + loc.def_end
+
+                    orig = seg[d0_local:d1_local]
+
+                    clean = loc.definition
+
+                # Guard: spans must be valid
+                if d0_local is None or d1_local is None or d0_local >= d1_local:
+                    continue
+
+                # Original (pre-clean) definition slice from the segment
+                orig = seg[d0_local:d1_local]
+
+                # Clean and normalize
+                clean = tighten_label_by_acronym(
+                    tighten_definition_span(orig),
+                    acr_norm,
+                )
                 clean = normalize_definition(clean)
 
+                # Optionally require at least two tokens (prevents "a"/"of", etc. for inline)
+                if cfg.require_two_words:
+                    if len(re.findall(r"[A-Za-z0-9][\w’'\-]*", clean)) < 2:
+                        # Only enforce this for inline; parenthetical matches are usually fine.
+                        if kind == "inline":
+                            continue
+
+                # Length gate
                 if not clean or len(clean) > cfg.max_phrase_chars:
                     continue
 
-                # distance is effectively 0 when it’s the FO itself, but keep formula for consistency
+                # Confidence — distance is 0 at FO, but keep the formula
                 dist = abs((a0_local + left) - fo.start_offset)
                 conf = min(base_conf - min(dist, 200) * 0.0005, 0.99)
 
@@ -79,6 +149,7 @@ def extract_near_firsts(
                     def_end=d1_local + left,
                     original_definition=orig,
                 )
+
                 if (best is None) or (cand.confidence > best.confidence):
                     best = cand
 
