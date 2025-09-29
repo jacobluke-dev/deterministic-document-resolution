@@ -2,7 +2,8 @@ import re
 from types import SimpleNamespace as NS
 import pytest
 
-from plainera_unacronym.nlp.extraction.extract import _acr_pat, _def_pat, _compile_parenthetical, _compile_inline
+from plainera_unacronym.nlp.extraction.extract import _acr_pat, _def_pat, _compile_parenthetical, _compile_inline, \
+    _has_letters, _two_words, _initials_match
 
 
 def _cfg(**overrides):
@@ -195,3 +196,78 @@ class TestCompileInline:
         for p in pats:
             m = p.search(text) or m
         assert m and m.group("acr") == "C/A" and "Cost per Acquisition" in m.group("def")
+
+
+class TestHasLetters:
+    def test_empty_and_nonalpha_only(self):
+        assert _has_letters("") is False
+        assert _has_letters("12345") is False
+        assert _has_letters("!!!") is False
+        assert _has_letters("  \t\n ") is False
+
+    def test_ascii_letters_present(self):
+        assert _has_letters("a") is True
+        assert _has_letters("Z") is True
+        assert _has_letters("123abc") is True
+        assert _has_letters("abc-123") is True
+
+    def test_unicode_letters_not_counted_by_pattern(self):
+        # Regex is [A-Za-z], so characters like 'é'/'Ä' won't match
+        assert _has_letters("é") is False
+        assert _has_letters("Ä") is False
+
+
+class TestTwoWords:
+    def test_false_for_zero_or_one_word_with_letters(self):
+        assert _two_words("") is False
+        assert _two_words("a") is False
+        assert _two_words("123") is False
+        assert _two_words("123 !@#") is False
+
+    def test_true_for_two_or_more_words_with_letters(self):
+        assert _two_words("foo bar") is True
+        assert _two_words("GPU 3D") is True  # '3D' contains a letter, so counts
+        assert _two_words("alpha beta gamma") is True
+
+    def test_ignores_purely_numeric_or_symbol_words(self):
+        # Only words containing [A-Za-z] count
+        assert _two_words("alpha 123") is False
+        assert _two_words("123 beta") is False
+        assert _two_words("alpha 456 beta") is True
+
+    def test_whitespace_variations(self):
+        assert _two_words(" foo   bar ") is True
+        assert _two_words("\tfoo\nbar") is True
+
+
+class TestInitialsMatch:
+    def test_positive_simple(self):
+        assert _initials_match("PDF", "Portable Document Format") is True
+        assert _initials_match("PTO", "Please Turn Over") is True
+        assert _initials_match("HTTP", "Hyper Text Transfer Protocol") is True
+
+    def test_positive_with_bridges_and_case(self):
+        # ‘per’ is a bridge between C and A; order must be preserved
+        assert _initials_match("C/A", "Cost per Acquisition") is True
+        # case-insensitive for both sides
+        assert _initials_match("pdf", "portable document format") is True
+
+    def test_positive_ignores_nonalpha_in_acronym(self):
+        # Non-alpha chars in acronym should be ignored by the matcher
+        assert _initials_match("R&D", "Research and Development") is True
+        assert _initials_match("A/B/C", "Alpha Beta Charlie") is True
+
+    def test_skips_tokens_with_nonalpha_initials(self):
+        # Token '3M' starts with digit and is skipped when building initials
+        # Initials from phrase become ['H','P'] — 'HP' — which should match
+        assert _initials_match("HP", "3M Hewlett Packard") is True
+        # But '3M Hewlett' provides initials ['H'] → 'HP' should NOT match
+        assert _initials_match("HP", "3M Hewlett") is False
+
+    def test_negative_when_order_not_preserved(self):
+        assert _initials_match("ABC", "Alpha Charlie Beta") is False
+        assert _initials_match("CPU", "Central Unit Processing") is False
+
+    def test_negative_when_missing_letters(self):
+        assert _initials_match("ABC", "Alpha Beta") is False
+        assert _initials_match("PDF", "Portable Format") is False

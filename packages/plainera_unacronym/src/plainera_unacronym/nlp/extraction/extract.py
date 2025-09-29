@@ -54,13 +54,20 @@ def _two_words(s: str) -> bool:
 
 
 def _initials_match(acr: str, phrase: str) -> bool:
-    initials = "".join(w[0].upper() for w in phrase.split() if w and w[0].isalpha())
+    # Build uppercase initials from the phrase
+    initials = "".join(
+        w[0].upper()
+        for w in phrase.split()
+        if w and w[0].isalpha()
+    )
+
+    # Compare using ONLY alpha chars from the acronym, uppercased
+    acr_letters = [c.upper() for c in acr if c.isalpha()]
     j = 0
-    for ch in acr:
-        if ch.isalpha():
-            j = initials.find(ch, j) + 1
-            if j == 0:
-                return False
+    for ch in acr_letters:
+        j = initials.find(ch, j) + 1
+        if j == 0:
+            return False
     return True
 
 
