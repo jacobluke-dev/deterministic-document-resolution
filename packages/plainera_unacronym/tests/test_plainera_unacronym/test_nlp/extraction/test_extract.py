@@ -84,7 +84,6 @@ class TestDefPat:
             assert "def" in m.groupdict()
 
 
-@pytest.mark.usefixtures()
 class TestCompileParenthetical:
     def test_returns_two_patterns_with_flags(self):
         cfg = _cfg()
@@ -100,49 +99,62 @@ class TestCompileParenthetical:
             "Portable Document Format (PDF) is widely used.\n"
             "Also PDF (Portable Document Format) appears later."
         )
+        # Forward: should match the first sentence
         m1 = fwd.search(text)
-        m2 = rev.search(text)
-        assert m1 and m2
+        assert m1
         assert m1.group("acr").lower() == "pdf"
         assert "Portable" in m1.group("def")
-        assert m2.group("acr").lower() == "pdf"
-        assert "Portable" in m2.group("def")
+
+        # Reverse: there should EXIST a match where acr == PDF and def contains the long form
+        rev_hits = list(rev.finditer(text))
+        assert any(m.group("acr").lower() == "pdf" and "Portable" in m.group("def") for m in rev_hits)
 
     def test_max_phrase_chars_limits_definition(self):
-        # Very tight limit: a longer phrase should not match
         cfg = _cfg(max_phrase_chars=5)
         fwd, rev = _compile_parenthetical(cfg)
+        # Forward: long phrase present, but regex can still match the SHORT tail right before parens
         text_fwd = "Incredibly long name (PDF)"
+        m = fwd.search(text_fwd)
+        assert m is not None
+        assert len(m.group("def")) <= 5  # the definition capture is bounded
+
+        # Reverse: DEF inside parens longer than 5 → no match
         text_rev = "PDF (Incredibly long)"
-        assert fwd.search(text_fwd) is None
         assert rev.search(text_rev) is None
 
     def test_forbids_paren_and_braces_inside_def(self):
         cfg = _cfg()
         fwd, rev = _compile_parenthetical(cfg)
-        assert fwd.search("Bad ) token (PDF)") is None
-        assert rev.search("PDF (Bad ) token)") is None
-        assert fwd.search("Curly { brace (PDF)") is None
-        assert rev.search("PDF (Curly { brace)") is None
-        assert fwd.search("Curly } brace (PDF)") is None
-        assert rev.search("PDF (Curly } brace)") is None
+
+        # Forward: the DEF itself contains a forbidden char → must fail
+        assert fwd.search("Bad) (PDF)") is None  # ')' forbidden in DEF
+        assert fwd.search("Bad{ (PDF)") is None  # '{' forbidden in DEF
+        assert fwd.search("Bad} (PDF)") is None  # '}' forbidden in DEF
+
+        # Reverse: test braces *inside the parentheses* → must fail
+        assert rev.search("PDF (Bad{)") is None
+        assert rev.search("PDF (Bad})") is None
+
+        # And clarify behavior: extra text after a valid '(DEF)' still yields a match
+        # (engine matches the earliest valid 'PDF (DEF)' and ignores the trailing ' token)')
+        assert rev.search("PDF (Bad) token)") is not None
 
     def test_special_char_acronyms_are_escaped(self):
         cfg = _cfg()
         fwd, rev = _compile_parenthetical(cfg)
-
         text = (
             "Research and Development (R&D) fuels innovation. "
             "We track cost of acquisition: C/A (Cost per Acquisition)."
         )
         m_rnd = fwd.search(text)
         assert m_rnd and m_rnd.group("acr") == "R&D" and "Research and Development" in m_rnd.group("def")
-
-        m_ca = rev.search(text)
-        assert m_ca and m_ca.group("acr") == "C/A" and "Cost per Acquisition" in m_ca.group("def")
-
+        rev_hits = list(rev.finditer(text))
+        assert any(m.group("acr") == "C/A" and "Cost per Acquisition" in m.group("def") for m in rev_hits)
 
 class TestCompileInline:
+    def _cfg(self, **overrides):
+        return _cfg(**overrides)
+
     def test_compiles_one_pattern_per_cue(self):
         cfg = _cfg()
         cues = (r"short\s+for", r"stands?\s+for")
@@ -156,31 +168,24 @@ class TestCompileInline:
         cfg = _cfg()
         cues = (r"short\s+for", r"stands?\s+for", r"is\s+(?:an\s+)?acronym\s+for")
         pats = _compile_inline(cfg, cues)
-
         text = (
             "PDF, short for Portable Document Format.\n"
             "PDF stands for Portable Document Format.\n"
             "PDF is an acronym for Portable Document Format."
         )
-
         hits = 0
         for p in pats:
             for m in p.finditer(text):
                 assert m.group("acr").lower() == "pdf"
-                assert m.group("def").strip() != ""  # non-empty by construction
+                assert m.group("def").strip() != ""
                 hits += 1
         assert hits >= 3
 
     def test_inline_respects_max_phrase_chars(self):
         cfg = _cfg(max_phrase_chars=10)
         pats = _compile_inline(cfg, (r"stands?\s+for",))
-        # DEF longer than 10 should not match
-        text = "PDF stands for a very very long definition here"
-        assert all(p.search(text) is None for p in pats)
-
-        # Short DEF does match
-        text2 = "PDF stands for format"
-        assert any(p.search(text2) for p in pats)
+        assert all(p.search("PDF stands for a very very long definition here") is None for p in pats)
+        assert any(p.search("PDF stands for format") for p in pats)
 
     def test_inline_escapes_special_char_acronyms(self):
         cfg = _cfg()

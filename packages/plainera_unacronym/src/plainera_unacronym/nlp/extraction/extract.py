@@ -29,8 +29,19 @@ def _compile_parenthetical(cfg: ExtractionConfig) -> tuple[Pattern[str], Pattern
 
 
 def _compile_inline(cfg: ExtractionConfig, cues: tuple[str, ...]) -> list[Pattern[str]]:
-    acr, phr = _acr_pat(cfg), _def_pat(cfg)
-    return [re.compile(rf"\b{acr}\b\s*,?\s*{cue}\s+{phr}", re.IGNORECASE | re.MULTILINE) for cue in cues]
+    acr = _acr_pat(cfg)
+
+    # Greedy DEF up to a boundary: end of string OR punctuation (, ; : .) possibly with spaces.
+    # This grabs the full "Cost per Acquisition" instead of just "C".
+    def_frag = rf"(?P<def>[^){{}}]{{1,{cfg.max_phrase_chars}}})(?=\s*(?:$|[.,;:]))"
+
+    return [
+        re.compile(
+            rf"\b{acr}\b\s*,?\s*{cue}\s+{def_frag}",
+            re.IGNORECASE | re.MULTILINE,
+        )
+        for cue in cues
+    ]
 
 
 # ---------- Cheap validators ----------
