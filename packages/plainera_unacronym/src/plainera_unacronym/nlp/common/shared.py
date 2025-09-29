@@ -2,7 +2,8 @@ import re
 import unicodedata
 
 from plainera_unacronym.nlp.common.config import CANON_TABLE, TRAILING_PUNCT
-from plainera_unacronym.nlp.common.constants import ARTICLE, BOUNDARY_RE, LEADING_CONNECTORS, TITLECASE_TAIL_RE
+from plainera_unacronym.nlp.common.constants import ARTICLE, BOUNDARY_RE, LEADING_CONNECTORS, TITLECASE_TAIL_RE, \
+    TITLECASE_RUN_RE
 
 
 def has_paren_definition(text: str, end: int, max_chars: int = 80) -> bool:

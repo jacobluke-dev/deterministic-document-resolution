@@ -245,3 +245,8 @@ class TestTightenDefinitionSpan:
         s = "some preface. Cost per Acquisition"
         out = tighten_definition_span(s)
         assert out == "Cost per Acquisition"
+
+    def test_picks_titlecase_run_for_pto_sentence(self):
+        s = "Please Turn Over on print jobs."
+        out = tighten_definition_span(s)
+        assert out == "Please Turn Over"

@@ -79,7 +79,7 @@ TITLECASE_TAIL_RE = re.compile(
 _DASH_LINKER = r"[–—-]"
 
 TITLECASE_RUN_RE = re.compile(
-    rf"({_TITLECASE_TOKEN}(?:\s+(?:{_TITLECASE_TOKEN}|{_LINKERS_RE}|{_DASH_LINKER}))* )",
+    rf"({_TITLECASE_TOKEN}(?:\s+(?:{_TITLECASE_TOKEN}|{_LINKERS_RE}|{_DASH_LINKER}))*)",
     flags=re.UNICODE,
 )
 

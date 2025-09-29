@@ -4,7 +4,7 @@ from types import SimpleNamespace as NS, ModuleType
 import pytest
 
 from plainera_unacronym.nlp.extraction.extract import _acr_pat, _def_pat, _compile_parenthetical, _compile_inline, \
-    _has_letters, _two_words, _initials_match, _build_plan
+    _has_letters, _two_words, _initials_match, _build_plan, _parenthetical_allowed
 
 
 def _cfg(**overrides):
@@ -356,3 +356,53 @@ class TestBuildPlan:
         assert tuple(plan.inline_cues) == base_cues
         assert isinstance(plan.parenthetical_allows, tuple)
         assert len(plan.parenthetical_allows) == 0
+
+
+class TestParentheticalAllowed:
+    def test_returns_true_when_no_attribute(self):
+        cfg = NS()  # no _parenthetical_allows attr
+        assert _parenthetical_allowed(cfg, "Portable Document Format", "PDF") is True
+
+    def test_returns_true_when_empty_list(self):
+        cfg = NS(_parenthetical_allows=[])
+        assert _parenthetical_allowed(cfg, "Portable Document Format", "PDF") is True
+
+    def test_single_predicate_true(self):
+        # allow only if acronym is uppercase
+        cfg = NS(_parenthetical_allows=[lambda definition, acronym: acronym.isupper()])
+        assert _parenthetical_allowed(cfg, "Portable Document Format", "PDF") is True
+
+    def test_single_predicate_false(self):
+        cfg = NS(_parenthetical_allows=[lambda definition, acronym: acronym.isupper()])
+        assert _parenthetical_allowed(cfg, "Portable Document Format", "Pdf") is False
+
+    def test_multiple_predicates_all_must_pass(self):
+        f1 = lambda definition, acronym: acronym.isupper()
+        f2 = lambda definition, acronym: " " in definition  # requires multi-word def
+        cfg = NS(_parenthetical_allows=[f1, f2])
+
+        assert _parenthetical_allowed(cfg, "Portable Document Format", "PDF") is True
+        assert _parenthetical_allowed(cfg, "Acquisition", "PDF") is False  # fails f2
+        assert _parenthetical_allowed(cfg, "Portable Document Format", "Pdf") is False  # fails f1
+
+    def test_argument_order_is_definition_then_acronym(self):
+        # capture the received args to ensure correct ordering
+        received = {}
+        def spy(definition, acronym):
+            received["definition"] = definition
+            received["acronym"] = acronym
+            return True
+
+        cfg = NS(_parenthetical_allows=[spy])
+        ok = _parenthetical_allowed(cfg, "Cost per Acquisition", "C/A")
+        assert ok is True
+        assert received["definition"] == "Cost per Acquisition"
+        assert received["acronym"] == "C/A"
+
+    def test_exception_in_predicate_bubbles_up(self):
+        def boom(definition, acronym):
+            raise RuntimeError("predicate failed")
+
+        cfg = NS(_parenthetical_allows=[boom])
+        with pytest.raises(RuntimeError):
+            _parenthetical_allowed(cfg, "Any", "ACR")
