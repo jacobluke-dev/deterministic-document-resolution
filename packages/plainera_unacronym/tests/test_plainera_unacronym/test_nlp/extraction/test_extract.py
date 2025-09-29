@@ -1,9 +1,10 @@
 import re
-from types import SimpleNamespace as NS
+import sys
+from types import SimpleNamespace as NS, ModuleType
 import pytest
 
 from plainera_unacronym.nlp.extraction.extract import _acr_pat, _def_pat, _compile_parenthetical, _compile_inline, \
-    _has_letters, _two_words, _initials_match
+    _has_letters, _two_words, _initials_match, _build_plan
 
 
 def _cfg(**overrides):
@@ -271,3 +272,87 @@ class TestInitialsMatch:
     def test_negative_when_missing_letters(self):
         assert _initials_match("ABC", "Alpha Beta") is False
         assert _initials_match("PDF", "Portable Format") is False
+
+
+
+class TestBuildPlan:
+    def test_no_plugins_uses_cfg_inline_cues_only(self):
+        cfg = _cfg(inline_cues=(r"short\s+for", r"stands?\s+for"), plugins=())
+        plan = _build_plan(cfg)
+
+        assert tuple(plan.inline_cues) == cfg.inline_cues
+        assert isinstance(plan.parenthetical_allows, tuple)
+        assert len(plan.parenthetical_allows) == 0
+
+    def test_plugins_extend_extraction(self, monkeypatch):
+        """
+        Simulate plainera_unacronym.nlp.plugins.registry.get returning two plugins,
+        each calling builder hooks to extend cues and parenthetical allows.
+        """
+        # Create a fake registry module at the dotted path that the relative import resolves to:
+        # extract_first_occ.py does: from ..plugins.registry import get
+        # That resolves to: plainera_unacronym.nlp.plugins.registry
+        registry_mod_name = "plainera_unacronym.nlp.plugins.registry"
+        fake_registry = ModuleType(registry_mod_name)
+
+        class PluginA:
+            def extend_extraction(self, builder):
+                builder.add_inline_cues([r"also\s+known\s+as"])
+                builder.add_parenthetical_allow(lambda acr, df: acr.isupper())
+
+        class PluginB:
+            def extend_extraction(self, builder):
+                builder.add_inline_cues([r"aka"])
+                builder.add_parenthetical_allow(lambda acr, df: " " in df)
+
+        def fake_get(_names):
+            # names could be ("pA","pB"), but we ignore and return instances
+            return [PluginA(), PluginB()]
+
+        fake_registry.get = fake_get
+
+        # Install the fake module into sys.modules so the relative import succeeds
+        monkeypatch.setitem(sys.modules, registry_mod_name, fake_registry)
+
+        base_cues = (r"short\s+for", r"stands?\s+for")
+        cfg = _cfg(inline_cues=base_cues, plugins=("pA", "pB"))
+
+        plan = _build_plan(cfg)
+
+        # Inline cues should be base + extras (order preserved: base first, then plugin extras)
+        assert tuple(plan.inline_cues) == base_cues + (r"also\s+known\s+as", r"aka")
+
+        # Parenthetical allows should include both plugin-provided callables
+        assert isinstance(plan.parenthetical_allows, tuple)
+        assert len(plan.parenthetical_allows) == 2
+
+        # Sanity: the allows behave as advertised
+        allow1, allow2 = plan.parenthetical_allows
+        assert allow1("PDF", "Portable Document Format") is True   # A: requires acr.isupper()
+        assert allow1("Pdf", "Portable Document Format") is False
+        assert allow2("PDF", "Cost per Acquisition") is True       # B: requires space in def
+        assert allow2("PDF", "Acquisition") is False
+
+    def test_registry_exception_is_swallowed(self, monkeypatch):
+        """
+        If registry.get raises (or import fails), _build_plan must not crash and
+        should fall back to config-only plan.
+        """
+        registry_mod_name = "plainera_unacronym.nlp.plugins.registry"
+        fake_registry = ModuleType(registry_mod_name)
+
+        def raising_get(_names):
+            raise RuntimeError("boom")
+
+        fake_registry.get = raising_get
+        monkeypatch.setitem(sys.modules, registry_mod_name, fake_registry)
+
+        base_cues = (r"short\s+for", r"stands?\s+for")
+        cfg = _cfg(inline_cues=base_cues, plugins=("anything",))
+
+        plan = _build_plan(cfg)
+
+        # Should gracefully fall back: no extras added
+        assert tuple(plan.inline_cues) == base_cues
+        assert isinstance(plan.parenthetical_allows, tuple)
+        assert len(plan.parenthetical_allows) == 0
