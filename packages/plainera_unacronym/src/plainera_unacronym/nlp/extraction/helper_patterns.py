@@ -255,8 +255,9 @@ def find_parenthetical_longform_after_acr(
     if not phrase:
         return []
 
-    tight = tighten_definition_span(raw.strip())
-    definition = normalize_definition(tight)
+    # Use the window we computed (with numeric-leading expansion),
+    # don't run tighten_definition_span on the whole raw.
+    definition = normalize_definition(phrase)
     if not definition:
         return []
 

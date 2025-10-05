@@ -2,8 +2,7 @@ import re
 import unicodedata
 
 from plainera_unacronym.nlp.common.config import CANON_TABLE, TRAILING_PUNCT
-from plainera_unacronym.nlp.common.constants import ARTICLE, BOUNDARY_RE, LEADING_CONNECTORS, TITLECASE_TAIL_RE, \
-    TITLECASE_RUN_RE
+from plainera_unacronym.nlp.common.constants import ARTICLE, BOUNDARY_RE, LEADING_CONNECTORS, TITLECASE_RUN_RE
 
 
 def has_paren_definition(text: str, end: int, max_chars: int = 80) -> bool:
@@ -101,22 +100,28 @@ def normalize_acronym_key(surface: str, allow_chars: str, dotted_mode: str) -> s
 
 def tighten_definition_span(s: str) -> str:
     s = s.strip()
+    if not s:
+        return s
 
-    # Try on the full string first (handles “Office – North” etc.)
-    m_full = TITLECASE_TAIL_RE.search(s)
-    if m_full:
-        return strip_trailing_punct(m_full.group(1).strip())
+    # 1) Prefer the RIGHTMOST TitleCase run anywhere in the string
+    last = None
+    for m in TITLECASE_RUN_RE.finditer(s):
+        last = m
+    if last:
+        return strip_trailing_punct(collapse_ws(last.group(1).strip()))
 
-    # Fallback: last clause
+    # 2) Fallback: last clause, then try again for a rightmost run inside that clause
     parts = BOUNDARY_RE.split(s)
     tail = parts[-1].strip() if parts else s
 
-    m_tail = TITLECASE_TAIL_RE.search(tail)
-    if m_tail:
-        return strip_trailing_punct(m_tail.group(1).strip())
+    last_tail = None
+    for m in TITLECASE_RUN_RE.finditer(tail):
+        last_tail = m
+    if last_tail:
+        return strip_trailing_punct(collapse_ws(last_tail.group(1).strip()))
 
-    # No TitleCase run found — still normalize trailing punctuation
-    return strip_trailing_punct(tail)
+    # 3) Final fallback: just clean the tail
+    return strip_trailing_punct(collapse_ws(tail))
 
 
 def normalize_definition(s: str) -> str:
