@@ -131,7 +131,7 @@ class ExtractionResult:
     # or full global matches if we did the fallback)
     definitions: list[ExtractedDefinition]
     # which strategy ultimately produced 'picks' / 'definitions'
-    strategy: Literal["anchored", "hybrid-filled", "global"]
+    strategy: Literal["anchored", "hybrid-filled", "global", "anchored+harvest+global"]
     # convenience metric: fraction of acronyms with a pick
     coverage: float
     # normalized keys that had no in-text definition
