@@ -31,9 +31,8 @@ def _compile_parenthetical(cfg: ExtractionConfig) -> tuple[Pattern[str], Pattern
 def _compile_inline(cfg: ExtractionConfig, cues: tuple[str, ...]) -> list[Pattern[str]]:
     acr = _acr_pat(cfg)
 
-    # Greedy DEF up to a boundary: end of string OR punctuation (, ; : .) possibly with spaces.
-    # This grabs the full "Cost per Acquisition" instead of just "C".
-    def_frag = rf"(?P<def>[^){{}}]{{1,{cfg.max_phrase_chars}}})(?=\s*(?:$|[.,;:]))"
+    # DEF: stop at first boundary, and never cross a newline
+    def_frag = rf"(?P<def>[^\n){{}}]{{1,{cfg.max_phrase_chars}}}?)(?=\s*(?:$|[.,;:]))"
 
     return [
         re.compile(
@@ -144,6 +143,11 @@ def _collect_matches(
 
         original_def = def_raw
         definition = normalize_definition(tighten_definition_span(def_raw))
+        # inside _collect_matches, right after acr/def_raw extracted
+        if not is_parenthetical and "\n" in def_raw:
+            # Inline defs should not span lines; skip overreach matches
+            continue
+
         if not definition or len(definition) > cfg.max_phrase_chars:
             continue
         if not _has_letters(definition):

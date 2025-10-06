@@ -182,6 +182,43 @@ class TestExtractIterIntegration:
         assert "PDF" in by_acr
         assert any("Portable Document Format" in e.definition for e in by_acr["PDF"])
 
+    def test_mixed_forward_reverse_inline_and_confidence_no_new_lines(self):
+        text = (
+            "We invest in Research and Development (R&D) to innovate. The CFO said C/A (Cost per Acquisition) has fallen this quarter. PTO stands for Please Turn Over on print jobs. Finally, AM, short for amplitude modulation, is a legacy technique. Portable Document Format (PDF) dominates documents; elsewhere PDF (Portable Document Format) appears."
+        )
+
+        out = list(extract_iter(text, _cfg_intergrated()))
+
+        # Useful to map by acronym -> best definition(s)
+        by_acr = {}
+        for ed in out:
+            by_acr.setdefault(ed.acronym, []).append(ed)
+
+        # R&D forward
+        assert "R&D" in by_acr
+        assert any("Research and Development" in e.definition for e in by_acr["R&D"])
+        assert all(0 < e.confidence <= 0.99 for e in by_acr["R&D"])
+
+        # C/A reverse
+        assert "C/A" in by_acr
+        assert any(e.definition == "Cost per Acquisition" for e in by_acr["C/A"])
+        # initials match bump is applied
+        bumped = [e for e in by_acr["C/A"] if abs(e.confidence - 0.98) < 1e-6 or e.confidence > 0.95]
+        assert bumped, "Expected confidence bump for C/A"
+
+        # PTO inline
+        assert "PTO" in by_acr
+        assert any("Please Turn Over" in e.definition for e in by_acr["PTO"])
+        assert any(0 < e.confidence <= 0.99 for e in by_acr["PTO"])
+
+        # AM inline (lowercase long form is ok)
+        assert "AM" in by_acr
+        assert any("amplitude modulation" in e.definition.lower() for e in by_acr["AM"])
+
+        # PDF both forms appear; first is forward
+        assert "PDF" in by_acr
+        assert any("Portable Document Format" in e.definition for e in by_acr["PDF"])
+
     def test_parenthetical_allows_from_plugins_are_applied(self, monkeypatch):
         """
         Simulate a plugin that:
