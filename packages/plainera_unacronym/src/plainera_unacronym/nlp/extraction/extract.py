@@ -28,11 +28,11 @@ def _compile_parenthetical(cfg: ExtractionConfig) -> tuple[Pattern[str], Pattern
     return fwd, rev
 
 
-def _compile_inline(cfg: ExtractionConfig, cues: tuple[str, ...]) -> list[Pattern[str]]:
+def _compile_inline(cfg: ExtractionConfig, cues: tuple[str, ...]) -> list[re.Pattern[str]]:
     acr = _acr_pat(cfg)
-
-    # DEF: stop at first boundary, and never cross a newline
-    def_frag = rf"(?P<def>[^\n){{}}]{{1,{cfg.max_phrase_chars}}}?)(?=\s*(?:$|[.,;:]))"
+    # DEF: forbid newline/brace/close-paren; consume greedily up to sentence end or EOS.
+    # IMPORTANT: no lazy '?' before the lookahead; we want the longest chunk to the boundary.
+    def_frag = rf"(?P<def>[^\n){{}}]{{1,{cfg.max_phrase_chars}}})(?=\s*(?:$|[.!?]))"
 
     return [
         re.compile(
@@ -43,7 +43,9 @@ def _compile_inline(cfg: ExtractionConfig, cues: tuple[str, ...]) -> list[Patter
     ]
 
 
+
 # ---------- Cheap validators ----------
+
 def _has_letters(s: str) -> bool:
     return bool(re.search(r"[A-Za-z]", s))
 
@@ -144,7 +146,7 @@ def _collect_matches(
         original_def = def_raw
         definition = normalize_definition(tighten_definition_span(def_raw))
         # inside _collect_matches, right after acr/def_raw extracted
-        if not is_parenthetical and "\n" in def_raw:
+        if not is_parenthetical and ("\n" in def_raw or "\r" in def_raw):
             # Inline defs should not span lines; skip overreach matches
             continue
 
@@ -154,7 +156,15 @@ def _collect_matches(
             continue
         if cfg.require_two_words and not _two_words(definition):
             continue
+        # Re-attach leading numeric token for parenthetical if it was dropped
         if is_parenthetical:
+            raw_trim = def_raw.strip()
+            m_numtok = re.match(r"^(\S+)", raw_trim)
+            if m_numtok:
+                first_tok = m_numtok.group(1)
+                # If the first token starts with a non-alpha (e.g., 3M, 10GbE) and got dropped, reattach it.
+                if re.match(r"^[^A-Za-z]", first_tok) and not definition.startswith(first_tok):
+                    definition = f"{first_tok} {definition}".strip()
             # Config-driven allows
             if not _parenthetical_allowed(cfg, definition, acronym):
                 continue

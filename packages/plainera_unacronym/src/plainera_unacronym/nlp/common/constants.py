@@ -58,7 +58,7 @@ NAMED_STOPWORDS: frozenset[str] = frozenset(
 DEFAULT_STOPWORDS: frozenset[str] = frozenset(DEFAULT_WORDS_SHARED | NAMED_STOPWORDS)
 
 # Bridges are the words you're willing to keep for readability inside the span
-BRIDGES_DEFAULT: frozenset[str] = DEFAULT_WORDS_SHARED
+BRIDGES_DEFAULT: frozenset[str] = frozenset(DEFAULT_WORDS_SHARED | {"&"})
 
 LINKERS = {"of","and","for","to","in","on","with","the","per","by","via","as","at","from","vs","&"}
 _LINKERS_RE = "(?:" + "|".join(sorted(re.escape(w) for w in LINKERS)) + ")"
@@ -69,12 +69,25 @@ _DASH = r"[–—-]"                 # en/em/ascii dash
 _TITLECASE_TOKEN = r"[A-Z][\w’'\u2011-]*"
 
 # TitleCase run: TitleCase ( (space+TitleCase) | (space+(linker|dash)+space+TitleCase) )*
+# TITLECASE_RUN_RE = re.compile(
+#     rf"({_TITLE}(?:\s+(?:{_TITLE}|(?:{_LINKERS_RE}|{_DASH})\s+{_TITLE}))*)",
+#     flags=re.UNICODE,
+# )
+
+# Last TitleCase/ALL-CAPS run at the **end** of the string,
+# allowing common linkers (incl. '&') or a dash between TitleCase tokens.
 TITLECASE_RUN_RE = re.compile(
-    rf"({_TITLE}(?:\s+(?:{_TITLE}|(?:{_LINKERS_RE}|{_DASH})\s+{_TITLE}))*)",
+    rf"(?:^|[\s,])"                          # start or whitespace/comma before the run
+    rf"("                                     # capture the whole tail run
+      rf"{_TITLE}"                            # TitleCase/ALL-CAPS token
+      rf"(?:\s+(?:"
+        rf"{_TITLE}"                          # another TitleCase/ALL-CAPS token
+        rf"|(?:{_LINKERS_RE}|{_DASH})\s+{_TITLE}"  # linker/dash + TitleCase token
+      rf"))*"                                 # repeat joins
+    rf")\s*$",                                # must be at end (tail)
     flags=re.UNICODE,
 )
 
-_DASH_LINKER = r"[–—-]"
 
 LEADING_CONNECTORS = re.compile(
     r"^(?:while|whereas|and|or|but|that|which|who|as|for|to)\b[\s,:-]*",
