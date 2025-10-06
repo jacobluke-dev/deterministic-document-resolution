@@ -121,7 +121,66 @@ def _parenthetical_allowed(cfg: ExtractionConfig, definition: str, acronym: str)
     return all(fn(definition, acronym) for fn in allows) if allows else True
 
 
+def _collect_matches(
+    text: str,
+    pat: re.Pattern[str],
+    *,
+    cfg: ExtractionConfig,
+    plan: "ExtractionPlan",
+    base_conf: float,
+    is_parenthetical: bool,
+    seen: set[tuple[int, int, int, int]],
+    start: int,
+    end: int,
+) -> Iterator[ExtractedDefinition]:
+    for m in pat.finditer(text, start, end):
+        acr_raw, def_raw = m.group("acr"), m.group("def")
+        if not acr_raw or not def_raw:
+            continue
+
+        acronym = acr_raw.strip().upper()
+        if not (cfg.min_acr_len <= len(acronym) <= cfg.max_acr_len):
+            continue
+
+        original_def = def_raw
+        definition = normalize_definition(tighten_definition_span(def_raw))
+        if not definition or len(definition) > cfg.max_phrase_chars:
+            continue
+        if not _has_letters(definition):
+            continue
+        if cfg.require_two_words and not _two_words(definition):
+            continue
+        if is_parenthetical:
+            # Config-driven allows
+            if not _parenthetical_allowed(cfg, definition, acronym):
+                continue
+            # Plan-driven allows (plugins)
+            if plan.parenthetical_allows and not all(fn(definition, acronym) for fn in plan.parenthetical_allows):
+                continue
+
+        a0, a1 = m.span("acr")
+        d0, d1 = m.span("def")
+        key = (a0, a1, d0, d1)
+        if key in seen:
+            continue
+        seen.add(key)
+
+        conf = min(base_conf + (0.03 if _initials_match(acronym, definition) else 0.0), 0.99)
+        yield ExtractedDefinition(
+            acronym=acronym,
+            definition=tighten_label_by_acronym(definition, acronym.upper()),
+            source="in_text",
+            confidence=conf,
+            acr_start=a0,
+            acr_end=a1,
+            def_start=d0,
+            def_end=d1,
+            original_definition=original_def,
+        )
+
+
 # ---------- Core API ----------
+
 def extract_iter(
     text: str,
     cfg: ExtractionConfig | None = None,
@@ -135,56 +194,23 @@ def extract_iter(
     s = 0 if start is None else max(0, start)
     e = len(text) if end is None else min(len(text), end)
 
-    def collect(pat: Pattern[str], base_conf: float, is_parenthetical: bool) -> Iterator[ExtractedDefinition]:
-        for m in pat.finditer(text, s, e):
-            acr_raw, def_raw = m.group("acr"), m.group("def")
-            if not acr_raw or not def_raw:
-                continue
-
-            acronym = acr_raw.strip().upper()
-            if not (cfg.min_acr_len <= len(acronym) <= cfg.max_acr_len):
-                continue
-
-            original_def = def_raw
-            definition = normalize_definition(tighten_definition_span(def_raw))
-            if not definition or len(definition) > cfg.max_phrase_chars:
-                continue
-            if not _has_letters(definition):
-                continue
-            if cfg.require_two_words and not _two_words(definition):
-                continue
-            if is_parenthetical and not _parenthetical_allowed(cfg, definition, acronym):
-                if plan.parenthetical_allows and not all(fn(definition, acronym) for fn in plan.parenthetical_allows):
-                    continue
-
-            a0, a1 = m.span("acr")
-            d0, d1 = m.span("def")
-            key = (a0, a1, d0, d1)
-            if key in seen:
-                continue
-            seen.add(key)
-
-            conf = min(base_conf + (0.03 if _initials_match(acronym, definition) else 0.0), 0.99)
-            yield ExtractedDefinition(
-                acronym=acronym,
-                definition=tighten_label_by_acronym(definition, acronym.upper()),
-                source="in_text",
-                confidence=conf,
-                acr_start=a0,
-                acr_end=a1,
-                def_start=d0,
-                def_end=d1,
-                original_definition=original_def,
-            )
-
     if cfg.enabled_parenthetical:
         fwd, rev = _compile_parenthetical(cfg)
-        yield from collect(fwd, cfg.conf_parenthetical, True)
-        yield from collect(rev, cfg.conf_parenthetical, True)
+        yield from _collect_matches(
+            text, fwd, cfg=cfg, plan=plan, base_conf=cfg.conf_parenthetical,
+            is_parenthetical=True, seen=seen, start=s, end=e
+        )
+        yield from _collect_matches(
+            text, rev, cfg=cfg, plan=plan, base_conf=cfg.conf_parenthetical,
+            is_parenthetical=True, seen=seen, start=s, end=e
+        )
 
     if cfg.enabled_inline:
         for pat in _compile_inline(cfg, plan.inline_cues):
-            yield from collect(pat, cfg.conf_inline, False)
+            yield from _collect_matches(
+                text, pat, cfg=cfg, plan=plan, base_conf=cfg.conf_inline,
+                is_parenthetical=False, seen=seen, start=s, end=e
+            )
 
 
 def extract_in_text_definitions(text: str, cfg: ExtractionConfig | None = None) -> list[ExtractedDefinition]:

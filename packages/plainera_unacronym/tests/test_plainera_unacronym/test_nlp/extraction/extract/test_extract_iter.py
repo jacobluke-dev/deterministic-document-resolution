@@ -249,3 +249,35 @@ class TestExtractIterIntegration:
         # 'Alpha' (single word) dropped; the very long phrase collapsed by normaliser may still exceed 15 → dropped
         assert not any(e.acronym == "AB" for e in out)
         assert not any(e.acronym == "CD" for e in out)
+
+
+class TestExtractIterSmall:
+
+    @staticmethod
+    def _cfg():
+        return mod.ExtractionConfig(
+            enabled_parenthetical=True,
+            enabled_inline=True,
+            conf_parenthetical=0.95,
+            conf_inline=0.80,
+            max_phrase_chars=200,
+            require_two_words=True,
+            inline_cues=(r"short\s+for", r"stands?\s+for"),
+            plugins=(),
+        )
+
+    def test_pto_inline_and_pdf_parenthetical_coexist(self):
+        text = (
+            "PTO stands for Please Turn Over on print jobs. "
+            "Portable Document Format (PDF) dominates documents."
+        )
+        outs = list(mod.extract_iter(text, self._cfg()))
+        by = {}
+        for ed in outs:
+            by.setdefault(ed.acronym, []).append(ed)
+
+        assert "PTO" in by
+        assert any("Please Turn Over" in e.definition for e in by["PTO"])
+
+        assert "PDF" in by
+        assert any("Portable Document Format" in e.definition for e in by["PDF"])
