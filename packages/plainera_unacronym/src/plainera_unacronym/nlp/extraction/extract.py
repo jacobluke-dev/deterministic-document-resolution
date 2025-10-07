@@ -28,11 +28,11 @@ def _compile_parenthetical(cfg: ExtractionConfig) -> tuple[Pattern[str], Pattern
     return fwd, rev
 
 
-def _compile_inline(cfg: ExtractionConfig, cues: tuple[str, ...]) -> list[re.Pattern[str]]:
+def _compile_inline(cfg: ExtractionConfig, cues: tuple[str, ...]) -> list[Pattern[str]]:
     acr = _acr_pat(cfg)
     # DEF: forbid newline/brace/close-paren; consume greedily up to sentence end or EOS.
     # IMPORTANT: no lazy '?' before the lookahead; we want the longest chunk to the boundary.
-    def_frag = rf"(?P<def>[^\n){{}}]{{1,{cfg.max_phrase_chars}}})(?=\s*(?:$|[.!?]))"
+    def_frag = rf"(?P<def>[^\n){{}}]{{1,{cfg.max_phrase_chars}}}?)(?=\s*(?:$|[!?.,;:]))"
 
     return [
         re.compile(
