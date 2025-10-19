@@ -1,12 +1,15 @@
 from dataclasses import dataclass
 from typing import Callable, Generic, TypeVar, Optional
 
+
 T = TypeVar("T"); U = TypeVar("U")
+
 
 @dataclass(frozen=True)
 class StageResult(Generic[T]):
     value: T
     note: str = ""
+
 
 @dataclass(frozen=True)
 class StageReport:
@@ -15,9 +18,12 @@ class StageReport:
     info: str
     preview: Optional[str] = None
 
+
 class Stage(Generic[T, U]):
+
     def __init__(self, name: str, fn: Callable[[T], StageResult[U]], preview: Callable[[U], str] | None = None):
         self.name, self.fn, self.preview = name, fn, preview
+
     def run(self, x: T) -> tuple[U, StageReport]:
         try:
             r = self.fn(x)
@@ -26,9 +32,12 @@ class Stage(Generic[T, U]):
         except Exception as e:
             raise  # prefer surfacing the exception in tests; add try/except only if you want soft-fail logs
 
+
 class Chain(Generic[T, U]):
+
     def __init__(self, stages: list[Stage]):
         self.stages = stages
+
     def run(self, x: T) -> tuple[U, list[StageReport]]:
         reports: list[StageReport] = []
         cur = x
