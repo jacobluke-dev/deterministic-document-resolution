@@ -30,7 +30,7 @@ class Stage(Generic[T, U]):
             pv = self.preview(r.value) if self.preview else None
             return r.value, StageReport(self.name, True, r.note, pv)
         except Exception as e:
-            raise  # prefer surfacing the exception in tests; add try/except only if you want soft-fail logs
+            raise  # prefer surfacing the exception in tests; add try/except only if we want soft-fail logs
 
 
 class Chain(Generic[T, U]):
