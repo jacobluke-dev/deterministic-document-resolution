@@ -57,7 +57,7 @@ NAMED_STOPWORDS: frozenset[str] = frozenset(
 
 DEFAULT_STOPWORDS: frozenset[str] = frozenset(DEFAULT_WORDS_SHARED | NAMED_STOPWORDS)
 
-# Bridges are the words you're willing to keep for readability inside the span
+# Bridges are the words we're willing to keep for readability inside the span
 BRIDGES_DEFAULT: frozenset[str] = frozenset(DEFAULT_WORDS_SHARED | {"&"})
 
 LINKERS = {"of","and","for","to","in","on","with","the","per","by","via","as","at","from","vs","&"}

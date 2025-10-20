@@ -272,7 +272,7 @@ class TestFindParentheticalLongformAfterAcrUnit:
 
         def fake_tighten(s):
             seen["tighten_in"] = s
-            return s  # or " Foo   Bar... " if you want to test normalization too
+            return s  # or " Foo   Bar... " if test normalization too
 
         def fake_normalize(s):
             seen["normalize_in"] = s
@@ -291,7 +291,7 @@ class TestFindParentheticalLongformAfterAcrUnit:
         assert len(out) == 1
         assert out[0].definition == "Portable Document Format"
 
-        # (Optional) verify the pipeline inputs were what you expect
+        # (Optional) verify the pipeline inputs were what can be expected
         assert seen["tighten_in"] == "Portable Document Format"
         assert seen["normalize_in"] == "Portable Document Format"
 
@@ -329,7 +329,7 @@ class TestFindParentheticalLongformBeforeAcrIntegration:
 
     def test_titlecase_tail_preference_is_respected(self):
         cfg = DummyCfg()
-        # If your tighten_definition_span favors the last TitleCase/UPPER chunk,
+        # If the tighten_definition_span favors the last TitleCase/UPPER chunk,
         # ensure we still get the meaningful tail.
         snippet = "See also the HyperText Transfer Protocol (HTTP)"
         out = find_parenthetical_longform_before_acr(snippet, "HTTP", cfg)

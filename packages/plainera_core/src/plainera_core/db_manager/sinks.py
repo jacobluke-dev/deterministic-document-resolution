@@ -102,8 +102,8 @@ def register_sink(name: str, model: Type[Any], mapper: MapperFn) -> None:
 class CompositeSink:
     """Fan-out sink that forwards log payloads to multiple downstream sinks.
 
-    This sink is useful when you want each log record to be persisted or
-    transmitted to more than one backend. For example, you might want to
+    This sink is useful when we want each log record to be persisted or
+    transmitted to more than one backend. For example, we6 might want to
     write the same structured log payload to both a SQL database and
     standard output.
 

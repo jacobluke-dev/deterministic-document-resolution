@@ -248,7 +248,7 @@ class Detector:
             # 1) raw score
             conf = score(surface, text, s, e, cfg)
 
-            # 2) compute length bucket / threshold (using your existing helper)
+            # 2) compute length bucket / threshold (using our existing helper)
             eff = threshold_len(surface, cfg.allow_chars)
             th = cfg.min_confidence_by_len.get(eff, cfg.min_confidence_default)
 

@@ -15,7 +15,7 @@ COMMON_ERROR_RESPONSES: Mapping[int | str, dict[str, Any]] = {
     503: {"model": ErrorResponse},  # Service Unavailable (timeout or concurrency overload)
 }
 
-# Success headers spec you can attach to 200/201/etc.
+# Success headers spec can attach to 200/201/etc.
 SUCCESS_HEADERS_SPEC: dict[str, Any] = {
     "X-Request-Id": {"description": "Echoed or generated correlation id.", "schema": {"type": "string"}},
     "X-Input-Bytes": {"description": "Parsed request body size in bytes.", "schema": {"type": "integer"}},

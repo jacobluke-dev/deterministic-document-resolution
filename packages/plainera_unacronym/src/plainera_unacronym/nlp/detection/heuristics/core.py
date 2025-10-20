@@ -29,7 +29,7 @@ def compile_pattern(cfg: DetectorConfig) -> re.Pattern[str]:
     boundaries apply only to the token edges, so adjacency like NHS) or "NHS" still matches.
     """
     # Cache key must include all switches that change the pattern’s shape.
-    # NOTE: if your config field is named `enable_mixed_case` (no underscore),
+    # NOTE: if our config field is named `enable_mixed_case` (no underscore),
     key = (cfg.min_len, cfg.max_len, cfg.allow_chars, cfg.enable_dotted, cfg.enable_mixed_case)
     if key in pattern_cache:
         return pattern_cache[key]
@@ -267,7 +267,7 @@ def _collect_core_hits(text: str, cfg: DetectorConfig, pat: re.Pattern[str]) -> 
     """Collect accepted core-regex hits in text order."""
     out: list[Span] = []
     for m in pat.finditer(text):
-        s, e = m.span("tok")  # your pattern's named group
+        s, e = m.span("tok")  # our pattern's named group
         hit = _accept_candidate(text, cfg, s, e)
         if hit:
             out.append(hit)

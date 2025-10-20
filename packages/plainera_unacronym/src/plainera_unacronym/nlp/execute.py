@@ -150,7 +150,7 @@ def detect_and_extract(
     # 3) dedupe + choose strategy fields
     all_defs = dedupe_defs(anchored_defs + extra_defs)
 
-    # Optionally still run global gap-fill if you want picks for missing keys
+    # Optionally still run global gap-fill if we want picks for missing keys
     missing = tuple(sorted(k for k, v in anchored_picks.items() if v is None))
     if missing:
         global_picks, global_defs = _nearest_from_global(text, det_res.unique_acronyms, det.cfg, ext_cfg)

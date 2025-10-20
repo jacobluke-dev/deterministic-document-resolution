@@ -193,7 +193,7 @@ class TestBioAndGeneralIntegration:
         res = Detector(cfg).detect(txt)
         ks = _keys(res)
 
-        # Bio tokens (pattern may capture 'RNA' depending on your regex; accept either)
+        # Bio tokens (pattern may capture 'RNA' depending on the regex; accept either)
         assert {"mRNA", "RNA"} & ks, f"mRNA/RNA missing; keys={ks}"
         assert {"IL-6", "IL"} & ks, f"IL-6/IL missing; keys={ks}"
         assert "SARS-CoV-2" in ks

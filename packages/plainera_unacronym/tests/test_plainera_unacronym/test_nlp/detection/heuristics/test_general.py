@@ -33,10 +33,6 @@ def _extract_span(s: str) -> tuple[str, int, int]:
 
 
 def make_cfg(allow_chars: str = "-&/._") -> DetectorConfig:
-    """
-    Build a valid DetectorConfig for tests.
-    Adjust defaults if your real class has more fields.
-    """
     return DetectorConfig(min_len=2, max_len=12, allow_chars=allow_chars)
 
 

@@ -102,7 +102,7 @@ class TestNormalizeKey:
         # Every variant becomes ASCII "'"
         assert self._norm(f"O{variant}Reilly") == "O'Reilly"
         assert self._norm(f"rock{variant}n{variant}roll") == "rock'n'roll"
-        # Works in all-caps tokens too (your acronym path)
+        # Works in all-caps tokens too (the acronym path)
         assert self._norm(f"O{variant}RAN") == "O'RAN"
         # Curly apostrophe should normalize to ASCII "'"
         assert normalize_acronym_key("O’Reilly", allow_chars="&-/", dotted_mode="preserve") == "O'Reilly"
@@ -241,7 +241,7 @@ class TestTightenDefinitionSpan:
         assert out == "Director-General’s Office – North"
 
     def test_works_when_titlecase_is_after_a_boundary(self):
-        # Even if your BOUNDARY_RE logic changes, ending with the TitleCase run keeps this robust
+        # Even if the BOUNDARY_RE logic changes, ending with the TitleCase run keeps this robust
         s = "some preface. Cost per Acquisition"
         out = tighten_definition_span(s)
         assert out == "Cost per Acquisition"

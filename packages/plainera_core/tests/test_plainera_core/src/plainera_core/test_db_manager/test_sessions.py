@@ -1,7 +1,5 @@
 from unittest import mock
 
-# Adjust this import to your actual module path
-# e.g. from plainera_core.db_manager.sessions import make_async_sessionmaker
 import plainera_core.db_manager.sessions as sessions
 
 

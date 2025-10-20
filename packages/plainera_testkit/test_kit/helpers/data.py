@@ -1,7 +1,7 @@
 from pathlib import Path
 
 def project_path(rel: str) -> str:
-    # keep simple; you can make smarter later
+    # keep simple; can make smarter later
     return str(Path.cwd() / rel)
 
 def load_file(path: str, ext: str):

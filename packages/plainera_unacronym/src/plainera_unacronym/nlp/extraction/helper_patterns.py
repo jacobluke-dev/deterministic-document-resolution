@@ -144,12 +144,12 @@ def find_parenthetical_longform_after_acr(
         return [LocalDefMatch(def_start=ds, def_end=de, definition=definition)]
 
     # 2) Tokenize the raw parenthetical (preserve case; no normalization yet)
-    tokens = raw_trim.split()  # or your _tokenize_preserve(raw_trim)
+    tokens = raw_trim.split()
     if not tokens:
         return []
 
     if acr and require_initials_match:
-        # Build initials / owners per *token* (or per-part if that’s your global choice)
+        # Build initials / owners per *token*
         letters, owners = _initials_seq(tokens, getattr(cfg, "stopwords", DEFAULT_STOPWORDS))
         if not letters:
             return []
@@ -172,7 +172,7 @@ def find_parenthetical_longform_after_acr(
             # enforce stopword vs non-stopword by case of the acronym letter
             return is_stop[token_idx] if A[matched_letter_pos].islower() else (not is_stop[token_idx])
 
-        # We’ll reuse your existing `_match_from` over `letters`, then verify constraints
+        # We’ll reuse the existing `_match_from` over `letters`, then verify constraints
         L = [x.upper() for x in A]  # normalized targets for equality
         for li in range(len(letters)):
             r = _match_from(letters, L, li)
@@ -323,7 +323,7 @@ def find_parenthetical_longform_before_acr(snippet: str, acr: str, cfg) -> list[
 
     for ti in range(len(tokens) - 1, -1, -1):  # tokens RTL
         tok = tokens[ti]
-        # split compounds (+ fallback CamelCase split if your _split_compound doesn't cover it)
+        # split compounds (+ fallback CamelCase split if the _split_compound doesn't cover it)
         parts = _split_compound(tok)
         if not parts:  # very defensive
             continue

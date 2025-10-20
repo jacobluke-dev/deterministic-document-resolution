@@ -42,11 +42,11 @@ class TestBlacklistContextDrop:
         assert blacklist_context_drop("ALRIGHTY", text, s1, e1, cfg) is True
         assert blacklist_context_drop("THEN", text, s2, e2, cfg) is True
 
-    # 1b) ALL-CAPS heading drop (if your is_all_caps_heading() recognizes it)
+    # 1b) ALL-CAPS heading drop (if is_all_caps_heading() recognizes it)
     def test_all_caps_heading_drops(self, span):
         text = "INTRODUCTION\nWe begin here."
         s, e = span(text, "INTRODUCTION")
-        # If your is_all_caps_heading() returns True for a standalone caps line,
+        # If is_all_caps_heading() returns True for a standalone caps line,
         # this will be True. If not, adjust or skip this test.
         assert blacklist_context_drop("INTRODUCTION", text, s, e, mk_cfg()) in (True,)
 

@@ -329,8 +329,8 @@ class TestUpdateRow:
         assert row["source"] == "init"
 
     def test_noop_updates_is_valid_sql(self, dbm):
-        # Some callers may end up with an empty dict; you can assert it raises
-        # or treat it as a no-op. If you want to enforce non-empty, change the
+        # Some callers may end up with an empty dict; can assert it raises
+        # or treat it as a no-op. If we want to enforce non-empty, change the
         # code and assert raises here. For now, we simulate a tiny update.
         dbm.update_row(
             "glossary_entries",

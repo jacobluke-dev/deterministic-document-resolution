@@ -36,3 +36,6 @@ class ExtractionConfig:
 
     # Optional plugin names (must be registered in plugins.registry)
     plugins: tuple[str, ...] = ()
+
+    window_chars: int = 320
+    margin_threshold: float = 0.20

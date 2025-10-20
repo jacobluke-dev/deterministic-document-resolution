@@ -325,7 +325,7 @@ class TestPrevToken:
         start2 = _start_of(text, "okay")
         assert prev_token(text, start2) == ""
 
-        # If you point start at the comma, prev_token will recover "next".
+        # If the start point is a comma, prev_token will recover "next".
         comma_idx = text.index(",")
         assert prev_token(text, comma_idx) == "next"
 
@@ -602,7 +602,7 @@ class TestScoreIntegration:
         s, e = _idx(text, "GPU")
         val = det.score("GPU", text, s, e, DetectorConfig())
 
-        # Expect base 0.6 + 0.15 for 'stands for', possibly more if your in_brackets
+        # Expect base 0.6 + 0.15 for 'stands for', possibly more if in_brackets
         # logic treats proximity to punctuation as adjacent—but there are no brackets here.
         assert val == 0.75
 
@@ -865,7 +865,7 @@ class TestAcceptCandidate:
             calls["strip_called"] = True
             return (s, e)
 
-        # strip_trailing_punct is still called (your function calls it before the raw len check),
+        # strip_trailing_punct is still called (function calls it before the raw len check),
         # but the early length check will return None before any deeper gates.
         monkeypatch.setattr(core, "strip_trailing_punct", strip_fn, raising=False)
         monkeypatch.setattr(core, "has_letter", lambda s: True, raising=False)
