@@ -1,8 +1,8 @@
 import pytest
 from types import SimpleNamespace as NS
 
-import plainera_unacronym.nlp.execute as mod
-from plainera_unacronym.nlp.common.types import DetectorResult, Occurrence, DetectorConfig, FirstOccurrence
+import plainera_unacronym.nlp.extraction.engine.detect_flow as mod
+from plainera_unacronym.nlp.common.types import DetectorResult, Occurrence, DetectorConfig, FirstOccurrence, InTextPick
 from plainera_unacronym.nlp.execute import detect_and_extract
 from plainera_unacronym.nlp.extraction import ExtractionConfig
 
@@ -58,7 +58,7 @@ class TestDetectAndExtractUnit:
         monkeypatch.setattr(mod, "Detector", FakeDetector)
 
         # Anchored picks: found
-        anchored_pick = mod.InTextPick(
+        anchored_pick = InTextPick(
             definition="Portable Document Format",
             acr_span=(28, 31),
             def_span=(0, 24),
@@ -122,21 +122,6 @@ class TestDetectAndExtractUnit:
         # harvest returns nothing
         monkeypatch.setattr(mod, "harvest_defs_all", lambda *_: [])
 
-        # Global nearest provides a pick + defs
-        global_pick = mod.InTextPick(
-            definition="Alpha Beta Core",
-            acr_span=(29, 32),
-            def_span=(0, 14),
-            confidence=0.90,
-            original_definition="Alpha Beta Core",
-        )
-        global_def = _ed("ABC", "Alpha Beta Core", conf=0.90)
-        monkeypatch.setattr(
-            mod,
-            "_nearest_from_global",
-            lambda text, firsts, detcfg, extcfg: ({"ABC": global_pick}, [global_def]),
-        )
-
         # Dedupe: pass-through
         monkeypatch.setattr(mod, "dedupe_defs", lambda defs: defs)
 
@@ -146,7 +131,7 @@ class TestDetectAndExtractUnit:
 
         det_res, extr = detect_and_extract(text, det_cfg=det_cfg, ext_cfg=ext_cfg)
 
-        assert extr.strategy == "anchored+harvest+global"
+        assert extr.strategy == "anchored+harvest+global-pipeline"
         assert extr.missing_keys == ()
         assert any(d.definition == "Alpha Beta Core" for d in extr.definitions)
         assert "ABC" in extr.senses_by_acronym
@@ -218,7 +203,7 @@ class TestDetectAndExtractIntegrationEdgeCases:
             "Portable Document Format (PDF) dominates documents."
         )
         det_cfg, ext_cfg = _cfg_integrated()
-        det_res, extr = mod.detect_and_extract(text, det_cfg=det_cfg, ext_cfg=ext_cfg)
+        det_res, extr = detect_and_extract(text, det_cfg=det_cfg, ext_cfg=ext_cfg)
 
         by = {}
         for d in extr.definitions:
@@ -240,7 +225,7 @@ class TestDetectAndExtractIntegrationEdgeCases:
         )
         # Strict
         det_cfg, ext_cfg_strict = _cfg_integrated(require_two_words=True, max_chars=20)
-        det_res_s, extr_s = mod.detect_and_extract(base, det_cfg=det_cfg, ext_cfg=ext_cfg_strict)
+        det_res_s, extr_s = detect_and_extract(base, det_cfg=det_cfg, ext_cfg=ext_cfg_strict)
 
         by_s = {}
         for d in extr_s.definitions:
@@ -251,7 +236,7 @@ class TestDetectAndExtractIntegrationEdgeCases:
 
         # Relaxed
         det_cfg, ext_cfg_relaxed = _cfg_integrated(require_two_words=True, max_chars=160)
-        det_res_r, extr_r = mod.detect_and_extract(base, det_cfg=det_cfg, ext_cfg=ext_cfg_relaxed)
+        det_res_r, extr_r = detect_and_extract(base, det_cfg=det_cfg, ext_cfg=ext_cfg_relaxed)
 
         by_r = {}
         for d in extr_r.definitions:
@@ -265,7 +250,7 @@ class TestDetectAndExtractIntegrationEdgeCases:
         # Ensure numeric-leading tokens (e.g., 3M) are kept in the definition window
         text = "PF (3M Portable format) is a special case in this doc."
         det_cfg, ext_cfg = _cfg_integrated()
-        det_res, extr = mod.detect_and_extract(text, det_cfg=det_cfg, ext_cfg=ext_cfg)
+        det_res, extr = detect_and_extract(text, det_cfg=det_cfg, ext_cfg=ext_cfg)
         by = {}
         for d in extr.definitions:
             by.setdefault(d.acronym, []).append(d)
@@ -280,7 +265,7 @@ class TestDetectAndExtractIntegrationEdgeCases:
             "Research & Development (R&D) invests heavily."
         )
         det_cfg, ext_cfg = _cfg_integrated()
-        det_res, extr = mod.detect_and_extract(text, det_cfg=det_cfg, ext_cfg=ext_cfg)
+        det_res, extr = detect_and_extract(text, det_cfg=det_cfg, ext_cfg=ext_cfg)
 
         by = {}
         for d in extr.definitions:
@@ -299,7 +284,7 @@ class TestDetectAndExtractIntegrationEdgeCases:
             "On charts, EMA (Exponential Moving Average) is a common indicator."
         )
         det_cfg, ext_cfg = _cfg_integrated()
-        det_res, extr = mod.detect_and_extract(text, det_cfg=det_cfg, ext_cfg=ext_cfg)
+        det_res, extr = detect_and_extract(text, det_cfg=det_cfg, ext_cfg=ext_cfg)
 
         # senses_by_acronym and ambiguous_keys should reflect two senses for EMA
         senses = extr.senses_by_acronym.get("EMA", [])
@@ -319,7 +304,7 @@ class TestDetectAndExtractIntegrationEdgeCases:
             "Later we see some detour text and a PDF (Pretty Darn Fast) joke."
         )
         det_cfg, ext_cfg = _cfg_integrated()
-        det_res, extr = mod.detect_and_extract(text, det_cfg=det_cfg, ext_cfg=ext_cfg)
+        det_res, extr = detect_and_extract(text, det_cfg=det_cfg, ext_cfg=ext_cfg)
 
         # The chosen pick for PDF (by nearest) should be the first proper definition
         pick = extr.picks.get("PDF")
