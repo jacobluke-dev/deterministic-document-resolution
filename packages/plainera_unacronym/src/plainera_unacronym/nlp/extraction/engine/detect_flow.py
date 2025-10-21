@@ -1,7 +1,7 @@
 from dataclasses import dataclass, field
 from typing import Optional
 
-from .stages import Stage, StageResult, Chain, StageReport
+from .stages import Stage, StageResult, Chain, StageReport, Tracer
 from .. import ExtractionConfig, extract_iter
 from ..defs_utils import defs_from_picks, dedupe_defs
 from ..extract_first_occ import extract_near_firsts
@@ -13,6 +13,7 @@ from ...senses.sense_build import build_senses
 
 from plainera_unacronym.nlp.common.shared import normalize_acronym_key
 from plainera_unacronym.nlp.common.types import InTextPick, ExtractedDefinition, FirstOccurrence
+
 
 def _fill_missing_from_defs(
     text: str,
@@ -50,9 +51,9 @@ def _fill_missing_from_defs(
 
 def extract_pipeline_iter(
     text: str,
-    det_cfg: Optional[DetectorConfig],   # kept for signature parity / future use
+    det_cfg: Optional[DetectorConfig],  # kept for signature parity / future use
     ext_cfg: ExtractionConfig,
-    plan: object | None = None,          # reserved for future policy hooks
+    plan: object | None = None,  # reserved for future policy hooks
 ) -> list[ExtractedDefinition]:
     """
     Global free-scan extractor used by Stage E.
@@ -96,13 +97,17 @@ class ExtractionFlow:
         # optional runtime overrides so we don't mutate frozen configs
         disambig_window_chars: int | None = None,
         disambig_margin_threshold: float | None = None,
+        trace: bool = False,
+        trace_filter: str | None = None,
     ):
+        self.trace_events = None
         self.det_cfg = det_cfg or DetectorConfig()
         self.ext_cfg = ext_cfg or ExtractionConfig()
         self.window_left = window_left
         self.window_right = window_right
         self._ovr_win = disambig_window_chars
         self._ovr_margin = disambig_margin_threshold
+        self._tracer = Tracer(trace_filter) if trace else None
 
     # ---- stage methods: (FlowState) -> StageResult[FlowState] ----
 
@@ -144,7 +149,8 @@ class ExtractionFlow:
     def _st_gapfill(self, s: FlowState) -> StageResult[FlowState]:
         missing = [k for k, v in s.picks.items() if v is None]
         if missing:
-            fills = _fill_missing_from_defs(s.text, firsts=s.det_res.unique_acronyms, det_cfg=s.det_cfg, defs=s.all_defs)
+            fills = _fill_missing_from_defs(s.text, firsts=s.det_res.unique_acronyms, det_cfg=s.det_cfg,
+                                            defs=s.all_defs)
             for k in missing:
                 s.picks[k] = s.picks[k] or fills.get(k)
         s.strategy = "anchored+harvest" if not missing else "anchored+harvest+global-pipeline"
@@ -159,8 +165,10 @@ class ExtractionFlow:
         occs = [OccurrenceLite(o.acronym, o.start_offset, o.end_offset) for o in s.det_res.occurrences]
 
         # pull knobs from ext_cfg if we add a nested disambig config, else use overrides/defaults
-        win_chars = self._ovr_win if self._ovr_win is not None else getattr(getattr(s.ext_cfg, "disambig", s.det_cfg), "window_chars", 320)
-        margin   = self._ovr_margin if self._ovr_margin is not None else getattr(getattr(s.ext_cfg, "disambig", None), "margin_threshold", 0.20)
+        win_chars = self._ovr_win if self._ovr_win is not None else getattr(getattr(s.ext_cfg, "disambig", s.det_cfg),
+                                                                            "window_chars", 320)
+        margin = self._ovr_margin if self._ovr_margin is not None else getattr(getattr(s.ext_cfg, "disambig", None),
+                                                                               "margin_threshold", 0.20)
 
         resolutions = disambiguate_occurrences(
             text=s.text, occurrences=occs, senses=senses_by_acr,
@@ -180,19 +188,42 @@ class ExtractionFlow:
     # Build a Chain using bound methods
     def build_chain(self) -> Chain[FlowState, FlowState]:
         return Chain([
-            Stage("detect",              self._st_detect,            lambda s: f"firsts={len(s.det_res.unique_acronyms)}"),
-            Stage("anchored_picks",      self._st_anchored,          lambda s: f"{sum(1 for v in s.picks.values() if v)}/{len(s.picks)}"),
-            Stage("defs_from_picks",     self._st_defs_from_picks,   lambda s: f"{len(s.anchored_defs)}"),
-            Stage("harvest",             self._st_harvest,           lambda s: f"{len(s.harvested_defs)}"),
-            Stage("global_pipeline",     self._st_global,            lambda s: f"{len(s.global_defs)}"),
-            Stage("merge_dedupe",        self._st_merge,             lambda s: f"{len(s.all_defs)}"),
-            Stage("gap_fill_picks",      self._st_gapfill,           lambda s: f"cov={s.coverage:.0%} miss={len(s.missing_keys)}"),
-            Stage("senses_disambiguate", self._st_senses_and_assemble, lambda s: "ready"),
+            Stage("detect",
+                  self._st_detect,
+                  lambda s: f"firsts={len(s.det_res.unique_acronyms)}"),
+            Stage("anchored_picks",
+                  self._st_anchored,
+                  lambda s: f"{sum(1 for v in s.picks.values() if v)}/{len(s.picks)}",
+                  trace_fields=("picks",)),
+            Stage("defs_from_picks",
+                  self._st_defs_from_picks,
+                  lambda s: f"{len(s.anchored_defs)}",
+                  trace_fields=("anchored_defs",)),
+            Stage("harvest",
+                  self._st_harvest,
+                  lambda s: f"{len(s.harvested_defs)}",
+                  trace_fields=("harvested_defs",)),
+            Stage("global_pipeline",
+                  self._st_global,
+                  lambda s: f"{len(s.global_defs)}",
+                  trace_fields=("global_defs",)),
+            Stage("merge_dedupe",
+                  self._st_merge,
+                  lambda s: f"{len(s.all_defs)}",
+                  trace_fields=("all_defs",)),
+            Stage("gap_fill_picks",
+                  self._st_gapfill,
+                  lambda s: f"cov={s.coverage:.0%} miss={len(s.missing_keys)}",
+                  trace_fields=("picks",)),
+            Stage("senses_disambiguate",
+                  self._st_senses_and_assemble,
+                  lambda s: "ready"),
         ])
 
     def run(self, text: str) -> tuple[DetectorResult, ExtractionResult, list[StageReport]]:
         state = FlowState(text=text, det_cfg=self.det_cfg, ext_cfg=self.ext_cfg)
         chain = self.build_chain()
-        state, reports = chain.run(state)
+        state, reports = chain.run(state, tracer=self._tracer)   # <<< tracer passed once
         assert state.det_res and state.extr
+        self.trace_events = self._tracer.events if self._tracer else []  # expose for tests
         return state.det_res, state.extr, reports
