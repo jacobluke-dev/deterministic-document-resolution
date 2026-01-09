@@ -2,9 +2,12 @@ import re
 import pytest
 from types import SimpleNamespace as NS
 
-from plainera_unacronym.nlp.extraction.extract_first_occ import _compile_anchored_exact
-import plainera_unacronym.nlp.extraction.extract_first_occ as mod
 
+import plainera_unacronym.nlp.extraction.anchored.patterns as mod
+from plainera_unacronym.nlp.extraction import ExtractionConfig
+from plainera_unacronym.nlp.extraction.anchored.extract import extract_near_firsts
+
+from plainera_unacronym.nlp.extraction.anchored.patterns import compile_anchored_exact
 
 
 def _cfg(**overrides):
@@ -25,7 +28,7 @@ def _apply_for_acr(text: str, acr: str, cfg) -> list[tuple[str, float, str, str]
     returns list of (label, conf, acr, def) for all matches across all patterns.
     """
     results = []
-    for pat, conf, label in _compile_anchored_exact(acr, cfg):
+    for pat, conf, label in compile_anchored_exact(acr, cfg):
         for m in pat.finditer(text):
             results.append((label, conf, m.group("acr"), m.group("def")))
     return results
@@ -34,7 +37,7 @@ def _apply_for_acr(text: str, acr: str, cfg) -> list[tuple[str, float, str, str]
 class TestCompileAnchoredExact:
     def test_tuple_shape_and_flags(self):
         cfg = _cfg()
-        out = _compile_anchored_exact("PDF", cfg)
+        out = compile_anchored_exact("PDF", cfg)
 
         # 2 parenthetical + len(inline_cues)
         assert len(out) == 2 + len(cfg.inline_cues)
@@ -53,7 +56,7 @@ class TestCompileAnchoredExact:
             "Portable Document Format (PDF) is widely used.\n"
             "Also PDF (Portable Document Format) appears later."
         )
-        pats = _compile_anchored_exact("PDF", cfg)
+        pats = compile_anchored_exact("PDF", cfg)
 
         fwd = next((p for p in pats if p[2] == "def_before"), None)
         rev = next((p for p in pats if p[2] == "def_after"), None)
@@ -77,7 +80,7 @@ class TestCompileAnchoredExact:
             "PDF, short for Portable Document Format, is common. "
             "PDF stands for Portable Document Format."
         )
-        inlines = [p for p in _compile_anchored_exact("PDF", cfg) if p[2] == "inline"]
+        inlines = [p for p in compile_anchored_exact("PDF", cfg) if p[2] == "inline"]
         assert len(inlines) == len(cfg.inline_cues)
 
         hits = 0
@@ -94,7 +97,7 @@ class TestCompileAnchoredExact:
         # Tight limit still matches; DEF capture must be <= max_phrase_chars
         cfg = _cfg(max_phrase_chars=10)
         long_def_text = "Incredibly long descriptive name for a format (PDF)"
-        fwd = next((p for p in _compile_anchored_exact("PDF", cfg) if p[2] == "def_before"), None)
+        fwd = next((p for p in compile_anchored_exact("PDF", cfg) if p[2] == "def_before"), None)
         assert fwd
         m = fwd[0].search(long_def_text)
         assert m is not None
@@ -110,18 +113,18 @@ class TestCompileAnchoredExact:
         )
 
         # R&D: forward parenthetical present
-        pats = _compile_anchored_exact("R&D", cfg)
+        pats = compile_anchored_exact("R&D", cfg)
         fwd = next((p for p in pats if p[2] == "def_before"), None)
         assert fwd and fwd[0].search(text)
 
         # C/A: reverse parenthetical present
-        pats = _compile_anchored_exact("C/A", cfg)
+        pats = compile_anchored_exact("C/A", cfg)
         rev = next((p for p in pats if p[2] == "def_after"), None)
         m = rev[0].search(text)
         assert m and "Cost per Acquisition" in m.group("def")
 
         # SME: forward parenthetical present
-        pats = _compile_anchored_exact("SME", cfg)
+        pats = compile_anchored_exact("SME", cfg)
         fwd = next((p for p in pats if p[2] == "def_before"), None)
         assert fwd and fwd[0].search(text)
 
@@ -191,9 +194,9 @@ class TestExtractNearFirstsUnit:
         def fake_compile(_acr, _cfg):
             return ((pat_fwd, 0.95, "def_before"),)
 
-        monkeypatch.setattr(mod, "_compile_anchored_exact", fake_compile)
+        monkeypatch.setattr(mod, "compile_anchored_exact", fake_compile)
 
-        out = mod.extract_near_firsts(
+        out = extract_near_firsts(
             text,
             firsts={"PDF": fo},
             window_left=50,
@@ -227,8 +230,8 @@ class TestExtractNearFirstsUnit:
         assert m2 is not None
         assert m2.span("acr")[0] == second_idx
 
-        monkeypatch.setattr(mod, "_compile_anchored_exact", fake_compile)
-        out = mod.extract_near_firsts(text, {"PDF": fo}, window_left=80, window_right=80, cfg=_cfg())
+        monkeypatch.setattr(mod, "compile_anchored_exact", fake_compile)
+        out = extract_near_firsts(text, {"PDF": fo}, window_left=80, window_right=80, cfg=_cfg())
 
         assert out["PDF"] is None
 
@@ -245,8 +248,8 @@ class TestExtractNearFirstsUnit:
         def fake_compile(_acr, _cfg):
             return ((pat_inline, 0.995, "inline"),)
 
-        monkeypatch.setattr(mod, "_compile_anchored_exact", fake_compile)
-        out = mod.extract_near_firsts(text, {"PDF": fo}, window_left=10, window_right=50, cfg=_cfg())
+        monkeypatch.setattr(mod, "compile_anchored_exact", fake_compile)
+        out = extract_near_firsts(text, {"PDF": fo}, window_left=10, window_right=50, cfg=_cfg())
 
         assert out["PDF"] is not None
         assert out["PDF"].definition.strip() != ""
@@ -266,10 +269,10 @@ class TestExtractNearFirstsUnit:
         def fake_compile(_acr, _cfg):
             return ((pat_fwd, 0.95, "def_before"),)
 
-        monkeypatch.setattr(mod, "_compile_anchored_exact", fake_compile)
+        monkeypatch.setattr(mod, "compile_anchored_exact", fake_compile)
 
         cfg = _cfg(max_phrase_chars=8)
-        out = mod.extract_near_firsts(text, {"PDF": fo}, window_left=50, window_right=50, cfg=cfg)
+        out = extract_near_firsts(text, {"PDF": fo}, window_left=50, window_right=50, cfg=cfg)
 
         assert out["PDF"] is None
 
@@ -287,8 +290,8 @@ class TestExtractNearFirstsUnit:
         def fake_compile(_acr, _cfg):
             return ((pat_rev, 0.95, "def_after"),)
 
-        monkeypatch.setattr(mod, "_compile_anchored_exact", fake_compile)
-        out = mod.extract_near_firsts(text, {"C/A": fo}, window_left=40, window_right=60, cfg=_cfg())
+        monkeypatch.setattr(mod, "compile_anchored_exact", fake_compile)
+        out = extract_near_firsts(text, {"C/A": fo}, window_left=40, window_right=60, cfg=_cfg())
 
         assert out["C/A"] is not None
         assert out["C/A"].definition == "Cost per Acquisition"
@@ -298,7 +301,7 @@ class TestExtractNearFirstsUnit:
 
 def _cfg_near_firsts_integrated(**overrides):
     # Realistic default config (only fields used here matter)
-    return mod.ExtractionConfig(**{
+    return ExtractionConfig(**{
         "inline_cues": (
             r"short\s+for",
             r"stands?\s+for",
@@ -336,7 +339,7 @@ class TestExtractNearFirstsIntegration:
             "PDF": _fo(text, "PDF", pdf_idx),
         }
 
-        out = mod.extract_near_firsts(text, firsts, window_left=80, window_right=120, cfg=_cfg_near_firsts_integrated())
+        out = extract_near_firsts(text, firsts, window_left=80, window_right=120, cfg=_cfg_near_firsts_integrated())
 
         # R&D forward parenthetical
         assert out["R&D"] is not None
@@ -378,7 +381,7 @@ class TestExtractNearFirstsIntegration:
         pto_idx = text.index("PTO")
         firsts = {"PTO": _fo(text, "PTO", pto_idx)}
 
-        cfg_strict = mod.ExtractionConfig(
+        cfg_strict = ExtractionConfig(
             inline_cues=(r"short\s+for", r"stands?\s+for", r"is\s+(?:an\s+)?acronym\s+for"),
             max_phrase_chars=20,
             enabled_parenthetical=True,
@@ -387,10 +390,10 @@ class TestExtractNearFirstsIntegration:
             conf_inline=0.80,
             require_two_words=False,
         )
-        out_strict = mod.extract_near_firsts(text, firsts, window_left=10, window_right=200, cfg=cfg_strict)
+        out_strict = extract_near_firsts(text, firsts, window_left=10, window_right=200, cfg=cfg_strict)
         assert out_strict["PTO"] is None
 
-        cfg_relaxed = mod.ExtractionConfig(
+        cfg_relaxed = ExtractionConfig(
             inline_cues=(r"short\s+for", r"stands?\s+for", r"is\s+(?:an\s+)?acronym\s+for"),
             max_phrase_chars=120,
             enabled_parenthetical=True,
@@ -398,7 +401,7 @@ class TestExtractNearFirstsIntegration:
             conf_parenthetical=0.95,
             conf_inline=0.80,
         )
-        out_relaxed = mod.extract_near_firsts(text, firsts, window_left=10, window_right=200, cfg=cfg_relaxed)
+        out_relaxed = extract_near_firsts(text, firsts, window_left=10, window_right=200, cfg=cfg_relaxed)
         assert out_relaxed["PTO"] is not None
         assert out_relaxed["PTO"].definition.strip() != ""
         assert out_relaxed["PTO"].acr_span == (pto_idx, pto_idx + 3)
@@ -409,6 +412,6 @@ class TestExtractNearFirstsIntegration:
         first_pdf_idx = text.index("PDF")
         firsts = {"PDF": _fo(text, "PDF", first_pdf_idx)}
 
-        out = mod.extract_near_firsts(text, firsts, window_left=80, window_right=80, cfg=_cfg())
+        out = extract_near_firsts(text, firsts, window_left=80, window_right=80, cfg=_cfg())
 
         assert out["PDF"] is None
