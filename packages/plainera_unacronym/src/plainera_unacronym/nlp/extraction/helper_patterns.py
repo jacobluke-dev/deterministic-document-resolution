@@ -7,10 +7,11 @@ from .tighten import _initials_seq, _match_from, _split_compound
 
 
 class LocalDefMatch:
-    def __init__(self, def_start: int, def_end: int, definition: str):
+    def __init__(self, def_start: int, def_end: int, definition: str, raw: str | None = None):
         self.def_start = def_start
         self.def_end = def_end
         self.definition = definition
+        self.raw = raw
 
 
 def _has_letters(s: str) -> bool:
@@ -231,11 +232,20 @@ def find_parenthetical_longform_after_acr(
         else:
             break
 
+    spans = []
+    cursor = 0
+    for t in tokens:
+        pos = raw_trim.find(t, cursor)
+        spans.append((pos, pos + len(t)))
+        cursor = pos + len(t)
+
     # 4) Tight character spans over the original `snippet`
     lead_ws = len(raw) - len(raw.lstrip())
-    trail_ws = len(raw) - len(raw.rstrip())
-    ds = m.start("def") + lead_ws
-    de = m.end("def") - trail_ws
+    raw_def_start = m.start("def") + lead_ws
+    tok_start, _ = spans[i]
+    _, tok_end = spans[j]
+    ds = raw_def_start + tok_start
+    de = raw_def_start + tok_end
 
     # 5) Build kept phrase: matched tokens + bridges + numeric-leading tokens inside the window
     bridges = getattr(cfg, "bridges", BRIDGES_DEFAULT)
@@ -398,9 +408,10 @@ def find_parenthetical_longform_before_acr(snippet: str, acr: str, cfg) -> list[
     norm = normalize_definition(phrase)
     if not norm:
         return []
+    raw_window = collapse_ws(snippet[ds:de])  # raw chars between ds..de (just whitespace-collapsed)
+    disp = normalize_definition(tighten_definition_span(phrase))
 
-    return [LocalDefMatch(def_start=ds, def_end=de, definition=norm)]
-
+    return [LocalDefMatch(def_start=ds, def_end=de, definition=disp, raw=raw_window)]
 
 def find_inline_longform_after_acr(
     snippet: str,
@@ -436,10 +447,14 @@ def find_inline_longform_after_acr(
         ds, de = starts[0], ends[-1]
         phrase = " ".join(tokens)
         phrase = strip_trailing_punct(collapse_ws(phrase))
-        disp = normalize_definition(tighten_definition_span(phrase))
-        if not disp or len(disp) > max_phrase_chars:
+
+        raw_window = collapse_ws(s[ds:de])  # raw chars between ds..de (just whitespace-collapsed)
+        if len(raw_window) > max_phrase_chars:  # <-- gate HERE
             return []
-        return [LocalDefMatch(def_start=ds, def_end=de, definition=disp)]
+        disp = normalize_definition(tighten_definition_span(phrase))
+        if len(disp) > max_phrase_chars:
+            return []
+        return [LocalDefMatch(def_start=ds, def_end=de, definition=disp, raw=raw_window)]
 
     # ---- initials-matching path (as before) ----
     def _first_alnum_char_upper(tok: str) -> str | None:
@@ -490,6 +505,11 @@ def find_inline_longform_after_acr(
     i, j, hit_tokens = best
     kept_idx = [idx for idx in range(i, j + 1) if idx in hit_tokens or tokens[idx].lower() in bridges] or list(range(i, j + 1))
     ds, de = starts[kept_idx[0]], ends[kept_idx[-1]]
+
+    # reject if the raw candidate span is too long (don’t truncate)
+    raw_window = collapse_ws(s[ds:de])
+    if len(raw_window) > max_phrase_chars:
+        return []
 
     phrase = " ".join(tokens[k] for k in kept_idx)
     phrase = strip_trailing_punct(collapse_ws(phrase))
