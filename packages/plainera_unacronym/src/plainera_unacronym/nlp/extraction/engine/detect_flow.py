@@ -3,8 +3,9 @@ from typing import Optional
 
 from .stages import Stage, StageResult, Chain, StageReport, Tracer
 from .. import ExtractionConfig, extract_iter
+from ..anchored.extract import extract_near_firsts
 from ..defs_utils import defs_from_picks, dedupe_defs
-from ..extract_first_occ import extract_near_firsts
+
 from ..harvest import harvest_defs_all
 from ... import DetectorConfig, Detector
 from ...common.types import OccurrenceLite, ExtractionResult, DetectorResult

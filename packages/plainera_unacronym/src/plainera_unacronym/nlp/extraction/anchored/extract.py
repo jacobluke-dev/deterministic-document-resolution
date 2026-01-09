@@ -1,31 +1,14 @@
 import re
 from typing import Mapping, Optional
 
-from .helper_patterns import find_parenthetical_longform_after_acr, find_parenthetical_longform_before_acr, \
-    find_inline_longform_after_acr
-from ..common.shared import normalize_definition, tighten_definition_span
-from ..common.types import ExtractedDefinition, FirstOccurrence, InTextPick
-from .config import ExtractionConfig
-from .tighten import tighten_label_by_acronym
-
-
-def _compile_anchored_exact(acr: str, cfg: ExtractionConfig):
-    ACR = re.escape(acr)
-    DEF = r"(?P<def>[^){}]{1,%d}?)" % cfg.max_phrase_chars
-
-    # Definition before (ACRONYM in parens)
-    fwd = re.compile(rf"\b{DEF}\s*\(\s*(?P<acr>{ACR})\s*\)", re.IGNORECASE | re.MULTILINE)
-    # Definition after (ACRONYM (definition))
-    rev = re.compile(rf"\b(?P<acr>{ACR})\s*\(\s*{DEF}\s*\)", re.IGNORECASE | re.MULTILINE)
-
-    inlines = [
-        re.compile(rf"\b(?P<acr>{ACR})\b\s*,?\s*{cue}\s+{DEF}", re.IGNORECASE | re.MULTILINE) for cue in cfg.inline_cues
-    ]
-    return (
-        (fwd, cfg.conf_parenthetical, "def_before"),
-        (rev, cfg.conf_parenthetical, "def_after"),
-        *[(p, cfg.conf_inline, "inline") for p in inlines],
-    )
+from plainera_unacronym.nlp import FirstOccurrence
+from plainera_unacronym.nlp.common.shared import tighten_definition_span, normalize_definition
+from plainera_unacronym.nlp.common.types import InTextPick, ExtractedDefinition
+from plainera_unacronym.nlp.extraction import ExtractionConfig
+from plainera_unacronym.nlp.extraction.anchored.patterns import compile_anchored_exact
+from plainera_unacronym.nlp.extraction.helper_patterns import find_parenthetical_longform_after_acr, \
+    find_parenthetical_longform_before_acr, find_inline_longform_after_acr
+from plainera_unacronym.nlp.extraction.tighten import tighten_label_by_acronym
 
 
 def extract_near_firsts(
@@ -52,7 +35,7 @@ def extract_near_firsts(
 
         best: Optional[ExtractedDefinition] = None
 
-        for pat, base_conf, kind in _compile_anchored_exact(acr_norm, cfg):
+        for pat, base_conf, kind in compile_anchored_exact(acr_norm, cfg):
             for m in pat.finditer(seg):
                 a0_local, a1_local = m.span("acr")
                 # Require exact alignment with the known FO span
