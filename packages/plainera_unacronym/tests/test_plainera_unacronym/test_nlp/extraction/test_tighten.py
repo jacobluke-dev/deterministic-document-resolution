@@ -492,8 +492,8 @@ class TestInitialsRuleBenefit:
         s = "cost per acquisition"
         # simulate flow: tighten_definition_span -> tighten_label_by_acronym
         # span function likely returns the whole tail (lowercase), then cleaner kicks in
-        from plainera_unacronym.nlp.extraction.extract_first_occ import (
-            tighten_definition_span, tighten_label_by_acronym
+        from plainera_unacronym.nlp.extraction.anchored.normalise  import (
+            tighten_definition_span
         )
         tail = tighten_definition_span(s)
         out = tighten_label_by_acronym(tail, "C/A", bridges={"per", "of", "and", "&"})

@@ -2,7 +2,7 @@ import re
 from types import SimpleNamespace as NS
 import pytest
 
-import plainera_unacronym.nlp.extraction.extract_first_occ as mod
+from plainera_unacronym.nlp.extraction import ExtractionConfig
 from plainera_unacronym.nlp.extraction.extract import _collect_matches
 
 
@@ -21,7 +21,7 @@ def _cfg(**overrides):
         plugins=(),
     )
     base.update(overrides)
-    return mod.ExtractionConfig(**base)
+    return ExtractionConfig(**base)
 
 
 def _plan(**overrides):

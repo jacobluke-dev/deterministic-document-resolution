@@ -1,7 +1,7 @@
 import pytest
 from plainera_unacronym.nlp.common.constants import APOSTROPHE_VARIANTS
-from plainera_unacronym.nlp.common.shared import has_paren_definition, normalize_acronym_key, tighten_label, \
-    tighten_definition_span
+from plainera_unacronym.nlp.common.shared import has_paren_definition, normalize_acronym_key, tighten_label
+from plainera_unacronym.nlp.extraction.anchored.normalise import tighten_definition_span
 
 
 def _end_of(text: str, token: str) -> int:
