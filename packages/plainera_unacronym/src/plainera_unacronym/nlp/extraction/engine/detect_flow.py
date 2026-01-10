@@ -1,19 +1,21 @@
 from dataclasses import dataclass, field
 from typing import Optional
 
-from .stages import Stage, StageResult, Chain, StageReport, Tracer
-from .. import ExtractionConfig, extract_iter
-from ..anchored.extract import extract_near_firsts
-from ..defs_utils import defs_from_picks, dedupe_defs
+from plainera_unacronym.nlp import Detector
 
-from ..harvest import harvest_defs_all
-from ... import DetectorConfig, Detector
-from ...common.types import OccurrenceLite, ExtractionResult, DetectorResult
-from ...senses.disambiguate import disambiguate_occurrences
-from ...senses.sense_build import build_senses
+from plainera_unacronym.nlp.extraction.engine.stages import Stage, StageResult, Chain, StageReport, Tracer
+from plainera_unacronym.nlp.extraction.config import ExtractionConfig
+from plainera_unacronym.nlp.extraction.extract import extract_iter
+from plainera_unacronym.nlp.extraction.anchored.extract import extract_near_firsts
+from plainera_unacronym.nlp.extraction.defs_utils import defs_from_picks, dedupe_defs
+from plainera_unacronym.nlp.extraction.harvest import harvest_defs_all
 
+from plainera_unacronym.nlp.common.types import (DetectorConfig, InTextPick, ExtractedDefinition, FirstOccurrence,
+                                                 OccurrenceLite, ExtractionResult, DetectorResult)
 from plainera_unacronym.nlp.common.shared import normalize_acronym_key
-from plainera_unacronym.nlp.common.types import InTextPick, ExtractedDefinition, FirstOccurrence
+
+from plainera_unacronym.nlp.senses.disambiguate import disambiguate_occurrences
+from plainera_unacronym.nlp.senses.sense_build import build_senses
 
 
 def _fill_missing_from_defs(

@@ -22,5 +22,8 @@ line-length = 120
 extend-exclude = ["migrations", ".venv"]
 
 [tool.ruff.lint]
-select = ["E", "F", "I", "B", "UP", "SIM", "C90"]
+select = ["E", "F", "I", "B", "UP", "SIM", "C90", "TID"]
 fixable = ["ALL"]
+
+[tool.pytest.ini_options]
+pythonpath = ["src"]
