@@ -2,14 +2,15 @@ import re
 from typing import Mapping, Optional
 
 from plainera_unacronym.nlp import FirstOccurrence
+from plainera_unacronym.nlp.common.shared import normalize_definition
 from plainera_unacronym.nlp.common.types import InTextPick, ExtractedDefinition
 from plainera_unacronym.nlp.extraction import ExtractionConfig
-from plainera_unacronym.nlp.extraction.anchored.normalise import tighten_definition_span, normalize_definition
+from plainera_unacronym.nlp.extraction.anchored.normalise import tighten_definition_span
 from plainera_unacronym.nlp.extraction.anchored.patterns import compile_anchored_exact
-from plainera_unacronym.nlp.extraction.helper_patterns import (find_parenthetical_longform_after_acr,
-                                                               find_parenthetical_longform_before_acr,
-                                                               find_inline_longform_after_acr)
-from plainera_unacronym.nlp.extraction.tighten import tighten_label_by_acronym
+from plainera_unacronym.nlp.extraction.matchers.helper_patterns import (find_parenthetical_longform_after_acr,
+                                                                        find_parenthetical_longform_before_acr,
+                                                                        find_inline_longform_after_acr)
+from plainera_unacronym.nlp.extraction.matchers.tighten import tighten_label_by_acronym
 
 Span = tuple[int, int]
 OptSpan = Optional[Span]

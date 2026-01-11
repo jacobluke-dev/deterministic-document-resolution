@@ -1,21 +1,7 @@
 import re
-import unicodedata
 
-from plainera_unacronym.nlp.common.config import CANON_TABLE, TRAILING_PUNCT
 from plainera_unacronym.nlp.common.constants import TITLECASE_RUN_RE, BOUNDARY_RE, _TITLE, _LINKERS_RE, _DASH
-
-
-def canonicalize(s: str) -> str:
-    # NFKC normalisation + map look-alikes (apostrophes, dashes)
-    return unicodedata.normalize("NFKC", s).translate(CANON_TABLE)
-
-
-def collapse_ws(s: str) -> str:
-    return re.sub(r"\s+", " ", s).strip()
-
-
-def strip_trailing_punct(s: str) -> str:
-    return re.sub(TRAILING_PUNCT, "", s)
+from plainera_unacronym.nlp.common.shared import strip_trailing_punct, collapse_ws
 
 
 def tighten_definition_span(s: str) -> str:
@@ -51,23 +37,3 @@ def tighten_definition_span(s: str) -> str:
 
     # 3) Final fallback: just clean the tail
     return strip_trailing_punct(collapse_ws(tail))
-
-
-
-def normalize_definition(s: str) -> str:
-    """
-    UX/display normalisation for definitions:
-      - NFKC + fold dash/apostrophes
-      - collapse whitespace
-      - strip trailing punctuation
-    """
-    return strip_trailing_punct(collapse_ws(canonicalize(s)))
-
-
-def clean_and_validate(raw_slice, acr, cfg, *, kind) -> str | None:
-    """
-        enforces require_two_words
-
-        enforces length gates (ideally on both raw and cleaned where appropriate)
-    """
-    pass

@@ -2,9 +2,10 @@ import re
 from typing import Optional
 
 from plainera_unacronym.nlp.common.constants import DEFAULT_STOPWORDS, BRIDGES_DEFAULT
-from plainera_unacronym.nlp.extraction.anchored.normalise import tighten_definition_span, normalize_definition, \
-    strip_trailing_punct, collapse_ws
-from plainera_unacronym.nlp.extraction.tighten import _initials_seq, _match_from, _split_compound
+from plainera_unacronym.nlp.common.shared import normalize_definition
+from plainera_unacronym.nlp.extraction.anchored.normalise import tighten_definition_span, strip_trailing_punct, collapse_ws
+
+from plainera_unacronym.nlp.extraction.matchers.tighten import _initials_seq, _match_from, _split_compound
 
 
 class LocalDefMatch:
@@ -15,7 +16,7 @@ class LocalDefMatch:
         self.raw = raw
 
 
-def _has_letters(s: str) -> bool:
+def has_letters(s: str) -> bool:
     """True if the string contains any Unicode letter.
 
     Args:
@@ -25,37 +26,6 @@ def _has_letters(s: str) -> bool:
       bool: True if any character in ``s`` satisfies ``str.isalpha()``; else False.
     """
     return any(ch.isalpha() for ch in s)
-
-
-def _initials_match(acr: str, phrase: str) -> bool:
-    """Check if an acronym fits the phrase's initials as an ordered subsequence.
-
-    Builds an uppercase string of initials from the phrase by taking the first
-    character of each word **only if** that character is alphabetic. Then checks
-    whether the alphabetic characters of ``acr`` (ignoring any non-letters in
-    ``acr``) appear in order within those initials.
-
-    This is case-insensitive for matching and does not require contiguity—only
-    order. Words that begin with non-letters (e.g., ``"3M"``, ``"7-Document"``)
-    do not contribute an initial.
-
-    Args:
-      acr (str): The Acronym to test.
-      phrase (str): Candidate long-form phrase used to derive initials.
-
-    Returns:
-      bool: True if the acronym's letters appear in order within the phrase initials;
-      otherwise False.
-
-    """
-    initials = "".join(w[0].upper() for w in phrase.split() if w and w[0].isalpha())
-    j = 0
-    for ch in acr:
-        if ch.isalpha():
-            j = initials.find(ch, j) + 1
-            if j == 0:
-                return False
-    return True
 
 
 def _first_alnum_char_upper(s: str) -> str | None:
@@ -126,7 +96,7 @@ def find_parenthetical_longform_after_acr(
 
     raw = m.group("def")
     raw_trim = raw.strip()
-    if not _has_letters(raw_trim):
+    if not has_letters(raw_trim):
         return []
     if len(raw_trim) > max_chars:
         return []
@@ -306,7 +276,7 @@ def find_parenthetical_longform_before_acr(snippet: str, acr: str, cfg) -> list[
         return []
 
     pre = m.group("pre").rstrip()
-    if not pre or not _has_letters(pre):
+    if not pre or not has_letters(pre):
         return []
 
     # Raw length guard (before any tightening): enforce the configured limit strictly.

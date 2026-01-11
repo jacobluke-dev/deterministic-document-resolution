@@ -2,7 +2,7 @@ from typing import Optional
 
 from plainera_unacronym.nlp.common.shared import tighten_label
 from plainera_unacronym.nlp.common.types import ExtractedDefinition, InTextPick
-from plainera_unacronym.nlp.extraction.tighten import tighten_label_by_acronym
+from plainera_unacronym.nlp.extraction.matchers.tighten import tighten_label_by_acronym
 
 
 def defs_from_picks(text: str, picks: dict[str, Optional[InTextPick]]) -> list[ExtractedDefinition]:

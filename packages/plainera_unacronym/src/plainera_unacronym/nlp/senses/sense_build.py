@@ -2,7 +2,7 @@ import re
 
 from plainera_unacronym.nlp.common.shared import tighten_label
 from plainera_unacronym.nlp.common.types import AcronymSense
-from plainera_unacronym.nlp.extraction.defs_utils import dedupe_defs
+from plainera_unacronym.nlp.extraction.core.defs import dedupe_defs
 
 
 def _slug(s: str) -> str:

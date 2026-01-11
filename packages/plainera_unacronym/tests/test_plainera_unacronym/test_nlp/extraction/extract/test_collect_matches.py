@@ -3,7 +3,7 @@ from types import SimpleNamespace as NS
 import pytest
 
 from plainera_unacronym.nlp.extraction import ExtractionConfig
-from plainera_unacronym.nlp.extraction.extract import _collect_matches
+from plainera_unacronym.nlp.extraction.core.collect import collect_matches
 
 
 def _cfg(**overrides):
@@ -36,13 +36,13 @@ class TestCollectMatchesUnit:
 
         cfg = _cfg(require_two_words=True)
         seen = set()
-        out = list(_collect_matches(text, pat, cfg=cfg, plan=_plan(), base_conf=cfg.conf_inline,
+        out = list(collect_matches(text, pat, cfg=cfg, plan=_plan(), base_conf=cfg.conf_inline,
                                         is_parenthetical=False, seen=seen, start=0, end=len(text)))
         assert out == []  # single-word def rejected
 
         cfg2 = _cfg(require_two_words=False)
         seen.clear()
-        out2 = list(_collect_matches(text, pat, cfg=cfg2, plan=_plan(), base_conf=cfg2.conf_inline,
+        out2 = list(collect_matches(text, pat, cfg=cfg2, plan=_plan(), base_conf=cfg2.conf_inline,
                                          is_parenthetical=False, seen=seen, start=0, end=len(text)))
         assert len(out2) == 1
         assert out2[0].acronym == "XK"
@@ -55,7 +55,7 @@ class TestCollectMatchesUnit:
         plan = _plan(parenthetical_allows=(lambda d, a: False,))
         cfg = _cfg()
 
-        out = list(_collect_matches(
+        out = list(collect_matches(
             text, pat, cfg=cfg, plan=plan, base_conf=cfg.conf_parenthetical,
             is_parenthetical=True, seen=set(), start=0, end=len(text)
         ))
@@ -63,7 +63,7 @@ class TestCollectMatchesUnit:
 
         # And a positive control to confirm we do allow when the predicate returns True
         plan_ok = _plan(parenthetical_allows=(lambda d, a: "Alpha" in d,))
-        out_ok = list(_collect_matches(
+        out_ok = list(collect_matches(
             text, pat, cfg=cfg, plan=plan_ok, base_conf=cfg.conf_parenthetical,
             is_parenthetical=True, seen=set(), start=0, end=len(text)
         ))
@@ -80,9 +80,9 @@ class TestCollectMatchesUnit:
         plan = _plan()
         seen = set()
 
-        out1 = list(_collect_matches(text, p1, cfg=cfg, plan=plan, base_conf=cfg.conf_parenthetical,
+        out1 = list(collect_matches(text, p1, cfg=cfg, plan=plan, base_conf=cfg.conf_parenthetical,
                                          is_parenthetical=True, seen=seen, start=0, end=len(text)))
-        out2 = list(_collect_matches(text, p2, cfg=cfg, plan=plan, base_conf=cfg.conf_parenthetical,
+        out2 = list(collect_matches(text, p2, cfg=cfg, plan=plan, base_conf=cfg.conf_parenthetical,
                                          is_parenthetical=True, seen=seen, start=0, end=len(text)))
         assert len(out1) == 1
         assert out2 == []  # duplicate span suppressed
@@ -97,12 +97,12 @@ class TestCollectMatchesUnit:
         plan = _plan()
 
         # Only the reverse match in the second half
-        out = list(_collect_matches(text, rev, cfg=cfg, plan=plan, base_conf=cfg.conf_parenthetical,
+        out = list(collect_matches(text, rev, cfg=cfg, plan=plan, base_conf=cfg.conf_parenthetical,
                                         is_parenthetical=True, seen=set(), start=mid, end=len(text)))
         assert len(out) == 1
         assert out[0].acr_start >= mid
 
         # Forward match should not be found in the second half
-        out2 = list(_collect_matches(text, fwd, cfg=cfg, plan=plan, base_conf=cfg.conf_parenthetical,
+        out2 = list(collect_matches(text, fwd, cfg=cfg, plan=plan, base_conf=cfg.conf_parenthetical,
                                          is_parenthetical=True, seen=set(), start=mid, end=len(text)))
         assert out2 == []

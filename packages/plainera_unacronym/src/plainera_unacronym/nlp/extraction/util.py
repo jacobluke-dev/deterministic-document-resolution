@@ -1,9 +1,9 @@
 from typing import Mapping, Optional
 
-from ..common.shared import normalize_acronym_key
-from ..common.types import DetectorConfig, FirstOccurrence, InTextPick
+from . import extract_iter
 from .config import ExtractionConfig
-from .extract import ExtractedDefinition, extract_iter
+from plainera_unacronym.nlp.common.types import FirstOccurrence, DetectorConfig, InTextPick, ExtractedDefinition
+from plainera_unacronym.nlp.common.shared import normalize_acronym_key
 
 
 def picks_from_global(

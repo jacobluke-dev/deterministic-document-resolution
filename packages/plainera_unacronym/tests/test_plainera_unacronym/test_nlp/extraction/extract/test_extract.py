@@ -3,8 +3,12 @@ import sys
 from types import SimpleNamespace as NS, ModuleType
 import pytest
 
-from plainera_unacronym.nlp.extraction.extract import _acr_pat, _def_pat, _compile_parenthetical, _compile_inline, \
-    _has_letters, _two_words, _initials_match, _build_plan, _parenthetical_allowed
+from plainera_unacronym.nlp.extraction.core.collect import _two_words, _parenthetical_allowed, initials_match
+from plainera_unacronym.nlp.extraction.core.extract_defs import _acr_pat, _def_pat, _compile_parenthetical, \
+    _compile_inline
+
+from plainera_unacronym.nlp.extraction.matchers.helper_patterns import has_letters
+from plainera_unacronym.nlp.extraction.strategies.plan_builder import build_plan
 
 
 def _cfg(**overrides):
@@ -201,21 +205,21 @@ class TestCompileInline:
 
 class TestHasLetters:
     def test_empty_and_nonalpha_only(self):
-        assert _has_letters("") is False
-        assert _has_letters("12345") is False
-        assert _has_letters("!!!") is False
-        assert _has_letters("  \t\n ") is False
+        assert has_letters("") is False
+        assert has_letters("12345") is False
+        assert has_letters("!!!") is False
+        assert has_letters("  \t\n ") is False
 
     def test_ascii_letters_present(self):
-        assert _has_letters("a") is True
-        assert _has_letters("Z") is True
-        assert _has_letters("123abc") is True
-        assert _has_letters("abc-123") is True
+        assert has_letters("a") is True
+        assert has_letters("Z") is True
+        assert has_letters("123abc") is True
+        assert has_letters("abc-123") is True
 
-    def test_unicode_letters_not_counted_by_pattern(self):
-        # Regex is [A-Za-z], so characters like 'é'/'Ä' won't match
-        assert _has_letters("é") is False
-        assert _has_letters("Ä") is False
+    def test_unicode_letters_is_counted_by_pattern(self):
+        # isAlpha() so characters like 'é'/'Ä' will match
+        assert has_letters("é") is True
+        assert has_letters("Ä") is True
 
 
 class TestTwoWords:
@@ -243,42 +247,42 @@ class TestTwoWords:
 
 class TestInitialsMatch:
     def test_positive_simple(self):
-        assert _initials_match("PDF", "Portable Document Format") is True
-        assert _initials_match("PTO", "Please Turn Over") is True
-        assert _initials_match("HTTP", "Hyper Text Transfer Protocol") is True
+        assert initials_match("PDF", "Portable Document Format") is True
+        assert initials_match("PTO", "Please Turn Over") is True
+        assert initials_match("HTTP", "Hyper Text Transfer Protocol") is True
 
     def test_positive_with_bridges_and_case(self):
         # ‘per’ is a bridge between C and A; order must be preserved
-        assert _initials_match("C/A", "Cost per Acquisition") is True
+        assert initials_match("C/A", "Cost per Acquisition") is True
         # case-insensitive for both sides
-        assert _initials_match("pdf", "portable document format") is True
+        assert initials_match("pdf", "portable document format") is True
 
     def test_positive_ignores_nonalpha_in_acronym(self):
         # Non-alpha chars in acronym should be ignored by the matcher
-        assert _initials_match("R&D", "Research and Development") is True
-        assert _initials_match("A/B/C", "Alpha Beta Charlie") is True
+        assert initials_match("R&D", "Research and Development") is True
+        assert initials_match("A/B/C", "Alpha Beta Charlie") is True
 
     def test_skips_tokens_with_nonalpha_initials(self):
         # Token '3M' starts with digit and is skipped when building initials
         # Initials from phrase become ['H','P'] — 'HP' — which should match
-        assert _initials_match("HP", "3M Hewlett Packard") is True
+        assert initials_match("HP", "3M Hewlett Packard") is True
         # But '3M Hewlett' provides initials ['H'] → 'HP' should NOT match
-        assert _initials_match("HP", "3M Hewlett") is False
+        assert initials_match("HP", "3M Hewlett") is False
 
     def test_negative_when_order_not_preserved(self):
-        assert _initials_match("ABC", "Alpha Charlie Beta") is False
-        assert _initials_match("CPU", "Central Unit Processing") is False
+        assert initials_match("ABC", "Alpha Charlie Beta") is False
+        assert initials_match("CPU", "Central Unit Processing") is False
 
     def test_negative_when_missing_letters(self):
-        assert _initials_match("ABC", "Alpha Beta") is False
-        assert _initials_match("PDF", "Portable Format") is False
+        assert initials_match("ABC", "Alpha Beta") is False
+        assert initials_match("PDF", "Portable Format") is False
 
 
 
 class TestBuildPlan:
     def test_no_plugins_uses_cfg_inline_cues_only(self):
         cfg = _cfg(inline_cues=(r"short\s+for", r"stands?\s+for"), plugins=())
-        plan = _build_plan(cfg)
+        plan = build_plan(cfg)
 
         assert tuple(plan.inline_cues) == cfg.inline_cues
         assert isinstance(plan.parenthetical_allows, tuple)
@@ -317,7 +321,7 @@ class TestBuildPlan:
         base_cues = (r"short\s+for", r"stands?\s+for")
         cfg = _cfg(inline_cues=base_cues, plugins=("pA", "pB"))
 
-        plan = _build_plan(cfg)
+        plan = build_plan(cfg)
 
         # Inline cues should be base + extras (order preserved: base first, then plugin extras)
         assert tuple(plan.inline_cues) == base_cues + (r"also\s+known\s+as", r"aka")
@@ -350,7 +354,7 @@ class TestBuildPlan:
         base_cues = (r"short\s+for", r"stands?\s+for")
         cfg = _cfg(inline_cues=base_cues, plugins=("anything",))
 
-        plan = _build_plan(cfg)
+        plan = build_plan(cfg)
 
         # Should gracefully fall back: no extras added
         assert tuple(plan.inline_cues) == base_cues

@@ -1,6 +1,21 @@
 import re
+import unicodedata
+
+from plainera_unacronym.nlp.common.config import TRAILING_PUNCT, CANON_TABLE
 from plainera_unacronym.nlp.common.constants import ARTICLE, LEADING_CONNECTORS
-from plainera_unacronym.nlp.extraction.anchored.normalise import canonicalize, normalize_definition
+
+
+def collapse_ws(s: str) -> str:
+    return re.sub(r"\s+", " ", s).strip()
+
+def normalize_definition(s: str) -> str:
+    """
+    UX/display normalisation for definitions:
+      - NFKC + fold dash/apostrophes
+      - collapse whitespace
+      - strip trailing punctuation
+    """
+    return strip_trailing_punct(collapse_ws(canonicalize(s)))
 
 
 def has_paren_definition(text: str, end: int, max_chars: int = 80) -> bool:
@@ -53,6 +68,16 @@ def has_paren_definition(text: str, end: int, max_chars: int = 80) -> bool:
 
     # valid only if we hit a closing ')' within the limit
     return (j < n and text[j] == ")") and (alpha >= 5)
+
+
+def canonicalize(s: str) -> str:
+    # NFKC normalisation + map look-alikes (apostrophes, dashes)
+    return unicodedata.normalize("NFKC", s).translate(CANON_TABLE)
+
+
+def strip_trailing_punct(s: str) -> str:
+    return re.sub(TRAILING_PUNCT, "", s)
+
 
 
 def _swallow_spaces_around_allowed(s: str, allow_chars: str) -> str:

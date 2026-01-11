@@ -1,7 +1,7 @@
-import plainera_unacronym.nlp.extraction.defs_utils as mod
+import plainera_unacronym.nlp.extraction.core.defs as mod
 import pytest
 from plainera_unacronym.nlp.common.types import InTextPick  # noqa: E402
-from plainera_unacronym.nlp.extraction.defs_utils import _sense_key, dedupe_defs, defs_from_picks
+from plainera_unacronym.nlp.extraction.core.defs import _sense_key, dedupe_defs, defs_from_picks
 
 
 def _span(text: str, needle: str) -> tuple[int, int]:

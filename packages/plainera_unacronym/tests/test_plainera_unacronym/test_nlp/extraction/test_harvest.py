@@ -1,7 +1,7 @@
 from types import SimpleNamespace
 
 import pytest
-from plainera_unacronym.nlp.extraction.harvest import harvest_defs_all
+from plainera_unacronym.nlp.extraction.strategies.harvest import harvest_defs_all
 
 
 class Cfg:

@@ -2,13 +2,13 @@ from dataclasses import dataclass, field
 from typing import Optional
 
 from plainera_unacronym.nlp import Detector
+from plainera_unacronym.nlp.extraction import extract_iter
+from plainera_unacronym.nlp.extraction.core.defs import defs_from_picks, dedupe_defs
 
 from plainera_unacronym.nlp.extraction.engine.stages import Stage, StageResult, Chain, StageReport, Tracer
 from plainera_unacronym.nlp.extraction.config import ExtractionConfig
-from plainera_unacronym.nlp.extraction.extract import extract_iter
 from plainera_unacronym.nlp.extraction.anchored.extract import extract_near_firsts
-from plainera_unacronym.nlp.extraction.defs_utils import defs_from_picks, dedupe_defs
-from plainera_unacronym.nlp.extraction.harvest import harvest_defs_all
+from plainera_unacronym.nlp.extraction.strategies.harvest import harvest_defs_all
 
 from plainera_unacronym.nlp.common.types import (DetectorConfig, InTextPick, ExtractedDefinition, FirstOccurrence,
                                                  OccurrenceLite, ExtractionResult, DetectorResult)
@@ -130,7 +130,7 @@ class ExtractionFlow:
         return StageResult(s, s._last_info)
 
     def _st_defs_from_picks(self, s: FlowState) -> StageResult[FlowState]:
-        s.anchored_defs = defs_from_picks(s.text, s.picks)
+        s.anchored_defs =  defs_from_picks(s.text, s.picks)
         s._last_info = f"anchored defs={len(s.anchored_defs)}"
         return StageResult(s, s._last_info)
 

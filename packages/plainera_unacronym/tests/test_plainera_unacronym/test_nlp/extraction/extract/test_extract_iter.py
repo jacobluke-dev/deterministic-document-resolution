@@ -2,7 +2,7 @@ import re
 from types import SimpleNamespace as NS
 import pytest
 
-import plainera_unacronym.nlp.extraction.extract as mod
+import plainera_unacronym.nlp.extraction.core.extract_defs as mod
 from plainera_unacronym.nlp.common.constants import DEFAULT_STOPWORDS, BRIDGES_DEFAULT
 from plainera_unacronym.nlp.extraction import extract_iter
 

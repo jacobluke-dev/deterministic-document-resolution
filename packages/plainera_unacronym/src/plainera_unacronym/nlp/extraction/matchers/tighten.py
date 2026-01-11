@@ -2,7 +2,7 @@ import re
 from typing import Optional
 
 from plainera_unacronym.nlp.common.constants import BRIDGES_DEFAULT, DEFAULT_STOPWORDS
-from plainera_unacronym.nlp.extraction.anchored.normalise import canonicalize, strip_trailing_punct, collapse_ws
+from plainera_unacronym.nlp.common.shared import canonicalize, strip_trailing_punct, collapse_ws
 
 _word_re = re.compile(r"[A-Za-z0-9'’\-\/&\.]+", flags=re.UNICODE)
 _ASCII_CAMEL_RE = re.compile(

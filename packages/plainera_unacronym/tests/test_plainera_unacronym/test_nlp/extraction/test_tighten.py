@@ -1,5 +1,5 @@
 import pytest
-from plainera_unacronym.nlp.extraction.tighten import (
+from plainera_unacronym.nlp.extraction.matchers.tighten import (
     _best_window_for_acronym,
     _initials_seq,
     _match_from,
