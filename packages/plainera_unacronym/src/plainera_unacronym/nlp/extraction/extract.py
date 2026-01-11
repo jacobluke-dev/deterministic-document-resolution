@@ -69,9 +69,6 @@ def _compile_inline(cfg: ExtractionConfig, cues: tuple[str, ...]) -> list[Patter
         for cue in cues
     ]
 
-
-
-
 # ---------- Cheap validators ----------
 
 def _has_letters(s: str) -> bool:
@@ -253,50 +250,6 @@ def _collect_matches(
             def_end=d1,
             original_definition=original_def,
         )
-
-
-# def _extract_inline_cue(text: str, cfg: ExtractionConfig):
-#     if not getattr(cfg, "enabled_inline", True):
-#         return
-#
-#     # Capture beyond max_phrase_chars so we can enforce max as a gate, not a truncator
-#     search_cap = max(cfg.max_phrase_chars * 4, 400)
-#     def_frag = rf"(?P<def>[^\n\(\)]{{1,{search_cap}}}?)(?=\s*(?:$|[!?.,;:]))"
-#
-#     for cue in cfg.inline_cues:
-#         pat = re.compile(
-#             rf"\b(?P<acr>{_acr_pat(cfg)})\b\s*,?\s*{cue}\s+{def_frag}",
-#             re.IGNORECASE | re.MULTILINE,
-#         )
-#         for m in pat.finditer(text):
-#             acr = m.group("acr")
-#             raw = (m.group("def") or "").strip()
-#             if not raw:
-#                 continue
-#
-#             # Gate on the *raw* phrase length
-#             if len(raw) > cfg.max_phrase_chars:
-#                 continue
-#
-#             defn = tighten_label_by_acronym(raw, acr.upper(), stopwords=set(cfg.stop), bridges=set(cfg.bridges))
-#             defn = normalize_definition(defn)
-#
-#             if cfg.require_two_words and not _two_words(defn):
-#                 continue
-#             if not defn:
-#                 continue
-#
-#             yield ExtractedDefinition(
-#                 acronym=acronym,
-#                 definition=tighten_label_by_acronym(definition, acronym.upper()),
-#                 source="in_text",
-#                 confidence=conf,
-#                 acr_start=a0,
-#                 acr_end=a1,
-#                 def_start=d0,
-#                 def_end=d1,
-#                 original_definition=original_def,
-#             )
 
 
 # ---------- Core API ----------
