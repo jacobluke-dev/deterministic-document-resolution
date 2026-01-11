@@ -1,9 +1,10 @@
 import re
 from typing import Optional
 
-from ..common.constants import BRIDGES_DEFAULT, DEFAULT_STOPWORDS
-from ..common.shared import collapse_ws, normalize_definition, strip_trailing_punct, tighten_definition_span
-from .tighten import _initials_seq, _match_from, _split_compound
+from plainera_unacronym.nlp.common.constants import DEFAULT_STOPWORDS, BRIDGES_DEFAULT
+from plainera_unacronym.nlp.extraction.anchored.normalise import tighten_definition_span, normalize_definition, \
+    strip_trailing_punct, collapse_ws
+from plainera_unacronym.nlp.extraction.tighten import _initials_seq, _match_from, _split_compound
 
 
 class LocalDefMatch:

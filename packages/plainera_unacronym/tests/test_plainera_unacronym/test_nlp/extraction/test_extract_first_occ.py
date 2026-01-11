@@ -4,6 +4,8 @@ from types import SimpleNamespace as NS
 
 
 import plainera_unacronym.nlp.extraction.anchored.patterns as mod
+import plainera_unacronym.nlp.extraction.anchored.extract as ext
+
 from plainera_unacronym.nlp.extraction import ExtractionConfig
 from plainera_unacronym.nlp.extraction.anchored.extract import extract_near_firsts
 
@@ -248,7 +250,7 @@ class TestExtractNearFirstsUnit:
         def fake_compile(_acr, _cfg):
             return ((pat_inline, 0.995, "inline"),)
 
-        monkeypatch.setattr(mod, "compile_anchored_exact", fake_compile)
+        monkeypatch.setattr(ext, "compile_anchored_exact", fake_compile)
         out = extract_near_firsts(text, {"PDF": fo}, window_left=10, window_right=50, cfg=_cfg())
 
         assert out["PDF"] is not None

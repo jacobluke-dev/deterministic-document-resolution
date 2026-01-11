@@ -2,12 +2,17 @@ import re
 from dataclasses import dataclass
 from typing import Callable, Iterable, Iterator, Pattern
 
-from ..common.shared import normalize_definition, tighten_definition_span
-from ..common.types import ExtractedDefinition
-from .config import ExtractionConfig
-from .tighten import tighten_label_by_acronym
+
+from plainera_unacronym.nlp.common.types import ExtractedDefinition
+from plainera_unacronym.nlp.extraction.anchored.normalise import normalize_definition, tighten_definition_span, \
+    collapse_ws
+from plainera_unacronym.nlp.extraction.config import ExtractionConfig
+
 
 __all__ = ["ExtractionConfig", "extract_iter", "ExtractedDefinition", "extract_in_text_definitions"]
+
+from plainera_unacronym.nlp.extraction.tighten import tighten_label_by_acronym
+
 
 # ---------- Pattern builders ----------
 
@@ -29,18 +34,41 @@ def _compile_parenthetical(cfg: ExtractionConfig) -> tuple[Pattern[str], Pattern
 
 
 def _compile_inline(cfg: ExtractionConfig, cues: tuple[str, ...]) -> list[Pattern[str]]:
+    # IMPORTANT:
+    # - capture well beyond max_phrase_chars (so max is a gate, not a truncator)
+    # - do NOT treat commas as terminators (except for a small copula-clause case)
+    # - avoid \b boundaries because acronyms like C/A, R&D don't behave well with \b
+
     acr = _acr_pat(cfg)
-    # DEF: forbid newline/brace/close-paren; consume greedily up to sentence end or EOS.
-    # IMPORTANT: no lazy '?' before the lookahead; we want the longest chunk to the boundary.
-    def_frag = rf"(?P<def>[^\n){{}}]{{1,{cfg.max_phrase_chars}}}?)(?=\s*(?:$|[!?.,;:]))"
+
+    # Gate-not-truncate: allow a much longer capture, then enforce cfg.max_phrase_chars in _collect_matches.
+    search_cap = max(cfg.max_phrase_chars * 4, 400)
+
+    # Def fragment:
+    # - forbid newline and parentheses/braces
+    # - LAZY to stop at the FIRST boundary, not the last
+    body = rf"(?P<def>[^\n\(\){{}}]{{1,{search_cap}}}?)"
+
+    # Boundary:
+    # - sentence end punctuation, EOS
+    # - ALSO allow a comma boundary only when it introduces a copula clause
+    #   e.g. "..., is a legacy technique."
+    boundary = r"(?=\s*(?:$|[!?;:]|\.(?=\s|$)|,(?=\s+(?:is|are|was|were|be|being|been)\b)))"
+
+    def_frag = body + boundary
+
+    # Better boundaries than \b for punctuation-heavy acronyms:
+    left_bd = r"(?<![A-Za-z0-9])"
+    right_bd = r"(?![A-Za-z0-9])"
 
     return [
         re.compile(
-            rf"\b{acr}\b\s*,?\s*{cue}\s+{def_frag}",
+            rf"{left_bd}{acr}{right_bd}\s*,?\s*{cue}\s+{def_frag}",
             re.IGNORECASE | re.MULTILINE,
         )
         for cue in cues
     ]
+
 
 
 
@@ -143,33 +171,66 @@ def _collect_matches(
         if not (cfg.min_acr_len <= len(acronym) <= cfg.max_acr_len):
             continue
 
-        original_def = def_raw
-        definition = normalize_definition(tighten_definition_span(def_raw))
-        # inside _collect_matches, right after acr/def_raw extracted
+        # Inline defs should not span lines; skip overreach matches
         if not is_parenthetical and ("\n" in def_raw or "\r" in def_raw):
-            # Inline defs should not span lines; skip overreach matches
             continue
 
-        if not definition or len(definition) > cfg.max_phrase_chars:
+        raw_trim = def_raw.strip()
+        if not raw_trim:
+            continue
+
+        # --- RAW length gate for INLINE (gate, don't truncate) ---
+        # If the regex captured a large chunk (search_cap), we still enforce cfg.max_phrase_chars here.
+        if not is_parenthetical:
+            raw_gate = collapse_ws(raw_trim)
+            if len(raw_gate) > cfg.max_phrase_chars:
+                continue
+
+        original_def = def_raw
+
+        # Normalise/tighten (display)
+        definition = normalize_definition(tighten_definition_span(raw_trim))
+        if not definition:
+            continue
+        if len(definition) > cfg.max_phrase_chars:
             continue
         if not _has_letters(definition):
             continue
         if cfg.require_two_words and not _two_words(definition):
             continue
-        # Re-attach leading numeric token for parenthetical if it was dropped
+
+        # Apply label tightening ONCE and treat that as final candidate
+        final_def = tighten_label_by_acronym(
+            definition,
+            acronym.upper(),
+            stopwords=set(cfg.stop),
+            bridges=set(cfg.bridges),
+        )
+        final_def = normalize_definition(final_def)
+        if not final_def:
+            continue
+        if len(final_def) > cfg.max_phrase_chars:
+            continue
+        if cfg.require_two_words and not _two_words(final_def):
+            continue
+
+        # Parenthetical-specific gating / “3M” preservation
         if is_parenthetical:
-            raw_trim = def_raw.strip()
+            # If the first token starts non-alpha (e.g., 3M, 10GbE) and got dropped, reattach it.
             m_numtok = re.match(r"^(\S+)", raw_trim)
             if m_numtok:
                 first_tok = m_numtok.group(1)
-                # If the first token starts with a non-alpha (e.g., 3M, 10GbE) and got dropped, reattach it.
-                if re.match(r"^[^A-Za-z]", first_tok) and not definition.startswith(first_tok):
-                    definition = f"{first_tok} {definition}".strip()
+                if re.match(r"^[^A-Za-z]", first_tok) and not final_def.startswith(first_tok):
+                    final_def = f"{first_tok} {final_def}".strip()
+                    final_def = normalize_definition(final_def)
+                    if not final_def or len(final_def) > cfg.max_phrase_chars:
+                        continue
+
             # Config-driven allows
-            if not _parenthetical_allowed(cfg, definition, acronym):
+            if not _parenthetical_allowed(cfg, final_def, acronym):
                 continue
             # Plan-driven allows (plugins)
-            if plan.parenthetical_allows and not all(fn(definition, acronym) for fn in plan.parenthetical_allows):
+            if plan.parenthetical_allows and not all(fn(final_def, acronym) for fn in plan.parenthetical_allows):
                 continue
 
         a0, a1 = m.span("acr")
@@ -179,10 +240,11 @@ def _collect_matches(
             continue
         seen.add(key)
 
-        conf = min(base_conf + (0.03 if _initials_match(acronym, definition) else 0.0), 0.99)
+        conf = min(base_conf + (0.03 if _initials_match(acronym, final_def) else 0.0), 0.99)
+
         yield ExtractedDefinition(
             acronym=acronym,
-            definition=tighten_label_by_acronym(definition, acronym.upper()),
+            definition=final_def,
             source="in_text",
             confidence=conf,
             acr_start=a0,
@@ -191,6 +253,50 @@ def _collect_matches(
             def_end=d1,
             original_definition=original_def,
         )
+
+
+# def _extract_inline_cue(text: str, cfg: ExtractionConfig):
+#     if not getattr(cfg, "enabled_inline", True):
+#         return
+#
+#     # Capture beyond max_phrase_chars so we can enforce max as a gate, not a truncator
+#     search_cap = max(cfg.max_phrase_chars * 4, 400)
+#     def_frag = rf"(?P<def>[^\n\(\)]{{1,{search_cap}}}?)(?=\s*(?:$|[!?.,;:]))"
+#
+#     for cue in cfg.inline_cues:
+#         pat = re.compile(
+#             rf"\b(?P<acr>{_acr_pat(cfg)})\b\s*,?\s*{cue}\s+{def_frag}",
+#             re.IGNORECASE | re.MULTILINE,
+#         )
+#         for m in pat.finditer(text):
+#             acr = m.group("acr")
+#             raw = (m.group("def") or "").strip()
+#             if not raw:
+#                 continue
+#
+#             # Gate on the *raw* phrase length
+#             if len(raw) > cfg.max_phrase_chars:
+#                 continue
+#
+#             defn = tighten_label_by_acronym(raw, acr.upper(), stopwords=set(cfg.stop), bridges=set(cfg.bridges))
+#             defn = normalize_definition(defn)
+#
+#             if cfg.require_two_words and not _two_words(defn):
+#                 continue
+#             if not defn:
+#                 continue
+#
+#             yield ExtractedDefinition(
+#                 acronym=acronym,
+#                 definition=tighten_label_by_acronym(definition, acronym.upper()),
+#                 source="in_text",
+#                 confidence=conf,
+#                 acr_start=a0,
+#                 acr_end=a1,
+#                 def_start=d0,
+#                 def_end=d1,
+#                 original_definition=original_def,
+#             )
 
 
 # ---------- Core API ----------
@@ -218,6 +324,10 @@ def extract_iter(
             text, rev, cfg=cfg, plan=plan, base_conf=cfg.conf_parenthetical,
             is_parenthetical=True, seen=seen, start=s, end=e
         )
+
+    if not getattr(cfg, "enabled_inline", True):
+        return
+
 
     if cfg.enabled_inline:
         for pat in _compile_inline(cfg, plan.inline_cues):

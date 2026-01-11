@@ -3,6 +3,7 @@ from types import SimpleNamespace as NS
 import pytest
 
 import plainera_unacronym.nlp.extraction.extract as mod
+from plainera_unacronym.nlp.common.constants import DEFAULT_STOPWORDS, BRIDGES_DEFAULT
 from plainera_unacronym.nlp.extraction import extract_iter
 
 
@@ -23,9 +24,13 @@ def _cfg_unit(**overrides):
         inline_cues=(r"short\s+for", r"stands?\s+for", r"is\s+(?:an\s+)?acronym\s+for"),
         # plugin hook (unused in basic unit tests)
         plugins=(),
+
+        stop=frozenset(DEFAULT_STOPWORDS),
+        bridges=frozenset(BRIDGES_DEFAULT),
     )
     base.update(overrides)
     return NS(**base)
+
 
 
 class TestExtractIterUnit:

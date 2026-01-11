@@ -2,7 +2,7 @@ import re
 from typing import Optional
 
 from plainera_unacronym.nlp.common.constants import BRIDGES_DEFAULT, DEFAULT_STOPWORDS
-from plainera_unacronym.nlp.common.shared import canonicalize, collapse_ws, strip_trailing_punct
+from plainera_unacronym.nlp.extraction.anchored.normalise import canonicalize, strip_trailing_punct, collapse_ws
 
 _word_re = re.compile(r"[A-Za-z0-9'’\-\/&\.]+", flags=re.UNICODE)
 _ASCII_CAMEL_RE = re.compile(
@@ -131,6 +131,13 @@ def tighten_label_by_acronym(
 
     Returns a pruned, whitespace-collapsed phrase (case preserved unless keep_case=False).
     """
+
+    def _numeric_leading(tok: str) -> bool:
+        for ch in tok:
+            if ch.isalnum():
+                return not ch.isalpha()
+        return False
+
     if not raw_label or not acronym:
         return raw_label or ""
 
@@ -158,12 +165,19 @@ def tighten_label_by_acronym(
 
         if len(seq_idxs) == len(letters):
             low, high = min(seq_idxs), max(seq_idxs)
+
+            # deals with numerical leading acronyms/tokens e.g. 3M
+            while low > 0 and _numeric_leading(tokens[low - 1]):
+                low -= 1
+            while high + 1 < len(tokens) and _numeric_leading(tokens[high + 1]):
+                high += 1
+
             # Build kept: keep matched-initial tokens, plus any bridge words within the window.
             kept: list[str] = []
             hit_set = set(seq_idxs)
             for idx in range(low, high + 1):
                 tok = tokens[idx]
-                if idx in hit_set or tok.lower() in br:
+                if idx in hit_set or tok.lower() in br or _numeric_leading(tok):
                     kept.append(tok)
 
             # If pruning removed everything, keep the full window.
@@ -172,6 +186,14 @@ def tighten_label_by_acronym(
 
             phrase = " ".join(kept)
             phrase = strip_trailing_punct(collapse_ws(phrase))
+
+            _SPLIT_ACR_RE = re.compile(r"[&./-]")  # treat these as “split” markers
+            is_split = bool(_SPLIT_ACR_RE.search(acronym))
+            if is_split:
+                letters = [c for c in re.sub(r"[^A-Za-z0-9]+", "", acronym).upper()]
+                if len(letters) >= 2:
+                    ...  # your existing “initials-in-order” block
+                    return phrase if keep_case else phrase.lower()
             return phrase if keep_case else phrase.lower()
 
     # Legacy path: choose smallest window aligned to the acronym (ignoring stopwords).

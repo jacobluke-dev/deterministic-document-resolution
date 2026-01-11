@@ -2,9 +2,9 @@ import re
 from typing import Mapping, Optional
 
 from plainera_unacronym.nlp import FirstOccurrence
-from plainera_unacronym.nlp.common.shared import tighten_definition_span, normalize_definition
 from plainera_unacronym.nlp.common.types import InTextPick, ExtractedDefinition
 from plainera_unacronym.nlp.extraction import ExtractionConfig
+from plainera_unacronym.nlp.extraction.anchored.normalise import tighten_definition_span, normalize_definition
 from plainera_unacronym.nlp.extraction.anchored.patterns import compile_anchored_exact
 from plainera_unacronym.nlp.extraction.helper_patterns import find_parenthetical_longform_after_acr, \
     find_parenthetical_longform_before_acr, find_inline_longform_after_acr
@@ -87,10 +87,6 @@ def extract_near_firsts(
                     d0_local = a1_local + loc.def_start
 
                     d1_local = a1_local + loc.def_end
-
-                    orig = seg[d0_local:d1_local]
-
-                    clean = loc.definition
 
                 # Guard: spans must be valid
                 if d0_local is None or d1_local is None or d0_local >= d1_local:

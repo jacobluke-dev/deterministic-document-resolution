@@ -6,7 +6,6 @@ from plainera_unacronym.nlp.common.constants import BRIDGES_DEFAULT, DEFAULT_STO
 
 @dataclass(frozen=True, slots=True)
 class ExtractionConfig:
-    inline_cues: tuple[str, ...]
     parenthetical_allows: tuple[Callable[[str, str], bool], ...] = ()
     # Phrase limits / toggles
     max_phrase_chars: int = 200

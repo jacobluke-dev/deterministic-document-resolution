@@ -183,11 +183,11 @@ class TestCompileInline:
                 hits += 1
         assert hits >= 3
 
-    def test_inline_respects_max_phrase_chars(self):
-        cfg = _cfg(max_phrase_chars=10)
+    def test_inline_pattern_is_gate_not_truncator(self):
+        cfg = _cfg(max_phrase_chars=20)
         pats = _compile_inline(cfg, (r"stands?\s+for",))
-        assert all(p.search("PDF stands for a very very long definition here") is None for p in pats)
-        assert any(p.search("PDF stands for format") for p in pats)
+        assert any(p.search("PDF stands for a very very long definition here.") for p in pats)
+        assert any(p.search("PDF stands for format.") for p in pats)
 
     def test_inline_escapes_special_char_acronyms(self):
         cfg = _cfg()
