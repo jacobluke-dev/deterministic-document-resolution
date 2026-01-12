@@ -210,7 +210,7 @@ class TestDetectAndExtractIntegrationEdgeCases:
         assert "PDF" in by
         assert any("Portable Document Format" in e.definition for e in by["PDF"])
 
-    def test_inline_long_tail_is_gated_by_max_phrase_chars(self):
+    def test_inline_long_tail_is_gated_by_max_phrase_chars_30(self):
         # With a strict max, PTO should be dropped; with relaxed max, it should appear
         base = (
             "In printing, PTO stands for "
@@ -219,7 +219,44 @@ class TestDetectAndExtractIntegrationEdgeCases:
             "Portable Document Format (PDF) is common."
         )
         # Strict
-        det_cfg, ext_cfg_strict = _cfg_integrated(require_two_words=True, max_chars=20)
+        det_cfg, ext_cfg_strict = _cfg_integrated(require_two_words=True, max_chars=30)
+        det, extr, reports, trace = detect_and_extract(
+            base, det_cfg=det_cfg, ext_cfg=ext_cfg_strict,
+            return_reports=True, trace=True, trace_filter=r"^(PTO|PF)$"
+        )
+
+        for r in reports:
+            print(f"{r.name:22} :: {r.info}")
+
+        from pprint import pprint
+        pprint(extr)
+        pprint(trace)
+
+        assert not any(d.acronym == "PTO" for d in extr.definitions)
+        assert any(d.acronym == "PDF" for d in extr.definitions)
+
+        # Relaxed
+        det_cfg, ext_cfg_relaxed = _cfg_integrated(require_two_words=True, max_chars=160)
+        det_res_r, extr_r = detect_and_extract(base, det_cfg=det_cfg, ext_cfg=ext_cfg_relaxed)
+
+        by_r = {}
+        for d in extr_r.definitions:
+            by_r.setdefault(d.acronym, []).append(d)
+
+        assert "PTO" in by_r
+        assert any(e.definition.strip() for e in by_r["PTO"])
+        assert any(0 < e.confidence <= 0.99 for e in by_r["PTO"])
+
+    def test_inline_long_tail_is_gated_by_max_phrase_chars_40(self):
+        # With a strict max, PTO should be dropped; with relaxed max, it should appear
+        base = (
+            "In printing, PTO stands for "
+            "a very, very long descriptive phrase that should be trimmed or rejected entirely "
+            "depending on configuration and normalisation steps. "
+            "Portable Document Format (PDF) is common."
+        )
+        # Strict
+        det_cfg, ext_cfg_strict = _cfg_integrated(require_two_words=True, max_chars=40)
         det, extr, reports, trace = detect_and_extract(
             base, det_cfg=det_cfg, ext_cfg=ext_cfg_strict,
             return_reports=True, trace=True, trace_filter=r"^(PTO|PF)$"

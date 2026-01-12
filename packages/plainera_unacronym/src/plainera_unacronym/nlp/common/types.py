@@ -2,7 +2,7 @@ import re
 from dataclasses import dataclass, field
 from typing import Any, FrozenSet, Literal, Mapping, Optional
 
-from .constants import ALLOW_CHARS, DottedMode
+from plainera_unacronym.nlp.common.constants_regex import ALLOW_CHARS, DottedMode
 
 SCHEMA_VERSION = "1.1.0"
 

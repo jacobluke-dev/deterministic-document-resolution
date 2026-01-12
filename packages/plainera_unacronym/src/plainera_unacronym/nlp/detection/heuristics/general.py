@@ -1,6 +1,6 @@
 from typing import TYPE_CHECKING, Collection, Union
 
-from plainera_unacronym.nlp.common.constants import (
+from plainera_unacronym.nlp.common.constants_regex import (
     BOUNDARY_TERMINATORS,
     CLOSING_QUOTES_BRACKETS,
     EXCLAMS,

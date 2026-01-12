@@ -6,7 +6,7 @@ import plainera_unacronym.nlp.detection.heuristics.core as core
 import plainera_unacronym.nlp.plugins.registry as domain_mod
 import pytest
 from plainera_unacronym.nlp import DetectorConfig
-from plainera_unacronym.nlp.common.constants import TRAILING_PUNCT_CHARS
+from plainera_unacronym.nlp.common.constants_regex import TRAILING_PUNCT_CHARS
 from plainera_unacronym.nlp.detection.heuristics.core import (
     _collect_core_hits,
     _collect_domain_hits,

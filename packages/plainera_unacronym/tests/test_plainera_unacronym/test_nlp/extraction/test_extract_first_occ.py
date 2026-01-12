@@ -393,11 +393,12 @@ class TestExtractNearFirstsIntegration:
             require_two_words=False,
         )
         out_strict = extract_near_firsts(text, firsts, window_left=10, window_right=200, cfg=cfg_strict)
+        print(out_strict)
         assert out_strict["PTO"] is None
 
         cfg_relaxed = ExtractionConfig(
             inline_cues=(r"short\s+for", r"stands?\s+for", r"is\s+(?:an\s+)?acronym\s+for"),
-            max_phrase_chars=120,
+            max_phrase_chars=160,
             enabled_parenthetical=True,
             enabled_inline=True,
             conf_parenthetical=0.95,

@@ -38,7 +38,7 @@ def harvest_defs_all(text: str, occs, cfg) -> list[ExtractedDefinition]:
         # ACR (Long form) after
         right = snippet[rel_a1:]
         for m in find_parenthetical_longform_after_acr(right, cfg=cfg, acr=o.acronym):
-            print(m)
+
             ds, de = (L + rel_a1) + m.def_start, (L + rel_a1) + m.def_end
             out.append(
                 ExtractedDefinition(

@@ -1,7 +1,7 @@
 import re
 from typing import Iterator
 
-from plainera_unacronym.nlp.common.shared import normalize_definition, collapse_ws
+from plainera_unacronym.nlp.common.shared import normalize_definition, collapse_ws, strip_trailing_punct
 from plainera_unacronym.nlp.extraction.anchored.normalise import tighten_definition_span
 from plainera_unacronym.nlp.extraction.matchers.helper_patterns import has_letters
 from plainera_unacronym.nlp.extraction.matchers.tighten import tighten_label_by_acronym
@@ -46,6 +46,17 @@ def initials_match(acr: str, phrase: str) -> bool:
             if j == 0:
                 return False
     return True
+
+
+def _collapses_to_acronym(defn: str, acr: str) -> bool:
+    d = normalize_definition(defn).strip()
+    if not d:
+        return True
+    # Common cases: "SLA", "(SLA)", "SLA."
+    d = strip_trailing_punct(d).strip()
+    return d.upper() == acr.upper()
+
+
 
 def collect_matches(
     text: str,
@@ -110,6 +121,15 @@ def collect_matches(
             continue
         if cfg.require_two_words and not _two_words(final_def):
             continue
+
+        if is_parenthetical:
+            # 1) prevent "definition == acronym"
+            if strip_trailing_punct(final_def).strip().upper() == acronym:
+                continue
+
+            # 2) require initials plausibility for parentheticals
+            if not initials_match(acronym, final_def):
+                continue
 
         # Parenthetical-specific gating / “3M” preservation
         if is_parenthetical:

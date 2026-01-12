@@ -1,7 +1,7 @@
 import re
 from typing import Optional
 
-from plainera_unacronym.nlp.common.constants import DEFAULT_STOPWORDS, BRIDGES_DEFAULT
+from plainera_unacronym.nlp.common.constants_regex import DEFAULT_STOPWORDS, BRIDGES_DEFAULT
 from plainera_unacronym.nlp.common.shared import normalize_definition
 from plainera_unacronym.nlp.extraction.anchored.normalise import tighten_definition_span, strip_trailing_punct, collapse_ws
 
@@ -26,6 +26,19 @@ def has_letters(s: str) -> bool:
       bool: True if any character in ``s`` satisfies ``str.isalpha()``; else False.
     """
     return any(ch.isalpha() for ch in s)
+
+
+# Hard clause boundary for inline defs (stop scanning / gating at these)
+_INLINE_BOUNDARY_RE = re.compile(r"[.;:](?=\s|$)|[\r\n]")
+
+def _inline_clause_tail(s: str) -> tuple[str, int]:
+    """
+    Return (tail_text, tail_end_index) where tail is from start of `s` up to
+    the first hard boundary, or full `s` if none.
+    """
+    m = _INLINE_BOUNDARY_RE.search(s)
+    end = m.start() if m else len(s)
+    return s[:end], end
 
 
 def _first_alnum_char_upper(s: str) -> str | None:
@@ -272,6 +285,7 @@ def find_parenthetical_longform_before_acr(snippet: str, acr: str, cfg) -> list[
         rf"(?P<pre>[^\(\)]{{1,{max_chars}}})\s*(?=\(\s*{acr_esc}\s*\)\s*$)",
         snippet,
     )
+    print("M IS ...", m)
     if not m:
         return []
 
@@ -367,6 +381,7 @@ def find_parenthetical_longform_before_acr(snippet: str, acr: str, cfg) -> list[
 
     phrase = " ".join(kept_tokens)
     phrase = strip_trailing_punct(collapse_ws(phrase))
+    print("PHRASE:", phrase)
     if not phrase:
         return []
 
@@ -378,8 +393,10 @@ def find_parenthetical_longform_before_acr(snippet: str, acr: str, cfg) -> list[
     # 7) Normalize for display; indices stay tight
     norm = normalize_definition(phrase)
     if not norm:
+        print("NORMAL:", norm)
         return []
     raw_window = collapse_ws(snippet[ds:de])  # raw chars between ds..de (just whitespace-collapsed)
+    print("PHRASE:", phrase)
     disp = normalize_definition(tighten_definition_span(phrase))
 
     return [LocalDefMatch(def_start=ds, def_end=de, definition=disp, raw=raw_window)]
@@ -394,12 +411,25 @@ def find_inline_longform_after_acr(
 ) -> list[LocalDefMatch]:
     if not snippet:
         return []
+    max_phrase_chars = getattr(cfg, "max_phrase_chars", 200)
+
+    # --- NEW: gate the whole inline clause tail (NOT the minimal initials window) ---
+    tail, _ = _inline_clause_tail(snippet)
+
+    print("TAIL_LEN:", len(collapse_ws(tail)), "MAX:", max_phrase_chars, "TAIL:", collapse_ws(tail)[:120])
+    if len(collapse_ws(tail[0])) > max_phrase_chars:
+        return []
 
     stop = getattr(cfg, "stop", DEFAULT_STOPWORDS)
     bridges = getattr(cfg, "bridges", BRIDGES_DEFAULT)
     max_phrase_chars = getattr(cfg, "max_phrase_chars", 200)
     search_cap = max_chars or max_phrase_chars * 2
     s = snippet[:search_cap]
+
+    tail, _tail_end = _inline_clause_tail(s)
+    tail_collapsed = collapse_ws(tail)
+    if len(tail_collapsed) > max_phrase_chars:
+        return []
 
     # Fast path: if initials matching is NOT required, take a short bounded phrase.
     if not require_initials_match:
@@ -490,4 +520,4 @@ def find_inline_longform_after_acr(
     if not disp or len(disp) > max_phrase_chars:
         return []
 
-    return [LocalDefMatch(def_start=ds, def_end=de, definition=disp)]
+    return [LocalDefMatch(def_start=ds, def_end=de, definition=disp, raw=raw_window)]

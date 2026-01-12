@@ -7,7 +7,7 @@ from observability.logger.decorator import logger
 from observability.logger.levels import LogLevel
 from observability.logger.message_logger import message_logger
 
-from plainera_unacronym.nlp.common.constants import ALLOW_CHARS, DOT_MODE_DEFAULT
+from plainera_unacronym.nlp.common.constants_regex import ALLOW_CHARS, DOT_MODE_DEFAULT
 from plainera_unacronym.nlp.common.shared import normalize_acronym_key
 from plainera_unacronym.nlp.common.types import (
     DetectorConfig,

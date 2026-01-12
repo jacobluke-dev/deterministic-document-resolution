@@ -1,7 +1,7 @@
 import re
 from typing import Iterator
 
-from plainera_unacronym.nlp.common.constants import (
+from plainera_unacronym.nlp.common.constants_regex import (
     CLOSING_BRACK,
     DEFAULT_TWO_LETTER_BOOST,
     LEADING_BRACK,

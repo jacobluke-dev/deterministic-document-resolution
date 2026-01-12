@@ -2,7 +2,7 @@ import re
 import unicodedata
 
 from plainera_unacronym.nlp.common.config import TRAILING_PUNCT, CANON_TABLE
-from plainera_unacronym.nlp.common.constants import ARTICLE, LEADING_CONNECTORS
+from plainera_unacronym.nlp.common.constants_regex import ARTICLE, LEADING_CONNECTORS
 
 
 def collapse_ws(s: str) -> str:
