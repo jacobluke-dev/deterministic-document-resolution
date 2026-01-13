@@ -37,12 +37,19 @@ def _apply_for_acr(text: str, acr: str, cfg) -> list[tuple[str, float, str, str]
 
 
 class TestCompileAnchoredExact:
+
     def test_tuple_shape_and_flags(self):
         cfg = _cfg()
         out = compile_anchored_exact("PDF", cfg)
 
-        # 2 parenthetical + len(inline_cues)
-        assert len(out) == 5 + len(cfg.inline_cues)
+        n_cues = len(cfg.inline_cues)
+
+        expected = (
+            2  # fwd + rev
+            + n_cues  # inlines_after
+            + n_cues  # inlines_before
+        )
+        assert len(out) == expected
 
         for pat, conf, label in out:
             assert isinstance(pat, re.Pattern)
