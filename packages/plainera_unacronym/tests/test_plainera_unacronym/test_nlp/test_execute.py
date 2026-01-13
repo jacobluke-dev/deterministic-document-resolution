@@ -1,3 +1,5 @@
+import pprint
+
 import pytest
 from types import SimpleNamespace as NS
 
@@ -347,3 +349,38 @@ class TestDetectAndExtractIntegrationEdgeCases:
         pick = extr.picks.get("PDF")
         assert pick is not None
         assert "Portable Document Format" in pick.definition
+
+class TestDetectAndExtractE2E:
+
+    @staticmethod
+    def _picked_def(extr, key: str):
+        """Return extracted definition for acronym key if present, else None."""
+        pick = extr.picks.get(key)
+        if pick is None:
+            return None
+        return pick.definition
+
+    def test_detect_and_extract_dash_mixed_case(self):
+        # 1) Lower-case tokens should be preserved (no truncation)
+        det, extr = detect_and_extract("Single sign-on (SSO) is enabled.")
+        assert self._picked_def(extr, "SSO") in {"Single sign-on"}, extr.picks.get("SSO")
+
+    def test_parenthetical_preserves_lowercase_hyphen_token(self):
+        det, extr, reports = detect_and_extract("single sign-on (SSO) is enabled.", return_reports=True)
+        pprint.pprint(reports)
+        pprint.pprint(extr)
+        assert self._picked_def(extr, "SSO") == "single sign-on", extr.picks.get("SSO")
+
+    def test_parenthetical_all_lowercase_definition_is_allowed(self):
+        det, extr = detect_and_extract("return on investment (ROI) is tracked.")
+        assert self._picked_def(extr, "ROI") == "return on investment", extr.picks.get("ROI")
+
+    def test_parenthetical_acronym_only_is_rejected(self):
+        det, extr = detect_and_extract(
+            "We discussed options and agreed on the approach (SLA) yesterday."
+        )
+        assert extr.picks.get("SLA") is None, extr.picks.get("SLA")
+
+    def test_parenthetical_proper_noun_definition_is_extracted(self):
+        det, extr = detect_and_extract("National Health Service (NHS) guidelines apply.")
+        assert self._picked_def(extr, "NHS") == "National Health Service", extr.picks.get("NHS")
