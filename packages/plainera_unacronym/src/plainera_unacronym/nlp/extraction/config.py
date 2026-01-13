@@ -28,6 +28,7 @@ class ExtractionConfig:
         r"short\s+for",
         r"stands?\s+for",
         r"is\s+(?:an\s+)?acronym\s+for",
+        r"abbreviated\s+as",
     )
 
     # Optional stricter gating

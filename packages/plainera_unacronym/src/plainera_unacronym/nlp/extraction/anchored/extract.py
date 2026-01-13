@@ -147,6 +147,7 @@ def extract_near_firsts(
                 if a0_local != fo_a0_local or a1_local != fo_a1_local:
                     continue
 
+
                 if kind == "def_after":
                     span = _calc_def_span('def_after', acr_norm=acr_norm, seg=seg, acr_end_local=a1_local, cfg=cfg)
                     if span is None:
@@ -163,6 +164,11 @@ def extract_near_firsts(
                     if d0_local >= d1_local:
                         continue
 
+                elif kind == "inline_before":
+                    d0_local, d1_local = m.span("def")
+                    if d0_local >= d1_local:
+                        continue
+
                 else:  # "inline" → look-ahead initials alignment (no parentheses)
 
                     span = _calc_def_span('inline', acr_norm=acr_norm, seg=seg, acr_end_local=a1_local, cfg=cfg)
@@ -175,8 +181,16 @@ def extract_near_firsts(
                 # Original (pre-clean) definition slice from the segment
                 orig = seg[d0_local:d1_local]
 
+                if kind in {"inline", "inline_before"}:
+                    raw = " ".join(orig.split())
+                    if len(raw) > cfg.max_phrase_chars:
+                        continue
+
                 clean = _clean_definition(orig, acr_norm=acr_norm, cfg=cfg, kind=kind)
 
+                if cfg.require_two_words and kind in {"inline", "inline_before"}:
+                    if len(_TOKEN_RE.findall(clean)) < 2:
+                        continue
                 if clean is None:
                     continue
 

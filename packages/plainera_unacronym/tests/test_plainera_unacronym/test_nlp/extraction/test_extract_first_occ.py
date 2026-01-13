@@ -42,7 +42,7 @@ class TestCompileAnchoredExact:
         out = compile_anchored_exact("PDF", cfg)
 
         # 2 parenthetical + len(inline_cues)
-        assert len(out) == 2 + len(cfg.inline_cues)
+        assert len(out) == 5 + len(cfg.inline_cues)
 
         for pat, conf, label in out:
             assert isinstance(pat, re.Pattern)
@@ -50,7 +50,7 @@ class TestCompileAnchoredExact:
             assert (pat.flags & re.IGNORECASE) == re.IGNORECASE
             assert (pat.flags & re.MULTILINE) == re.MULTILINE
             assert isinstance(conf, float)
-            assert label in {"def_before", "def_after", "inline"}
+            assert label in {"def_before", "def_after", "inline", "inline_before"}
 
     def test_parenthetical_fwd_and_rev_match(self):
         cfg = _cfg()

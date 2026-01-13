@@ -415,9 +415,15 @@ class TestDetectAndExtractE2E:
 
     def test_tier_one_sla_inline_abbreviated_as(self):
         det, extr = detect_and_extract(
+            "The Service-level agreement, abbreviated as SLA, defines uptime commitments for the platform."
+        )
+        assert self._picked_def(extr, "SLA") in {"Service-level agreement"}, extr.picks.get("SLA")
+
+    def test_tier_one_sla_inline_abbreviated_as_lower_case(self):
+        det, extr = detect_and_extract(
             "The service-level agreement, abbreviated as SLA, defines uptime commitments for the platform."
         )
-        assert self._picked_def(extr, "SLA") in {"service-level agreement", "Service-level agreement"}, extr.picks.get("SLA")
+        assert self._picked_def(extr, "SLA") in {"service-level agreement"}, extr.picks.get("SLA")
 
     def test_tier_one_jwt_not_extracted_yet(self):
         # Current extractor patterns generally cover: "Long Form (ACR)" and "ACR stands for Long Form".
