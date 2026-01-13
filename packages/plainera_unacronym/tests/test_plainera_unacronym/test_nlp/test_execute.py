@@ -384,3 +384,45 @@ class TestDetectAndExtractE2E:
     def test_parenthetical_proper_noun_definition_is_extracted(self):
         det, extr = detect_and_extract("National Health Service (NHS) guidelines apply.")
         assert self._picked_def(extr, "NHS") == "National Health Service", extr.picks.get("NHS")
+
+
+    # --- New tier-one row tests (excluding ones you already have: SSO, ROI, NHS proper noun, SLA paren-only reject) ---
+
+    def test_tier_one_e2e(self):
+        det, extr = detect_and_extract("Our encryption is end-to-end (E2E) for messages sent between clients.")
+        assert self._picked_def(extr, "E2E") in {"end-to-end"}, extr.picks.get("E2E")
+
+    def test_tier_one_nlp(self):
+        det, extr = detect_and_extract(
+            "Natural language processing (NLP) is used to detect entities, but the NLP output can be noisy.")
+        assert self._picked_def(extr, "NLP") in {"Natural language processing"}, extr.picks.get("NLP")
+
+    def test_tier_one_ppe_with_parenthetical_tail(self):
+        det, extr, r = detect_and_extract(
+            "Personal protective equipment (PPE, required on site) must be worn in the laboratory at all times."
+        , return_reports=True
+        )
+        pprint.pprint(extr)
+        pprint.pprint(r)
+
+        assert self._picked_def(extr, "PPE") in {"Personal protective equipment"}, extr.picks.get("PPE")
+
+    def test_tier_one_ceo(self):
+        det, extr = detect_and_extract(
+            "The Chief Executive Officer (CEO) approved the new security policy and requested weekly reporting."
+        )
+        assert self._picked_def(extr, "CEO") in {"Chief Executive Officer", "The Chief Executive Officer"}, extr.picks.get("CEO")
+
+    def test_tier_one_sla_inline_abbreviated_as(self):
+        det, extr = detect_and_extract(
+            "The service-level agreement, abbreviated as SLA, defines uptime commitments for the platform."
+        )
+        assert self._picked_def(extr, "SLA") in {"service-level agreement", "Service-level agreement"}, extr.picks.get("SLA")
+
+    def test_tier_one_jwt_not_extracted_yet(self):
+        # Current extractor patterns generally cover: "Long Form (ACR)" and "ACR stands for Long Form".
+        # This sentence is "Long Form. ACR ...", so (for now) expect no definition pick.
+        det, extr = detect_and_extract(
+            "We store authentication using JSON Web Tokens. JWT is issued after login and saved in a secure cookie."
+        )
+        assert extr.picks.get("JWT") is None, extr.picks.get("JWT")

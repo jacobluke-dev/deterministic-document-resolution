@@ -18,23 +18,17 @@ OptSpan = Optional[Span]
 
 _TOKEN_RE = re.compile(r"[A-Za-z0-9][\w’'\-]*")
 
-def _clean_definition(
-    orig: str,
-    *,
-    acr_norm: str,
-    cfg: ExtractionConfig,
-    kind: str,
-) -> Optional[str]:
-    # --- Inline-only raw length gate (before tightening) ---
+def _clean_definition(orig: str, *, acr_norm: str, cfg: ExtractionConfig, kind: str) -> Optional[str]:
+    # Inline-only raw length gate (before tightening)
     if kind == "inline":
         raw = " ".join(orig.split())  # collapse whitespace
         if len(raw) > cfg.max_phrase_chars:
             return None
 
-    clean = tighten_label_by_acronym(
-        tighten_definition_span(orig),
-        acr_norm,
-    )
+    # Only inline needs span-tightening; parentheticals are already tight.
+    base = tighten_definition_span(orig) if kind == "inline" else orig
+
+    clean = tighten_label_by_acronym(base, acr_norm)
     clean = normalize_definition(clean)
 
     if not clean or len(clean) > cfg.max_phrase_chars:

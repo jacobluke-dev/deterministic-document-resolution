@@ -48,6 +48,33 @@ def _first_alnum_char_upper(s: str) -> str | None:
     return None
 
 
+def _acr_alignment_targets(acr: str, *, has_numeric_evidence: bool) -> list[str]:
+    """
+    Alignment targets for acronym matching.
+    If the candidate definition has no numeric-leading token evidence, digits are treated as optional
+    (i.e., dropped) so E2E can match "end-to-end".
+    """
+    chars = [c for c in acr if c.isalnum()]
+    if not chars:
+        return []
+
+    # If the phrase provides numeric evidence (e.g., "3M", "10GbE"), keep digits.
+    if has_numeric_evidence:
+        return chars
+
+    # Otherwise, match letters only (digits become optional)
+    letters = [c for c in chars if c.isalpha()]
+    return letters
+
+
+def _has_numeric_evidence(tokens: list[str]) -> bool:
+    for tok in tokens:
+        init = _first_alnum_char_upper(tok)
+        if init is not None and not init.isalpha():
+            return True
+    return False
+
+
 def find_parenthetical_longform_after_acr(
     snippet: str,
     cfg,
@@ -140,7 +167,8 @@ def find_parenthetical_longform_after_acr(
             return []
 
         # Build target acronym with per-char constraints
-        A = [c for c in acr if c.isalnum()]
+        has_num = _has_numeric_evidence(tokens)
+        A = _acr_alignment_targets(acr, has_numeric_evidence=has_num)
         if not A:
             return []
 
@@ -334,7 +362,8 @@ def find_parenthetical_longform_before_acr(snippet: str, acr: str, cfg) -> list[
         return []
 
     # 3) Build target acronym letters (ignore non-alnum), match RTL
-    A = [c for c in acr if c.isalnum()]
+    has_num = _has_numeric_evidence(tokens)
+    A = _acr_alignment_targets(acr, has_numeric_evidence=has_num)
     if not A:
         return []
 
@@ -397,9 +426,11 @@ def find_parenthetical_longform_before_acr(snippet: str, acr: str, cfg) -> list[
         return []
     raw_window = collapse_ws(snippet[ds:de])  # raw chars between ds..de (just whitespace-collapsed)
     print("PHRASE:", phrase)
-    disp = normalize_definition(tighten_definition_span(phrase))
-
+    disp = normalize_definition(phrase)
+    if not disp:
+        return []
     return [LocalDefMatch(def_start=ds, def_end=de, definition=disp, raw=raw_window)]
+
 
 def find_inline_longform_after_acr(
     snippet: str,
@@ -470,7 +501,8 @@ def find_inline_longform_after_acr(
     if not tokens:
         return []
 
-    A_raw = [c for c in acr if c.isalnum()]
+    has_num = _has_numeric_evidence(tokens)
+    A_raw = _acr_alignment_targets(acr, has_numeric_evidence=has_num)
     if not A_raw:
         return []
 
