@@ -9,14 +9,15 @@ from plainera_unacronym.nlp.extraction.anchored.normalise import tighten_definit
 from plainera_unacronym.nlp.extraction.anchored.patterns import compile_anchored_exact
 from plainera_unacronym.nlp.extraction.matchers.helper_patterns import (find_parenthetical_longform_after_acr,
                                                                         find_parenthetical_longform_before_acr,
-                                                                        find_inline_longform_after_acr)
+                                                                        find_inline_longform_after_acr,
+                                                                        is_acronym_parenthetical_with_tail)
 from plainera_unacronym.nlp.extraction.matchers.tighten import tighten_label_by_acronym
 
 Span = tuple[int, int]
 OptSpan = Optional[Span]
 
-
 _TOKEN_RE = re.compile(r"[A-Za-z0-9][\w’'\-]*")
+
 
 def _clean_definition(orig: str, *, acr_norm: str, cfg: ExtractionConfig, kind: str) -> Optional[str]:
     # Inline-only raw length gate (before tightening)
@@ -59,8 +60,20 @@ def _fo_occurrence_position(fo: FirstOccurrence, left: int) -> tuple[int, int]:
     return fo.start_offset - left, fo.end_offset - left
 
 
+def _span_of_pre_definition(seg: str, paren_start: int) -> tuple[int, int] | None:
+    """
+    Return (start, end) span for definition immediately before '(' within seg.
+    End is right-trimmed to avoid capturing the space before '('.
+    """
+    end = len(seg[:paren_start].rstrip())
+    if end <= 0:
+        return None
+    return 0, end
+
+
 def _calc_def_span(kind: str, *, acr_norm: str, seg: str, acr_end_local: int = None, m: re.Match[str] = None,
-                   cfg: ExtractionConfig) -> OptSpan:
+                   cfg: ExtractionConfig,
+                   ) -> OptSpan:
     if kind == "def_after":
         snippet = seg[acr_end_local:]
         mm = find_parenthetical_longform_after_acr(snippet, cfg, acr=acr_norm, require_initials_match=True)
@@ -70,6 +83,11 @@ def _calc_def_span(kind: str, *, acr_norm: str, seg: str, acr_end_local: int = N
         return acr_end_local + loc.def_start, acr_end_local + loc.def_end
 
     if kind == "def_before":
+        # NEW: detect "(ACR, ...)" and treat definition as BEFORE '('
+        if is_acronym_parenthetical_with_tail(seg[m.start():], acr_norm):
+            return _span_of_pre_definition(seg, m.start())
+
+        # Existing behaviour: "Long Form ... (ACR)" anchored
         snippet = seg[: m.end()]
         mm = find_parenthetical_longform_before_acr(snippet, acr_norm, cfg)
         if not mm:
@@ -79,8 +97,9 @@ def _calc_def_span(kind: str, *, acr_norm: str, seg: str, acr_end_local: int = N
 
     # inline
     snippet = seg[acr_end_local:]
-    mm = find_inline_longform_after_acr(snippet, cfg, acr=acr_norm, max_chars=cfg.max_phrase_chars * 2,
-                                        require_initials_match=True)
+    mm = find_inline_longform_after_acr(
+        snippet, cfg, acr=acr_norm, max_chars=cfg.max_phrase_chars * 2, require_initials_match=True
+    )
     if not mm:
         return None
     loc = mm[0]
@@ -90,7 +109,8 @@ def _calc_def_span(kind: str, *, acr_norm: str, seg: str, acr_end_local: int = N
 def _pick_better(best: Optional[ExtractedDefinition], cand: ExtractedDefinition) -> ExtractedDefinition:
     if best is None:
         return cand
-    return cand if cand.confidence > best.confidence else min((best, cand), key=lambda x: (-x.confidence, (x.def_end - x.def_start)))
+    return cand if cand.confidence > best.confidence else min((best, cand),
+                                                              key=lambda x: (-x.confidence, (x.def_end - x.def_start)))
 
 
 def _anchored_confidence(*, base_conf: float, dist: float) -> float:

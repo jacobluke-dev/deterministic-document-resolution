@@ -16,6 +16,20 @@ class LocalDefMatch:
         self.raw = raw
 
 
+def is_acronym_parenthetical_with_tail(snippet: str, acr: str) -> bool:
+    """
+    True for: (ACR, ...), (ACR: ...), (ACR - ...)
+    False for: (Long Form), (ACR)
+    """
+    acr_esc = re.escape(acr)
+    return bool(re.match(
+        rf"\(\s*{acr_esc}\b\s*[,;:—–-]\s*\S",
+        snippet,
+        flags=re.UNICODE,
+    ))
+
+
+
 def has_letters(s: str) -> bool:
     """True if the string contains any Unicode letter.
 
@@ -307,13 +321,15 @@ def find_parenthetical_longform_before_acr(snippet: str, acr: str, cfg) -> list[
     stop = getattr(cfg, "stopwords", DEFAULT_STOPWORDS)
     bridges = getattr(cfg, "bridges", BRIDGES_DEFAULT)
 
-    # 0) Capture the preamble right before "(ACR)" anchored at end.
     acr_esc = re.escape(acr)
+
+    # NEW: allow "(ACR, tail)" while still anchoring at end
+    tail = r"(?:\s*[,;:]\s*[^)]{0,120})?"  # cap the tail to stay sane
+
     m = re.search(
-        rf"(?P<pre>[^\(\)]{{1,{max_chars}}})\s*(?=\(\s*{acr_esc}\s*\)\s*$)",
+        rf"(?P<pre>[^\(\)]{{1,{max_chars}}})\s*(?=\(\s*{acr_esc}{tail}\s*\)\s*$)",
         snippet,
     )
-    print("M IS ...", m)
     if not m:
         return []
 
