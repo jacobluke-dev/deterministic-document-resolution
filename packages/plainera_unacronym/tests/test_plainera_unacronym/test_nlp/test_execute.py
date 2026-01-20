@@ -425,10 +425,9 @@ class TestDetectAndExtractE2E:
         )
         assert self._picked_def(extr, "SLA") in {"service-level agreement"}, extr.picks.get("SLA")
 
-    def test_tier_one_jwt_not_extracted_yet(self):
-        # Current extractor patterns generally cover: "Long Form (ACR)" and "ACR stands for Long Form".
-        # This sentence is "Long Form. ACR ...", so (for now) expect no definition pick.
+    def test_tier_one_jwt_is_extracted_via_sentence_backref(self):
+
         det, extr = detect_and_extract(
             "We store authentication using JSON Web Tokens. JWT is issued after login and saved in a secure cookie."
         )
-        assert extr.picks.get("JWT") is None, extr.picks.get("JWT")
+        assert self._picked_def(extr, "JWT") == "JSON Web Tokens", extr.picks.get("JWT")

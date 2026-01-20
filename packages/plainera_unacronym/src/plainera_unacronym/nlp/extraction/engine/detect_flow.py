@@ -3,6 +3,7 @@ from typing import Optional
 
 from plainera_unacronym.nlp import Detector
 from plainera_unacronym.nlp.extraction import extract_iter
+from plainera_unacronym.nlp.extraction.backref.extract import extract_sentence_backrefs
 from plainera_unacronym.nlp.extraction.core.defs import defs_from_picks, dedupe_defs
 
 from plainera_unacronym.nlp.extraction.engine.stages import Stage, StageResult, Chain, StageReport, Tracer
@@ -80,6 +81,7 @@ class FlowState:
     anchored_defs: list[ExtractedDefinition] = field(default_factory=list)
     harvested_defs: list[ExtractedDefinition] = field(default_factory=list)
     global_defs: list[ExtractedDefinition] = field(default_factory=list)
+    backref_defs: list[ExtractedDefinition] = field(default_factory=list)
     all_defs: list[ExtractedDefinition] = field(default_factory=list)
 
     strategy: str = "anchored+harvest"
@@ -144,8 +146,23 @@ class ExtractionFlow:
         s._last_info = f"global={len(s.global_defs)}"
         return StageResult(s, s._last_info)
 
+    def _st_sentence_backref(self, s: FlowState) -> StageResult[FlowState]:
+        print("sentence_backref")
+        s.backref_defs = extract_sentence_backrefs(
+            text=s.text,
+            firsts=s.det_res.unique_acronyms,
+            cfg=s.ext_cfg,
+        )
+        s._last_info = f"backref={len(s.backref_defs)}"
+        return StageResult(s, s._last_info)
+
     def _st_merge(self, s: FlowState) -> StageResult[FlowState]:
-        s.all_defs = dedupe_defs(s.anchored_defs + s.harvested_defs + s.global_defs)
+        s.all_defs = dedupe_defs(
+            s.anchored_defs
+            + s.harvested_defs
+            + s.global_defs
+            + s.backref_defs
+        )
         s._last_info = f"merged unique={len(s.all_defs)}"
         return StageResult(s, s._last_info)
 
@@ -209,6 +226,10 @@ class ExtractionFlow:
             Stage("global_pipeline",
                   self._st_global,
                   lambda s: f"{len(s.global_defs)}",
+                  trace_fields=("global_defs",)),
+            Stage("global_pipeline",
+                  self._st_sentence_backref,
+                  lambda s: f"{len(s.backref_defs)}",
                   trace_fields=("global_defs",)),
             Stage("merge_dedupe",
                   self._st_merge,
