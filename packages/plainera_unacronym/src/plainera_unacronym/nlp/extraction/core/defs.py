@@ -1,6 +1,6 @@
 from typing import Optional
 
-from plainera_unacronym.nlp.common.shared import tighten_label
+from plainera_unacronym.nlp.common.shared import tighten_label, strip_trailing_punct_str
 from plainera_unacronym.nlp.common.types import ExtractedDefinition, InTextPick
 from plainera_unacronym.nlp.extraction.matchers.tighten import tighten_label_by_acronym
 
@@ -12,10 +12,11 @@ def defs_from_picks(text: str, picks: dict[str, Optional[InTextPick]]) -> list[E
             continue
         a0, a1 = pick.acr_span
         acr_surface = text[a0:a1]
+        acr_key = strip_trailing_punct_str(acr_surface).upper()
         out.append(
             ExtractedDefinition(
-                acronym=acr_surface.upper(),
-                definition=tighten_label_by_acronym(pick.definition, acr_surface.upper()),
+                acronym=acr_key,
+                definition=tighten_label_by_acronym(pick.definition, acr_key),
                 source="in_text",
                 confidence=pick.confidence,
                 acr_start=a0,
@@ -26,6 +27,7 @@ def defs_from_picks(text: str, picks: dict[str, Optional[InTextPick]]) -> list[E
             )
         )
     return out
+
 
 
 def _sense_key(acr: str, label: str) -> tuple[str, str]:

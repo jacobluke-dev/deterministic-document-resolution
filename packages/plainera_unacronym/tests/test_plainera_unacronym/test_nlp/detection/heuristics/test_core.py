@@ -508,7 +508,7 @@ class TestBoostConfidenceIfWhitelisted:
         monkeypatch.setattr(core, "normalize_acronym_key", _fake_normalize, raising=True)
 
         # cfg without dotted_display / allow_chars / two_letter_boost
-        cfg = types.SimpleNamespace(whitelist_two_letter={"AI"})
+        cfg = types.SimpleNamespace(whitelist_two_letter={"AI"}, allow_chars='&-/.', dotted_display="strip")
         result = core.boost_confidence_if_whitelisted("A.I.", 0.10, cfg)
 
         # Default boost = 0.75 ⇒ 0.85

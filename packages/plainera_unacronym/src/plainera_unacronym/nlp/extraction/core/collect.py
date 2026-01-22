@@ -75,7 +75,7 @@ def collect_matches(
         if not acr_raw or not def_raw:
             continue
 
-        acronym = acr_raw.strip().upper()
+        acronym = strip_trailing_punct_str(acr_raw.strip()).upper()
         if not (cfg.min_acr_len <= len(acronym) <= cfg.max_acr_len):
             continue
 

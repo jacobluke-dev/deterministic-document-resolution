@@ -94,7 +94,7 @@ def _build_occurrence_from_match(
     display_key = normalize_acronym_key(
         key_base,
         cfg.allow_chars,
-        dotted_mode=display_mode,
+        dotted_mode=cfg.dotted_display,
     )
     if not display_key:
         raise OccurrenceBuildError("empty_display_key")
@@ -380,7 +380,7 @@ class Detector:
                 display_key = normalize_acronym_key(
                     occ.acronym,
                     cfg.allow_chars,
-                    dotted_mode=getattr(cfg, "dotted_display", "strip"),
+                    dotted_mode=cfg.dotted_display,
                 )
             if display_key not in firsts:
                 firsts[display_key] = FirstOccurrence(

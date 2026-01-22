@@ -26,10 +26,10 @@ def _fill_missing_from_defs(
     det_cfg: DetectorConfig,
     defs: list[ExtractedDefinition],
 ) -> dict[str, Optional[InTextPick]]:
-    dotted_mode = getattr(det_cfg, "dotted_display", "strip")
     index: dict[str, list[ExtractedDefinition]] = {}
     for d in defs:
-        k = normalize_acronym_key(d.acronym, det_cfg.allow_chars, dotted_mode)
+        k = normalize_acronym_key(d.acronym, det_cfg.allow_chars,
+                                  dotted_mode=det_cfg.dotted_display, )
         if k:
             index.setdefault(k, []).append(d)
 
@@ -132,7 +132,7 @@ class ExtractionFlow:
         return StageResult(s, s._last_info)
 
     def _st_defs_from_picks(self, s: FlowState) -> StageResult[FlowState]:
-        s.anchored_defs =  defs_from_picks(s.text, s.picks)
+        s.anchored_defs = defs_from_picks(s.text, s.picks)
         s._last_info = f"anchored defs={len(s.anchored_defs)}"
         return StageResult(s, s._last_info)
 
@@ -247,7 +247,7 @@ class ExtractionFlow:
     def run(self, text: str) -> tuple[DetectorResult, ExtractionResult, list[StageReport]]:
         state = FlowState(text=text, det_cfg=self.det_cfg, ext_cfg=self.ext_cfg)
         chain = self.build_chain()
-        state, reports = chain.run(state, tracer=self._tracer)   # <<< tracer passed once
+        state, reports = chain.run(state, tracer=self._tracer)  # <<< tracer passed once
         assert state.det_res and state.extr
         self.trace_events = self._tracer.events if self._tracer else []  # expose for tests
         return state.det_res, state.extr, reports

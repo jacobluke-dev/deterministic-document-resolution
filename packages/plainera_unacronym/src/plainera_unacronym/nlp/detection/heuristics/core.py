@@ -176,9 +176,10 @@ def boost_confidence_if_whitelisted(surface: str, confidence_score: float, cfg: 
     Returns:
         float: confidence score
     """
-    dotted_mode = getattr(cfg, "dotted_display", "strip")
-    allow_chars = getattr(cfg, "allow_chars", "&-/.")
-    key = normalize_acronym_key(surface, allow_chars=allow_chars, dotted_mode=dotted_mode)
+    key = normalize_acronym_key(surface,
+                                allow_chars=cfg.allow_chars,
+                                dotted_mode=cfg.dotted_display,
+                                )
 
     if len(key) == 2 and key in cfg.whitelist_two_letter:
         boost = getattr(cfg, "two_letter_boost", DEFAULT_TWO_LETTER_BOOST)

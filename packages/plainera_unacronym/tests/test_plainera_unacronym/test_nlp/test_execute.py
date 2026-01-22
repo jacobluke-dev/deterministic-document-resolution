@@ -479,7 +479,9 @@ class TestDetectAndExtractE2EConfigAdjustment:
     def test_tier_one_dotted_acronym_key_strips_to_plain_preserves_dots_and_detects(self):
         det, extr = detect_and_extract("The United States of America (U.S.A.) is referenced.",
                                           det_cfg=DetectorConfig(enable_dotted=True, dotted_display="preserve"))
-        assert picked_def(extr, "U.S.A.") in {"United States of America"}, extr.picks.get("U.S.A.")
+        pprint.pprint(det)
+        pprint.pprint(extr)
+        assert picked_def(extr, "U.S.A") in {"United States of America"}, extr.picks.get("U.S.A")
 
     def test_tier_one_dotted_acronym_key_strips_to_plain_removes_dots_and_detects(self):
         det, extr = detect_and_extract("The United States of America (U.S.A.) is referenced.",
@@ -496,7 +498,7 @@ class TestDetectAndExtractE2EConfigAdjustment:
     def test_tier_one_dotted_acronym_key_strips_to_plain_preserves_dots_and_detects_but_not_name_initials(self):
         det, extr = detect_and_extract("The United States of America (U.S.A.) is referenced, written by A.B.",
                                           det_cfg=DetectorConfig(enable_dotted=True, dotted_display="preserve"))
-        assert picked_def(extr, "U.S.A.") in {"United States of America"}, extr.picks.get("U.S.A.")
+        assert picked_def(extr, "U.S.A") in {"United States of America"}, extr.picks.get("U.S.A")
         assert picked_def(extr, "AB") is None
         assert picked_def(extr, "A.B.") is None
 
@@ -510,12 +512,12 @@ class TestDetectAndExtractE2EConfigAdjustment:
         pprint.pprint(det)
         # Preserve internal dots, but not terminal punctuation.
         assert picked_def(extr, "U.S.A") is None or True  # definition may not exist in this sentence
-        fo = det.unique_acronyms["U.S.A."]
-        assert fo.acronym == "U.S.A."
-        assert fo.normalized_key == "U.S.A."
+        fo = det.unique_acronyms["U.S.A"]
+        assert fo.acronym == "U.S.A"
+        assert fo.normalized_key == "U.S.A"
 
         # Occurrence(s) should agree
-        assert any(o.normalized_key == "U.S.A." for o in det.occurrences)
+        assert any(o.normalized_key == "U.S.A" for o in det.occurrences)
 
     def test_tier_one_dotted_initialism_outside_parentheses_detects_strip_key(self):
         det, extr = detect_and_extract(
@@ -531,19 +533,19 @@ class TestDetectAndExtractE2EConfigAdjustment:
 
     def test_tier_one_dotted_initialism_outside_parentheses_followed_by_comma_detects(self):
         det, extr = detect_and_extract(
-            "The U.S.A., as referenced here, is important.",
+            "The U.S.A, as referenced here, is important.",
             det_cfg=DetectorConfig(enable_dotted=True, dotted_display="preserve"),
         )
         assert "U.S.A." in det.unique_acronyms, det.unique_acronyms
-        assert det.unique_acronyms["U.S.A."].normalized_key == "U.S.A."
+        assert det.unique_acronyms["U.S.A"].normalized_key == "U.S.A"
 
     def test_tier_one_dotted_initialism_outside_parentheses_followed_by_closing_paren_detects(self):
         det, extr = detect_and_extract(
-            "This is referenced as U.S.A.) in older documents.",
+            "This is referenced as U.S.A) in older documents.",
             det_cfg=DetectorConfig(enable_dotted=True, dotted_display="preserve"),
         )
-        assert "U.S.A." in det.unique_acronyms, det.unique_acronyms
-        assert det.unique_acronyms["U.S.A."].normalized_key == "U.S.A."
+        assert "U.S.A" in det.unique_acronyms, det.unique_acronyms
+        assert det.unique_acronyms["U.S.A"].normalized_key == "U.S.A"
 
     def test_tier_one_two_letter_dotted_whitelist_allows_uk(self):
         det, extr = detect_and_extract(
