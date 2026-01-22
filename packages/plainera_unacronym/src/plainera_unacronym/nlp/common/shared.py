@@ -15,7 +15,7 @@ def normalize_definition(s: str) -> str:
       - collapse whitespace
       - strip trailing punctuation
     """
-    return strip_trailing_punct(collapse_ws(canonicalize(s)))
+    return strip_trailing_punct_str(collapse_ws(canonicalize(s)))
 
 
 def has_paren_definition(text: str, end: int, max_chars: int = 80) -> bool:
@@ -75,7 +75,7 @@ def canonicalize(s: str) -> str:
     return unicodedata.normalize("NFKC", s).translate(CANON_TABLE)
 
 
-def strip_trailing_punct(s: str) -> str:
+def strip_trailing_punct_str(s: str) -> str:
     return re.sub(TRAILING_PUNCT, "", s)
 
 

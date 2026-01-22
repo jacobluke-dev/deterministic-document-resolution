@@ -8,7 +8,7 @@ from observability.logger.levels import LogLevel
 from observability.logger.message_logger import message_logger
 
 from plainera_unacronym.nlp.common.constants_regex import ALLOW_CHARS, DOT_MODE_DEFAULT
-from plainera_unacronym.nlp.common.shared import normalize_acronym_key
+from plainera_unacronym.nlp.common.shared import normalize_acronym_key, strip_trailing_punct_str
 from plainera_unacronym.nlp.common.types import (
     DetectorConfig,
     DetectorResult,
@@ -77,6 +77,7 @@ def _build_occurrence_from_match(
         * Normalization uses `normalize_key(..., dotted_mode=cfg.dotted_display)`.
     """
     display_mode = getattr(cfg, "dotted_display", "strip")
+
     has_trailing_dot = e < len(text) and text[e] == "."
 
     # Surface to display (may include the trailing dot if preserving)
@@ -89,8 +90,9 @@ def _build_occurrence_from_match(
     if not base.strip():
         raise OccurrenceBuildError("empty_acronym")
 
+    key_base = strip_trailing_punct_str(base)
     display_key = normalize_acronym_key(
-        base,
+        key_base,
         cfg.allow_chars,
         dotted_mode=display_mode,
     )
@@ -103,7 +105,7 @@ def _build_occurrence_from_match(
     rsn = tuple(reason_tags(surface, text, s, end_for_occ, cfg)) if getattr(cfg, "debug_reasons", False) else None
 
     occ = Occurrence(
-        acronym=base,
+        acronym=key_base,
         start_offset=s,
         end_offset=end_for_occ,
         confidence=conf,
@@ -239,6 +241,7 @@ class Detector:
         )
 
         for surface, s, e in iter_candidates_with(text, cfg, self._pat):
+            print("surface:", surface)
             total += 1
 
             if blacklist_context_drop(surface, text, s, e, cfg):

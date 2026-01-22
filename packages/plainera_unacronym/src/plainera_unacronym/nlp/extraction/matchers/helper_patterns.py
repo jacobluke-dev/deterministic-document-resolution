@@ -3,7 +3,7 @@ from typing import Optional
 
 from plainera_unacronym.nlp.common.constants_regex import DEFAULT_STOPWORDS, BRIDGES_DEFAULT
 from plainera_unacronym.nlp.common.shared import normalize_definition
-from plainera_unacronym.nlp.extraction.anchored.normalise import tighten_definition_span, strip_trailing_punct, collapse_ws
+from plainera_unacronym.nlp.extraction.anchored.normalise import tighten_definition_span, strip_trailing_punct_str, collapse_ws
 
 from plainera_unacronym.nlp.extraction.matchers.tighten import _initials_seq, _match_from, _split_compound
 
@@ -239,7 +239,7 @@ def find_parenthetical_longform_after_acr(
         kept = tokens[i : j + 1]
 
     phrase = " ".join(kept)
-    phrase = strip_trailing_punct(collapse_ws(phrase))
+    phrase = strip_trailing_punct_str(collapse_ws(phrase))
     if not phrase:
         return []
 
@@ -287,7 +287,7 @@ def find_parenthetical_longform_after_acr(
     if not kept:
         kept = tokens[i : j + 1]
 
-    phrase = strip_trailing_punct(collapse_ws(" ".join(kept)))
+    phrase = strip_trailing_punct_str(collapse_ws(" ".join(kept)))
     if not phrase:
         return []
 
@@ -425,7 +425,7 @@ def find_parenthetical_longform_before_acr(snippet: str, acr: str, cfg) -> list[
         kept_tokens = tokens[tok_left : tok_right + 1]
 
     phrase = " ".join(kept_tokens)
-    phrase = strip_trailing_punct(collapse_ws(phrase))
+    phrase = strip_trailing_punct_str(collapse_ws(phrase))
     print("PHRASE:", phrase)
     if not phrase:
         return []
@@ -494,7 +494,7 @@ def find_inline_longform_after_acr(
             return []
         ds, de = starts[0], ends[-1]
         phrase = " ".join(tokens)
-        phrase = strip_trailing_punct(collapse_ws(phrase))
+        phrase = strip_trailing_punct_str(collapse_ws(phrase))
 
         raw_window = collapse_ws(s[ds:de])  # raw chars between ds..de (just whitespace-collapsed)
         if len(raw_window) > max_phrase_chars:  # <-- gate HERE
@@ -561,7 +561,7 @@ def find_inline_longform_after_acr(
         return []
 
     phrase = " ".join(tokens[k] for k in kept_idx)
-    phrase = strip_trailing_punct(collapse_ws(phrase))
+    phrase = strip_trailing_punct_str(collapse_ws(phrase))
 
     # Respect max_phrase_chars after normalisation
     disp = normalize_definition(tighten_definition_span(phrase))

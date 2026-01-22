@@ -85,20 +85,20 @@ class TestBuildOccurrenceFromMatch:
         )
 
         cfg = _TestCfg(dotted_display="preserve")
-        text = "NASA."
-        surface = "NASA"
+        text = "N.A.S.A."
+        surface = "N.A.S.A"
         s, e = 0, 4  # '.' at index 4
 
         occ, display_key = _build_occurrence_from_match(cfg, text, surface, s, e, conf=0.9)
 
-        assert display_key == "NK[NASA.|preserve]"
-        assert occ.acronym == "NASA."  # dot INCLUDED
-        assert occ.end_offset == 5  # advanced
+        assert display_key == "NK[N.A.S.A|preserve]"
+        assert occ.acronym == "N.A.S.A"  # dots INCLUDED
+        assert occ.end_offset == 4  # advanced
         assert occ.context_window == (5, 10)
 
         # Helper call args used the adjusted end offset
-        assert calls["normalize_acronym_key"] == ("NASA.", cfg.allow_chars, "preserve")
-        assert calls["context_window"] == (text, s, 5, cfg.window_chars)
+        assert calls["normalize_acronym_key"] == ("N.A.S.A", cfg.allow_chars, "preserve")
+        assert calls["context_window"] == (text, s, 4, cfg.window_chars)
 
     def test_debug_reasons_attached_when_enabled(self, monkeypatch):
         """
@@ -124,16 +124,18 @@ class TestBuildOccurrenceFromMatch:
 
         cfg = _TestCfg(dotted_display="preserve", debug_reasons=True)
         text = "N.A.S.A."
-        s = text.index("N.A.S.A")
-        e = s + len("N.A.S.A")  # == 7; text[e] is the '.' after the matched surface
-        surface = text[s:e]  # "N.A.S.A"
+        s = 0
+        surface = "N.A.S.A"
+        e = s + len(surface)  # 7, so text[e] is the trailing '.'
+        assert cfg.dotted_display == "preserve"
+        assert text[e] == ".", (e, text, text[e - 2:e + 2])
 
         occ, display_key = _build_occurrence_from_match(cfg, text, surface, s, e, conf=0.7)
 
         assert display_key == "NK"
-        assert occ.reasons == ("EDGE", "PUNCT")  # tuple-ized
-        assert occ.acronym == "N.A.S.A."  # dot included in display
-        assert occ.end_offset == e + 1  # advanced to include final dot (== 8)
+        assert occ.reasons == ("EDGE", "PUNCT")
+        assert occ.acronym == "N.A.S.A"
+        assert occ.end_offset == e + 1  # == 8
 
     def test_returns_occurrence_and_display_key_tuple(self, monkeypatch):
         # Patch where the function looks up the names (the detector module)
@@ -186,11 +188,11 @@ class TestBuildOccurrenceFromMatch:
         occ_p, key_p = _build_occurrence_from_match(
             cfg_pres, text, text[s_gpu:e_gpu], s_gpu, e_gpu, conf=0.91
         )
-        assert occ_p.acronym == "GPUs."  # dot included
-        assert occ_p.end_offset == e_gpu + 1  # advanced
+        assert occ_p.acronym == "GPUs"  # dot not included
+        assert occ_p.end_offset == e_gpu + 1
         assert occ_p.normalized_key == key_p
         # In preserve mode, key keeps the dot
-        assert key_p.endswith(".")
+        assert not key_p.endswith(".")
 
         # Context window invariants (don’t assert exact indices across implementations)
         l_s, r_s = occ_s.context_window
@@ -388,7 +390,7 @@ class TestScoreChunkWorkerUnit:
         out = _score_chunk_worker(cfg, text, cands)
 
         # Expect only 'R&D' and 'N.A.S.A.' (order preserved)
-        assert [o.acronym for o in out] == ["R&D", "N.A.S.A."]
+        assert [o.acronym for o in out] == ["R&D", "N.A.S.A"]
         assert all(isinstance(o, Occurrence) for o in out)
 
         # 'R&D' — no trailing dot added; end offset unchanged

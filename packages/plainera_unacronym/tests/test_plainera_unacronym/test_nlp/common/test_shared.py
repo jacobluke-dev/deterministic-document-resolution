@@ -1,6 +1,7 @@
 import pytest
 from plainera_unacronym.nlp.common.constants_regex import APOSTROPHE_VARIANTS
-from plainera_unacronym.nlp.common.shared import has_paren_definition, normalize_acronym_key, tighten_label
+from plainera_unacronym.nlp.common.shared import has_paren_definition, normalize_acronym_key, tighten_label, \
+    strip_trailing_punct_str
 from plainera_unacronym.nlp.extraction.anchored.normalise import tighten_definition_span
 
 
@@ -250,3 +251,10 @@ class TestTightenDefinitionSpan:
         s = "Please Turn Over on print jobs."
         out = tighten_definition_span(s)
         assert out == "Please Turn Over"
+
+
+class TestStripTrailingPunctStr:
+
+    def test_strip_trailing_punct_variants_agree_on_terminal_dot(self):
+        s = "U.S.A.)"
+        assert strip_trailing_punct_str(s) == "U.S.A"

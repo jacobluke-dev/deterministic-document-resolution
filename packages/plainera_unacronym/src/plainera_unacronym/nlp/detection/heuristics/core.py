@@ -88,7 +88,7 @@ def caps_ratio(token: str) -> float:
     return upp / len(ls)
 
 
-def strip_trailing_punct(text: str, start: int, end: int) -> tuple[int, int]:
+def strip_trailing_punct_span(text: str, start: int, end: int) -> tuple[int, int]:
     # Exclude common trailing punctuation from offsets.
     while end > start and text[end - 1] in TRAILING_PUNCT_CHARS:
         end -= 1
@@ -239,7 +239,8 @@ def _accept_candidate(text: str, cfg: DetectorConfig, s: int, e: int) -> Span | 
       - caps ratio (with mixed-case relaxation)
     """
 
-    s, e = strip_trailing_punct(text, s, e)
+    _DOTTED_INITIALISM_RE = re.compile(r"^(?:[A-Z]\.)+[A-Z]$")
+    s, e = strip_trailing_punct_span(text, s, e)
     if e - s < cfg.min_len:
         return None
 
@@ -247,6 +248,44 @@ def _accept_candidate(text: str, cfg: DetectorConfig, s: int, e: int) -> Span | 
     if not has_letter(surface):
         return None
 
+    # ---- dotted gating (validate, don't mutate surface) ----
+    if "." in surface:
+        print("IN HERE ?")
+        # must be a clean dotted initialism like U.S or U.S.A (trailing '.' already stripped above)
+        if not _DOTTED_INITIALISM_RE.fullmatch(surface):
+            print("dotted initialisation failed")
+            return None
+
+        letters_only = surface.replace(".", "")
+        # length checks should use letters_only (same as core_len_for_bounds, but explicit here)
+        if len(letters_only) < cfg.min_len or len(letters_only) > cfg.max_len:
+            print("letters only failed")
+            return None
+
+        # 2-letter dotted is too noisy unless whitelisted (US/UK/EU/UN etc.)
+        if len(letters_only) == 2 and letters_only not in cfg.whitelist_two_letter:
+            print("double letter check")
+            return None
+
+        # context guards: avoid picking up section numbers / weird dotted chains
+        if s > 0 and text[s - 1].isdigit():
+            return None
+        if e < len(text) and text[e].isdigit():
+            return None
+        if s > 0 and text[s - 1] == ".":
+            return None
+
+        # If immediately followed by '.' that's OK when it's the common "U.S.A.)" / "U.S.A.," pattern.
+        if e < len(text) and text[e] == ".":
+            nxt = text[e + 1] if e + 1 < len(text) else ""
+            if nxt and nxt not in ")]}»”'\" \n\r\t,;:!?…":
+                # e.g. "U.S.A.X" should be rejected
+                return None
+
+        # caps ratio / mixed-case gates are redundant here (it's all [A-Z].),
+        # but leaving them below doesn't hurt.
+
+    # ---- existing generic gates ----
     clen = core_len_for_bounds(surface)
     if clen < cfg.min_len or clen > cfg.max_len or clen >= 15 or clen == 1:
         return None
@@ -308,6 +347,7 @@ def iter_candidates_with(text: str, cfg: DetectorConfig, pat: re.Pattern[str]) -
 
     This preserves normal heuristics while avoiding obvious fragments (e.g., drop 'IFN' if 'IFN-γ' exists).
     """
+    print("TOP OF ITER CANDIDATES")
     core_hits = _collect_core_hits(text, cfg, pat)
     dom_hits = _collect_domain_hits(text, cfg)
 

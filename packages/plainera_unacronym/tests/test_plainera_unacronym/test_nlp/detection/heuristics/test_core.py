@@ -22,7 +22,7 @@ from plainera_unacronym.nlp.detection.heuristics.core import (
     letters,
     next_word_lowercase,
     prev_token,
-    strip_trailing_punct,
+    strip_trailing_punct_span,
 )
 
 
@@ -107,7 +107,7 @@ class TestStripTrailingPunct:
     def test_no_trailing_punct_no_change(self, span):
         text = "Alpha GPU Beta"
         s, e = span(text, "GPU")
-        ns, ne = strip_trailing_punct(text, s, e)
+        ns, ne = strip_trailing_punct_span(text, s, e)
         assert (ns, ne) == (s, e)
         assert text[ns:ne] == "GPU"
 
@@ -116,7 +116,7 @@ class TestStripTrailingPunct:
         # include '.' in the span
         s = text.index("RAM")
         e = s + len("RAM.")
-        ns, ne = strip_trailing_punct(text, s, e)
+        ns, ne = strip_trailing_punct_span(text, s, e)
         assert text[ns:ne] == "RAM"
         # the '.' should now be just outside the slice
         assert text[ne:ne + 1] == "."
@@ -126,7 +126,7 @@ class TestStripTrailingPunct:
         # span includes all three trailing punct chars
         s = text.index("Token")
         e = s + len("Token!?)")
-        ns, ne = strip_trailing_punct(text, s, e)
+        ns, ne = strip_trailing_punct_span(text, s, e)
         # all trailing punct removed, leaving bare token
         assert text[ns:ne] == "Token"
 
@@ -134,7 +134,7 @@ class TestStripTrailingPunct:
         text = "Hello !!! there"
         s = text.index("!!!")
         e = s + 3
-        ns, ne = strip_trailing_punct(text, s, e)
+        ns, ne = strip_trailing_punct_span(text, s, e)
         assert ns == ne  # empty slice after stripping
 
     def test_parametric_known_trailing_chars(self):
@@ -144,7 +144,7 @@ class TestStripTrailingPunct:
             text = base + ch + " tail"
             s = 0
             e = len(base) + 1  # include the trailing char
-            ns, ne = strip_trailing_punct(text, s, e)
+            ns, ne = strip_trailing_punct_span(text, s, e)
             if ch in TRAILING_PUNCT_CHARS:
                 assert text[ns:ne] == base
             else:
@@ -742,7 +742,7 @@ class TestAcceptCandidate:
         cfg = DummyCfg(min_len=3, max_len=10, require_caps_ratio=0.8)
 
         # strip trailing '!' -> (0,3)
-        monkeypatch.setattr(core, "strip_trailing_punct", lambda t, s, e: (s, e - 1), raising=False)
+        monkeypatch.setattr(core, "strip_trailing_punct_str", lambda t, s, e: (s, e - 1), raising=False)
         monkeypatch.setattr(core, "has_letter", lambda s: True, raising=False)
         monkeypatch.setattr(core, "core_len_for_bounds", lambda s: len(s), raising=False)
         monkeypatch.setattr(core, "caps_ratio", lambda s: 1.0, raising=False)
@@ -755,7 +755,7 @@ class TestAcceptCandidate:
         text = "123-456"
         cfg = DummyCfg(min_len=2)
 
-        monkeypatch.setattr(core, "strip_trailing_punct", lambda t, s, e: (s, e), raising=False)
+        monkeypatch.setattr(core, "strip_trailing_punct_str", lambda t, s, e: (s, e), raising=False)
         monkeypatch.setattr(core, "has_letter", lambda s: False, raising=False)
 
         # The rest shouldn't matter if has_letter is False, but provide safe defaults
@@ -780,7 +780,7 @@ class TestAcceptCandidate:
         s, e = 0, 10  # e - s = 10 >= min_len usually
         cfg = DummyCfg(min_len=min_len, max_len=max_len)
 
-        monkeypatch.setattr(core, "strip_trailing_punct", lambda t, _s, _e: (s, e), raising=False)
+        monkeypatch.setattr(core, "strip_trailing_punct_str", lambda t, _s, _e: (s, e), raising=False)
         monkeypatch.setattr(core, "has_letter", lambda srf: True, raising=False)
         monkeypatch.setattr(core, "core_len_for_bounds", lambda srf: core_len, raising=False)
         monkeypatch.setattr(core, "caps_ratio", lambda srf: 1.0, raising=False)
@@ -802,7 +802,7 @@ class TestAcceptCandidate:
         s, e = 0, len(text)
         cfg = DummyCfg(min_len=2, max_len=10, require_caps_ratio=threshold, enable_mixed_case=False)
 
-        monkeypatch.setattr(core, "strip_trailing_punct", lambda t, _s, _e: (s, e), raising=False)
+        monkeypatch.setattr(core, "strip_trailing_punct_str", lambda t, _s, _e: (s, e), raising=False)
         monkeypatch.setattr(core, "has_letter", lambda srf: True, raising=False)
         monkeypatch.setattr(core, "core_len_for_bounds", lambda srf: 4, raising=False)
         monkeypatch.setattr(core, "caps_ratio", lambda srf: ratio, raising=False)
@@ -822,7 +822,7 @@ class TestAcceptCandidate:
             require_caps_ratio_mixed=0.5,
         )
 
-        monkeypatch.setattr(core, "strip_trailing_punct", lambda t, _s, _e: (s, e), raising=False)
+        monkeypatch.setattr(core, "strip_trailing_punct_str", lambda t, _s, _e: (s, e), raising=False)
         monkeypatch.setattr(core, "has_letter", lambda srf: True, raising=False)
         monkeypatch.setattr(core, "core_len_for_bounds", lambda srf: 3, raising=False)
         # Raw ratio is too low for 0.9 but above the mixed threshold 0.5
@@ -841,7 +841,7 @@ class TestAcceptCandidate:
         cfg_disabled = DummyCfg(
             min_len=2, max_len=10, require_caps_ratio=0.9, enable_mixed_case=False, require_caps_ratio_mixed=0.5
         )
-        monkeypatch.setattr(core, "strip_trailing_punct", lambda t, _s, _e: (s, e), raising=False)
+        monkeypatch.setattr(core, "strip_trailing_punct_str", lambda t, _s, _e: (s, e), raising=False)
         monkeypatch.setattr(core, "has_letter", lambda srf: True, raising=False)
         monkeypatch.setattr(core, "core_len_for_bounds", lambda srf: 2, raising=False)
         monkeypatch.setattr(core, "caps_ratio", lambda srf: 0.6, raising=False)
@@ -865,9 +865,9 @@ class TestAcceptCandidate:
             calls["strip_called"] = True
             return (s, e)
 
-        # strip_trailing_punct is still called (function calls it before the raw len check),
+        # strip_trailing_punct_span is still called (function calls it before the raw len check),
         # but the early length check will return None before any deeper gates.
-        monkeypatch.setattr(core, "strip_trailing_punct", strip_fn, raising=False)
+        monkeypatch.setattr(core, "strip_trailing_punct_span", strip_fn, raising=False)
         monkeypatch.setattr(core, "has_letter", lambda s: True, raising=False)
         monkeypatch.setattr(core, "core_len_for_bounds", lambda s: 5, raising=False)
         monkeypatch.setattr(core, "caps_ratio", lambda s: 1.0, raising=False)

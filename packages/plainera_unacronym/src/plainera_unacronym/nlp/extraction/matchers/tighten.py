@@ -2,7 +2,7 @@ import re
 from typing import Optional
 
 from plainera_unacronym.nlp.common.constants_regex import BRIDGES_DEFAULT, DEFAULT_STOPWORDS
-from plainera_unacronym.nlp.common.shared import canonicalize, strip_trailing_punct, collapse_ws
+from plainera_unacronym.nlp.common.shared import canonicalize, strip_trailing_punct_str, collapse_ws
 
 _word_re = re.compile(r"[A-Za-z0-9'’\-\/&\.]+", flags=re.UNICODE)
 _ASCII_CAMEL_RE = re.compile(
@@ -147,7 +147,7 @@ def tighten_label_by_acronym(
     s = canonicalize(raw_label)  # preserves case, normalises look-alikes
     tokens = _tokenize_preserve(s)
     if not tokens:
-        return strip_trailing_punct(collapse_ws(s))
+        return strip_trailing_punct_str(collapse_ws(s))
     # --- NEW: prefer initials-in-order for split acronyms (e.g., "C/A") ---
     # Extract alnum letters from acronym, in order.
     letters = [c for c in re.sub(r"[^A-Za-z0-9]+", "", acronym).upper()]
@@ -185,7 +185,7 @@ def tighten_label_by_acronym(
                 kept = tokens[low : high + 1]
 
             phrase = " ".join(kept)
-            phrase = strip_trailing_punct(collapse_ws(phrase))
+            phrase = strip_trailing_punct_str(collapse_ws(phrase))
 
             _SPLIT_ACR_RE = re.compile(r"[&./-]")  # treat these as “split” markers
             is_split = bool(_SPLIT_ACR_RE.search(acronym))
@@ -199,7 +199,7 @@ def tighten_label_by_acronym(
     # Legacy path: choose smallest window aligned to the acronym (ignoring stopwords).
     win = _best_window_for_acronym(tokens, acronym, stop)
     if not win:
-        out = strip_trailing_punct(collapse_ws(s))
+        out = strip_trailing_punct_str(collapse_ws(s))
         return out if keep_case else out.lower()
 
     i, j, hit_tokens = win
@@ -215,5 +215,5 @@ def tighten_label_by_acronym(
         kept = tokens[i : j + 1]
 
     phrase = " ".join(kept)
-    phrase = strip_trailing_punct(collapse_ws(phrase))
+    phrase = strip_trailing_punct_str(collapse_ws(phrase))
     return phrase if keep_case else phrase.lower()

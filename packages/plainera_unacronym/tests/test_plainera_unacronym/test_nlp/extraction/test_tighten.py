@@ -352,7 +352,7 @@ class TestTightenLabelByAcronymUnit:
             canonicalize=fake_canon,
             _tokenize_preserve=fake_tokenize,
             collapse_ws=fake_collapse,
-            strip_trailing_punct=fake_strip,
+            strip_trailing_punct_str=fake_strip,
         )
 
         out = tighten_label_by_acronym("  Foo   Bar...  ", "PDF")

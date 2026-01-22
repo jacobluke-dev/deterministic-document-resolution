@@ -5,7 +5,7 @@ from plainera_unacronym.nlp.common.constants_regex import (TITLECASE_RUN_RE,
                                                            _TITLELIKE,
                                                            _LINKERS_RE,
                                                            _DASH, _TITLE)
-from plainera_unacronym.nlp.common.shared import strip_trailing_punct, collapse_ws
+from plainera_unacronym.nlp.common.shared import strip_trailing_punct_str, collapse_ws
 
 
 _TITLE_TOKEN_RE = re.compile(rf"(?:^|\s){_TITLE}(?:$|\s)", flags=re.UNICODE)
@@ -25,7 +25,7 @@ def tighten_definition_span(s: str) -> str:
 
         # NEW: don't let a pure lowercase-hyphen tail (e.g., "sign-on") win
         if _TITLE_TOKEN_RE.search(candidate):
-            return strip_trailing_punct(collapse_ws(candidate))
+            return strip_trailing_punct_str(collapse_ws(candidate))
         # else: ignore this match and fall through
 
     # 2) Fallback: last clause, then try again for a rightmost run inside that clause
@@ -38,7 +38,7 @@ def tighten_definition_span(s: str) -> str:
     if last_tail:
         candidate = last_tail.group(1).strip()
         if _TITLE_TOKEN_RE.search(candidate):
-            return strip_trailing_punct(collapse_ws(candidate))
+            return strip_trailing_punct_str(collapse_ws(candidate))
 
     # 2a) EXTRA safety: if tail starts with a TitleCase run, keep ONLY that run
     m_head = re.match(
@@ -48,7 +48,7 @@ def tighten_definition_span(s: str) -> str:
     )
     if m_head:
         # print("m_head:", m_head)
-        return strip_trailing_punct(collapse_ws(m_head.group(0)))
+        return strip_trailing_punct_str(collapse_ws(m_head.group(0)))
     print("final return ", tail)
     # 3) Final fallback: just clean the tail
-    return strip_trailing_punct(collapse_ws(tail))
+    return strip_trailing_punct_str(collapse_ws(tail))
