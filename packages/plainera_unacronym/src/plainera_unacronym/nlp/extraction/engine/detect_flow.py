@@ -147,7 +147,6 @@ class ExtractionFlow:
         return StageResult(s, s._last_info)
 
     def _st_sentence_backref(self, s: FlowState) -> StageResult[FlowState]:
-        print("sentence_backref")
         s.backref_defs = extract_sentence_backrefs(
             text=s.text,
             firsts=s.det_res.unique_acronyms,

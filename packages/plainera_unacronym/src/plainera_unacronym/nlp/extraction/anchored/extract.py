@@ -21,7 +21,7 @@ _TOKEN_RE = re.compile(r"[A-Za-z0-9][\w’'\-]*")
 
 def _clean_definition(orig: str, *, acr_norm: str, cfg: ExtractionConfig, kind: str) -> Optional[str]:
     # Inline-only raw length gate (before tightening)
-    if kind == "inline":
+    if kind == "inline" or kind == "inline_before":
         raw = " ".join(orig.split())  # collapse whitespace
         if len(raw) > cfg.max_phrase_chars:
             return None
@@ -162,6 +162,21 @@ def extract_near_firsts(
                     if span is None:
                         continue
                     d0_local, d1_local = span
+                    if d0_local >= d1_local:
+                        continue
+
+                elif kind == "def_before_direct":
+                    d0_local, d1_local = m.span("def")
+                    if d0_local >= d1_local:
+                        continue
+
+                elif kind == "def_after_direct":
+                    d0_local, d1_local = m.span("def")
+                    if d0_local >= d1_local:
+                        continue
+
+                elif kind == "before_acr_paren":
+                    d0_local, d1_local = m.span("def")
                     if d0_local >= d1_local:
                         continue
 

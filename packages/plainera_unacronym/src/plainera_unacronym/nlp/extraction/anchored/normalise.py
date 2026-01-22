@@ -47,8 +47,6 @@ def tighten_definition_span(s: str) -> str:
         flags=re.UNICODE,
     )
     if m_head:
-        # print("m_head:", m_head)
         return strip_trailing_punct_str(collapse_ws(m_head.group(0)))
-    print("final return ", tail)
     # 3) Final fallback: just clean the tail
     return strip_trailing_punct_str(collapse_ws(tail))

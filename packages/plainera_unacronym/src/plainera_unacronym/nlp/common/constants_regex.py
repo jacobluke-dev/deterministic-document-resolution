@@ -174,3 +174,6 @@ TITLECASE_RUN_RE: Final[re.Pattern[str]] = re.compile(
     rf")\s*$",
     flags=re.UNICODE,
 )
+
+Q = r"""["'“”‘’]"""
+QUOTE = rf"(?:\s*{Q}\s*)?"

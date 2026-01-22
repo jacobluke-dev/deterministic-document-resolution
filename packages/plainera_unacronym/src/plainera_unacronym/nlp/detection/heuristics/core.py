@@ -251,21 +251,17 @@ def _accept_candidate(text: str, cfg: DetectorConfig, s: int, e: int) -> Span | 
 
     # ---- dotted gating (validate, don't mutate surface) ----
     if "." in surface:
-        print("IN HERE ?")
         # must be a clean dotted initialism like U.S or U.S.A (trailing '.' already stripped above)
         if not _DOTTED_INITIALISM_RE.fullmatch(surface):
-            print("dotted initialisation failed")
             return None
 
         letters_only = surface.replace(".", "")
         # length checks should use letters_only (same as core_len_for_bounds, but explicit here)
         if len(letters_only) < cfg.min_len or len(letters_only) > cfg.max_len:
-            print("letters only failed")
             return None
 
         # 2-letter dotted is too noisy unless whitelisted (US/UK/EU/UN etc.)
         if len(letters_only) == 2 and letters_only not in cfg.whitelist_two_letter:
-            print("double letter check")
             return None
 
         # context guards: avoid picking up section numbers / weird dotted chains
@@ -348,7 +344,6 @@ def iter_candidates_with(text: str, cfg: DetectorConfig, pat: re.Pattern[str]) -
 
     This preserves normal heuristics while avoiding obvious fragments (e.g., drop 'IFN' if 'IFN-γ' exists).
     """
-    print("TOP OF ITER CANDIDATES")
     core_hits = _collect_core_hits(text, cfg, pat)
     dom_hits = _collect_domain_hits(text, cfg)
 

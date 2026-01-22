@@ -9,6 +9,14 @@ from plainera_unacronym.nlp.execute import detect_and_extract
 from plainera_unacronym.nlp.extraction import ExtractionConfig
 
 
+def picked_def(extr, key: str):
+    """Return extracted definition for acronym key if present, else None."""
+    pick = extr.picks.get(key)
+    if pick is None:
+        return None
+    return pick.definition
+
+
 def _first_occ(text: str, acr: str, start: int, confidence: float) -> FirstOccurrence:
     return FirstOccurrence(acronym=acr, start_offset=start, end_offset=start + len(acr), confidence=confidence)
 
@@ -353,13 +361,44 @@ class TestDetectAndExtractIntegrationEdgeCases:
         assert pick is not None
         assert "Portable Document Format" in pick.definition
 
+    def test_tier_one_square_brackets_definition(self):
+        det, extr = detect_and_extract("Portable Document Format [PDF] is common.")
+        assert picked_def(extr, "PDF") in {"Portable Document Format"}
 
-def picked_def(extr, key: str):
-    """Return extracted definition for acronym key if present, else None."""
-    pick = extr.picks.get(key)
-    if pick is None:
-        return None
-    return pick.definition
+    def test_tier_one_parenthetical_quotes_around_acronym(self):
+        det, extr = detect_and_extract('Portable Document Format ("PDF") is common.')
+        assert picked_def(extr, "PDF") == "Portable Document Format"
+
+    def test_tier_one_parenthetical_tail_colon(self):
+        det, extr = detect_and_extract("Personal protective equipment (PPE: required on site) matters.")
+        assert picked_def(extr, "PPE") == "Personal protective equipment"
+
+    def test_tier_one_parenthetical_tail_dash(self):
+        det, extr = detect_and_extract("Personal protective equipment (PPE - required on site) matters.")
+        assert picked_def(extr, "PPE") == "Personal protective equipment"
+
+    def test_tier_one_multiple_occurrences_one_definition(self):
+        det, extr = detect_and_extract(
+            "Portable Document Format (PDF) is common. PDF files are everywhere."
+        )
+        assert picked_def(extr, "PDF") == "Portable Document Format"
+
+    def test_tier_one_digit_prefixed_acronym_parenthetical(self):
+        det, extr = detect_and_extract("Third Generation Partnership Project (3GPP) publishes specs.")
+        assert picked_def(extr, "3GPP") == "Third Generation Partnership Project"
+
+    def test_tier_one_mixed_digits_acronym_parenthetical(self):
+        det, extr = detect_and_extract("Hypertext Transfer Protocol 2 (HTTP2) is used.")
+        assert picked_def(extr, "HTTP2") == "Hypertext Transfer Protocol 2"
+
+    def test_tier_one_definition_before_acronym_does_not_capture_trailing_space(self):
+        det, extr = detect_and_extract("Portable Document Format, (PDF) is common.")
+        assert picked_def(extr, "PDF") == "Portable Document Format"
+
+    def test_tier_one_pick_kind_is_set_for_anchored_parenthetical(self):
+        det, extr = detect_and_extract("Portable Document Format (PDF) is common.")
+        assert extr.picks["PDF"] is not None
+        assert getattr(extr.picks["PDF"], "kind", None) in {"def_before", "def_after"}  # whatever you standardise
 
 
 class TestDetectAndExtractE2E:
@@ -471,6 +510,16 @@ class TestDetectAndExtractE2E:
         )
         assert picked_def(extr, "JWT") in {"JSON Web Tokens"}, extr.picks.get("JWT")
         assert extr.picks.get("JSON") is None, extr.picks.get("JSON")
+
+    def test_tier_one_plural_acronym_surface_normalizes_key(self):
+        det, extr = detect_and_extract("We ship PDFs (Portable Document Format) daily.")
+        assert "PDF" in det.unique_acronyms
+        assert picked_def(extr, "PDF") == "Portable Document Format"
+
+    def test_tier_one_possessive_acronym_surface_normalizes_key(self):
+        det, extr = detect_and_extract("A PDF's (Portable Document Format) header is visible.")
+        assert "PDF" in det.unique_acronyms
+        assert picked_def(extr, "PDF") == "Portable Document Format"
 
 
 class TestDetectAndExtractE2EConfigAdjustment:

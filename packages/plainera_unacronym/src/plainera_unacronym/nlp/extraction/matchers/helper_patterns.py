@@ -1,7 +1,7 @@
 import re
 from typing import Optional
 
-from plainera_unacronym.nlp.common.constants_regex import DEFAULT_STOPWORDS, BRIDGES_DEFAULT
+from plainera_unacronym.nlp.common.constants_regex import DEFAULT_STOPWORDS, BRIDGES_DEFAULT, QUOTE
 from plainera_unacronym.nlp.common.shared import normalize_definition
 from plainera_unacronym.nlp.extraction.anchored.normalise import tighten_definition_span, strip_trailing_punct_str, collapse_ws
 
@@ -18,15 +18,19 @@ class LocalDefMatch:
 
 def is_acronym_parenthetical_with_tail(snippet: str, acr: str) -> bool:
     """
-    True for: (ACR, ...), (ACR: ...), (ACR - ...)
+    True for: (ACR, ...), ("ACR": ...), ('ACR' - ...)
     False for: (Long Form), (ACR)
     """
     acr_esc = re.escape(acr)
+    Q = r"""["'“”‘’]"""
+    QUOTE = rf"(?:\s*{Q}\s*)?"
+
     return bool(re.match(
-        rf"\(\s*{acr_esc}\b\s*[,;:—–-]\s*\S",
+        rf"\(\s*{QUOTE}{acr_esc}{QUOTE}\b\s*[,;:—–-]\s*\S",
         snippet,
         flags=re.UNICODE,
     ))
+
 
 
 
@@ -327,9 +331,11 @@ def find_parenthetical_longform_before_acr(snippet: str, acr: str, cfg) -> list[
     tail = r"(?:\s*[,;:]\s*[^)]{0,120})?"  # cap the tail to stay sane
 
     m = re.search(
-        rf"(?P<pre>[^\(\)]{{1,{max_chars}}})\s*(?=\(\s*{acr_esc}{tail}\s*\)\s*$)",
+        rf"(?P<pre>[^\(\)]{{1,{max_chars}}})\s*"
+        rf"(?=\(\s*{QUOTE}{acr_esc}{QUOTE}{tail}\s*\)\s*$)",
         snippet,
     )
+
     if not m:
         return []
 
@@ -426,7 +432,6 @@ def find_parenthetical_longform_before_acr(snippet: str, acr: str, cfg) -> list[
 
     phrase = " ".join(kept_tokens)
     phrase = strip_trailing_punct_str(collapse_ws(phrase))
-    print("PHRASE:", phrase)
     if not phrase:
         return []
 
@@ -438,7 +443,6 @@ def find_parenthetical_longform_before_acr(snippet: str, acr: str, cfg) -> list[
     # 7) Normalize for display; indices stay tight
     norm = normalize_definition(phrase)
     if not norm:
-        print("NORMAL:", norm)
         return []
     raw_window = collapse_ws(snippet[ds:de])  # raw chars between ds..de (just whitespace-collapsed)
     print("PHRASE:", phrase)
@@ -460,10 +464,9 @@ def find_inline_longform_after_acr(
         return []
     max_phrase_chars = getattr(cfg, "max_phrase_chars", 200)
 
-    # --- NEW: gate the whole inline clause tail (NOT the minimal initials window) ---
+    # --- gate the whole inline clause tail (NOT the minimal initials window) ---
     tail, _ = _inline_clause_tail(snippet)
 
-    print("TAIL_LEN:", len(collapse_ws(tail)), "MAX:", max_phrase_chars, "TAIL:", collapse_ws(tail)[:120])
     if len(collapse_ws(tail[0])) > max_phrase_chars:
         return []
 

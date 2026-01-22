@@ -1,45 +1,59 @@
 import re
 
+from plainera_unacronym.nlp.common.constants_regex import QUOTE
 from plainera_unacronym.nlp.extraction import ExtractionConfig
 
 
 def compile_anchored_exact(acr: str, cfg: ExtractionConfig):
     ACR = re.escape(acr)
-    DEF = r"(?P<def>[^){}]{1,%d}?)" % cfg.max_phrase_chars
 
-    # Allow "(ACR, ...)" or "(ACR; ...)" etc, but keep the ACR group tight.
-    # Cap tail length to avoid runaway matches.
-    TAIL = r"(?:\s*[,;:]\s*[^)]{0,%d})?" % min(120, cfg.max_phrase_chars)
+    # Keep DEF "safe" for both (...) and [...]
+    DEF = rf"(?P<def>[^\)\]\{{\}}]{{1,{cfg.max_phrase_chars}}}?)"
 
-    # Definition before (ACRONYM in parens) — supports "(ACR)" and "(ACR, tail)"
-    fwd = re.compile(
-        rf"\b{DEF}\s*\(\s*(?P<acr>{ACR}){TAIL}\s*\)",
+    # Allow tails after acronym inside wrapper: (PPE, ...), (PPE - ...), [PPE: ...]
+    TAIL = rf"(?:\s*[,;:—–-]\s*[^\)\]]{{0,{min(120, cfg.max_phrase_chars)}}})?"
+
+    # --- Long Form (ACR ...) OR Long Form [ACR ...]
+    fwd_paren = re.compile(
+        rf"\b{DEF}\s*\(\s*{QUOTE}(?P<acr>{ACR}){QUOTE}{TAIL}\s*\)",
+        re.IGNORECASE | re.MULTILINE,
+    )
+    fwd_brack = re.compile(
+        rf"\b{DEF}\s*\[\s*{QUOTE}(?P<acr>{ACR}){QUOTE}{TAIL}\s*\]",
         re.IGNORECASE | re.MULTILINE,
     )
 
-    # (Long Form) ACR
-    p_before_acr = re.compile(
-        rf"\(\s*{DEF}\s*\)\s+(?P<acr>{ACR})\b",
+    # --- ACR (Long Form) OR ACR [Long Form]
+    rev_paren = re.compile(
+        rf"\b{QUOTE}(?P<acr>{ACR}){QUOTE}\b\s*\(\s*{DEF}\s*\)",
+        re.IGNORECASE | re.MULTILINE,
+    )
+    rev_brack = re.compile(
+        rf"\b{QUOTE}(?P<acr>{ACR}){QUOTE}\b\s*\[\s*{DEF}\s*\]",
         re.IGNORECASE | re.MULTILINE,
     )
 
-    # Definition after (ACRONYM (definition)) — leave as-is
-    rev = re.compile(
-        rf"\b(?P<acr>{ACR})\s*\(\s*{DEF}\s*\)",
+    # --- (Long Form) ACR OR [Long Form] ACR
+    before_acr_paren = re.compile(
+        rf"\(\s*{DEF}\s*\)\s+{QUOTE}(?P<acr>{ACR}){QUOTE}\b",
+        re.IGNORECASE | re.MULTILINE,
+    )
+    before_acr_brack = re.compile(
+        rf"\[\s*{DEF}\s*\]\s+{QUOTE}(?P<acr>{ACR}){QUOTE}\b",
         re.IGNORECASE | re.MULTILINE,
     )
 
-    #  inline: ACR ... cue ... DEF
+    # inline: ACR ... cue ... DEF
     inlines_after = [
         re.compile(rf"\b(?P<acr>{ACR})\b\s*,?\s*{cue}\s+{DEF}", re.IGNORECASE | re.MULTILINE)
         for cue in cfg.inline_cues
     ]
 
-    #  inline before: DEF ... cue ... ACR   (for "..., abbreviated as SLA,")
+    # inline before: DEF ... cue ... ACR
     inlines_before = [
         re.compile(
             rf"\b"
-            rf"(?P<def>[^){{}}]{{1,{cfg.max_phrase_chars}}}?)"
+            rf"(?P<def>[^\)\]\{{\}}]{{1,{cfg.max_phrase_chars}}}?)"
             rf"(?=\s*,?\s*{cue}\s+{ACR}\b)"
             rf"\s*,?\s*{cue}\s+(?P<acr>{ACR})\b",
             re.IGNORECASE | re.MULTILINE,
@@ -48,9 +62,12 @@ def compile_anchored_exact(acr: str, cfg: ExtractionConfig):
     ]
 
     return (
-        (fwd, cfg.conf_parenthetical, "def_before"),
-        (rev, cfg.conf_parenthetical, "def_after"),
-        (p_before_acr, cfg.conf_parenthetical, "paren_before_acr"),
+        (fwd_paren, cfg.conf_parenthetical, "def_before"),
+        (fwd_brack, cfg.conf_parenthetical, "def_before_direct"),
+        (rev_paren, cfg.conf_parenthetical, "def_after"),
+        (rev_brack, cfg.conf_parenthetical, "def_after_direct"),
+        (before_acr_paren, cfg.conf_parenthetical, "before_acr_paren"),
+        (before_acr_brack, cfg.conf_parenthetical, "paren_before_acr"),
         *[(p, cfg.conf_inline, "inline") for p in inlines_after],
         *[(p, cfg.conf_inline, "inline_before") for p in inlines_before],
     )

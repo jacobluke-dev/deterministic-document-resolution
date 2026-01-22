@@ -241,7 +241,6 @@ class Detector:
         )
 
         for surface, s, e in iter_candidates_with(text, cfg, self._pat):
-            print("surface:", surface)
             total += 1
 
             if blacklist_context_drop(surface, text, s, e, cfg):
