@@ -112,6 +112,7 @@ class ExtractedDefinition:
     def_start: int
     def_end: int
     original_definition: str
+    kind: str = "unknown"
 
 
 @dataclass(frozen=True, slots=True)
@@ -121,6 +122,7 @@ class InTextPick:
     def_span: tuple[int, int]
     confidence: float
     original_definition: str
+    kind: str = "unknown"
 
 
 @dataclass(frozen=True, slots=True)

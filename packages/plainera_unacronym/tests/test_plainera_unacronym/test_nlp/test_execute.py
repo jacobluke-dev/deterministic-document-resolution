@@ -441,7 +441,6 @@ class TestDetectAndExtractE2E:
                                                  "Personal protective equipment"}, extr.picks.get("PPE")
 
     def test_tier_one_reverse_parenthetical_longform_before_acronym_if_supported(self):
-        # If you do not support "(Long Form) ACR", change expectation to `is None`.
         det, extr = detect_and_extract("(Portable Document Format) PDF is common.")
         assert picked_def(extr, "PDF") in {"Portable Document Format"}, extr.picks.get("PDF")
 
@@ -536,7 +535,7 @@ class TestDetectAndExtractE2EConfigAdjustment:
             "The U.S.A, as referenced here, is important.",
             det_cfg=DetectorConfig(enable_dotted=True, dotted_display="preserve"),
         )
-        assert "U.S.A." in det.unique_acronyms, det.unique_acronyms
+        assert "U.S.A" in det.unique_acronyms, det.unique_acronyms
         assert det.unique_acronyms["U.S.A"].normalized_key == "U.S.A"
 
     def test_tier_one_dotted_initialism_outside_parentheses_followed_by_closing_paren_detects(self):
@@ -554,7 +553,7 @@ class TestDetectAndExtractE2EConfigAdjustment:
         )
         # Whitelisted two-letter dotted should be permitted.
         assert "UK" in det.unique_acronyms, det.unique_acronyms
-        assert det.unique_acronyms["UK"].acronym == "U.K."
+        assert det.unique_acronyms["UK"].acronym == "U.K"
         assert det.unique_acronyms["UK"].normalized_key == "UK"
 
 

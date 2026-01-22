@@ -17,6 +17,12 @@ def compile_anchored_exact(acr: str, cfg: ExtractionConfig):
         re.IGNORECASE | re.MULTILINE,
     )
 
+    # (Long Form) ACR
+    p_before_acr = re.compile(
+        rf"\(\s*{DEF}\s*\)\s+(?P<acr>{ACR})\b",
+        re.IGNORECASE | re.MULTILINE,
+    )
+
     # Definition after (ACRONYM (definition)) — leave as-is
     rev = re.compile(
         rf"\b(?P<acr>{ACR})\s*\(\s*{DEF}\s*\)",
@@ -44,6 +50,7 @@ def compile_anchored_exact(acr: str, cfg: ExtractionConfig):
     return (
         (fwd, cfg.conf_parenthetical, "def_before"),
         (rev, cfg.conf_parenthetical, "def_after"),
+        (p_before_acr, cfg.conf_parenthetical, "paren_before_acr"),
         *[(p, cfg.conf_inline, "inline") for p in inlines_after],
         *[(p, cfg.conf_inline, "inline_before") for p in inlines_before],
     )

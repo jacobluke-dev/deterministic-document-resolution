@@ -141,6 +141,7 @@ def extract_near_firsts(
         best: Optional[ExtractedDefinition] = None
 
         for pat, base_conf, kind in compile_anchored_exact(acr_norm, cfg):
+
             for m in pat.finditer(seg):
                 a0_local, a1_local = m.span("acr")
                 # Require exact alignment with the known FO span
@@ -161,6 +162,11 @@ def extract_near_firsts(
                     if span is None:
                         continue
                     d0_local, d1_local = span
+                    if d0_local >= d1_local:
+                        continue
+
+                elif kind == "paren_before_acr":
+                    d0_local, d1_local = m.span("def")
                     if d0_local >= d1_local:
                         continue
 
@@ -208,6 +214,7 @@ def extract_near_firsts(
                     def_start=d0_local + left,
                     def_end=d1_local + left,
                     original_definition=orig,
+                    kind=kind,
                 )
 
                 best = _pick_better(best, cand)
@@ -221,6 +228,7 @@ def extract_near_firsts(
                 def_span=(best.def_start, best.def_end),
                 confidence=best.confidence,
                 original_definition=best.original_definition,
+                kind=best.kind or "unknown"
             )
         )
     return picks
