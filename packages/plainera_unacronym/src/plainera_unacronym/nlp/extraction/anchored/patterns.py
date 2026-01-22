@@ -1,10 +1,12 @@
 import re
 from plainera_unacronym.nlp.extraction import ExtractionConfig
-from plainera_unacronym.nlp.common.constants_regex import QUOTE
+from plainera_unacronym.nlp.common.constants_regex import QUOTE as QUOTE_RE
 
 
 def compile_anchored_exact(acr: str, cfg: ExtractionConfig):
     ACR = re.escape(acr)
+
+    DOT = r"(?:\.)?"
 
     # Safe for (...) and [...]
     DEF = rf"(?P<def>[^\)\]\{{\}}]{{1,{cfg.max_phrase_chars}}}?)"
@@ -14,31 +16,31 @@ def compile_anchored_exact(acr: str, cfg: ExtractionConfig):
 
     # Long Form (ACR...)  / Long Form [ACR...]
     fwd_paren = re.compile(
-        rf"\b{DEF}\s*\(\s*{QUOTE}(?P<acr>{ACR}){QUOTE}{TAIL}\s*\)",
+        rf"\b{DEF}\s*\(\s*{QUOTE_RE}(?P<acr>{ACR}){DOT}{QUOTE_RE}{TAIL}\s*\)",
         re.IGNORECASE | re.MULTILINE,
     )
     fwd_brack = re.compile(
-        rf"\b{DEF}\s*\[\s*{QUOTE}(?P<acr>{ACR}){QUOTE}{TAIL}\s*\]",
+        rf"\b{DEF}\s*\[\s*{QUOTE_RE}(?P<acr>{ACR}){DOT}{QUOTE_RE}{TAIL}\s*\]",
         re.IGNORECASE | re.MULTILINE,
     )
 
     # ACR (Long Form) / ACR [Long Form]
     rev_paren = re.compile(
-        rf"\b{QUOTE}(?P<acr>{ACR}){QUOTE}\b\s*\(\s*{DEF}\s*\)",
+        rf"\b{QUOTE_RE}(?P<acr>{ACR}){DOT}{QUOTE_RE}\b\s*\(\s*{DEF}\s*\)",
         re.IGNORECASE | re.MULTILINE,
     )
     rev_brack = re.compile(
-        rf"\b{QUOTE}(?P<acr>{ACR}){QUOTE}\b\s*\[\s*{DEF}\s*\]",
+        rf"\b{QUOTE_RE}(?P<acr>{ACR}){DOT}{QUOTE_RE}\b\s*\[\s*{DEF}\s*\]",
         re.IGNORECASE | re.MULTILINE,
     )
 
     # (Long Form) ACR / [Long Form] ACR
     before_acr_paren = re.compile(
-        rf"\(\s*{DEF}\s*\)\s+{QUOTE}(?P<acr>{ACR}){QUOTE}\b",
+        rf"\(\s*{DEF}\s*\)\s+{QUOTE_RE}(?P<acr>{ACR}){DOT}{QUOTE_RE}\b",
         re.IGNORECASE | re.MULTILINE,
     )
     before_acr_brack = re.compile(
-        rf"\[\s*{DEF}\s*\]\s+{QUOTE}(?P<acr>{ACR}){QUOTE}\b",
+        rf"\[\s*{DEF}\s*\]\s+{QUOTE_RE}(?P<acr>{ACR}){DOT}{QUOTE_RE}\b",
         re.IGNORECASE | re.MULTILINE,
     )
 

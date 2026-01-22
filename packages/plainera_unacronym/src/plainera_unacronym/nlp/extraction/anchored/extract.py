@@ -7,6 +7,7 @@ from plainera_unacronym.nlp.common.types import InTextPick, ExtractedDefinition
 from plainera_unacronym.nlp.extraction import ExtractionConfig
 from plainera_unacronym.nlp.extraction.anchored.normalise import tighten_definition_span
 from plainera_unacronym.nlp.extraction.anchored.patterns import compile_anchored_exact
+from plainera_unacronym.nlp.extraction.core.collect import initials_match
 from plainera_unacronym.nlp.extraction.matchers.helper_patterns import (find_parenthetical_longform_after_acr,
                                                                         find_parenthetical_longform_before_acr,
                                                                         find_inline_longform_after_acr)
@@ -93,7 +94,7 @@ def _calc_def_span(kind: str, *, acr_norm: str, seg: str, acr_end_local: int = N
     if kind == "def_before":
         assert m is not None
 
-        # If acronym is quoted inside wrapper: ("PDF") / ('PDF') / (“PDF”)
+        # 1) quotes around acronym inside wrapper: ("PDF") / ('PDF') / (“PDF”)
         q_before = m.start("acr") - 1
         q_after = m.end("acr")
         has_quotes = (
@@ -101,16 +102,27 @@ def _calc_def_span(kind: str, *, acr_norm: str, seg: str, acr_end_local: int = N
             (0 <= q_after < len(seg) and seg[q_after] in _QUOTE_CHARS)
         )
 
-        # If wrapper contains explicit tail punctuation after acronym: (PPE - ...), (PPE, ...), etc.
+        # 2) explicit tail punctuation after acronym: (PPE - ...), (PPE, ...), etc.
         tail_slice = seg[m.end("acr"): m.end()]
         has_tail = any(ch in _TAIL_PUNCT for ch in tail_slice)
 
-        # In both cases, do NOT use the helper; just take the already-captured def group.
-        if has_quotes or has_tail:
-            d0, d1 = _trim_span(seg, *m.span("def"))
-            return (d0, d1) if d0 < d1 else None
+        # 3) dotted acronym with terminal dot inside wrapper: (U.S.A.)
+        #    Your regex consumes this via DOT, but the helper often can't.
+        post = m.end("acr")
+        has_wrapper_dot = (post < len(seg) and seg[post] == ".")
 
-        # Plain case: "Long Form (ACR)" — keep your existing helper behaviour
+        # If any complexity, bypass helper and use captured def span,
+        # BUT require initials alignment to avoid the SLA false-positive.
+        if has_quotes or has_tail or has_wrapper_dot:
+            d0, d1 = _trim_span(seg, *m.span("def"))
+            if d0 >= d1:
+                return None
+            phrase = seg[d0:d1]
+            if not initials_match(acr_norm, phrase):
+                return None
+            return d0, d1
+
+        # Plain case: "Long Form (ACR)" — keep helper behaviour
         snippet = seg[: m.end()]
         mm = find_parenthetical_longform_before_acr(snippet, acr_norm, cfg)
         if not mm:
@@ -154,7 +166,8 @@ def extract_near_firsts(
     picks: dict[str, Optional[InTextPick]] = {}
 
     for key, fo in firsts.items():
-        acr_norm = key or fo.acronym.upper()
+        acr_key = key or fo.acronym.upper()  # dict key / sense key
+        acr_surface = fo.acronym  # what actually appears in text window
 
         left, right, seg = _build_local_window(text, fo, window_left, window_right)
 
@@ -162,17 +175,28 @@ def extract_near_firsts(
 
         best: Optional[ExtractedDefinition] = None
 
-        for pat, base_conf, kind in compile_anchored_exact(acr_norm, cfg):
+        for pat, base_conf, kind in compile_anchored_exact(acr_surface, cfg):
 
             for m in pat.finditer(seg):
                 a0_local, a1_local = m.span("acr")
-                # Require exact alignment with the known FO span
-                if a0_local != fo_a0_local or a1_local != fo_a1_local:
-                    continue
 
+                # Require exact alignment with the known FO span.
+                # BUT: in dotted_display="preserve", detector may extend FO to include a trailing '.' (U.S.A.)
+                if a0_local != fo_a0_local or a1_local != fo_a1_local:
+                    # Allow regex to capture without the trailing dot while FO includes it.
+                    if (
+                        a0_local == fo_a0_local
+                        and a1_local + 1 == fo_a1_local
+                        and 0 <= fo_a1_local - 1 < len(seg)
+                        and seg[fo_a1_local - 1] == "."
+                    ):
+                        # Treat acronym end as the FO end (include the dot) so spans match detector occurrences.
+                        a1_local = fo_a1_local
+                    else:
+                        continue
 
                 if kind == "def_after":
-                    span = _calc_def_span('def_after', acr_norm=acr_norm, seg=seg, acr_end_local=a1_local, cfg=cfg)
+                    span = _calc_def_span(kind, acr_norm=acr_key, seg=seg, acr_end_local=a1_local, cfg=cfg)
                     if span is None:
                         continue
                     d0_local, d1_local = span
@@ -180,7 +204,7 @@ def extract_near_firsts(
                         continue
 
                 elif kind == "def_before":
-                    span = _calc_def_span('def_before', acr_norm=acr_norm, seg=seg, m=m, cfg=cfg)
+                    span = _calc_def_span(kind, acr_norm=acr_key, seg=seg, m=m, cfg=cfg)
                     if span is None:
                         continue
                     d0_local, d1_local = span
@@ -214,7 +238,7 @@ def extract_near_firsts(
 
                 else:  # "inline" → look-ahead initials alignment (no parentheses)
 
-                    span = _calc_def_span('inline', acr_norm=acr_norm, seg=seg, acr_end_local=a1_local, cfg=cfg)
+                    span = _calc_def_span('inline', acr_norm=acr_key, seg=seg, acr_end_local=a1_local, cfg=cfg)
                     if span is None:
                         continue
                     d0_local, d1_local = span
@@ -229,7 +253,7 @@ def extract_near_firsts(
                     if len(raw) > cfg.max_phrase_chars:
                         continue
 
-                clean = _clean_definition(orig, acr_norm=acr_norm, cfg=cfg, kind=kind)
+                clean = _clean_definition(orig, acr_norm=acr_key, cfg=cfg, kind=kind)
 
                 if cfg.require_two_words and kind in {"inline", "inline_before"}:
                     if len(_TOKEN_RE.findall(clean)) < 2:
@@ -242,7 +266,7 @@ def extract_near_firsts(
                 conf = _anchored_confidence(base_conf=base_conf, dist=dist)
 
                 cand = ExtractedDefinition(
-                    acronym=acr_norm,
+                    acronym=acr_key,
                     definition=clean,
                     source="in_text",
                     confidence=conf,
