@@ -141,10 +141,10 @@ class ExtractionFlow:
         s._last_info = f"harvested={len(s.harvested_defs)}"
         return StageResult(s, s._last_info)
 
-    def _st_global(self, s: FlowState) -> StageResult[FlowState]:
-        s.global_defs = extract_pipeline_iter(s.text, s.det_cfg, s.ext_cfg, plan=None)
-        s._last_info = f"global={len(s.global_defs)}"
-        return StageResult(s, s._last_info)
+    # def _st_global(self, s: FlowState) -> StageResult[FlowState]:
+    #     s.global_defs = extract_pipeline_iter(s.text, s.det_cfg, s.ext_cfg, plan=None)
+    #     s._last_info = f"global={len(s.global_defs)}"
+    #     return StageResult(s, s._last_info)
 
     def _st_sentence_backref(self, s: FlowState) -> StageResult[FlowState]:
         s.backref_defs = extract_sentence_backrefs(
@@ -172,7 +172,7 @@ class ExtractionFlow:
                                             defs=s.all_defs)
             for k in missing:
                 s.picks[k] = s.picks[k] or fills.get(k)
-        s.strategy = "anchored+harvest" if not missing else "anchored+harvest+global-pipeline"
+        s.strategy = "anchored+harvest"
         s.coverage = (len(s.picks) - sum(1 for v in s.picks.values() if v is None)) / max(1, len(s.picks))
         s.missing_keys = tuple(sorted(k for k, v in s.picks.items() if v is None))
         s._last_info = f"{s.strategy} coverage={s.coverage:.2%} missing={len(s.missing_keys)}"
@@ -222,10 +222,10 @@ class ExtractionFlow:
                   self._st_harvest,
                   lambda s: f"{len(s.harvested_defs)}",
                   trace_fields=("harvested_defs",)),
-            Stage("global_pipeline",
-                  self._st_global,
-                  lambda s: f"{len(s.global_defs)}",
-                  trace_fields=("global_defs",)),
+            # Stage("global_pipeline",
+            #       self._st_global,
+            #       lambda s: f"{len(s.global_defs)}",
+            #       trace_fields=("global_defs",)),
             Stage("sentence_backref",
                   self._st_sentence_backref,
                   lambda s: f"{len(s.backref_defs)}",
