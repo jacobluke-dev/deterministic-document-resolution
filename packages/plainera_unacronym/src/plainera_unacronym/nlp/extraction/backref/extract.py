@@ -89,20 +89,11 @@ def _find_span_index(spans: list[tuple[int, int]], pos: int) -> int | None:
     return None
 
 
-def extract_sentence_backrefs(
-    *,
-    text: str,
-    firsts: Mapping[str, FirstOccurrence],
-    cfg: ExtractionConfig,
-) -> list[ExtractedDefinition]:
-    """
-    Extract definitions where the long-form appears in a previous sentence, and the acronym
-    appears in the next sentence (e.g., "JSON Web Tokens. JWT is issued ...").
-
-    Returns ExtractedDefinition items (like other extractors) so Flow can merge/dedupe/gapfill.
-    """
+def extract_sentence_backrefs(*, text: str, firsts: Mapping[str, FirstOccurrence], cfg: ExtractionConfig) -> list[ExtractedDefinition]:
     max_chars = getattr(cfg, "max_phrase_chars", 200)
     require_two_words = getattr(cfg, "require_two_words", False)
+
+    sent_lookback = getattr(cfg, "sentence_backref_lookback", 2)
 
     spans = _sent_spans(text)
     if not spans:
@@ -113,71 +104,72 @@ def extract_sentence_backrefs(
     for key, fo in firsts.items():
         acr = (key or fo.acronym).upper()
 
-        # Locate which sentence contains the acronym first occurrence
         si = _find_span_index(spans, fo.start_offset)
         if si is None or si == 0:
             continue
 
-        prev_s, prev_e = spans[si - 1]
-        prev_raw = text[prev_s:prev_e].strip()
-        if not prev_raw:
+        best_cand: str | None = None
+        best_prev_span: tuple[int, int] | None = None
+
+        # NEW: try sentence si-1, si-2, ... up to sent_lookback
+        for back in range(1, min(sent_lookback, si) + 1):
+            prev_s, prev_e = spans[si - back]
+            prev_raw = text[prev_s:prev_e].strip()
+            if not prev_raw:
+                continue
+
+            prev_collapsed = collapse_ws(prev_raw)
+            if len(prev_collapsed) > max_chars * 3:
+                continue
+
+            sent = prev_collapsed.rstrip(" \t\r\n.?!…;:")
+
+            cand = _best_span_by_initials(acr, sent, max_chars=max_chars)
+            if not cand:
+                continue
+
+            cand = tighten_label_by_acronym(
+                cand,
+                acr,
+                stopwords=set(getattr(cfg, "stop", ())),
+                bridges=set(getattr(cfg, "bridges", ())),
+            )
+            cand = normalize_definition(cand)
+
+            if not cand or not has_letters(cand):
+                continue
+            if cand.replace(" ", "").upper() == acr.replace(" ", ""):
+                continue
+            if len(cand) > max_chars:
+                continue
+            if require_two_words and len(_TOKEN_RE.findall(cand)) < 2:
+                continue
+            if not initials_match(acr, cand):
+                continue
+
+            # first valid match wins because we’re scanning nearest-first
+            best_cand = cand
+            best_prev_span = (prev_s, prev_e)
+            break
+
+        if not best_cand or not best_prev_span:
             continue
 
-        # Gate: don't even try if the previous sentence is absurdly long
-        prev_collapsed = collapse_ws(prev_raw)
-        if len(prev_collapsed) > max_chars * 3:
-            continue
-
-        # Remove trailing punctuation for matching stability
-        sent = prev_collapsed.rstrip(" \t\r\n.?!…;:")
-
-        # Find best matching phrase inside the sentence by acronym initials
-        cand = _best_span_by_initials(acr, sent, max_chars=max_chars)
-        if not cand:
-            continue
-
-        # Now run your standard tightening/normalisation (safe on a short span)
-        cand = tighten_label_by_acronym(
-            cand,
-            acr,
-            stopwords=set(getattr(cfg, "stop", ())),
-            bridges=set(getattr(cfg, "bridges", ())),
-        )
-        cand = normalize_definition(cand)
-
-        if not cand or not has_letters(cand):
-            continue
-
-        # Reject if it collapses to the acronym itself
-        if cand.replace(" ", "").upper() == acr.replace(" ", ""):
-            continue
-
-        if len(cand) > max_chars:
-            continue
-
-        if require_two_words and len(_TOKEN_RE.findall(cand)) < 2:
-            continue
-
-        # Validation: must actually match the acronym
-        if not initials_match(acr, cand):
-            continue
-
-        # We don’t have a tight sub-span of the “cand” inside prev sentence (yet),
-        # so start with the whole previous sentence span for def_start/def_end.
-        # (You can tighten later by searching for cand within prev_raw.)
-        def_start, def_end = prev_s, prev_e
+        prev_s, prev_e = best_prev_span
 
         out.append(
             ExtractedDefinition(
                 acronym=acr,
-                definition=cand,
-                source="in_text",
-                confidence=0.50,  # advisory; you can tune later
+                definition=best_cand,
+                source="backref",
+                confidence=0.50,
                 acr_start=fo.start_offset,
                 acr_end=fo.end_offset,
-                def_start=def_start,
-                def_end=def_end,
-                original_definition=prev_raw,
+                def_start=prev_s,
+                def_end=prev_e,
+                original_definition=text[prev_s:prev_e].strip(),
+                kind="sentence_backref",
             )
         )
+
     return out

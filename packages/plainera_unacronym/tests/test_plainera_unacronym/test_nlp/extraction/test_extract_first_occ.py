@@ -45,7 +45,7 @@ class TestCompileAnchoredExact:
         n_cues = len(cfg.inline_cues)
 
         expected = (
-            2  # fwd + rev
+            3  # fwd + rev + backref
             + n_cues  # inlines_after
             + n_cues  # inlines_before
         )
@@ -57,7 +57,7 @@ class TestCompileAnchoredExact:
             assert (pat.flags & re.IGNORECASE) == re.IGNORECASE
             assert (pat.flags & re.MULTILINE) == re.MULTILINE
             assert isinstance(conf, float)
-            assert label in {"def_before", "def_after", "inline", "inline_before"}
+            assert label in {"paren_before_acr","def_before", "def_after", "inline", "inline_before"}
 
     def test_parenthetical_fwd_and_rev_match(self):
         cfg = _cfg()
