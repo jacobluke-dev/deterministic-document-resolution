@@ -9,15 +9,15 @@ from plainera_unacronym.nlp.extraction.anchored.normalise import tighten_definit
 from plainera_unacronym.nlp.extraction.anchored.patterns import compile_anchored_exact
 from plainera_unacronym.nlp.extraction.matchers.helper_patterns import (find_parenthetical_longform_after_acr,
                                                                         find_parenthetical_longform_before_acr,
-                                                                        find_inline_longform_after_acr,
-                                                                        is_acronym_parenthetical_with_tail)
+                                                                        find_inline_longform_after_acr)
 from plainera_unacronym.nlp.extraction.matchers.tighten import tighten_label_by_acronym
 
 Span = tuple[int, int]
 OptSpan = Optional[Span]
 
 _TOKEN_RE = re.compile(r"[A-Za-z0-9][\w’'\-]*")
-
+_QUOTE_CHARS = set("\"'“”‘’")
+_TAIL_PUNCT = set(",;:—–-")
 
 def _clean_definition(orig: str, *, acr_norm: str, cfg: ExtractionConfig, kind: str) -> Optional[str]:
     # Inline-only raw length gate (before tightening)
@@ -71,7 +71,14 @@ def _span_of_pre_definition(seg: str, paren_start: int) -> tuple[int, int] | Non
     return 0, end
 
 
-_TAIL_PUNCT = set(",;:—–-")
+
+def _trim_span(seg: str, d0: int, d1: int) -> tuple[int, int]:
+    while d0 < d1 and seg[d0].isspace():
+        d0 += 1
+    while d1 > d0 and seg[d1 - 1].isspace():
+        d1 -= 1
+    return d0, d1
+
 
 def _calc_def_span(kind: str, *, acr_norm: str, seg: str, acr_end_local: int = None,
                    m: re.Match[str] = None, cfg: ExtractionConfig) -> OptSpan:
@@ -84,21 +91,26 @@ def _calc_def_span(kind: str, *, acr_norm: str, seg: str, acr_end_local: int = N
         return acr_end_local + loc.def_start, acr_end_local + loc.def_end
 
     if kind == "def_before":
-        # If the wrapper contains a "tail" after the acronym (comma/colon/dash etc),
-        # do NOT try to parse the parenthetical; just take the already-captured def span.
-        # Example: "Personal protective equipment (PPE - required on site)"
-        if m is not None:
-            tail_slice = seg[m.end("acr"): m.end()]
-            if any(ch in _TAIL_PUNCT for ch in tail_slice):
-                d0, d1 = m.span("def")
-                # trim whitespace at ends, but keep indices sane
-                while d0 < d1 and seg[d0].isspace():
-                    d0 += 1
-                while d1 > d0 and seg[d1 - 1].isspace():
-                    d1 -= 1
-                return d0, d1
+        assert m is not None
 
-        # Existing behaviour: "Long Form ... (ACR)" anchored
+        # If acronym is quoted inside wrapper: ("PDF") / ('PDF') / (“PDF”)
+        q_before = m.start("acr") - 1
+        q_after = m.end("acr")
+        has_quotes = (
+            (0 <= q_before < len(seg) and seg[q_before] in _QUOTE_CHARS) or
+            (0 <= q_after < len(seg) and seg[q_after] in _QUOTE_CHARS)
+        )
+
+        # If wrapper contains explicit tail punctuation after acronym: (PPE - ...), (PPE, ...), etc.
+        tail_slice = seg[m.end("acr"): m.end()]
+        has_tail = any(ch in _TAIL_PUNCT for ch in tail_slice)
+
+        # In both cases, do NOT use the helper; just take the already-captured def group.
+        if has_quotes or has_tail:
+            d0, d1 = _trim_span(seg, *m.span("def"))
+            return (d0, d1) if d0 < d1 else None
+
+        # Plain case: "Long Form (ACR)" — keep your existing helper behaviour
         snippet = seg[: m.end()]
         mm = find_parenthetical_longform_before_acr(snippet, acr_norm, cfg)
         if not mm:
