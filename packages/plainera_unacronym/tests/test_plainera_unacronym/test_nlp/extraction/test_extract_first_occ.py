@@ -2,7 +2,6 @@ import re
 import pytest
 from types import SimpleNamespace as NS
 
-
 import plainera_unacronym.nlp.extraction.anchored.patterns as mod
 import plainera_unacronym.nlp.extraction.anchored.extract as ext
 
@@ -45,7 +44,7 @@ class TestCompileAnchoredExact:
         n_cues = len(cfg.inline_cues)
 
         expected = (
-            3  # fwd + rev + backref
+            6  # b4 + dir etc + fwd + rev + backref
             + n_cues  # inlines_after
             + n_cues  # inlines_before
         )
@@ -57,7 +56,8 @@ class TestCompileAnchoredExact:
             assert (pat.flags & re.IGNORECASE) == re.IGNORECASE
             assert (pat.flags & re.MULTILINE) == re.MULTILINE
             assert isinstance(conf, float)
-            assert label in {"paren_before_acr","def_before", "def_after", "inline", "inline_before"}
+            assert label in {"before_acr_paren", "def_after_direct", "def_before_direct", "paren_before_acr",
+                             "def_before", "def_after", "inline", "inline_before"}
 
     def test_parenthetical_fwd_and_rev_match(self):
         cfg = _cfg()
@@ -187,7 +187,6 @@ def _fo(text: str, acr: str, idx: int):
     return NS(acronym=acr, start_offset=idx, end_offset=idx + len(acr))
 
 
-
 class TestExtractNearFirstsUnit:
     def test_forward_parenthetical_exact_alignment(self, monkeypatch):
         text = "Intro. Portable Document Format (PDF) is common."
@@ -307,6 +306,7 @@ class TestExtractNearFirstsUnit:
         assert out["C/A"].original_definition == "Cost per Acquisition"
         assert out["C/A"].acr_span == (a0, a0 + 3)
         assert 0 < out["C/A"].confidence <= 0.99
+
 
 def _cfg_near_firsts_integrated(**overrides):
     # Realistic default config (only fields used here matter)

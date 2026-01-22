@@ -1,19 +1,18 @@
 import re
-
-from plainera_unacronym.nlp.common.constants_regex import QUOTE
 from plainera_unacronym.nlp.extraction import ExtractionConfig
+from plainera_unacronym.nlp.common.constants_regex import QUOTE
 
 
 def compile_anchored_exact(acr: str, cfg: ExtractionConfig):
     ACR = re.escape(acr)
 
-    # Keep DEF "safe" for both (...) and [...]
+    # Safe for (...) and [...]
     DEF = rf"(?P<def>[^\)\]\{{\}}]{{1,{cfg.max_phrase_chars}}}?)"
 
     # Allow tails after acronym inside wrapper: (PPE, ...), (PPE - ...), [PPE: ...]
     TAIL = rf"(?:\s*[,;:—–-]\s*[^\)\]]{{0,{min(120, cfg.max_phrase_chars)}}})?"
 
-    # --- Long Form (ACR ...) OR Long Form [ACR ...]
+    # Long Form (ACR...)  / Long Form [ACR...]
     fwd_paren = re.compile(
         rf"\b{DEF}\s*\(\s*{QUOTE}(?P<acr>{ACR}){QUOTE}{TAIL}\s*\)",
         re.IGNORECASE | re.MULTILINE,
@@ -23,7 +22,7 @@ def compile_anchored_exact(acr: str, cfg: ExtractionConfig):
         re.IGNORECASE | re.MULTILINE,
     )
 
-    # --- ACR (Long Form) OR ACR [Long Form]
+    # ACR (Long Form) / ACR [Long Form]
     rev_paren = re.compile(
         rf"\b{QUOTE}(?P<acr>{ACR}){QUOTE}\b\s*\(\s*{DEF}\s*\)",
         re.IGNORECASE | re.MULTILINE,
@@ -33,7 +32,7 @@ def compile_anchored_exact(acr: str, cfg: ExtractionConfig):
         re.IGNORECASE | re.MULTILINE,
     )
 
-    # --- (Long Form) ACR OR [Long Form] ACR
+    # (Long Form) ACR / [Long Form] ACR
     before_acr_paren = re.compile(
         rf"\(\s*{DEF}\s*\)\s+{QUOTE}(?P<acr>{ACR}){QUOTE}\b",
         re.IGNORECASE | re.MULTILINE,
@@ -43,7 +42,6 @@ def compile_anchored_exact(acr: str, cfg: ExtractionConfig):
         re.IGNORECASE | re.MULTILINE,
     )
 
-    # inline: ACR ... cue ... DEF
     inlines_after = [
         re.compile(rf"\b(?P<acr>{ACR})\b\s*,?\s*{cue}\s+{DEF}", re.IGNORECASE | re.MULTILINE)
         for cue in cfg.inline_cues

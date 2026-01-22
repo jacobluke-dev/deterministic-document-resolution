@@ -71,9 +71,10 @@ def _span_of_pre_definition(seg: str, paren_start: int) -> tuple[int, int] | Non
     return 0, end
 
 
-def _calc_def_span(kind: str, *, acr_norm: str, seg: str, acr_end_local: int = None, m: re.Match[str] = None,
-                   cfg: ExtractionConfig,
-                   ) -> OptSpan:
+_TAIL_PUNCT = set(",;:—–-")
+
+def _calc_def_span(kind: str, *, acr_norm: str, seg: str, acr_end_local: int = None,
+                   m: re.Match[str] = None, cfg: ExtractionConfig) -> OptSpan:
     if kind == "def_after":
         snippet = seg[acr_end_local:]
         mm = find_parenthetical_longform_after_acr(snippet, cfg, acr=acr_norm, require_initials_match=True)
@@ -83,9 +84,19 @@ def _calc_def_span(kind: str, *, acr_norm: str, seg: str, acr_end_local: int = N
         return acr_end_local + loc.def_start, acr_end_local + loc.def_end
 
     if kind == "def_before":
-        # NEW: detect "(ACR, ...)" and treat definition as BEFORE '('
-        if is_acronym_parenthetical_with_tail(seg[m.start():], acr_norm):
-            return _span_of_pre_definition(seg, m.start())
+        # If the wrapper contains a "tail" after the acronym (comma/colon/dash etc),
+        # do NOT try to parse the parenthetical; just take the already-captured def span.
+        # Example: "Personal protective equipment (PPE - required on site)"
+        if m is not None:
+            tail_slice = seg[m.end("acr"): m.end()]
+            if any(ch in _TAIL_PUNCT for ch in tail_slice):
+                d0, d1 = m.span("def")
+                # trim whitespace at ends, but keep indices sane
+                while d0 < d1 and seg[d0].isspace():
+                    d0 += 1
+                while d1 > d0 and seg[d1 - 1].isspace():
+                    d1 -= 1
+                return d0, d1
 
         # Existing behaviour: "Long Form ... (ACR)" anchored
         snippet = seg[: m.end()]
@@ -104,7 +115,6 @@ def _calc_def_span(kind: str, *, acr_norm: str, seg: str, acr_end_local: int = N
         return None
     loc = mm[0]
     return acr_end_local + loc.def_start, acr_end_local + loc.def_end
-
 
 def _pick_better(best: Optional[ExtractedDefinition], cand: ExtractedDefinition) -> ExtractedDefinition:
     if best is None:

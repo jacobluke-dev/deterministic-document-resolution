@@ -101,7 +101,7 @@ _LINKERS_RE: Final[str] = "(?:" + "|".join(sorted(re.escape(w) for w in WORDS_FU
 # -----------------------------
 
 # Dashes (ascii + en/em)
-_DASH: Final[str] = r"[–—-]"
+_DASH: Final[str] = r"[–—-—–-]"
 
 # punctuation / clause boundaries used for splitting
 BOUNDARY_RE: Final[re.Pattern[str]] = re.compile(rf"[\.!?;:,—–-]\s+")
