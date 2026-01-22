@@ -177,3 +177,10 @@ TITLECASE_RUN_RE: Final[re.Pattern[str]] = re.compile(
 
 Q = r"""["'“”‘’]"""
 QUOTE = rf"(?:\s*{Q}\s*)?"
+
+INLINE_CUE_FRAGMENTS: Final[tuple[str, ...]] = (
+    r"short\s+for",
+    r"stands?\s+for",
+    r"is\s+(?:an\s+)?acronym\s+for",
+    r"abbreviated\s+as",
+)

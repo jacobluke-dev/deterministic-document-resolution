@@ -30,6 +30,7 @@ from .heuristics.core import (
     threshold_len,
 )
 from .heuristics.general import strip_terminal_plural
+from .heuristics.inline_cues import boost_confidence_if_inline_cue
 from .nlp_helpers import _cfg_fingerprint, top_n_values
 
 DEFAULT_CONFIG = DetectorConfig()
@@ -256,6 +257,7 @@ class Detector:
 
             # 3) optional boost for allow-listed 2-letter acronyms (boost the SCORE, not the threshold)
             conf = boost_confidence_if_whitelisted(surface, conf, cfg)  # returns min(conf+boost, 0.99)
+            conf = boost_confidence_if_inline_cue(surface, text, e, conf)
 
             # 4) gate
             if conf < th:

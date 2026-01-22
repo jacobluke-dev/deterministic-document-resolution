@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 from typing import Callable
 
-from plainera_unacronym.nlp.common.constants_regex import BRIDGES_DEFAULT, DEFAULT_STOPWORDS
+from plainera_unacronym.nlp.common.constants_regex import BRIDGES_DEFAULT, DEFAULT_STOPWORDS, INLINE_CUE_FRAGMENTS
 
 
 @dataclass(frozen=True, slots=True)
@@ -24,12 +24,7 @@ class ExtractionConfig:
     conf_inline: float = 0.80
 
     # Inline cue regex fragments (case-insensitive)
-    inline_cues: tuple[str, ...] = (
-        r"short\s+for",
-        r"stands?\s+for",
-        r"is\s+(?:an\s+)?acronym\s+for",
-        r"abbreviated\s+as",
-    )
+    inline_cues: tuple[str, ...] = INLINE_CUE_FRAGMENTS
 
     # Optional stricter gating
     require_two_words: bool = True
