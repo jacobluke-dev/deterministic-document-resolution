@@ -14,6 +14,10 @@ def compile_anchored_exact(acr: str, cfg: ExtractionConfig):
     # Allow tails after acronym inside wrapper: (PPE, ...), (PPE - ...), [PPE: ...]
     TAIL = rf"(?:\s*[,;:—–-]\s*[^\)\]]{{0,{min(120, cfg.max_phrase_chars)}}})?"
 
+    # Allow possessive surfaces like: PDF's (Long Form) or PDF’s (Long Form)
+    # IMPORTANT: keep (?P<acr>...) as ONLY the acronym, so FO spans still align.
+    JOIN_POSSESSIVE = r"(?:\s*(?:['’]s)\b)?\s*"
+
     # Long Form (ACR...)  / Long Form [ACR...]
     fwd_paren = re.compile(
         rf"\b{DEF}\s*\(\s*{QUOTE_RE}(?P<acr>{ACR}){DOT}{QUOTE_RE}{TAIL}\s*\)",
@@ -25,12 +29,13 @@ def compile_anchored_exact(acr: str, cfg: ExtractionConfig):
     )
 
     # ACR (Long Form) / ACR [Long Form]
+    # NOTE: allow optional possessive between acronym and wrapper.
     rev_paren = re.compile(
-        rf"\b{QUOTE_RE}(?P<acr>{ACR}){DOT}{QUOTE_RE}\b\s*\(\s*{DEF}\s*\)",
+        rf"\b{QUOTE_RE}(?P<acr>{ACR}){DOT}{QUOTE_RE}\b{JOIN_POSSESSIVE}\(\s*{DEF}\s*\)",
         re.IGNORECASE | re.MULTILINE,
     )
     rev_brack = re.compile(
-        rf"\b{QUOTE_RE}(?P<acr>{ACR}){DOT}{QUOTE_RE}\b\s*\[\s*{DEF}\s*\]",
+        rf"\b{QUOTE_RE}(?P<acr>{ACR}){DOT}{QUOTE_RE}\b{JOIN_POSSESSIVE}\[\s*{DEF}\s*\]",
         re.IGNORECASE | re.MULTILINE,
     )
 

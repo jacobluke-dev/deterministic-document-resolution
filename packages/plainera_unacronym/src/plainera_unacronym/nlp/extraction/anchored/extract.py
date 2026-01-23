@@ -16,9 +16,11 @@ from plainera_unacronym.nlp.extraction.matchers.tighten import tighten_label_by_
 Span = tuple[int, int]
 OptSpan = Optional[Span]
 
+_POSSESSIVE_JOIN_RE = re.compile(r"\s*(?:['’]s\b)?\s*(?:[,;:—–-]\s*)?")
 _TOKEN_RE = re.compile(r"[A-Za-z0-9][\w’'\-]*")
 _QUOTE_CHARS = set("\"'“”‘’")
 _TAIL_PUNCT = set(",;:—–-")
+
 
 def _clean_definition(orig: str, *, acr_norm: str, cfg: ExtractionConfig, kind: str) -> Optional[str]:
     # Inline-only raw length gate (before tightening)
@@ -71,6 +73,7 @@ def _span_of_pre_definition(seg: str, paren_start: int) -> tuple[int, int] | Non
         return None
     return 0, end
 
+
 def _trim_span(seg: str, d0: int, d1: int) -> tuple[int, int]:
     while d0 < d1 and seg[d0].isspace():
         d0 += 1
@@ -78,7 +81,6 @@ def _trim_span(seg: str, d0: int, d1: int) -> tuple[int, int]:
         d1 -= 1
     return d0, d1
 
-_POSSESSIVE_JOIN_RE = re.compile(r"\s*(?:['’]s\b)?\s*(?:[,;:—–-]\s*)?")
 
 def _calc_def_span(kind: str, *, acr_norm: str, seg: str, acr_end_local: int = None,
                    m: re.Match[str] = None, cfg: ExtractionConfig) -> OptSpan:
@@ -152,6 +154,7 @@ def _calc_def_span(kind: str, *, acr_norm: str, seg: str, acr_end_local: int = N
         return None
     loc = mm[0]
     return acr_end_local + loc.def_start, acr_end_local + loc.def_end
+
 
 def _pick_better(best: Optional[ExtractedDefinition], cand: ExtractedDefinition) -> ExtractedDefinition:
     if best is None:
