@@ -172,6 +172,8 @@ def find_parenthetical_longform_after_acr(
         [LocalDefMatch(..., definition='noisy RAW')]
     """
 
+    bridges = getattr(cfg, "bridges", BRIDGES_DEFAULT)
+    stop = getattr(cfg, "stop", None) or getattr(cfg, "stopwords", DEFAULT_STOPWORDS)
     max_chars = getattr(cfg, "max_phrase_chars", 80)
 
     # 1) Capture tight inner text "( ... )" right at the start of `snippet`
@@ -207,9 +209,10 @@ def find_parenthetical_longform_after_acr(
 
     if acr and require_initials_match:
         # Build initials / owners per *token*
-        letters, owners = _initials_seq(tokens, getattr(cfg, "stopwords", DEFAULT_STOPWORDS))
+        letters, owners = _initials_seq(tokens)
         if not letters:
             return []
+
 
         # Build target acronym with per-char constraints
         has_num = _has_numeric_evidence(tokens)
@@ -218,7 +221,6 @@ def find_parenthetical_longform_after_acr(
             return []
 
         # Forward scan to find the **shortest window** satisfying the constraints
-        stop = getattr(cfg, "stopwords", DEFAULT_STOPWORDS)
         best = None  # (tok_s, tok_e, hit_token_indices)
 
         # Map token -> is_stopword once
@@ -232,26 +234,41 @@ def find_parenthetical_longform_after_acr(
 
         # We’ll reuse the existing `_match_from` over `letters`, then verify constraints
         L = [x.upper() for x in A]  # normalized targets for equality
-        for li in range(len(letters)):
-            r = _match_from(letters, L, li)
-            if not r:
-                continue
-            lj, used_letter_pos = r  # lj = 1+last letter index in letters
-            tok_s = owners[li]
-            tok_e = owners[lj - 1]
-            hits = {owners[u] for u in used_letter_pos}
+        print("letters:", letters)
+        print("owners:", owners)
+        print("targets:", L)
+        for start in range(len(letters)):
+            ti = 0
+            used = []
+            for pos in range(start, len(letters)):
+                if letters[pos] != L[ti]:
+                    continue
 
-            # enforce per-letter stopword constraint
-            ok = True
-            for k, letter_pos in enumerate(used_letter_pos):
-                if not ok_token_for(L[k], owners[letter_pos], k):
-                    ok = False
+                token_idx = owners[pos]
+                # casing constraint: lowercase target -> stopword; uppercase -> non-stopword
+                want_stop = A[ti].islower()
+                ok = is_stop[token_idx] if want_stop else (not is_stop[token_idx])
+                if not ok:
+                    continue
+
+                used.append(pos)
+                ti += 1
+                if ti == len(L):
+                    # Window should be defined by matched letters, not the scan start.
+                    tok_s = owners[used[0]]
+                    tok_e = owners[used[-1]]
+
+                    hits = {owners[u] for u in used}
+
+                    if best is None or (tok_e - tok_s) < (best[1] - best[0]):
+                        best = (tok_s, tok_e, hits)
                     break
-            if not ok:
-                continue
 
-            if best is None or (tok_e - tok_s) < (best[1] - best[0]):
-                best = (tok_s, tok_e, hits)
+            # if not ok:
+            #     continue
+            #
+            # if best is None or (tok_e - tok_s) < (best[1] - best[0]):
+            #     best = (tok_s, tok_e, hits)
 
         if not best:
             return []
@@ -263,7 +280,6 @@ def find_parenthetical_longform_after_acr(
         hit_tokens = set(range(i, j + 1))
 
     # 3) Build kept phrase: matched tokens + bridges inside the window
-    bridges = getattr(cfg, "bridges", BRIDGES_DEFAULT)
     kept = [t for idx, t in enumerate(tokens[i : j + 1]) if (i + idx) in hit_tokens or t.lower() in bridges]
 
     if not kept:  # edge case: keep original window
@@ -305,7 +321,6 @@ def find_parenthetical_longform_after_acr(
     de = raw_def_start + tok_end
 
     # 5) Build kept phrase: matched tokens + bridges + numeric-leading tokens inside the window
-    bridges = getattr(cfg, "bridges", BRIDGES_DEFAULT)
 
     kept = []
     for idx in range(i, j + 1):
@@ -503,9 +518,10 @@ def find_inline_longform_after_acr(
     if len(collapse_ws(tail[0])) > max_phrase_chars:
         return []
 
-    stop = getattr(cfg, "stop", DEFAULT_STOPWORDS)
+    stop = getattr(cfg, "stop", None) or getattr(cfg, "stopwords", DEFAULT_STOPWORDS)
     bridges = getattr(cfg, "bridges", BRIDGES_DEFAULT)
     max_phrase_chars = getattr(cfg, "max_phrase_chars", 200)
+
     search_cap = max_chars or max_phrase_chars * 2
     s = snippet[:search_cap]
 

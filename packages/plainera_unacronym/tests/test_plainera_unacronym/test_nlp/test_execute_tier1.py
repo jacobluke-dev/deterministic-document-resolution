@@ -1,3 +1,5 @@
+import pprint
+
 import pytest
 from types import SimpleNamespace as NS
 
@@ -5,14 +7,7 @@ import plainera_unacronym.nlp.extraction.engine.detect_flow as mod
 from plainera_unacronym.nlp.common.types import DetectorResult, Occurrence, DetectorConfig, FirstOccurrence, InTextPick
 from plainera_unacronym.nlp.execute import detect_and_extract
 from plainera_unacronym.nlp.extraction import ExtractionConfig
-
-
-def picked_def(extr, key: str):
-    """Return extracted definition for acronym key if present, else None."""
-    pick = extr.picks.get(key)
-    if pick is None:
-        return None
-    return pick.definition
+from test_plainera_unacronym.test_nlp.common import picked_def
 
 
 def _first_occ(text: str, acr: str, start: int, confidence: float) -> FirstOccurrence:
@@ -590,3 +585,32 @@ class TestDetectAndExtractE2EConfigAdjustment:
         assert "U.S.A." not in det.unique_acronyms
         assert det.unique_acronyms["U.S.A"].normalized_key == "U.S.A"
         assert picked_def(extr, "U.S.A") in {"United States of America"}, extr.picks.get("U.S.A")
+
+
+class TestDetectAndExtractE2EMixedCaseAcronyms:
+
+    def test_mixed_case_tfl_parenthetical_reverse(self):
+        det, extr, r = detect_and_extract("The TfL (Transport for London) is based in London.", return_reports=True)
+        pprint.pprint(r)
+        pprint.pprint(extr)
+        pprint.pprint(det)
+        assert picked_def(extr, "TfL") in {"Transport for London"}, extr.picks.get("TfL")
+
+    def test_mixed_case_tfl_parenthetical(self):
+        det, extr = detect_and_extract("The system Transport for London (TfL) is based in London.")
+        assert picked_def(extr, "TfL") in {"Transport for London"}, extr.picks.get("TfL")
+
+
+    def test_mixed_case_mrna_parenthetical(self):
+        det, extr,r = detect_and_extract("mRNA (messenger RNA)", return_reports=True)
+        pprint.pprint(r)
+        pprint.pprint(extr)
+        pprint.pprint(det)
+        assert picked_def(extr, "mRNA") in {"messenger RNA"}, extr.picks.get("mRNA")
+
+    def test_mixed_case_invalid_mrna_variant(self):
+        det, extr,r = detect_and_extract("MrNA (Messenger ribonucleic acid)", return_reports=True)
+        pprint.pprint(r)
+        pprint.pprint(extr)
+        pprint.pprint(det)
+        assert "MrNA" not in extr.picks, extr.picks.get("MrNA")

@@ -13,24 +13,24 @@ class TestSplitCompound:
     @pytest.mark.parametrize(
         "token,expected",
         [
-            ("GPU", ["GPU"]),                              # no split
-            ("read-only", ["read", "only"]),               # hyphen
-            ("C/CPP", ["C", "CPP"]),                       # slash
-            ("U.S.A.", ["U", "S", "A", ""]),               # NOTE: trailing '' would be filtered out by impl
-            ("Foo.Bar", ["Foo", "Bar"]),                   # dot
-            ("R&D", ["R", "D"]),                           # ampersand
-            ("A-B/C.D&E", ["A", "B", "C", "D", "E"]),      # mixed delimiters
-            ("--GPU--", ["", "GPU", ""]),                  # leading/trailing delimiters (empties dropped)
-            ("a--b", ["a", "", "b"]),                      # repeated delimiter (middle '' dropped)
-            ("", []),                                      # empty token -> []
-            ("----", []),                                  # only delimiters -> []
-            ("co-op", ["co", "op"]),                       # splits on '-'
-            ("Queen’s", ["Queen’s"]),                      # apostrophe does not split
-            ("snake_case", ["snake_case"]),                # underscore does not split
-            ("β-blocker", ["β", "blocker"]),               # Unicode letters + hyphen
-            ("3D-Print", ["3D", "Print"]),                 # alnum pieces
-            ("A&B&C", ["A", "B", "C"]),                    # multiple &
-            ("v1.2.3", ["v1", "2", "3"]),                  # dot with numbers
+            ("GPU", ["GPU"]),  # no split
+            ("read-only", ["read", "only"]),  # hyphen
+            ("C/CPP", ["C", "CPP"]),  # slash
+            ("U.S.A.", ["U", "S", "A", ""]),  # NOTE: trailing '' would be filtered out by impl
+            ("Foo.Bar", ["Foo", "Bar"]),  # dot
+            ("R&D", ["R", "D"]),  # ampersand
+            ("A-B/C.D&E", ["A", "B", "C", "D", "E"]),  # mixed delimiters
+            ("--GPU--", ["", "GPU", ""]),  # leading/trailing delimiters (empties dropped)
+            ("a--b", ["a", "", "b"]),  # repeated delimiter (middle '' dropped)
+            ("", []),  # empty token -> []
+            ("----", []),  # only delimiters -> []
+            ("co-op", ["co", "op"]),  # splits on '-'
+            ("Queen’s", ["Queen’s"]),  # apostrophe does not split
+            ("snake_case", ["snake_case"]),  # underscore does not split
+            ("β-blocker", ["β", "blocker"]),  # Unicode letters + hyphen
+            ("3D-Print", ["3D", "Print"]),  # alnum pieces
+            ("A&B&C", ["A", "B", "C"]),  # multiple &
+            ("v1.2.3", ["v1", "2", "3"]),  # dot with numbers
             ("Hypertext", ["Hyper", "text"]),
             ("HyperText", ["Hyper", "text"])
         ],
@@ -49,24 +49,24 @@ class TestTokenizePreserve:
     @pytest.mark.parametrize(
         "text,expected",
         [
-            ("", []),                                    # empty
-            ("   \t\n", []),                             # whitespace only
-            ("Hello", ["Hello"]),                        # simple word
-            ("Hello world", ["Hello", "world"]),         # spaces split
-            ("O'Reilly", ["O'Reilly"]),                  # straight apostrophe
-            ("Queen’s Award", ["Queen’s", "Award"]),     # curly apostrophe
-            ("R&D", ["R&D"]),                            # ampersand preserved
-            ("C/C++", ["C/C"]),                          # slash ok; '+' not allowed -> dropped
-            ("U.S.A.", ["U.S.A."]),                      # dots preserved inside token
-            ("v1.2.3", ["v1.2.3"]),                      # mixed digits + dots
-            ("foo_bar", ["foo", "bar"]),                 # underscore splits (not allowed)
+            ("", []),  # empty
+            ("   \t\n", []),  # whitespace only
+            ("Hello", ["Hello"]),  # simple word
+            ("Hello world", ["Hello", "world"]),  # spaces split
+            ("O'Reilly", ["O'Reilly"]),  # straight apostrophe
+            ("Queen’s Award", ["Queen’s", "Award"]),  # curly apostrophe
+            ("R&D", ["R&D"]),  # ampersand preserved
+            ("C/C++", ["C/C"]),  # slash ok; '+' not allowed -> dropped
+            ("U.S.A.", ["U.S.A."]),  # dots preserved inside token
+            ("v1.2.3", ["v1.2.3"]),  # mixed digits + dots
+            ("foo_bar", ["foo", "bar"]),  # underscore splits (not allowed)
             ("Email a.b@c.com now", ["Email", "a.b", "c.com", "now"]),  # '@' splits
-            ("dash-separated-words", ["dash-separated-words"]),         # hyphen preserved
-            ("mix&match/okay.now", ["mix&match/okay.now"]),             # combo delimiters preserved
+            ("dash-separated-words", ["dash-separated-words"]),  # hyphen preserved
+            ("mix&match/okay.now", ["mix&match/okay.now"]),  # combo delimiters preserved
             ("(Portable) Document, Format!", ["Portable", "Document", "Format"]),  # strip punctuation
-            ("β-blocker", ["-blocker"]),                 # leading non-ASCII splits; hyphen+word captured
-            ("Заказ-123", ["-123"]),                     # Cyrillic splits; digits captured (ASCII-only)
-            ("3/4-inch", ["3/4-inch"]),                  # digits + slash + hyphen
+            ("β-blocker", ["-blocker"]),  # leading non-ASCII splits; hyphen+word captured
+            ("Заказ-123", ["-123"]),  # Cyrillic splits; digits captured (ASCII-only)
+            ("3/4-inch", ["3/4-inch"]),  # digits + slash + hyphen
         ],
     )
     def test_tokenization_various(self, text, expected):
@@ -96,20 +96,9 @@ class TestInitialsSeqUnit:
             re=__import__("re"),
         )
         tokens = ["Portable", "Document", "Format"]
-        letters, owners = _initials_seq(tokens, stopwords=set())
+        letters, owners = _initials_seq(tokens)
         assert letters == ["P", "D", "F"]
         assert owners == [0, 1, 2]
-
-    def test_stopwords_skip_whole_token(self, monkeypatch):
-        _patch(
-            monkeypatch, _initials_seq,
-            _split_compound=lambda tok: [tok],
-            re=__import__("re"),
-        )
-        tokens = ["Read", "Only", "Memory"]
-        letters, owners = _initials_seq(tokens, stopwords={"only"})
-        assert letters == ["R", "M"]
-        assert owners == [0, 2]
 
     def test_compound_parts_all_count_but_owner_is_token_index(self, monkeypatch):
         # Simulate "C++" -> ["C", "Plus", "Plus"] from the *same* token index
@@ -123,7 +112,7 @@ class TestInitialsSeqUnit:
             re=__import__("re"),
         )
         tokens = ["C++", "GPU"]
-        letters, owners = _initials_seq(tokens, stopwords=set())
+        letters, owners = _initials_seq(tokens)
         assert letters == ["C", "P", "P", "G"]
         assert owners == [0, 0, 0, 1]
 
@@ -135,7 +124,7 @@ class TestInitialsSeqUnit:
             re=__import__("re"),
         )
         tokens = ["—…"]
-        letters, owners = _initials_seq(tokens, stopwords=set())
+        letters, owners = _initials_seq(tokens)
         assert letters == []
         assert owners == []
 
@@ -149,35 +138,28 @@ class TestInitialsSeqUnit:
 
         _patch(monkeypatch, _initials_seq, _split_compound=spy_split, re=__import__("re"))
         tokens = ["and-or", "Useful"]
-        letters, owners = _initials_seq(tokens, stopwords={"and-or"})
-        assert letters == ["U"]
-        assert owners == [1]
+        letters, owners = _initials_seq(tokens)
+        assert letters == ["A", "U"]
+        assert owners == [0, 1]
         # Ensure split was *not* called for the stopword token
-        assert called["split"] == 1  # only for "Useful"
+        assert called["split"] == 2  # only for "Useful"
 
 
 class TestInitialsSeqIntegration:
     def test_compound_splitting_and_digits(self):
         tokens = ["3/4-inch", "co-op", "R&D", "v1.2.3"]
-        letters, owners = _initials_seq(tokens, stopwords=set())
+        letters, owners = _initials_seq(tokens)
         # Expected from real _split_compound:
         # "3/4-inch" -> ["3","4","inch"]      -> 3,4,I (owners 0,0,0)
         # "co-op"    -> ["co","op"]           -> C,O   (owners 1,1)
         # "R&D"      -> ["R","D"]             -> R,D   (owners 2,2)
         # "v1.2.3"   -> ["v1","2","3"]        -> V,2,3 (owners 3,3,3)
         assert letters == ["3", "4", "I", "C", "O", "R", "D", "V", "2", "3"]
-        assert owners  == [ 0,   0,   0,   1,   1,   2,   2,   3,   3,   3 ]
-
-    def test_stopwords_filter_entire_tokens(self):
-        tokens = ["Read", "Only", "Memory", "of", "Computers"]
-        letters, owners = _initials_seq(tokens, stopwords={"of", "and"})
-        # "of" is skipped entirely; others contribute initials
-        assert letters == ["R", "O", "M", "C"]
-        assert owners  == [ 0,   1,   2,   4 ]
+        assert owners == [0, 0, 0, 1, 1, 2, 2, 3, 3, 3]
 
     def test_unicode_letters_in_tokens(self):
         tokens = ["β-blocker", "Ångström", "GPU"]
-        letters, owners = _initials_seq(tokens, stopwords=set())
+        letters, owners = _initials_seq(tokens)
         # "β-blocker" -> parts ["β","blocker"] → first alpha is 'β' (Unicode) → 'Β' (Greek beta uppercase)
         # 2nd B is from blocker
         # "Ångström"  -> first alpha is 'Å'     → 'Å'
@@ -248,39 +230,40 @@ class TestMatchFrom:
 
 
 class TestBestWindowForAcronymUnit:
+
     def test_returns_none_when_acronym_has_no_alnum(self, monkeypatch):
         # Even if initials exist, empty A should short-circuit
         _patch(monkeypatch, _best_window_for_acronym, _initials_seq=lambda t, s: (["A"], [0]))
-        assert _best_window_for_acronym(["any"], "--__--", stopwords=set()) is None
+        assert _best_window_for_acronym(["any"], "--__--") is None
 
     def test_returns_none_when_no_letters(self, monkeypatch):
         # No initials generated → None
-        _patch(monkeypatch, _best_window_for_acronym, _initials_seq=lambda t, s: ([], []))
-        assert _best_window_for_acronym(["Portable", "Document"], "PD", stopwords=set()) is None
+        _patch(monkeypatch, _best_window_for_acronym, _initials_seq=lambda t, *a, **k: ([], []))
+        assert _best_window_for_acronym(["Portable", "Document"], "PD") is None
 
     def test_picks_shortest_window_and_keeps_first_on_tie(self, monkeypatch):
         # Provide deterministic initials and owners; use real _match_from
-        def fake_initials_seq(tokens, stopwords):
+        def fake_initials_seq(tokens):
             # letters index: 0:X, 1:P, 2:D, 3:F, 4:P, 5:D, 6:F
             return ["X", "P", "D", "F", "P", "D", "F"], [0, 1, 2, 3, 4, 5, 6]
 
         _patch(monkeypatch, _best_window_for_acronym, _initials_seq=fake_initials_seq)
 
         tokens = ["t0", "t1", "t2", "t3", "t4", "t5", "t6"]
-        out = _best_window_for_acronym(tokens, "PDF", stopwords=set())
+        out = _best_window_for_acronym(tokens, "PDF")
         # Two equally short windows exist: tokens [1..3] and [4..6]; function keeps the first
         assert out == (1, 3, {1, 2, 3})
 
     def test_hits_contains_only_tokens_that_contributed_letters(self, monkeypatch):
         # Make a window covering tokens 0..3, but ensure only tokens 0,2,3 supply matched initials
-        def fake_initials_seq(tokens, stopwords):
+        def fake_initials_seq(tokens):
             # letters: P(0), X(1), D(2), F(3)
             return ["P", "X", "D", "F"], [0, 1, 2, 3]
 
         _patch(monkeypatch, _best_window_for_acronym, _initials_seq=fake_initials_seq)
 
         tokens = ["Ptok", "Xtok", "Dtok", "Ftok"]
-        out = _best_window_for_acronym(tokens, "PDF", stopwords=set())
+        out = _best_window_for_acronym(tokens, "PDF")
         assert out is not None
         tok_s, tok_e, hits = out
         assert (tok_s, tok_e) == (0, 3)
@@ -288,40 +271,31 @@ class TestBestWindowForAcronymUnit:
         assert hits == {0, 2, 3}
 
 
-STOP = {"the", "of", "and", "for"}  # illustrative stopwords set for tests
-
-
 class TestBestWindowForAcronymIntegration:
     def test_basic_pdf(self):
         tokens = ["Portable", "Document", "Format"]
-        out = _best_window_for_acronym(tokens, "PDF", stopwords=set())
+        out = _best_window_for_acronym(tokens, "PDF")
         assert out == (0, 2, {0, 1, 2})
-
-    def test_ignores_stopwords_and_finds_min_window(self):
-        tokens = ["the", "Portable", "Document", "of", "Format"]
-        out = _best_window_for_acronym(tokens, "PDF", stopwords=STOP)
-        # Stopwords are skipped when creating initials → window [1..4] but hits only on 1,2,4
-        assert out == (1, 4, {1, 2, 4})
 
     def test_compound_parts_contribute_multiple_initials(self):
         # Expect per-part initials (e.g., "Graphics/Processing" → 'G','P' from the same token index)
         tokens = ["High", "Performance", "Graphics/Processing", "Unit"]
-        out = _best_window_for_acronym(tokens, "GPU", stopwords=set())
+        out = _best_window_for_acronym(tokens, "GPU")
         # Minimal window should be tokens 2..3; both 'G' and 'P' came from token index 2, 'U' from 3
         assert out == (2, 3, {2, 3})
 
     def test_acronym_with_punct_is_filtered(self):
         tokens = ["Graphics", "Processing", "Unit"]
-        out = _best_window_for_acronym(tokens, "g-p_u", stopwords=set())  # → "GPU"
+        out = _best_window_for_acronym(tokens, "g-p_u")  # → "GPU"
         assert out == (0, 2, {0, 1, 2})
 
     def test_no_match_returns_none(self):
         tokens = ["Portable", "Document", "Format"]
-        assert _best_window_for_acronym(tokens, "PFD", stopwords=set()) is None
+        assert _best_window_for_acronym(tokens, "PFD") is None
 
     def test_prefers_shorter_window_over_earlier_longer_one(self):
         tokens = ["Portable", "Xtra", "Document", "Format", "Portable", "Document", "Format"]
-        out = _best_window_for_acronym(tokens, "PDF", stopwords=set())
+        out = _best_window_for_acronym(tokens, "PDF")
         assert out == (4, 6, {4, 5, 6})
 
 
@@ -339,11 +313,14 @@ class TestTightenLabelByAcronymUnit:
         def fake_canon(s):
             calls["canon"] = s
             return s
+
         def fake_tokenize(_):
             return []
+
         def fake_collapse(s):
             calls["collapse"] = s
             return "Foo Bar  "
+
         def fake_strip(s):
             calls["strip"] = s
             return "Foo Bar"
@@ -365,7 +342,7 @@ class TestTightenLabelByAcronymUnit:
             monkeypatch, tighten_label_by_acronym,
             canonicalize=lambda s: s,
             _tokenize_preserve=lambda s: ["one", "two"],
-            _best_window_for_acronym=lambda toks, acr, stop: None,
+            _best_window_for_acronym=lambda toks, acr: None,
             collapse_ws=lambda s: "Foo Bar  ",
             strip_trailing_punct=lambda s: "Foo Bar",
         )
@@ -375,7 +352,9 @@ class TestTightenLabelByAcronymUnit:
     def test_prunes_to_matched_tokens_and_bridges(self, monkeypatch):
         # Simulate tokens + best window + bridges kept inside the chosen span
         tokens = ["Other", "Portable", "of", "Document", "Format", "spec"]
+
         def fake_tokenize(s): return tokens
+
         # window i..j = 1..4; matched tokens at indices 1,3,4 (PDF), token 2 "of" is a bridge
         def fake_win(toks, acr, stop): return 1, 4, {1, 3, 4}
 
@@ -390,14 +369,16 @@ class TestTightenLabelByAcronymUnit:
 
         out = tighten_label_by_acronym(
             "Other Portable of Document Format.", "PDF",
-            stopwords=set(), bridges={"of"}, keep_case=True,
+             bridges={"of"}, keep_case=True,
         )
         assert out == "Portable of Document Format"
 
     def test_edge_case_pruning_removes_everything_keep_original_span(self, monkeypatch):
         # If hits set ends up empty (pathological), keep the original span tokens
         tokens = ["foo", "bar", "baz"]
+
         def fake_tokenize(s): return tokens
+
         def fake_win(toks, acr, stop): return 0, 1, set()  # span 0..1, but no hits
 
         _patch(
@@ -414,7 +395,9 @@ class TestTightenLabelByAcronymUnit:
 
     def test_keep_case_false_on_success(self, monkeypatch):
         tokens = ["Graphics", "Processing", "Unit"]
+
         def fake_tokenize(s): return tokens
+
         def fake_win(toks, acr, stop): return 0, 2, {0, 1, 2}
 
         _patch(
@@ -436,7 +419,7 @@ class TestTightenLabelByAcronymIntegration:
         raw = "Other Portable of Document Format."
         out = tighten_label_by_acronym(
             raw, "PDF",
-            stopwords=set(),         # make behavior explicit/deterministic
+              # make behavior explicit/deterministic
             bridges={"of"},
             keep_case=True,
         )
@@ -448,7 +431,7 @@ class TestTightenLabelByAcronymIntegration:
         raw = "Graphics/Processing Unit (spec)"
         out = tighten_label_by_acronym(
             raw, "GPU",
-            stopwords=set(),
+
             bridges=set(),
             keep_case=True,
         )
@@ -459,7 +442,7 @@ class TestTightenLabelByAcronymIntegration:
         raw = "  Foo   Bar...  "
         out = tighten_label_by_acronym(
             raw, "XYZ",
-            stopwords=set(),
+
             bridges=set(),
             keep_case=True,
         )
@@ -469,22 +452,11 @@ class TestTightenLabelByAcronymIntegration:
         raw = "Graphics Processing Unit"
         out = tighten_label_by_acronym(
             raw, "GPU",
-            stopwords=set(),
+
             bridges=set(),
             keep_case=False,
         )
         assert out == "graphics processing unit"
-
-    def test_stopwords_do_not_contribute_initials_but_bridges_keep_them(self):
-        # "of" is a stopword for initials, but we still want it in the final phrase when inside span
-        raw = "Portable of Document Format"
-        out = tighten_label_by_acronym(
-            raw, "PDF",
-            stopwords={"of"},        # ignored in initials
-            bridges={"of"},          # kept in the pruned phrase if inside span
-            keep_case=True,
-        )
-        assert out == "Portable of Document Format"
 
 
 class TestInitialsRuleBenefit:
@@ -493,7 +465,7 @@ class TestInitialsRuleBenefit:
         s = "cost per acquisition"
         # simulate flow: tighten_definition_span -> tighten_label_by_acronym
         # span function likely returns the whole tail (lowercase), then cleaner kicks in
-        from plainera_unacronym.nlp.extraction.anchored.normalise  import (
+        from plainera_unacronym.nlp.extraction.anchored.normalise import (
             tighten_definition_span
         )
         tail = tighten_definition_span(s)

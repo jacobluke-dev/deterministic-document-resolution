@@ -1,3 +1,77 @@
+"""
+    Tier-1 “sentence back-reference” extractor.
+
+    Purpose
+    -------
+    This stage exists to catch the pattern where a definition appears in a *previous* sentence and the acronym
+    appears later without an inline/parenthetical definition.
+
+        Example:
+            "We use Single sign-on for authentication. SSO is enabled by default."
+
+    It is explicitly *not* a parenthetical extractor. It does not attempt to parse:
+        - "Long Form (ACR)"
+        - "ACR (Long Form)"
+        - "Long Form - ACR"
+    Those are handled by the anchored/harvest stages.
+
+    How it works (high level)
+    -------------------------
+    For each acronym first-occurrence (from the detector):
+      1) Split the document into “sentence-ish” spans using a simple regex boundary.
+      2) Locate the sentence span that contains the acronym occurrence.
+      3) Look backwards across up to N previous sentences (cfg.sentence_backref_lookback, default=2).
+      4) For each candidate previous sentence:
+            a) Find the shortest contiguous token span whose initials match the acronym
+               (via _best_span_by_initials).
+            b) Tighten/normalise the candidate label (tighten_label_by_acronym + normalize_definition).
+            c) Validate using guardrails:
+                  - must contain letters
+                  - must not be identical to the acronym itself
+                  - must be <= cfg.max_phrase_chars
+                  - optionally require >=2 tokens (cfg.require_two_words)
+                  - must pass initials_match(acronym, candidate)
+            d) The first valid match wins (nearest previous sentence first).
+      5) Emit an ExtractedDefinition with source="backref" and kind="sentence_backref".
+
+    Important behavioural constraints
+    --------------------------------
+    - Only looks *backwards* across sentence boundaries.
+      If the acronym appears in the first sentence (sentence index 0), this stage will never fire.
+      That is by design: it prevents large, noisy “document-wide” hunting.
+
+    - Sentence segmentation is intentionally conservative and predictable.
+      It uses punctuation/newlines as boundaries, not a full NLP sentence model.
+
+    - This stage is intended to be deterministic and high-precision.
+      If it cannot find a mechanically defensible initials span in the immediate prior sentence(s),
+      it returns no result rather than guessing.
+
+    Config knobs
+    ------------
+    - cfg.sentence_backref_lookback:
+        How many previous sentences to search (nearest-first). Default is 2.
+
+    - cfg.max_phrase_chars:
+        Maximum character length allowed for a candidate definition span.
+
+    - cfg.require_two_words:
+        If true, candidate must contain at least two tokens as defined by _TOKEN_RE.
+
+    Notes
+    -----
+    - Acronym matching should preserve the detector’s acronym casing for output, but may use
+      uppercasing internally for comparison. If you change casing behaviour, keep Tier-1
+      invariants: “do not rewrite the user’s acronym token”.
+
+    Returns
+    -------
+    list[ExtractedDefinition]
+        Zero or more extracted definitions; each corresponds to an acronym whose definition
+        was found in a prior sentence using initials-based span selection.
+    """
+
+
 import re
 from typing import Mapping
 
@@ -90,6 +164,7 @@ def _find_span_index(spans: list[tuple[int, int]], pos: int) -> int | None:
 
 
 def extract_sentence_backrefs(*, text: str, firsts: Mapping[str, FirstOccurrence], cfg: ExtractionConfig) -> list[ExtractedDefinition]:
+
     max_chars = getattr(cfg, "max_phrase_chars", 200)
     require_two_words = getattr(cfg, "require_two_words", False)
 
@@ -131,7 +206,6 @@ def extract_sentence_backrefs(*, text: str, firsts: Mapping[str, FirstOccurrence
             cand = tighten_label_by_acronym(
                 cand,
                 acr,
-                stopwords=set(getattr(cfg, "stop", ())),
                 bridges=set(getattr(cfg, "bridges", ())),
             )
             cand = normalize_definition(cand)

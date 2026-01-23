@@ -302,7 +302,7 @@ class TestFindParentheticalLongformAfterAcrUnit:
             _has_letters=lambda s: True,
             tighten_definition_span=lambda s: s,
             normalize_definition=lambda s: s,
-            _initials_seq=lambda tokens, stopwords: ([], []),
+            _initials_seq=lambda t, *a, **k: ([], []),
         )
         cfg = DummyCfg()
         snip = "(Portable Document Format)"

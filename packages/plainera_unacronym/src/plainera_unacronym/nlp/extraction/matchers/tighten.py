@@ -89,17 +89,15 @@ def _tokenize_preserve(text: str) -> list[str]:
     return _word_re.findall(text)
 
 
-def _initials_seq(tokens: list[str], stopwords: set[str]) -> tuple[list[str], list[int]]:
+def _initials_seq(tokens: list[str]) -> tuple[list[str], list[int]]:
     """
-    Build a sequence of initials (letters+digits) from tokens, skipping stopwords.
+    Build a sequence of initials (letters+digits) from tokens
     owners[k] = token index that produced letters[k].
 
     Unicode-aware: picks the first character in each part where ch.isalpha() or ch.isdigit().
     """
     letters, owners = [], []
     for ti, tok in enumerate(tokens):
-        if tok.lower() in stopwords:
-            continue
         for part in _split_compound(tok):
             for ch in part:
                 if ch.isalpha() or ch.isdigit():
@@ -127,7 +125,7 @@ def _match_from(letters: list[str], acronym_list: list[str], start: int) -> Opti
 
 
 def _best_window_for_acronym(
-    tokens: list[str], acronym: str, stopwords: set[str]
+    tokens: list[str], acronym: str
 ) -> Optional[tuple[int, int, set[int]]]:
     """
     Return (tok_start, tok_end_inclusive, hit_token_indices_set) for the *shortest contiguous*
@@ -137,7 +135,7 @@ def _best_window_for_acronym(
     if not A:
         return None
 
-    letters, owners = _initials_seq(tokens, stopwords)
+    letters, owners = _initials_seq(tokens)
     if not letters:
         return None
 
@@ -160,7 +158,6 @@ def tighten_label_by_acronym(
     raw_label: str,
     acronym: str,
     *,
-    stopwords: Optional[set[str]] = None,
     bridges: Optional[set[str]] = None,
     keep_case: bool = True,
 ) -> str:
@@ -181,7 +178,6 @@ def tighten_label_by_acronym(
     if not raw_label or not acronym:
         return raw_label or ""
 
-    stop = stopwords or DEFAULT_STOPWORDS
     br = bridges or BRIDGES_DEFAULT
 
     s = canonicalize(raw_label)  # preserves case, normalises look-alikes
@@ -237,7 +233,7 @@ def tighten_label_by_acronym(
             return phrase if keep_case else phrase.lower()
 
     # Legacy path: choose smallest window aligned to the acronym (ignoring stopwords).
-    win = _best_window_for_acronym(tokens, acronym, stop)
+    win = _best_window_for_acronym(tokens, acronym)
     if not win:
         out = strip_trailing_punct_str(collapse_ws(s))
         return out if keep_case else out.lower()

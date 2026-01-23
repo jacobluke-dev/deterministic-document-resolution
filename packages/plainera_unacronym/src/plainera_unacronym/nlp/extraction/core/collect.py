@@ -38,13 +38,28 @@ def initials_match(acr: str, phrase: str) -> bool:
       otherwise False.
 
     """
-    initials = "".join(w[0].upper() for w in phrase.split() if w and w[0].isalpha())
+    parts: list[str] = []
+    for w in phrase.split():
+        if not w:
+            continue
+        if not w[0].isalpha():
+            continue
+
+        # Expand ALL-CAPS alphabetic tokens (RNA -> RNA), otherwise first-letter only.
+        if w.isalpha() and w.isupper() and len(w) > 1:
+            parts.append(w)
+        else:
+            parts.append(w[0].upper())
+
+    initials = "".join(parts).upper()
+
     j = 0
     for ch in acr:
         if ch.isalpha():
-            j = initials.find(ch.upper(), j) + 1
-            if j == 0:
+            pos = initials.find(ch.upper(), j)
+            if pos == -1:
                 return False
+            j = pos + 1
     return True
 
 
@@ -111,7 +126,6 @@ def collect_matches(
         final_def = tighten_label_by_acronym(
             definition,
             acronym.upper(),
-            stopwords=set(cfg.stop),
             bridges=set(cfg.bridges),
         )
         final_def = normalize_definition(final_def)
