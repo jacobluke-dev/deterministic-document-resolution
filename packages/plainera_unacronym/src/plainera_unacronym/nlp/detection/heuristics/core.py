@@ -55,13 +55,17 @@ def compile_pattern(cfg: DetectorConfig) -> re.Pattern[str]:
     #      the whole run (the first char counts toward the total).
     compact = rf"(?:[A-Z][A-Z0-9]{{{max(cfg.min_len - 1, 1)},{max(cfg.max_len - 1, 1)}}})"
 
-    # 4) CamelCaps (opt-in, upper-first) for brand-style abbreviations.
+    # 4) digit-prefixed compact, e.g. 3GPP, 2FA, 5G, 80211AX (if you allow those)
+    # Ensure there's at least one letter after the digit run: [0-9]+[A-Z]
+    digit_compact = rf"(?:[0-9]+[A-Z][A-Z0-9]{{{max(cfg.min_len - 2, 0)},{max(cfg.max_len - 2, 0)}}})"
+
+    # 5) CamelCaps (opt-in, upper-first) for brand-style abbreviations.
     #    - Simple, linear pattern that captures tokens like "TfL", "eBPF" (upper-first only here).
     #    - We also guard this in the iterator by relaxing the caps ratio only if ≥2 uppers exist.
     camel_uc = r"(?:[A-Z][a-z]?){2,5}"
 
     # Order matters: keep more specific branches (with_seps/dotted) before the generic compact.
-    branches = [with_seps, compact]
+    branches = [with_seps, compact, digit_compact]
     if cfg.enable_dotted:
         branches.insert(1, dotted)  # give dotted precedence over compact
     if cfg.enable_mixed_case:
