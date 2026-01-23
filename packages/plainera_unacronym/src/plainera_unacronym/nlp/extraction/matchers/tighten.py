@@ -11,6 +11,40 @@ _ASCII_CAMEL_RE = re.compile(
     r"|[0-9]+"  # standalone digits
 )
 
+LEXICAL_SPLITS = {
+    # Networking / protocols / web
+    "websocket": ("Web", "Socket"),  # WS (less common), but appears a lot
+    "middleware": ("Middle", "Ware"),  # MW (internal docs)
+    "firmware": ("Firm", "Ware"),  # FW
+    "hardware": ("Hard", "Ware"),  # HW
+    "software": ("Soft", "Ware"),  # SW (can collide with "switch", but as a split it's fine)
+
+    # Identity / auth / accounts
+    "hostname": ("Host", "Name"),  # HN
+    "password": ("Pass", "Word"),  # PW (super common in docs)
+
+    # Storage / data
+    "database": ("Data", "Base"),  # DB (historically ugly, but extremely common)
+    # Languages
+    "typescript": ("Type", "Script"),  # TS (collides with timestamp)
+    "powershell": ("Power", "Shell"),  # PS (collides heavily)
+
+    # Platforms / tools
+    "bitbucket": ("Bit", "Bucket"),  # BB
+    "gitlab": ("Git", "Lab"),  # GL
+    "github": ("Git", "Hub"),  # GH
+
+    "postgresql": ("Postgres", "SQL"),  # PG/PSQL alignment
+    "mysql": ("My", "SQL"),  # MySQL is already Camel-ish, but tokenisers often keep as one
+    "mssql": ("MS", "SQL"),  # MS SQL / MSSQL
+
+    "newline": ("New", "Line"),  # NL
+    "filepath": ("File", "Path"),  # FP
+    "filename": ("File", "Name"),  # FN
+    "checksum": ("Check", "Sum"),  # CS
+    "hypertext": ("Hyper", "text"),
+}
+
 
 def _split_compound(token: str) -> list[str]:
     """Split hyphen/slash/dot/& and (ASCII) CamelCase into parts.
@@ -33,6 +67,12 @@ def _split_compound(token: str) -> list[str]:
 
         has_alpha = bool(re.search(r"[A-Za-z]", p))
         has_digit = bool(re.search(r"[0-9]", p))
+
+        # ---- SPECIAL-CASE LEXICAL COMPOUNDS ----
+        low = p.lower()
+        if low in LEXICAL_SPLITS:
+            out.extend(LEXICAL_SPLITS[low])
+            continue
 
         # Keep leading-digit+letters or trailing-digit combos intact: '3D', 'v1', 'HTTP2'
         if has_alpha and has_digit and (p[0].isdigit() or p[-1].isdigit()):
@@ -182,7 +222,7 @@ def tighten_label_by_acronym(
 
             # If pruning removed everything, keep the full window.
             if not kept:
-                kept = tokens[low : high + 1]
+                kept = tokens[low: high + 1]
 
             phrase = " ".join(kept)
             phrase = strip_trailing_punct_str(collapse_ws(phrase))
@@ -212,7 +252,7 @@ def tighten_label_by_acronym(
             kept.append(tok)
 
     if not kept:
-        kept = tokens[i : j + 1]
+        kept = tokens[i: j + 1]
 
     phrase = " ".join(kept)
     phrase = strip_trailing_punct_str(collapse_ws(phrase))

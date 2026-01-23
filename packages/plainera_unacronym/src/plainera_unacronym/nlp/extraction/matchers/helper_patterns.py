@@ -4,6 +4,7 @@ from typing import Optional
 from plainera_unacronym.nlp.common.constants_regex import DEFAULT_STOPWORDS, BRIDGES_DEFAULT, QUOTE
 from plainera_unacronym.nlp.common.shared import normalize_definition
 from plainera_unacronym.nlp.extraction.anchored.normalise import tighten_definition_span, strip_trailing_punct_str, collapse_ws
+from plainera_unacronym.nlp.extraction.matchers.numeric_matcher import consume_left_numeric_designator
 
 from plainera_unacronym.nlp.extraction.matchers.tighten import _initials_seq, _match_from, _split_compound
 
@@ -386,6 +387,8 @@ def find_parenthetical_longform_before_acr(snippet: str, acr: str, cfg) -> list[
 
     is_stop = [tok.lower() in stop for tok in tokens]
 
+    acr_starts_with_digit = acr and acr[0].isdigit()
+
     # 2) Build per-part initials RTL over tokens (compound + CamelCase aware)
     letters: list[str] = []  # per-part initials (UPPER)
     owners: list[int] = []  # token index for each letter
@@ -423,6 +426,20 @@ def find_parenthetical_longform_before_acr(snippet: str, acr: str, cfg) -> list[
     # 4) The token window is from leftmost contributing token to the last token
     tok_right = len(tokens) - 1
     tok_left = min(owners[pos] for pos in used_letter_pos)
+    if acr_starts_with_digit:
+        tok_left = consume_left_numeric_designator(acr=acr, tokens=tokens, tok_left=tok_left)
+
+    # --- include trailing numeric token for acronyms like HTTP2 -> "... 2" ---
+    if acr and acr[-1].isdigit():
+        want = acr[-1]
+
+        # If last token is already numeric-leading with that digit, fine.
+        # Otherwise, if there's an immediate next token equal to that digit, include it.
+        if tok_right + 1 < len(tokens):
+            nxt = tokens[tok_right + 1]
+            nxt_clean = nxt.strip(".,;:)]}»”'\"")  # light trim
+            if nxt_clean == want:
+                tok_right += 1
     hit_tokens = {owners[pos] for pos in used_letter_pos}
 
     # Expand window to include adjacent numeric-leading tokens (e.g., "3M")

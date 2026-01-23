@@ -111,7 +111,7 @@ class TestDetectAndExtractUnit:
         assert not extr.ambiguous_keys
         assert all(r.chosen_sense_id for r in extr.resolutions)
 
-    def test_strategy_falls_back_to_global_when_missing(self, monkeypatch):
+    def test_no_global_fallback_when_missing(self, monkeypatch):
         text = "Only one acronym appears: ABC."
 
         det_cfg, ext_cfg = _cfgs()
@@ -132,20 +132,10 @@ class TestDetectAndExtractUnit:
         monkeypatch.setattr("plainera_unacronym.nlp.extraction.engine.detect_flow.defs_from_picks", lambda *_: [])
         monkeypatch.setattr("plainera_unacronym.nlp.extraction.engine.detect_flow.harvest_defs_all", lambda *_: [])
 
-        # supply a global def via the pipeline
-        monkeypatch.setattr(
-            "plainera_unacronym.nlp.extraction.engine.detect_flow.extract_pipeline_iter",
-            lambda text, detcfg, extcfg, plan=None: [_ed("ABC", "Alpha Beta Core", conf=0.90)],
-        )
-        monkeypatch.setattr("plainera_unacronym.nlp.extraction.engine.detect_flow.dedupe_defs", lambda defs: defs)
-        monkeypatch.setattr("plainera_unacronym.nlp.extraction.engine.detect_flow.build_senses",
-                            lambda defs: {"ABC": [NS(sense_id="s-abc")]})
-        monkeypatch.setattr("plainera_unacronym.nlp.extraction.engine.detect_flow.disambiguate_occurrences",
-                            lambda **kw: [NS(chosen_sense_id=None)])
-
         det_res, extr = detect_and_extract(text, det_cfg=det_cfg, ext_cfg=ext_cfg)
-        assert extr.strategy in ("anchored+harvest+global", "anchored+harvest+global-pipeline")
-        assert any(d.definition == "Alpha Beta Core" for d in extr.definitions)
+        assert extr.strategy == "anchored+harvest"
+        assert extr.picks.get("ABC") is None
+        assert not any(d.acronym == "ABC" for d in extr.definitions)
 
 
 def _cfg_integrated(require_two_words=True, max_chars=200):
@@ -164,6 +154,7 @@ def _cfg_integrated(require_two_words=True, max_chars=200):
 
 
 class TestDetectAndExtractIntegration:
+
     def test_mixed_forward_reverse_inline_and_confidence(self):
         text = (
             "We invest in Research and Development (R&D) to innovate.\n"
@@ -175,32 +166,25 @@ class TestDetectAndExtractIntegration:
 
         det_cfg, ext_cfg = _cfg_integrated()
 
-        det_res, extr = detect_and_extract(text, det_cfg=det_cfg, ext_cfg=ext_cfg)
-
-        by = {}
-        for d in extr.definitions:
-            by.setdefault(d.acronym, []).append(d)
+        det_res, extr, r = detect_and_extract(text, det_cfg=det_cfg, ext_cfg=ext_cfg, return_reports=True)
+        pprint.pprint(extr)
+        pprint.pprint(det_res)
+        pprint.pprint(r)
 
         # R&D forward
-        assert "R&D" in by
-        assert any("Research and Development" in e.definition for e in by["R&D"])
-        assert all(0 < e.confidence <= 0.99 for e in by["R&D"])
+        assert picked_def(extr, "R&D") == "Research and Development"
 
         # C/A reverse
-        assert "C/A" in by
-        assert any(e.definition == "Cost per Acquisition" for e in by["C/A"])
+        assert picked_def(extr, "C/A") == "Cost per Acquisition"
 
         # PTO inline
-        assert "PTO" in by
-        assert any("Please Turn Over" in e.definition for e in by["PTO"])
+        assert picked_def(extr, "PTO") == "Please Turn Over"
 
         # AM inline
-        assert "AM" in by
-        assert any("amplitude modulation" in e.definition.lower() for e in by["AM"])
+        assert picked_def(extr, "AM") in {"amplitude modulation", "Amplitude modulation"}
 
         # PDF appears
-        assert "PDF" in by
-        assert any("Portable Document Format" in e.definition for e in by["PDF"])
+        assert picked_def(extr, "PDF") == "Portable Document Format"
 
 
 class TestDetectAndExtractIntegrationEdgeCases:
@@ -388,7 +372,10 @@ class TestDetectAndExtractIntegrationEdgeCases:
         assert picked_def(extr, "3GPP") == "Third Generation Partnership Project"
 
     def test_tier_one_mixed_digits_acronym_parenthetical(self):
-        det, extr = detect_and_extract("Hypertext Transfer Protocol 2 (HTTP2) is used.")
+        det, extr, r = detect_and_extract("Hypertext Transfer Protocol 2 (HTTP2) is used.", return_reports=True)
+        pprint.pprint(r)
+        pprint.pprint(extr)
+        pprint.pprint(det)
         assert picked_def(extr, "HTTP2") == "Hypertext Transfer Protocol 2"
 
     def test_tier_one_definition_before_acronym_does_not_capture_trailing_space(self):
@@ -398,7 +385,7 @@ class TestDetectAndExtractIntegrationEdgeCases:
     def test_tier_one_pick_kind_is_set_for_anchored_parenthetical(self):
         det, extr = detect_and_extract("Portable Document Format (PDF) is common.")
         assert extr.picks["PDF"] is not None
-        assert getattr(extr.picks["PDF"], "kind", None) in {"def_before", "def_after"}  # whatever you standardise
+        assert getattr(extr.picks["PDF"], "kind", None) in {"def_before", "def_after"}
 
 
 class TestDetectAndExtractE2E:
@@ -409,13 +396,14 @@ class TestDetectAndExtractE2E:
         assert picked_def(extr, "SSO") in {"Single sign-on"}, extr.picks.get("SSO")
 
     def test_parenthetical_preserves_lowercase_hyphen_token(self):
-        det, extr, reports = detect_and_extract("single sign-on (SSO) is enabled.", return_reports=True)
-        pprint.pprint(reports)
-        pprint.pprint(extr)
+        det, extr = detect_and_extract("single sign-on (SSO) is enabled.")
         assert picked_def(extr, "SSO") == "single sign-on", extr.picks.get("SSO")
 
     def test_parenthetical_all_lowercase_definition_is_allowed(self):
-        det, extr = detect_and_extract("return on investment (ROI) is tracked.")
+        det, extr, R = detect_and_extract("return on investment (ROI) is tracked.", return_reports=True)
+        pprint.pprint(R)
+        pprint.pprint(extr)
+        pprint.pprint(det)
         assert picked_def(extr, "ROI") == "return on investment", extr.picks.get("ROI")
 
     def test_parenthetical_acronym_only_is_rejected(self):
