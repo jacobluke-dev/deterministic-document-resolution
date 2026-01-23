@@ -1,5 +1,3 @@
-import pprint
-
 import pytest
 from types import SimpleNamespace as NS
 
@@ -166,10 +164,7 @@ class TestDetectAndExtractIntegration:
 
         det_cfg, ext_cfg = _cfg_integrated()
 
-        det_res, extr, r = detect_and_extract(text, det_cfg=det_cfg, ext_cfg=ext_cfg, return_reports=True)
-        pprint.pprint(extr)
-        pprint.pprint(det_res)
-        pprint.pprint(r)
+        det_res, extr = detect_and_extract(text, det_cfg=det_cfg, ext_cfg=ext_cfg)
 
         # R&D forward
         assert picked_def(extr, "R&D") == "Research and Development"
@@ -222,12 +217,6 @@ class TestDetectAndExtractIntegrationEdgeCases:
             return_reports=True, trace=True, trace_filter=r"^(PTO|PF)$"
         )
 
-        for r in reports:
-            print(f"{r.name:22} :: {r.info}")
-
-        from pprint import pprint
-        pprint(extr)
-        pprint(trace)
 
         assert not any(d.acronym == "PTO" for d in extr.definitions)
         assert any(d.acronym == "PDF" for d in extr.definitions)
@@ -259,11 +248,6 @@ class TestDetectAndExtractIntegrationEdgeCases:
             return_reports=True, trace=True, trace_filter=r"^(PTO|PF)$"
         )
 
-        for r in reports:
-            print(f"{r.name:22} :: {r.info}")
-
-        from pprint import pprint
-        pprint(trace)
 
         assert not any(d.acronym == "PTO" for d in extr.definitions)
         assert any(d.acronym == "PDF" for d in extr.definitions)
@@ -372,10 +356,7 @@ class TestDetectAndExtractIntegrationEdgeCases:
         assert picked_def(extr, "3GPP") == "Third Generation Partnership Project"
 
     def test_tier_one_mixed_digits_acronym_parenthetical(self):
-        det, extr, r = detect_and_extract("Hypertext Transfer Protocol 2 (HTTP2) is used.", return_reports=True)
-        pprint.pprint(r)
-        pprint.pprint(extr)
-        pprint.pprint(det)
+        det, extr = detect_and_extract("Hypertext Transfer Protocol 2 (HTTP2) is used.")
         assert picked_def(extr, "HTTP2") == "Hypertext Transfer Protocol 2"
 
     def test_tier_one_definition_before_acronym_does_not_capture_trailing_space(self):
@@ -400,10 +381,7 @@ class TestDetectAndExtractE2E:
         assert picked_def(extr, "SSO") == "single sign-on", extr.picks.get("SSO")
 
     def test_parenthetical_all_lowercase_definition_is_allowed(self):
-        det, extr, R = detect_and_extract("return on investment (ROI) is tracked.", return_reports=True)
-        pprint.pprint(R)
-        pprint.pprint(extr)
-        pprint.pprint(det)
+        det, extr = detect_and_extract("return on investment (ROI) is tracked.")
         assert picked_def(extr, "ROI") == "return on investment", extr.picks.get("ROI")
 
     def test_parenthetical_acronym_only_is_rejected(self):
@@ -515,8 +493,6 @@ class TestDetectAndExtractE2EConfigAdjustment:
     def test_tier_one_dotted_acronym_key_strips_to_plain_preserves_dots_and_detects(self):
         det, extr = detect_and_extract("The United States of America (U.S.A.) is referenced.",
                                           det_cfg=DetectorConfig(enable_dotted=True, dotted_display="preserve"))
-        pprint.pprint(det)
-        pprint.pprint(extr)
         assert picked_def(extr, "U.S.A") in {"United States of America"}, extr.picks.get("U.S.A")
 
     def test_tier_one_dotted_acronym_key_strips_to_plain_removes_dots_and_detects(self):
@@ -545,7 +521,6 @@ class TestDetectAndExtractE2EConfigAdjustment:
             det_cfg=DetectorConfig(enable_dotted=True, dotted_display="preserve"),
             return_reports=True
         )
-        pprint.pprint(det)
         # Preserve internal dots, but not terminal punctuation.
         assert picked_def(extr, "U.S.A") is None or True  # definition may not exist in this sentence
         fo = det.unique_acronyms["U.S.A"]
