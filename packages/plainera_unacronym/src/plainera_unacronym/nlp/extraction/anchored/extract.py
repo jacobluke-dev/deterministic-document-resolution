@@ -71,8 +71,6 @@ def _span_of_pre_definition(seg: str, paren_start: int) -> tuple[int, int] | Non
         return None
     return 0, end
 
-
-
 def _trim_span(seg: str, d0: int, d1: int) -> tuple[int, int]:
     while d0 < d1 and seg[d0].isspace():
         d0 += 1
@@ -80,16 +78,31 @@ def _trim_span(seg: str, d0: int, d1: int) -> tuple[int, int]:
         d1 -= 1
     return d0, d1
 
+_POSSESSIVE_JOIN_RE = re.compile(r"\s*(?:['’]s\b)?\s*(?:[,;:—–-]\s*)?")
 
 def _calc_def_span(kind: str, *, acr_norm: str, seg: str, acr_end_local: int = None,
                    m: re.Match[str] = None, cfg: ExtractionConfig) -> OptSpan:
     if kind == "def_after":
         snippet = seg[acr_end_local:]
-        mm = find_parenthetical_longform_after_acr(snippet, cfg, acr=acr_norm, require_initials_match=True)
+
+        # NEW: allow "PDF's (Long Form)" by skipping possessive joiners after the acronym
+        j = _POSSESSIVE_JOIN_RE.match(snippet)
+        join_off = j.end() if j else 0
+        snippet2 = snippet[join_off:]
+
+        mm = find_parenthetical_longform_after_acr(
+            snippet2,
+            cfg,
+            acr=acr_norm,
+            require_initials_match=True,
+        )
         if not mm:
             return None
         loc = mm[0]
-        return acr_end_local + loc.def_start, acr_end_local + loc.def_end
+        return (
+            acr_end_local + join_off + loc.def_start,
+            acr_end_local + join_off + loc.def_end,
+        )
 
     if kind == "def_before":
         assert m is not None
