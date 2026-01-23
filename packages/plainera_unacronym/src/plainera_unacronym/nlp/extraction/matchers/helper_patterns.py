@@ -92,6 +92,32 @@ def _has_numeric_evidence(tokens: list[str]) -> bool:
             return True
     return False
 
+def _align(A, letters, part_is_stop, *, allow_upper_on_stop: bool) -> list[int] | None:
+    j = len(A) - 1
+    k = 0
+    used: list[int] = []
+
+    while k < len(letters) and j >= 0:
+        need = A[j].upper()
+
+        if letters[k] == need:
+            want_stop = A[j].islower()
+
+            if want_stop:
+                ok = part_is_stop[k]
+            else:
+                # strict: uppercase must be non-stopword
+                # relaxed: allow stopword too
+                ok = (not part_is_stop[k]) or allow_upper_on_stop
+
+            if ok:
+                used.append(k)
+                j -= 1
+        k += 1
+
+    return None if j >= 0 else used
+
+
 
 def find_parenthetical_longform_after_acr(
     snippet: str,
@@ -327,7 +353,6 @@ def find_parenthetical_longform_before_acr(snippet: str, acr: str, cfg) -> list[
 
     acr_esc = re.escape(acr)
 
-    # NEW: allow "(ACR, tail)" while still anchoring at end
     tail = r"(?:\s*[,;:]\s*[^)]{0,120})?"  # cap the tail to stay sane
 
     m = re.search(
@@ -389,20 +414,11 @@ def find_parenthetical_longform_before_acr(snippet: str, acr: str, cfg) -> list[
     if not A:
         return []
 
-    j = len(A) - 1  # index in acronym (RTL)
-    k = 0  # index in letters (already RTL order)
-    used_letter_pos: list[int] = []
-
-    while k < len(letters) and j >= 0:
-        need = A[j].upper()
-        want_stop = A[j].islower()  # lower-case letter forces stopword token
-        if letters[k] == need and (part_is_stop[k] if want_stop else not part_is_stop[k]):
-            used_letter_pos.append(k)
-            j -= 1
-        k += 1
-
-    if j >= 0:
-        return []  # failed to align all acronym letters
+    used_letter_pos = _align(A, letters, part_is_stop, allow_upper_on_stop=False)
+    if used_letter_pos is None:
+        used_letter_pos = _align(A, letters, part_is_stop, allow_upper_on_stop=True)
+    if used_letter_pos is None:
+        return []
 
     # 4) The token window is from leftmost contributing token to the last token
     tok_right = len(tokens) - 1
