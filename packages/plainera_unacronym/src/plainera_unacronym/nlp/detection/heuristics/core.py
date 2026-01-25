@@ -64,12 +64,19 @@ def compile_pattern(cfg: DetectorConfig) -> re.Pattern[str]:
     #    - We also guard this in the iterator by relaxing the caps ratio only if ≥2 uppers exist.
     camel_uc = r"(?:[A-Z][a-z]?){2,5}"
 
+    # 6) lower-prefix mixed-case, e.g. mRNA, eBPF, iOS, miRNA
+    # - 1-2 lowercase letters prefix
+    # - then at least 2 uppercase letters somewhere to avoid matching normal words
+    # - allow trailing digits (optional)
+    lower_prefix_mixed = r"(?:[a-z]{1,2}[A-Z]{2,}[A-Za-z0-9]*)"
+
     # Order matters: keep more specific branches (with_seps/dotted) before the generic compact.
     branches = [with_seps, compact, digit_compact]
     if cfg.enable_dotted:
         branches.insert(1, dotted)  # give dotted precedence over compact
     if cfg.enable_mixed_case:
         branches.append(camel_uc)
+        branches.append(lower_prefix_mixed)
 
     # Word boundaries prevent matching inside longer identifiers/words.
     # The branches themselves include internal punctuation; \b only applies at edges.
