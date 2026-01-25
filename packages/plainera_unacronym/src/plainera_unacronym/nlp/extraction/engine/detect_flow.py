@@ -2,6 +2,7 @@ from dataclasses import dataclass, field
 from typing import Optional
 
 from plainera_unacronym.nlp import Detector
+from plainera_unacronym.nlp.detection.cleanup.post_detect_cleanup import DroppedOccurrence, post_detect_cleanup
 from plainera_unacronym.nlp.extraction import extract_iter
 from plainera_unacronym.nlp.extraction.backref.extract import extract_sentence_backrefs
 from plainera_unacronym.nlp.extraction.core.defs import defs_from_picks, dedupe_defs
@@ -76,6 +77,7 @@ class FlowState:
     ext_cfg: ExtractionConfig
 
     det_res: Optional[DetectorResult] = None
+    cleanup_dropped: list[DroppedOccurrence] = field(default_factory=list)
     picks: dict[str, Optional[InTextPick]] = field(default_factory=dict)
 
     anchored_defs: list[ExtractedDefinition] = field(default_factory=list)
@@ -120,6 +122,16 @@ class ExtractionFlow:
         det = Detector(config=s.det_cfg).detect(s.text)
         s.det_res = det
         s._last_info = f"firsts={len(det.unique_acronyms)} occs={len(det.occurrences)}"
+        return StageResult(s, s._last_info)
+
+    def _st_post_detect_cleanup(self, s: FlowState) -> StageResult[FlowState]:
+        det = s.det_res
+        assert det is not None
+
+        cleaned, summary, dropped = post_detect_cleanup(s.text, det, s.det_cfg)
+        s.det_res = cleaned
+        s.cleanup_dropped = dropped
+        s._last_info = summary
         return StageResult(s, s._last_info)
 
     def _st_anchored(self, s: FlowState) -> StageResult[FlowState]:
@@ -205,6 +217,10 @@ class ExtractionFlow:
             Stage("detect",
                   self._st_detect,
                   lambda s: f"firsts={len(s.det_res.unique_acronyms)}"),
+            Stage("post_detect_cleanup",
+                  self._st_post_detect_cleanup,
+                  lambda s: f"firsts={len(s.det_res.unique_acronyms)} dropped={len(s.cleanup_dropped)}",
+                  trace_fields=("cleanup_dropped",)),
             Stage("anchored_picks",
                   self._st_anchored,
                   lambda s: f"{sum(1 for v in s.picks.values() if v)}/{len(s.picks)}",
