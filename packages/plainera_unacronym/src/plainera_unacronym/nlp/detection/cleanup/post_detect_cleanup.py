@@ -33,11 +33,12 @@ def post_detect_cleanup(
         "contained" due to tokenisation oddities).
     """
     before = det.occurrences
+    kept, dropped0 = _rule_token_before_paren_suffix(text, before)
 
-    kept, dropped_a = _rule_contained_suffix(before)
+    kept, dropped_a = _rule_contained_suffix(kept)
     kept, dropped_b = _rule_end_suffix_micro(kept)
 
-    dropped = dropped_a + dropped_b
+    dropped = dropped0 + dropped_a + dropped_b
 
     # Recompute unique_acronyms from kept occurrences (authoritative boundary)
     firsts = _recompute_firsts(text, kept, cfg)
@@ -135,6 +136,82 @@ def _is_strict_suffix(shorter: str, longer: str) -> bool:
         return False
     # Case-insensitive suffix match; keep it narrow (no fancy normalisation here)
     return longer.upper().endswith(shorter.upper())
+
+def _rule_token_before_paren_suffix(
+    text: str,
+    occs: list[Occurrence],
+    *,
+    max_ws: int = 2,
+) -> tuple[list[Occurrence], list[DroppedOccurrence]]:
+    """
+    Drop ALLCAPS token A immediately before '(' when an acronym B inside the parentheses
+    is a strict suffix-superstring match (B endswith A, case-insensitive).
+
+    Example: "messenger RNA (mRNA)" -> drop "RNA" because "mRNA" endswith "RNA".
+    """
+    ordered = sorted(occs, key=lambda o: (o.start_offset, o.end_offset, o.acronym))
+
+    # Index occurrences by start offset for quick "B starts right after '('"
+    by_start: dict[int, list[Occurrence]] = {}
+    for o in ordered:
+        by_start.setdefault(o.start_offset, []).append(o)
+
+    drop_ids: set[int] = set()
+    dropped: list[DroppedOccurrence] = []
+
+    # We'll use stable indices into `ordered` so we can drop deterministically.
+    for idx, a in enumerate(ordered):
+        if idx in drop_ids:
+            continue
+
+        # Only consider ALLCAPS-ish tokens as the "long-form tail word" noise.
+        # Keep it narrow: "RNA", "HTTP", etc. (ignore mixed-case here)
+        if not a.acronym.isupper():
+            continue
+
+        # Check for whitespace then '(' right after A
+        j = a.end_offset
+        ws = 0
+        while j < len(text) and text[j].isspace() and ws < max_ws:
+            j += 1
+            ws += 1
+        if j >= len(text) or text[j] != "(":
+            continue
+
+        # Find a candidate B occurrence that begins immediately after '(' (+ optional space)
+        k = j + 1
+        while k < len(text) and text[k].isspace():
+            k += 1
+
+        bs = by_start.get(k, [])
+        if not bs:
+            continue
+
+        # Choose the "best" B: longest acronym at that start (more informative)
+        b = max(bs, key=lambda o: (o.end_offset - o.start_offset, o.confidence))
+
+        # Ensure B is inside the parentheses and matches suffix condition
+        # (quick check for closing paren right after B, allowing whitespace)
+        m = b.end_offset
+        while m < len(text) and text[m].isspace():
+            m += 1
+        if m >= len(text) or text[m] != ")":
+            continue
+
+        if _is_strict_suffix(a.acronym, b.acronym):
+            drop_ids.add(idx)
+            dropped.append(
+                DroppedOccurrence(
+                    acronym=a.acronym,
+                    start=a.start_offset,
+                    end=a.end_offset,
+                    rule="token_before_paren_suffix",
+                    detail=f"paren={b.acronym}@({b.start_offset},{b.end_offset})",
+                )
+            )
+
+    kept = [o for i, o in enumerate(ordered) if i not in drop_ids]
+    return kept, dropped
 
 
 def _recompute_firsts(
