@@ -1,9 +1,10 @@
 import pytest
+
+from plainera_unacronym.nlp.extraction.matchers.common import split_compound
 from plainera_unacronym.nlp.extraction.matchers.tighten import (
     _best_window_for_acronym,
-    _initials_seq,
-    _match_from,
-    _split_compound,
+    initials_seq,
+    match_from,
     _tokenize_preserve,
     tighten_label_by_acronym,
 )
@@ -37,12 +38,12 @@ class TestSplitCompound:
     )
     def test_split_various(self, token, expected):
         # Filtered empties: replicate function’s behavior for cases where parametrization shows '' parts
-        out = _split_compound(token)
+        out = split_compound(token)
         assert out == [p for p in expected if p]
 
     def test_repeated_mixed_delimiters(self):
         token = "a--b///c..d&&e"
-        assert _split_compound(token) == ["a", "b", "c", "d", "e"]
+        assert split_compound(token) == ["a", "b", "c", "d", "e"]
 
 
 class TestTokenizePreserve:
@@ -91,40 +92,40 @@ class TestInitialsSeqUnit:
     def test_basic_three_tokens(self, monkeypatch):
         # Force a single part per token; check letters+owners map 1:1 to tokens
         _patch(
-            monkeypatch, _initials_seq,
-            _split_compound=lambda tok: [tok],
+            monkeypatch, initials_seq,
+            split_compound=lambda tok: [tok],
             re=__import__("re"),
         )
         tokens = ["Portable", "Document", "Format"]
-        letters, owners = _initials_seq(tokens)
+        letters, owners = initials_seq(tokens)
         assert letters == ["P", "D", "F"]
         assert owners == [0, 1, 2]
 
-    def test_compound_parts_all_count_but_owner_is_token_index(self, monkeypatch):
+    def test_compound_parts_emit_multiple_initials_with_same_owner(self, monkeypatch):
         # Simulate "C++" -> ["C", "Plus", "Plus"] from the *same* token index
         parts_map = {
             "C++": ["C", "Plus", "Plus"],
             "GPU": ["GPU"],
         }
         _patch(
-            monkeypatch, _initials_seq,
-            _split_compound=lambda tok: parts_map[tok],
+            monkeypatch, initials_seq,
+            split_compound=lambda tok: parts_map[tok],
             re=__import__("re"),
         )
         tokens = ["C++", "GPU"]
-        letters, owners = _initials_seq(tokens)
+        letters, owners = initials_seq(tokens)
         assert letters == ["C", "P", "P", "G"]
         assert owners == [0, 0, 0, 1]
 
     def test_tokens_with_no_alnum_parts_are_ignored(self, monkeypatch):
         # Parts with no [A-Za-z0-9] yield no initials
         _patch(
-            monkeypatch, _initials_seq,
-            _split_compound=lambda tok: ["—", "…"],  # emdash, ellipsis
+            monkeypatch, initials_seq,
+            split_compound=lambda tok: ["—", "…"],  # emdash, ellipsis
             re=__import__("re"),
         )
         tokens = ["—…"]
-        letters, owners = _initials_seq(tokens)
+        letters, owners = initials_seq(tokens)
         assert letters == []
         assert owners == []
 
@@ -136,9 +137,9 @@ class TestInitialsSeqUnit:
             called["split"] += 1
             return [tok]  # would have produced something if not skipped
 
-        _patch(monkeypatch, _initials_seq, _split_compound=spy_split, re=__import__("re"))
+        _patch(monkeypatch, initials_seq, split_compound=spy_split, re=__import__("re"))
         tokens = ["and-or", "Useful"]
-        letters, owners = _initials_seq(tokens)
+        letters, owners = initials_seq(tokens)
         assert letters == ["A", "U"]
         assert owners == [0, 1]
         # Ensure split was *not* called for the stopword token
@@ -148,8 +149,8 @@ class TestInitialsSeqUnit:
 class TestInitialsSeqIntegration:
     def test_compound_splitting_and_digits(self):
         tokens = ["3/4-inch", "co-op", "R&D", "v1.2.3"]
-        letters, owners = _initials_seq(tokens)
-        # Expected from real _split_compound:
+        letters, owners = initials_seq(tokens)
+        # Expected from real split_compound:
         # "3/4-inch" -> ["3","4","inch"]      -> 3,4,I (owners 0,0,0)
         # "co-op"    -> ["co","op"]           -> C,O   (owners 1,1)
         # "R&D"      -> ["R","D"]             -> R,D   (owners 2,2)
@@ -159,7 +160,7 @@ class TestInitialsSeqIntegration:
 
     def test_unicode_letters_in_tokens(self):
         tokens = ["β-blocker", "Ångström", "GPU"]
-        letters, owners = _initials_seq(tokens)
+        letters, owners = initials_seq(tokens)
         # "β-blocker" -> parts ["β","blocker"] → first alpha is 'β' (Unicode) → 'Β' (Greek beta uppercase)
         # 2nd B is from blocker
         # "Ångström"  -> first alpha is 'Å'     → 'Å'
@@ -172,20 +173,20 @@ class TestMatchFrom:
     def test_exact_match_from_zero(self):
         letters = list("PDFX")
         acronym = list("PDF")
-        end, used = _match_from(letters, acronym, 0)
+        end, used = match_from(letters, acronym, 0)
         assert end == 3
         assert used == [0, 1, 2]
 
     def test_no_match(self):
         letters = list("PFX")
         acronym = list("PDF")
-        assert _match_from(letters, acronym, 0) is None
+        assert match_from(letters, acronym, 0) is None
 
     def test_start_offset(self):
         letters = list("APDFZ")
         acronym = list("PDF")
         # Starting at 1 should match P(1), D(2), F(3) → end index 4
-        end, used = _match_from(letters, acronym, 1)
+        end, used = match_from(letters, acronym, 1)
         assert end == 4
         assert used == [1, 2, 3]
 
@@ -193,40 +194,40 @@ class TestMatchFrom:
         letters = list("ABCABC")
         acronym = list("ABC")
         # From start=0 it matches at [0,1,2]
-        assert _match_from(letters, acronym, 0) == (3, [0, 1, 2])
+        assert match_from(letters, acronym, 0) == (3, [0, 1, 2])
         # From start=1 it can skip to the next 'A' and match at [3,4,5]
-        assert _match_from(letters, acronym, 1) == (6, [3, 4, 5])
+        assert match_from(letters, acronym, 1) == (6, [3, 4, 5])
 
     def test_greedy_end_index_is_exclusive(self):
         letters = list("AXBYCZD")
         acronym = list("ABCD")
         # Match A(0), B(2), C(4), D(6) → last match at 6; end should be 7
-        end, used = _match_from(letters, acronym, 0)
+        end, used = match_from(letters, acronym, 0)
         assert used == [0, 2, 4, 6]
         assert end == 7  # exclusive
 
     def test_letters_shorter_than_acronym(self):
         letters = list("PD")
         acronym = list("PDF")
-        assert _match_from(letters, acronym, 0) is None
+        assert match_from(letters, acronym, 0) is None
 
     def test_empty_acronym_matches_immediately(self):
         letters = list("ANY")
         acronym = []  # empty target
-        end, used = _match_from(letters, acronym, 2)
+        end, used = match_from(letters, acronym, 2)
         # With empty acronym, loop doesn't run; returns (start, [])
         assert (end, used) == (2, [])
 
     def test_start_past_end_returns_none(self):
         letters = list("PDF")
         acronym = list("P")
-        assert _match_from(letters, acronym, 5) is None
+        assert match_from(letters, acronym, 5) is None
 
     def test_case_sensitive(self):
         letters = list("Pdf")
         acronym = list("PDF")
         # Exact equality is required; pipeline should uppercase upstream
-        assert _match_from(letters, acronym, 0) is None
+        assert match_from(letters, acronym, 0) is None
 
 
 class TestBestWindowForAcronymUnit:
@@ -238,16 +239,16 @@ class TestBestWindowForAcronymUnit:
 
     def test_returns_none_when_no_letters(self, monkeypatch):
         # No initials generated → None
-        _patch(monkeypatch, _best_window_for_acronym, _initials_seq=lambda t, *a, **k: ([], []))
+        _patch(monkeypatch, _best_window_for_acronym, initials_seq=lambda t, *a, **k: ([], []))
         assert _best_window_for_acronym(["Portable", "Document"], "PD") is None
 
     def test_picks_shortest_window_and_keeps_first_on_tie(self, monkeypatch):
         # Provide deterministic initials and owners; use real _match_from
-        def fake_initials_seq(tokens):
+        def fake_initials_seq(tokens, expand_allcaps):
             # letters index: 0:X, 1:P, 2:D, 3:F, 4:P, 5:D, 6:F
             return ["X", "P", "D", "F", "P", "D", "F"], [0, 1, 2, 3, 4, 5, 6]
 
-        _patch(monkeypatch, _best_window_for_acronym, _initials_seq=fake_initials_seq)
+        _patch(monkeypatch, _best_window_for_acronym, initials_seq=fake_initials_seq)
 
         tokens = ["t0", "t1", "t2", "t3", "t4", "t5", "t6"]
         out = _best_window_for_acronym(tokens, "PDF")

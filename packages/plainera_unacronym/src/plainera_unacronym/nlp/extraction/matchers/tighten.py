@@ -3,125 +3,14 @@ from typing import Optional
 
 from plainera_unacronym.nlp.common.constants_regex import BRIDGES_DEFAULT, DEFAULT_STOPWORDS
 from plainera_unacronym.nlp.common.shared import canonicalize, strip_trailing_punct_str, collapse_ws
+from plainera_unacronym.nlp.extraction.matchers.common import match_from, initials_seq, is_mixed_case_acronym
 
 _word_re = re.compile(r"[A-Za-z0-9'’\-\/&\.]+", flags=re.UNICODE)
-_ASCII_CAMEL_RE = re.compile(
-    r"[A-Z]+(?=[A-Z][a-z0-9])"  # e.g., 'XML' in 'XMLHttp'
-    r"|[A-Z]?[a-z]+[0-9]*"  # word with optional trailing digits, e.g., 'v1'
-    r"|[0-9]+"  # standalone digits
-)
-
-LEXICAL_SPLITS = {
-    # Networking / protocols / web
-    "websocket": ("Web", "Socket"),  # WS (less common), but appears a lot
-    "middleware": ("Middle", "Ware"),  # MW (internal docs)
-    "firmware": ("Firm", "Ware"),  # FW
-    "hardware": ("Hard", "Ware"),  # HW
-    "software": ("Soft", "Ware"),  # SW (can collide with "switch", but as a split it's fine)
-
-    # Identity / auth / accounts
-    "hostname": ("Host", "Name"),  # HN
-    "password": ("Pass", "Word"),  # PW (super common in docs)
-
-    # Storage / data
-    "database": ("Data", "Base"),  # DB (historically ugly, but extremely common)
-    # Languages
-    "typescript": ("Type", "Script"),  # TS (collides with timestamp)
-    "powershell": ("Power", "Shell"),  # PS (collides heavily)
-
-    # Platforms / tools
-    "bitbucket": ("Bit", "Bucket"),  # BB
-    "gitlab": ("Git", "Lab"),  # GL
-    "github": ("Git", "Hub"),  # GH
-
-    "postgresql": ("Postgres", "SQL"),  # PG/PSQL alignment
-    "mysql": ("My", "SQL"),  # MySQL is already Camel-ish, but tokenisers often keep as one
-    "mssql": ("MS", "SQL"),  # MS SQL / MSSQL
-
-    "newline": ("New", "Line"),  # NL
-    "filepath": ("File", "Path"),  # FP
-    "filename": ("File", "Name"),  # FN
-    "checksum": ("Check", "Sum"),  # CS
-    "hypertext": ("Hyper", "text"),
-}
-
-
-def _split_compound(token: str) -> list[str]:
-    """Split hyphen/slash/dot/& and (ASCII) CamelCase into parts.
-
-    Rules:
-    - Non-ASCII pieces (e.g., 'Ångström') are kept intact (no Camel split).
-    - ASCII pieces with both letters and digits that START or END with a digit
-      are kept intact as a single part (e.g., '3D', 'v1').
-    - Otherwise, ASCII CamelCase is split using _ASCII_CAMEL_RE.
-    """
-    pieces = re.split(r"[\-\/\.\&]", token)
-    out: list[str] = []
-    for p in pieces:
-        if not p:
-            continue
-        if not re.fullmatch(r"[A-Za-z0-9]+", p):
-            # Contains non-ASCII or other chars -> keep whole piece
-            out.append(p)
-            continue
-
-        has_alpha = bool(re.search(r"[A-Za-z]", p))
-        has_digit = bool(re.search(r"[0-9]", p))
-
-        # ---- SPECIAL-CASE LEXICAL COMPOUNDS ----
-        low = p.lower()
-        if low in LEXICAL_SPLITS:
-            out.extend(LEXICAL_SPLITS[low])
-            continue
-
-        # Keep leading-digit+letters or trailing-digit combos intact: '3D', 'v1', 'HTTP2'
-        if has_alpha and has_digit and (p[0].isdigit() or p[-1].isdigit()):
-            out.append(p)
-            continue
-
-        parts = _ASCII_CAMEL_RE.findall(p)
-        out.extend(parts if parts else [p])
-
-    return out
 
 
 def _tokenize_preserve(text: str) -> list[str]:
     return _word_re.findall(text)
 
-
-def _initials_seq(tokens: list[str]) -> tuple[list[str], list[int]]:
-    """
-    Build a sequence of initials (letters+digits) from tokens
-    owners[k] = token index that produced letters[k].
-
-    Unicode-aware: picks the first character in each part where ch.isalpha() or ch.isdigit().
-    """
-    letters, owners = [], []
-    for ti, tok in enumerate(tokens):
-        for part in _split_compound(tok):
-            for ch in part:
-                if ch.isalpha() or ch.isdigit():
-                    letters.append(ch.upper())
-                    owners.append(ti)
-                    break
-    return letters, owners
-
-
-def _match_from(letters: list[str], acronym_list: list[str], start: int) -> Optional[tuple[int, list[int]]]:
-    """
-    Greedily align A as a subsequence of letters starting at index `start`.
-    Returns (end_index_exclusive_in_letters, matched_letter_positions) or None.
-    """
-    li, ai = start, 0
-    used = []
-    while li < len(letters) and ai < len(acronym_list):
-        if letters[li] == acronym_list[ai]:
-            used.append(li)
-            ai += 1
-        li += 1
-    if ai == len(acronym_list):
-        return li, used
-    return None
 
 
 def _best_window_for_acronym(
@@ -135,13 +24,13 @@ def _best_window_for_acronym(
     if not A:
         return None
 
-    letters, owners = _initials_seq(tokens)
+    letters, owners = initials_seq(tokens, expand_allcaps=is_mixed_case_acronym(acronym))
     if not letters:
         return None
 
     best = None  # (tok_s, tok_e, hits_set)
     for li in range(len(letters)):
-        res = _match_from(letters, A, li)
+        res = match_from(letters, A, li)
         if not res:
             continue
         lj, used_letters = res

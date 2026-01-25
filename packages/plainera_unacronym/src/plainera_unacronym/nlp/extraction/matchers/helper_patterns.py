@@ -4,10 +4,9 @@ from typing import Optional
 from plainera_unacronym.nlp.common.constants_regex import DEFAULT_STOPWORDS, BRIDGES_DEFAULT, QUOTE
 from plainera_unacronym.nlp.common.shared import normalize_definition
 from plainera_unacronym.nlp.extraction.anchored.normalise import tighten_definition_span, strip_trailing_punct_str, collapse_ws
+from plainera_unacronym.nlp.extraction.matchers.common import match_from, initials_seq, is_mixed_case_acronym, \
+    split_compound
 from plainera_unacronym.nlp.extraction.matchers.numeric_matcher import consume_left_numeric_designator
-
-from plainera_unacronym.nlp.extraction.matchers.tighten import _initials_seq, _match_from, _split_compound
-
 
 class LocalDefMatch:
     def __init__(self, def_start: int, def_end: int, definition: str, raw: str | None = None):
@@ -93,7 +92,15 @@ def _has_numeric_evidence(tokens: list[str]) -> bool:
             return True
     return False
 
-def _align(A, letters, part_is_stop, *, allow_upper_on_stop: bool) -> list[int] | None:
+
+def _align(
+    A,
+    letters,
+    part_is_stop,
+    *,
+    allow_upper_on_stop: bool,
+    allow_lower_on_non_stop: bool = False,
+) -> list[int] | None:
     j = len(A) - 1
     k = 0
     used: list[int] = []
@@ -105,10 +112,10 @@ def _align(A, letters, part_is_stop, *, allow_upper_on_stop: bool) -> list[int] 
             want_stop = A[j].islower()
 
             if want_stop:
-                ok = part_is_stop[k]
+                # strict: lowercase must land on stopword
+                # relaxed: allow it to land on non-stopword too (for mixed-case acronyms like mRNA)
+                ok = part_is_stop[k] or allow_lower_on_non_stop
             else:
-                # strict: uppercase must be non-stopword
-                # relaxed: allow stopword too
                 ok = (not part_is_stop[k]) or allow_upper_on_stop
 
             if ok:
@@ -117,6 +124,33 @@ def _align(A, letters, part_is_stop, *, allow_upper_on_stop: bool) -> list[int] 
         k += 1
 
     return None if j >= 0 else used
+
+
+
+_ACR_TOKEN_RE = re.compile(r"^[A-Z](?:[A-Z0-9]|[A-Z]\.){1,}$")  # RNA, HTTP2, U.S.A
+
+
+def _is_acronym_like_token(tok: str) -> bool:
+    # Trim light punctuation that commonly sticks to tokens
+    t = tok.strip(".,;:)]}»”'\"")
+    if len(t) < 2:
+        return False
+    # Common dotted initialisms: U.S.A
+    if _ACR_TOKEN_RE.fullmatch(t):
+        return True
+    # Pure uppercase letters/digits (no lowercase) is also acronym-like
+    return any(c.isupper() for c in t) and not any(c.islower() for c in t) and any(c.isalpha() for c in t)
+
+
+def _acronym_letters_rtl(tok: str) -> list[str]:
+    """
+    Return alnum chars from token as UPPER, in RTL order.
+    Example: 'RNA' -> ['A','N','R'], 'U.S.A' -> ['A','S','U'], 'HTTP2' -> ['2','P','T','T','H'] (digits kept).
+    """
+    t = tok.strip(".,;:)]}»”'\"")
+    chars = [c.upper() for c in t if c.isalnum()]
+    chars.reverse()
+    return chars
 
 
 
@@ -209,10 +243,9 @@ def find_parenthetical_longform_after_acr(
 
     if acr and require_initials_match:
         # Build initials / owners per *token*
-        letters, owners = _initials_seq(tokens)
+        letters, owners = initials_seq(tokens, expand_allcaps=is_mixed_case_acronym(acr))
         if not letters:
             return []
-
 
         # Build target acronym with per-char constraints
         has_num = _has_numeric_evidence(tokens)
@@ -234,41 +267,26 @@ def find_parenthetical_longform_after_acr(
 
         # We’ll reuse the existing `_match_from` over `letters`, then verify constraints
         L = [x.upper() for x in A]  # normalized targets for equality
-        print("letters:", letters)
-        print("owners:", owners)
-        print("targets:", L)
-        for start in range(len(letters)):
-            ti = 0
-            used = []
-            for pos in range(start, len(letters)):
-                if letters[pos] != L[ti]:
-                    continue
+        for li in range(len(letters)):
+            r = match_from(letters, L, li)
+            if not r:
+                continue
+            lj, used_letter_pos = r  # lj = 1+last letter index in letters
+            tok_s = owners[li]
+            tok_e = owners[lj - 1]
+            hits = {owners[u] for u in used_letter_pos}
 
-                token_idx = owners[pos]
-                # casing constraint: lowercase target -> stopword; uppercase -> non-stopword
-                want_stop = A[ti].islower()
-                ok = is_stop[token_idx] if want_stop else (not is_stop[token_idx])
-                if not ok:
-                    continue
-
-                used.append(pos)
-                ti += 1
-                if ti == len(L):
-                    # Window should be defined by matched letters, not the scan start.
-                    tok_s = owners[used[0]]
-                    tok_e = owners[used[-1]]
-
-                    hits = {owners[u] for u in used}
-
-                    if best is None or (tok_e - tok_s) < (best[1] - best[0]):
-                        best = (tok_s, tok_e, hits)
+            # enforce per-letter stopword constraint
+            ok = True
+            for k, letter_pos in enumerate(used_letter_pos):
+                if not ok_token_for(L[k], owners[letter_pos], k):
+                    ok = False
                     break
+            if not ok:
+                continue
 
-            # if not ok:
-            #     continue
-            #
-            # if best is None or (tok_e - tok_s) < (best[1] - best[0]):
-            #     best = (tok_s, tok_e, hits)
+            if best is None or (tok_e - tok_s) < (best[1] - best[0]):
+                best = (tok_s, tok_e, hits)
 
         if not best:
             return []
@@ -411,9 +429,18 @@ def find_parenthetical_longform_before_acr(snippet: str, acr: str, cfg) -> list[
 
     for ti in range(len(tokens) - 1, -1, -1):  # tokens RTL
         tok = tokens[ti]
-        # split compounds (+ fallback CamelCase split if the _split_compound doesn't cover it)
-        parts = _split_compound(tok)
-        if not parts:  # very defensive
+
+        # NEW: acronym-like token contributes multiple letters
+        if _is_acronym_like_token(tok):
+            for ch in _acronym_letters_rtl(tok):
+                letters.append(ch)
+                owners.append(ti)
+                part_is_stop.append(is_stop[ti])
+            continue
+
+        # Existing behaviour for normal words / compounds
+        parts = split_compound(tok)
+        if not parts:
             continue
         for part in reversed(parts):  # parts RTL
             ch = _first_alnum_char_upper(part)
@@ -432,9 +459,19 @@ def find_parenthetical_longform_before_acr(snippet: str, acr: str, cfg) -> list[
     if not A:
         return []
 
-    used_letter_pos = _align(A, letters, part_is_stop, allow_upper_on_stop=False)
+    mixed = is_mixed_case_acronym(acr)
+
+    used_letter_pos = _align(
+        A, letters, part_is_stop,
+        allow_upper_on_stop=False,
+        allow_lower_on_non_stop=mixed,
+    )
     if used_letter_pos is None:
-        used_letter_pos = _align(A, letters, part_is_stop, allow_upper_on_stop=True)
+        used_letter_pos = _align(
+            A, letters, part_is_stop,
+            allow_upper_on_stop=True,
+            allow_lower_on_non_stop=mixed,
+        )
     if used_letter_pos is None:
         return []
 
@@ -518,10 +555,9 @@ def find_inline_longform_after_acr(
     if len(collapse_ws(tail[0])) > max_phrase_chars:
         return []
 
-    stop = getattr(cfg, "stop", None) or getattr(cfg, "stopwords", DEFAULT_STOPWORDS)
+    stop = getattr(cfg, "stop", DEFAULT_STOPWORDS)
     bridges = getattr(cfg, "bridges", BRIDGES_DEFAULT)
     max_phrase_chars = getattr(cfg, "max_phrase_chars", 200)
-
     search_cap = max_chars or max_phrase_chars * 2
     s = snippet[:search_cap]
 
