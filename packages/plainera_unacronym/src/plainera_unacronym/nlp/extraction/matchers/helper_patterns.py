@@ -313,7 +313,7 @@ def find_parenthetical_longform_after_acr(
             # enforce per-letter stopword constraint
             ok = True
             for k, letter_pos in enumerate(used_letter_pos):
-                if not ok_token_for(L[k], owners[letter_pos], k):
+                if not ok_token_for(owners[letter_pos], k):
                     ok = False
                     break
             if not ok:
