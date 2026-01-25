@@ -238,6 +238,8 @@ def find_parenthetical_longform_after_acr(
 
     # 2) Tokenize the raw parenthetical (preserve case; no normalization yet)
     tokens = raw_trim.split()
+    mixed = acr and is_mixed_case_acronym(acr)
+
     if not tokens:
         return []
 
@@ -260,10 +262,42 @@ def find_parenthetical_longform_after_acr(
         is_stop = [t.lower() in stop for t in tokens]
 
         # Per-letter constraint helper
-        def ok_token_for(ch_upper: str, token_idx: int, matched_letter_pos: int) -> bool:
-            # letters[matched_letter_pos] already equals ch_upper
-            # enforce stopword vs non-stopword by case of the acronym letter
-            return is_stop[token_idx] if A[matched_letter_pos].islower() else (not is_stop[token_idx])
+        mixed = bool(acr) and is_mixed_case_acronym(acr)
+
+        def ok_token_for(token_idx: int, acr_pos: int) -> bool:
+            """
+            Enforce stopword/non-stopword constraints by acronym letter case.
+
+            Default contract (strict):
+              - uppercase acronym letter -> must land on NON-stopword
+              - lowercase acronym letter -> must land on stopword
+
+            Narrow exception (to support mRNA/iOS-style prefixes without breaking other tests):
+              - allow a lowercase *first* acronym letter to land on a non-stopword token
+                ONLY if it maps to the first token and that token starts with the same letter.
+            """
+            want_stop = A[acr_pos].islower()
+            if not want_stop:
+                return not is_stop[token_idx]
+
+            # strict default: lowercase must land on stopword
+            if is_stop[token_idx]:
+                return True
+
+            # ---- narrow exception ----
+            if not mixed:
+                return False
+            if acr_pos != 0:
+                return False
+            if token_idx != 0:
+                return False
+
+            tok0 = tokens[0]
+            # Don't allow acronym tokens (ALLCAPS) to satisfy lowercase prefixes
+            if tok0.isalpha() and tok0.isupper():
+                return False
+
+            return tok0[:1].lower() == A[0].lower()
 
         # We’ll reuse the existing `_match_from` over `letters`, then verify constraints
         L = [x.upper() for x in A]  # normalized targets for equality

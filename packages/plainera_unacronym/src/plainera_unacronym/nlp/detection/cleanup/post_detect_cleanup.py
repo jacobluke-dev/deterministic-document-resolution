@@ -33,12 +33,12 @@ def post_detect_cleanup(
         "contained" due to tokenisation oddities).
     """
     before = det.occurrences
-    kept, dropped0 = _rule_token_before_paren_suffix(text, before)
+    kept, dropped_a = _rule_inside_paren_suffix_of_left_acronym(text, before)
+    kept, dropped_b = _rule_token_before_paren_suffix(text, kept)
+    kept, dropped_c = _rule_contained_suffix(kept)
+    kept, dropped_d = _rule_end_suffix_micro(kept)
 
-    kept, dropped_a = _rule_contained_suffix(kept)
-    kept, dropped_b = _rule_end_suffix_micro(kept)
-
-    dropped = dropped0 + dropped_a + dropped_b
+    dropped = dropped_a + dropped_b + dropped_c + dropped_d
 
     # Recompute unique_acronyms from kept occurrences (authoritative boundary)
     firsts = _recompute_firsts(text, kept, cfg)
@@ -88,6 +88,59 @@ def _rule_contained_suffix(occs: list[Occurrence]) -> tuple[list[Occurrence], li
                 )
 
     kept = [o for k, o in enumerate(ordered) if k not in drop_idx]
+    return kept, dropped
+
+
+_PUNCT_TRIM = ".,;:)]}»”'\""
+
+def _rule_inside_paren_suffix_of_left_acronym(text: str, occs: list[Occurrence]) -> tuple[list[Occurrence], list[DroppedOccurrence]]:
+    ordered = sorted(occs, key=lambda o: (o.start_offset, o.end_offset, o.acronym))
+    drop_ids: set[int] = set()
+    dropped: list[DroppedOccurrence] = []
+
+    # index by start offset for quick lookup
+    by_start = {}
+    for i, o in enumerate(ordered):
+        by_start.setdefault(o.start_offset, []).append((i, o))
+
+    for i, left in enumerate(ordered):
+        # left token must be followed by '(' (allow ws)
+        j = left.end_offset
+        while j < len(text) and text[j].isspace():
+            j += 1
+        if j >= len(text) or text[j] != "(":
+            continue
+
+        # find occurrences that are fully inside the parens region after '('
+        # quick-and-safe: only consider candidates whose start is after '(' and before the next ')'
+        close = text.find(")", j + 1)
+        if close == -1:
+            continue
+
+        for k, inner in enumerate(ordered):
+            if k == i:
+                continue
+            if not (j + 1 <= inner.start_offset and inner.end_offset <= close):
+                continue
+
+            # candidate to drop: ALLCAPS alpha token inside parens
+            inner_clean = inner.acronym.strip(_PUNCT_TRIM)
+            if not (inner_clean.isalpha() and inner_clean.isupper() and len(inner_clean) > 1):
+                continue
+
+            if _is_strict_suffix(inner_clean, left.acronym):
+                drop_ids.add(k)
+                dropped.append(
+                    DroppedOccurrence(
+                        acronym=inner.acronym,
+                        start=inner.start_offset,
+                        end=inner.end_offset,
+                        rule="inside_paren_suffix_of_left",
+                        detail=f"suffix_of={left.acronym}@({left.start_offset},{left.end_offset})",
+                    )
+                )
+
+    kept = [o for idx, o in enumerate(ordered) if idx not in drop_ids]
     return kept, dropped
 
 
