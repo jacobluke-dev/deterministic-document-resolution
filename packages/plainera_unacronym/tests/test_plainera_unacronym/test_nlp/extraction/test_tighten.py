@@ -255,6 +255,12 @@ class TestBestWindowForAcronymUnit:
         # Two equally short windows exist: tokens [1..3] and [4..6]; function keeps the first
         assert out == (1, 3, {1, 2, 3})
 
+    def test_plain_token_emits_single_initial_by_default(self):
+        tokens = ["GPU"]
+        letters, owners = initials_seq(tokens)
+        assert letters == ["G"]
+        assert owners == [0]
+
     def test_hits_contains_only_tokens_that_contributed_letters(self, monkeypatch):
         # Make a window covering tokens 0..3, but ensure only tokens 0,2,3 supply matched initials
         def fake_initials_seq(tokens):
