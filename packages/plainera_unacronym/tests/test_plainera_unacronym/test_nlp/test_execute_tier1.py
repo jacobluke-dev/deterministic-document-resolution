@@ -590,10 +590,7 @@ class TestDetectAndExtractE2EConfigAdjustment:
 class TestDetectAndExtractE2EMixedCaseAcronyms:
 
     def test_mixed_case_tfl_parenthetical_reverse(self):
-        det, extr, r = detect_and_extract("The TfL (Transport for London) is based in London.", return_reports=True)
-        pprint.pprint(r)
-        pprint.pprint(extr)
-        pprint.pprint(det)
+        det, extr = detect_and_extract("The TfL (Transport for London) is based in London.")
         assert picked_def(extr, "TfL") in {"Transport for London"}, extr.picks.get("TfL")
 
     def test_mixed_case_tfl_parenthetical(self):
@@ -602,26 +599,17 @@ class TestDetectAndExtractE2EMixedCaseAcronyms:
 
 
     def test_mixed_case_mrna_parenthetical(self):
-        det, extr,r = detect_and_extract("messenger RNA (mRNA) has been developed,", return_reports=True)
-        pprint.pprint(r)
-        pprint.pprint(extr)
-        pprint.pprint(det)
+        det, extr = detect_and_extract("messenger RNA (mRNA) has been developed,")
         assert picked_def(extr, "mRNA") in {"messenger RNA"}, extr.picks.get("mRNA")
 
     def test_mixed_case_mrna_parenthetical_reverse(self):
-        det, extr,r = detect_and_extract("The new technology mRNA (messenger RNA) has been developed", return_reports=True)
-        pprint.pprint(r)
-        pprint.pprint(extr)
-        pprint.pprint(det)
+        det, extr = detect_and_extract("The new technology mRNA (messenger RNA) has been developed")
         assert picked_def(extr, "mRNA") in {"messenger RNA"}, extr.picks.get("mRNA")
 
     def test_mixed_case_ios(self):
         det, extr = detect_and_extract("The new iPhone Operating system (iOS) was developed by Apple.")
         assert picked_def(extr, "iOS") in {"iPhone Operating system"}, extr.picks.get("iOS")
 
-    def test_mixed_case_invalid_mrna_variant(self):
-        det, extr,r = detect_and_extract("MrNA (Messenger ribonucleic acid)", return_reports=True)
-        pprint.pprint(r)
-        pprint.pprint(extr)
-        pprint.pprint(det)
+    def test_cleanup_drops_alternating_case_mrna_typo(self):
+        det, extr, r = detect_and_extract("MrNA (Messenger ribonucleic acid)")
         assert "MrNA" not in extr.picks, extr.picks.get("MrNA")

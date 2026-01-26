@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Iterable
 
 from plainera_unacronym.nlp.common.types import DetectorResult, DetectorConfig, Occurrence, FirstOccurrence
 from plainera_unacronym.nlp.common.shared import normalize_acronym_key
@@ -37,8 +36,9 @@ def post_detect_cleanup(
     kept, dropped_b = _rule_token_before_paren_suffix(text, kept)
     kept, dropped_c = _rule_contained_suffix(kept)
     kept, dropped_d = _rule_end_suffix_micro(kept)
+    kept, dropped_e = _rule_drop_mixed_case_typos(kept)
 
-    dropped = dropped_a + dropped_b + dropped_c + dropped_d
+    dropped = dropped_a + dropped_b + dropped_c + dropped_d + dropped_e
 
     # Recompute unique_acronyms from kept occurrences (authoritative boundary)
     firsts = _recompute_firsts(text, kept, cfg)
@@ -50,6 +50,27 @@ def post_detect_cleanup(
         f"dropped={len(dropped)}"
     )
     return cleaned, summary, dropped
+
+
+def _is_alternating_case(acr: str) -> bool:
+    # Consider only letters; digits/punct ignored
+    letters = [c for c in acr if c.isalpha()]
+    if len(letters) < 3:
+        return False
+    has_lower = any(c.islower() for c in letters)
+    has_upper = any(c.isupper() for c in letters)
+    if not (has_lower and has_upper):
+        return False
+
+    # Alternation if case flips on most adjacent transitions (>= 2 flips for len>=3)
+    flips = 0
+    for a, b in zip(letters, letters[1:]):
+        if a.islower() != b.islower():
+            flips += 1
+
+    # For 3 letters: flips==2 => strict alternation (aBa)
+    # For 4 letters: flips>=3 => aBaB
+    return flips >= (len(letters) - 1)
 
 
 def _rule_contained_suffix(occs: list[Occurrence]) -> tuple[list[Occurrence], list[DroppedOccurrence]]:
@@ -89,6 +110,61 @@ def _rule_contained_suffix(occs: list[Occurrence]) -> tuple[list[Occurrence], li
 
     kept = [o for k, o in enumerate(ordered) if k not in drop_idx]
     return kept, dropped
+
+def _is_mixed_case_typo(acr: str) -> bool:
+    letters = [c for c in acr if c.isalpha()]
+    if len(letters) < 4:          # key: do NOT touch TfL (len 3) etc.
+        return False
+
+    upp = sum(c.isupper() for c in letters)
+    low = sum(c.islower() for c in letters)
+    if not (upp >= 3 and low == 1):
+        return False
+
+    if not letters[0].isupper():  # allow mRNA/iOS style
+        return False
+
+    # Find first lowercase after position 0
+    first_low = None
+    for i, c in enumerate(letters[1:], start=1):
+        if c.islower():
+            first_low = i
+            break
+    if first_low is None:
+        return False
+
+    # If there is an uppercase after that lowercase, it's an internal-case blip
+    if any(c.isupper() for c in letters[first_low + 1:]):
+        return True
+
+    return False
+
+
+
+def _rule_drop_mixed_case_typos(
+    occs: list[Occurrence],
+) -> tuple[list[Occurrence], list[DroppedOccurrence]]:
+    ordered = sorted(occs, key=lambda o: (o.start_offset, o.end_offset, o.acronym))
+    drop_ids: set[int] = set()
+    dropped: list[DroppedOccurrence] = []
+
+    for i, o in enumerate(ordered):
+        if _is_mixed_case_typo(o.acronym):
+            drop_ids.add(i)
+            dropped.append(
+                DroppedOccurrence(
+                    acronym=o.acronym,
+                    start=o.start_offset,
+                    end=o.end_offset,
+                    rule="drop_mixed_case_typo",
+                    detail="mostly_upper_single_lower_or_alternating",
+                )
+            )
+
+    kept = [o for i, o in enumerate(ordered) if i not in drop_ids]
+    return kept, dropped
+
+
 
 
 _PUNCT_TRIM = ".,;:)]}»”'\""
