@@ -87,7 +87,6 @@ def _calc_def_span(kind: str, *, acr_norm: str, seg: str, acr_end_local: int = N
     if kind == "def_after":
         snippet = seg[acr_end_local:]
 
-        # NEW: allow "PDF's (Long Form)" by skipping possessive joiners after the acronym
         j = _POSSESSIVE_JOIN_RE.match(snippet)
         join_off = j.end() if j else 0
         snippet2 = snippet[join_off:]

@@ -611,5 +611,87 @@ class TestDetectAndExtractE2EMixedCaseAcronyms:
         assert picked_def(extr, "iOS") in {"iPhone Operating system"}, extr.picks.get("iOS")
 
     def test_cleanup_drops_alternating_case_mrna_typo(self):
-        det, extr, r = detect_and_extract("MrNA (Messenger ribonucleic acid)")
+        det, extr = detect_and_extract("MrNA (Messenger ribonucleic acid)")
         assert "MrNA" not in extr.picks, extr.picks.get("MrNA")
+
+
+class TestDetectAndExtractE2EInlineCues:
+    # ---------------------------------------------------------------------
+    # inline-after:  ACR ,?  cue  DEF
+    # ---------------------------------------------------------------------
+
+    def test_inline_after_stands_for(self):
+        det, extr = detect_and_extract("PDF stands for Portable Document Format.")
+        assert picked_def(extr, "PDF") in {"Portable Document Format"}, extr.picks.get("PDF")
+
+    def test_inline_after_stands_for_with_comma(self):
+        det, extr = detect_and_extract("PDF, stands for Portable Document Format.")
+        assert picked_def(extr, "PDF") in {"Portable Document Format"}, extr.picks.get("PDF")
+
+    def test_inline_after_means(self):
+        det, extr = detect_and_extract("PDF means Portable Document Format.")
+        assert picked_def(extr, "PDF") in {"Portable Document Format"}, extr.picks.get("PDF")
+
+    def test_inline_after_is_short_for(self):
+        det, extr = detect_and_extract("JWT is short for JSON Web Token.")
+        assert picked_def(extr, "JWT") in {"JSON Web Token", "JSON Web Tokens"}, extr.picks.get("JWT")
+
+    def test_inline_after_tfl(self):
+        det, extr = detect_and_extract("TfL stands for Transport for London.")
+        assert picked_def(extr, "TfL") in {"Transport for London"}, extr.picks.get("TfL")
+
+    def test_inline_after_mrna(self):
+        det, extr, r = detect_and_extract("mRNA stands for messenger RNA.",  return_reports=True)
+        pprint.pprint(r)
+        pprint.pprint(extr)
+        pprint.pprint(det)
+        assert picked_def(extr, "mRNA") in {"messenger RNA"}, extr.picks.get("mRNA")
+
+    # ---------------------------------------------------------------------
+    # inline-before:  DEF  ...  cue  ACR
+    # ---------------------------------------------------------------------
+
+    def test_inline_before_stands_for(self):
+        det, extr = detect_and_extract("Portable Document Format stands for PDF.")
+        assert picked_def(extr, "PDF") in {"Portable Document Format"}, extr.picks.get("PDF")
+
+    def test_inline_before_stands_for_with_comma(self):
+        det, extr = detect_and_extract("Portable Document Format, stands for PDF.")
+        assert picked_def(extr, "PDF") in {"Portable Document Format"}, extr.picks.get("PDF")
+
+    def test_inline_before_tfl(self):
+        det, extr = detect_and_extract("Transport for London stands for TfL.")
+        assert picked_def(extr, "TfL") in {"Transport for London"}, extr.picks.get("TfL")
+
+    def test_inline_before_mrna(self):
+        det, extr = detect_and_extract("messenger RNA stands for mRNA.")
+        assert picked_def(extr, "mRNA") in {"messenger RNA"}, extr.picks.get("mRNA")
+
+    # ---------------------------------------------------------------------
+    # guardrails: ensure we do NOT “inline match” without cues
+    # ---------------------------------------------------------------------
+
+    def test_inline_does_not_fire_without_cue_pdf(self):
+        det, extr = detect_and_extract("I like PDF files a lot.")
+        assert picked_def(extr, "PDF") is None, extr.picks.get("PDF")
+
+    def test_inline_does_not_fire_without_cue_jwt(self):
+        det, extr = detect_and_extract("We store tokens in a JWT cookie.")
+        assert picked_def(extr, "JWT") is None, extr.picks.get("JWT")
+
+    def test_inline_does_not_fire_without_cue_tfl(self):
+        det, extr = detect_and_extract("Transport for London is based in London.")
+        assert picked_def(extr, "TfL") is None, extr.picks.get("TfL")
+
+    # ---------------------------------------------------------------------
+    # punctuation variants: document what you currently support
+    # (these are intentionally strict with the current regex)
+    # ---------------------------------------------------------------------
+
+    def test_inline_after_colon_not_supported_yet(self):
+        det, extr = detect_and_extract("PDF: stands for Portable Document Format.")
+        assert picked_def(extr, "PDF") is None, extr.picks.get("PDF")
+
+    def test_inline_after_dash_not_supported_yet(self):
+        det, extr = detect_and_extract("PDF - stands for Portable Document Format.")
+        assert picked_def(extr, "PDF") is None, extr.picks.get("PDF")

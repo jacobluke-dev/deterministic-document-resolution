@@ -179,8 +179,9 @@ Q = r"""["'“”‘’]"""
 QUOTE = rf"(?:\s*{Q}\s*)?"
 
 INLINE_CUE_FRAGMENTS: Final[tuple[str, ...]] = (
-    r"short\s+for",
+    r"(?:is\s+)?short\s+for",
     r"stands?\s+for",
+    r"means",
     r"is\s+(?:an\s+)?acronym\s+for",
     r"abbreviated\s+as",
 )

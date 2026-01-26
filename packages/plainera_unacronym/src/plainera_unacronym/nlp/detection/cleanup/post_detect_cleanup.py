@@ -89,6 +89,8 @@ def _rule_contained_suffix(occs: list[Occurrence]) -> tuple[list[Occurrence], li
             if j == i or j in drop_idx:
                 continue
             inner = ordered[j]
+            if (outer.end_offset - outer.start_offset) <= (inner.end_offset - inner.start_offset):
+                continue
 
             # strictly contained by span
             if not (outer.start_offset <= inner.start_offset and inner.end_offset <= outer.end_offset):

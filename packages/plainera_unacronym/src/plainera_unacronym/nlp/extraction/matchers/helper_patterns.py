@@ -5,7 +5,7 @@ from plainera_unacronym.nlp.common.constants_regex import DEFAULT_STOPWORDS, BRI
 from plainera_unacronym.nlp.common.shared import normalize_definition
 from plainera_unacronym.nlp.extraction.anchored.normalise import tighten_definition_span, strip_trailing_punct_str, collapse_ws
 from plainera_unacronym.nlp.extraction.matchers.common import match_from, initials_seq, is_mixed_case_acronym, \
-    split_compound
+    split_compound, _PUNCT_TRIM
 from plainera_unacronym.nlp.extraction.matchers.numeric_matcher import consume_left_numeric_designator
 
 class LocalDefMatch:
@@ -151,6 +151,20 @@ def _acronym_letters_rtl(tok: str) -> list[str]:
     chars = [c.upper() for c in t if c.isalnum()]
     chars.reverse()
     return chars
+
+
+def _strip_inline_cue_prefix(t: str, cfg) -> tuple[str, int] | None:
+    """
+    If `t` begins with an inline cue ("stands for", "means", ...), return:
+      - remaining text after the cue
+      - number of characters stripped (offset into original `t`)
+    """
+    cues = getattr(cfg, "inline_cues", ())
+    for cue in cues:
+        m = re.match(rf"^\s*,?\s*(?:{cue})\s+", t, flags=re.IGNORECASE)
+        if m:
+            return t[m.end():], m.end()
+    return None
 
 
 
@@ -633,9 +647,20 @@ def find_inline_longform_after_acr(
                 return ch.upper()
         return None
 
+    # Only align against the long-form tail, not the cue words.
+    hit = _strip_inline_cue_prefix(s, cfg)
+    if hit:
+        tail2, off = hit
+    else:
+        # If we cannot see a cue at the start, this isn't the pattern we're targeting.
+        return []
+
     tokens, starts, ends = [], [], []
-    for m in re.finditer(r"\S+", s):
-        tokens.append(m.group(0)); starts.append(m.start()); ends.append(m.end())
+    for m in re.finditer(r"\S+", tail2):
+        tokens.append(m.group(0))
+        starts.append(m.start() + off)  # shift spans back into `s`
+        ends.append(m.end() + off)
+
     if not tokens:
         return []
 
@@ -644,30 +669,76 @@ def find_inline_longform_after_acr(
     if not A_raw:
         return []
 
-    inits = [_first_alnum_char_upper(t) for t in tokens]
+    letters: list[str] = []
+    owners: list[int] = []  # letter index → token index
+
+    mixed = is_mixed_case_acronym(acr)
+
+    for ti, tok in enumerate(tokens):
+        tok_clean = tok.strip(_PUNCT_TRIM)
+
+        # Expand ALLCAPS tokens only for mixed-case acronyms
+        if mixed and tok_clean.isalpha() and tok_clean.isupper() and len(tok_clean) > 1:
+            for ch in tok_clean:
+                letters.append(ch.upper())
+                owners.append(ti)
+            continue
+
+        ch = _first_alnum_char_upper(tok_clean)
+        if ch:
+            letters.append(ch)
+            owners.append(ti)
+
+    if not letters:
+        return []
+
     is_stop = [t.lower() in stop for t in tokens]
 
-    def ok_for_letter(letter: str, tok_idx: int) -> bool:
-        return is_stop[tok_idx] if letter.islower() else (not is_stop[tok_idx])
-    best = None
-    L = [c.upper() for c in A_raw]  # matching uses uppercase equality
+    def ok_for_letter(letter: str, tok_idx: int, acr_pos: int) -> bool:
+        # uppercase -> non-stopword
+        if not letter.islower():
+            return not is_stop[tok_idx]
+
+        # lowercase -> stopword (default)
+        if is_stop[tok_idx]:
+            return True
+
+        # ---- narrow exception: mixed-case leading lowercase (mRNA / iOS) ----
+        if not mixed:
+            return False
+        if acr_pos != 0:
+            return False
+        if tok_idx != 0:
+            return False
+
+        tok0 = tokens[0].strip(_PUNCT_TRIM)
+        if tok0.isalpha() and tok0.isupper():  # don't let acronym-like token satisfy lowercase prefix
+            return False
+
+        return tok0[:1].lower() == letter.lower()
 
     # Greedy-forward scan for smallest window [i..j] that hits all letters in order
-    for i in range(len(tokens)):
-        li = 0
-        hits: list[int] = []
-        for j in range(i, len(tokens)):
-            init = inits[j]
-            if init == L[li] and ok_for_letter(A_raw[li], j):
-                hits.append(j)
-                li += 1
-                if li == len(L):
-                    # Found a window [i..j] with hit token indices = hits
-                    if (best is None) or ((j - i) < (best[1] - best[0])):
-                        best = (i, j, set(hits))
-                    break  # try to shrink further by moving i forward
-        # Early stop: if remaining tokens are fewer than remaining letters
-        if len(tokens) - i < len(L):
+    best = None
+    L = [c.upper() for c in A_raw]
+
+    for li in range(len(letters)):
+        ai = 0
+        hit_letters: list[int] = []
+
+        for lj in range(li, len(letters)):
+            if letters[lj] == L[ai] and ok_for_letter(A_raw[ai], owners[lj], ai):
+                hit_letters.append(lj)
+                ai += 1
+                if ai == len(L):
+                    tok_s = owners[li]
+                    tok_e = owners[lj]
+                    hit_tokens = {owners[h] for h in hit_letters}
+
+                    if best is None or (tok_e - tok_s) < (best[1] - best[0]):
+                        best = (tok_s, tok_e, hit_tokens)
+                    break
+
+        if len(letters) - li < len(L):
             break
 
     if not best:
