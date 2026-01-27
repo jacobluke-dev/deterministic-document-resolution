@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
+from plainera_unacronym.nlp.common.constants_regex import PUNCT_TRIM
 from plainera_unacronym.nlp.common.types import DetectorResult, DetectorConfig, Occurrence, FirstOccurrence
 from plainera_unacronym.nlp.common.shared import normalize_acronym_key
 
@@ -167,10 +168,6 @@ def _rule_drop_mixed_case_typos(
     return kept, dropped
 
 
-
-
-_PUNCT_TRIM = ".,;:)]}»”'\""
-
 def _rule_inside_paren_suffix_of_left_acronym(text: str, occs: list[Occurrence]) -> tuple[list[Occurrence], list[DroppedOccurrence]]:
     ordered = sorted(occs, key=lambda o: (o.start_offset, o.end_offset, o.acronym))
     drop_ids: set[int] = set()
@@ -202,7 +199,7 @@ def _rule_inside_paren_suffix_of_left_acronym(text: str, occs: list[Occurrence])
                 continue
 
             # candidate to drop: ALLCAPS alpha token inside parens
-            inner_clean = inner.acronym.strip(_PUNCT_TRIM)
+            inner_clean = inner.acronym.strip(PUNCT_TRIM)
             if not (inner_clean.isalpha() and inner_clean.isupper() and len(inner_clean) > 1):
                 continue
 

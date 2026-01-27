@@ -3,7 +3,7 @@ import re
 from plainera_unacronym.nlp.common.constants_regex import DEFAULT_STOPWORDS, BRIDGES_DEFAULT
 from plainera_unacronym.nlp.common.shared import collapse_ws, strip_trailing_punct_str, normalize_definition
 from plainera_unacronym.nlp.extraction.anchored.normalise import tighten_definition_span
-from plainera_unacronym.nlp.extraction.matchers.common import is_mixed_case_acronym, _PUNCT_TRIM
+from plainera_unacronym.nlp.extraction.matchers.common import is_mixed_case_acronym, PUNCT_TRIM
 from plainera_unacronym.nlp.extraction.matchers.defs.common import LocalDefMatch, inline_clause_tail, \
     strip_inline_cue_prefix, has_numeric_evidence, acr_alignment_targets
 
@@ -98,7 +98,7 @@ def find_inline_longform_after_acr(
     mixed = is_mixed_case_acronym(acr)
 
     for ti, tok in enumerate(tokens):
-        tok_clean = tok.strip(_PUNCT_TRIM)
+        tok_clean = tok.strip(PUNCT_TRIM)
 
         # Expand ALLCAPS tokens only for mixed-case acronyms
         if mixed and tok_clean.isalpha() and tok_clean.isupper() and len(tok_clean) > 1:
@@ -134,7 +134,7 @@ def find_inline_longform_after_acr(
         if tok_idx != 0:
             return False
 
-        tok0 = tokens[0].strip(_PUNCT_TRIM)
+        tok0 = tokens[0].strip(PUNCT_TRIM)
         if tok0.isalpha() and tok0.isupper():  # don't let acronym-like token satisfy lowercase prefix
             return False
 

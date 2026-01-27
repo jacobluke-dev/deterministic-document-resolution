@@ -90,7 +90,7 @@ class Test_require_initials_matchOk:
 class DummyCfg:
     def __init__(self, max_phrase_chars=80):
         self.max_phrase_chars = max_phrase_chars
-
+        self.require_initials_match = False
 
 class TestFindLongformAfterAcrIntegration:
     def test_no_parenthesized_match_returns_empty(self):
@@ -282,7 +282,7 @@ class TestFindParentheticalLongformAfterAcrUnit:
 
         _patch(
             monkeypatch, find_parenthetical_longform_after_acr,
-            _has_letters=lambda s: True,
+            has_letters=lambda s: True,
             tighten_definition_span=fake_tighten,
             normalize_definition=fake_normalize,
         )
@@ -300,13 +300,12 @@ class TestFindParentheticalLongformAfterAcrUnit:
     def test_require_initials_match_guard_false_blocks(self, monkeypatch):
         _patch(
             monkeypatch, find_parenthetical_longform_after_acr,
-            _has_letters=lambda s: True,
+            has_letters=lambda s: True,
             tighten_definition_span=lambda s: s,
-            normalize_definition=lambda s: s,
-            initials_seq=lambda t, *a, **k: ([], []),
+            normalize_definition=lambda s: s
         )
         cfg = DummyCfg()
-        snip = "(Portable Document Format)"
+        snip = "Portable Document Format"
         assert find_parenthetical_longform_after_acr(snip, cfg, acr="PDF", require_initials_match=True) == []
 
     def test_max_chars_respected(self, monkeypatch):

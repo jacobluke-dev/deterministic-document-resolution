@@ -5,7 +5,8 @@ from plainera_unacronym.nlp.common.shared import has_letters, strip_trailing_pun
     normalize_definition
 from plainera_unacronym.nlp.extraction.matchers.common import split_compound, is_mixed_case_acronym
 from plainera_unacronym.nlp.extraction.matchers.defs.common import LocalDefMatch, is_acronym_like_token, \
-    _acronym_letters_rtl, first_alnum_char_upper, has_numeric_evidence, acr_alignment_targets, align
+    _acronym_letters_rtl, first_alnum_char_upper, has_numeric_evidence, acr_alignment_targets, align, \
+    build_initials_stream, align_acronym_to_initials, expand_numeric_leading_window
 from plainera_unacronym.nlp.extraction.matchers.numeric_matcher import consume_left_numeric_designator
 
 
@@ -63,91 +64,61 @@ def find_parenthetical_longform_before_acr(snippet: str, acr: str, cfg) -> list[
     if not tokens:
         return []
 
-    is_stop = [tok.lower() in stop for tok in tokens]
-
     acr_starts_with_digit = acr and acr[0].isdigit()
 
-    # 2) Build per-part initials RTL over tokens (compound + CamelCase aware)
-    letters: list[str] = []  # per-part initials (UPPER)
-    owners: list[int] = []  # token index for each letter
-    part_is_stop: list[bool] = []  # stopword status of the owning token
-
-    for ti in range(len(tokens) - 1, -1, -1):  # tokens RTL
-        tok = tokens[ti]
-
-        # NEW: acronym-like token contributes multiple letters
-        if is_acronym_like_token(tok):
-            for ch in _acronym_letters_rtl(tok):
-                letters.append(ch)
-                owners.append(ti)
-                part_is_stop.append(is_stop[ti])
-            continue
-
-        # Existing behaviour for normal words / compounds
-        parts = split_compound(tok)
-        if not parts:
-            continue
-        for part in reversed(parts):  # parts RTL
-            ch = first_alnum_char_upper(part)
-            if ch is None:
-                continue
-            letters.append(ch)
-            owners.append(ti)
-            part_is_stop.append(is_stop[ti])
-
-    if not letters:
-        return []
-
-    # 3) Build target acronym letters (ignore non-alnum), match RTL
-    has_num = has_numeric_evidence(tokens)
-    A = acr_alignment_targets(acr, has_numeric_evidence=has_num)
-    if not A:
-        return []
-
-    mixed = is_mixed_case_acronym(acr)
-
-    used_letter_pos = align(
-        A, letters, part_is_stop,
-        allow_upper_on_stop=False,
-        allow_lower_on_non_stop=mixed,
+    stream = build_initials_stream(
+        tokens,
+        stopwords=stop,
+        scan="rtl",
+        expand_allcaps_tokens=False,
+        split_compounds=True,
+        treat_acronym_tokens_as_multi_letter=True,
     )
-    if used_letter_pos is None:
-        used_letter_pos = align(
-            A, letters, part_is_stop,
+
+    hit = align_acronym_to_initials(
+        acr,
+        stream,
+        tokens=tokens,
+        stopwords=stop,
+        mode="rtl_scan",
+        allow_upper_on_stop=False,
+        allow_lower_on_non_stop=is_mixed_case_acronym(acr),
+        lowercase_prefix_exception=False,  # don’t need it here usually
+    )
+
+    if hit is None:
+        # your fallback relax:
+        hit = align_acronym_to_initials(
+            acr,
+            stream,
+            tokens=tokens,
+            stopwords=stop,
+            mode="rtl_scan",
             allow_upper_on_stop=True,
-            allow_lower_on_non_stop=mixed,
+            allow_lower_on_non_stop=is_mixed_case_acronym(acr),
+            lowercase_prefix_exception=False,
         )
-    if used_letter_pos is None:
+    if hit is None:
         return []
 
-    # 4) The token window is from leftmost contributing token to the last token
-    tok_right = len(tokens) - 1
-    tok_left = min(owners[pos] for pos in used_letter_pos)
-    if acr_starts_with_digit:
+    tok_left = hit.tok_left
+    tok_right = len(tokens) - 1  # anchored to end in this matcher
+
+
+    if acr and acr[0].isdigit():
         tok_left = consume_left_numeric_designator(acr=acr, tokens=tokens, tok_left=tok_left)
 
-    # --- include trailing numeric token for acronyms like HTTP2 -> "... 2" ---
-    if acr and acr[-1].isdigit():
-        want = acr[-1]
+    tok_left, tok_right = expand_numeric_leading_window(tokens, tok_left, tok_right)
 
-        # If last token is already numeric-leading with that digit, fine.
-        # Otherwise, if there's an immediate next token equal to that digit, include it.
-        if tok_right + 1 < len(tokens):
-            nxt = tokens[tok_right + 1]
-            nxt_clean = nxt.strip(".,;:)]}»”'\"")  # light trim
-            if nxt_clean == want:
-                tok_right += 1
-    hit_tokens = {owners[pos] for pos in used_letter_pos}
+    hit_tokens = hit.hit_tokens
+
+    if acr_starts_with_digit:
+        tok_left = consume_left_numeric_designator(acr=acr, tokens=tokens, tok_left=tok_left)
 
     # Expand window to include adjacent numeric-leading tokens (e.g., "3M")
     def _numeric_leading(idx: int) -> bool:
         init = first_alnum_char_upper(tokens[idx])
         return (init is not None) and (not init.isalpha())
-
-    while tok_left > 0 and _numeric_leading(tok_left - 1):
-        tok_left -= 1
-    while tok_right + 1 < len(tokens) and _numeric_leading(tok_right + 1):
-        tok_right += 1
 
     # 5) Build kept phrase inside the window: matched tokens + bridges + numeric-leading
     kept_tokens: list[str] = []
@@ -175,7 +146,7 @@ def find_parenthetical_longform_before_acr(snippet: str, acr: str, cfg) -> list[
     if not norm:
         return []
     raw_window = collapse_ws(snippet[ds:de])  # raw chars between ds..de (just whitespace-collapsed)
-    print("PHRASE:", phrase)
+
     disp = normalize_definition(phrase)
     if not disp:
         return []

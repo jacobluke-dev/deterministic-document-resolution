@@ -1,6 +1,8 @@
 import re
 from typing import Optional
 
+from plainera_unacronym.nlp.common.constants_regex import PUNCT_TRIM
+
 _ASCII_CAMEL_RE = re.compile(
     r"[A-Z]+(?=[A-Z][a-z0-9])"  # e.g., 'XML' in 'XMLHttp'
     r"|[A-Z]?[a-z]+[0-9]*"  # word with optional trailing digits, e.g., 'v1'
@@ -63,8 +65,6 @@ def is_mixed_case_acronym(acr: str) -> bool:
     return any(c.islower() for c in letters) and any(c.isupper() for c in letters)
 
 
-_PUNCT_TRIM = ".,;:)]}»”'\""
-
 def initials_seq(tokens: list[str], *, expand_allcaps: bool = False) -> tuple[list[str], list[int]]:
     """
     Build a sequence of initials (letters+digits) from tokens.
@@ -77,7 +77,7 @@ def initials_seq(tokens: list[str], *, expand_allcaps: bool = False) -> tuple[li
     """
     letters, owners = [], []
     for ti, tok in enumerate(tokens):
-        tok_clean = tok.strip(_PUNCT_TRIM)
+        tok_clean = tok.strip(PUNCT_TRIM)
 
         if expand_allcaps and tok_clean.isalpha() and tok_clean.isupper() and len(tok_clean) > 1:
             for ch in tok_clean:

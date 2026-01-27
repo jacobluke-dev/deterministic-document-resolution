@@ -185,3 +185,5 @@ INLINE_CUE_FRAGMENTS: Final[tuple[str, ...]] = (
     r"is\s+(?:an\s+)?acronym\s+for",
     r"abbreviated\s+as",
 )
+
+PUNCT_TRIM = ".,;:)]}»”'\""
