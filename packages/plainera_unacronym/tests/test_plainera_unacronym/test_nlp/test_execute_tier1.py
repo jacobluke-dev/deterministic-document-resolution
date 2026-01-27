@@ -695,3 +695,83 @@ class TestDetectAndExtractE2EInlineCues:
     def test_inline_after_dash_not_supported_yet(self):
         det, extr = detect_and_extract("PDF - stands for Portable Document Format.")
         assert picked_def(extr, "PDF") is None, extr.picks.get("PDF")
+
+
+class TestDisambiguationE2E:
+
+    def test_disambiguation_picks_nearest_definition_by_distance(self):
+        # Two senses, then a later occurrence near the second definition → should pick second.
+        det, extr, r = detect_and_extract(
+            "Natural language processing (NLP) helps. "
+            "Later we discuss Nice Lovely Plants (NLP) sold locally. "
+            "These NLP are popular in spring.",
+            return_reports=True,
+        )
+        # The last "NLP" should resolve to the nearby "Nice Lovely Plants" sense.
+        last = extr.resolutions[-1]
+        assert last.acronym == "NLP"
+        assert last.chosen_sense_id is not None
+        assert "nice_lovely_plants" in last.chosen_sense_id, last
+
+    def test_disambiguation_not_ambiguous_when_only_one_sense(self):
+        det, extr, r = detect_and_extract(
+            "European Medicines Agency (EMA) issued guidance. EMA guidance was updated later.",
+            return_reports=True,
+        )
+        assert "EMA" in extr.senses_by_acronym
+        assert len(extr.senses_by_acronym["EMA"]) == 1
+        assert "EMA" not in set(extr.ambiguous_keys)
+        # both occurrences should be resolved (same sole sense)
+        ema_res = [x for x in extr.resolutions if x.acronym.upper() == "EMA"]
+        assert len(ema_res) >= 2
+        assert all(x.chosen_sense_id is not None for x in ema_res), ema_res
+
+    def test_disambiguation_ambiguous_keys_flagged_when_two_senses_exist(self):
+        det, extr, r = detect_and_extract(
+            "Natural language processing (NLP) is common. "
+            "Nice Lovely Plants (NLP) are sold locally.",
+            return_reports=True,
+        )
+        assert "NLP" in extr.senses_by_acronym
+        assert len(extr.senses_by_acronym["NLP"]) == 2
+        assert "NLP" in set(extr.ambiguous_keys)
+
+    def test_disambiguation_near_tie_chooses_nearest_definition(self):
+        det, extr, r = detect_and_extract(
+            "Natural language processing (NLP) is a field. "
+            "Nice Lovely Plants (NLP) are sold down the road. "
+            "NLP is mentioned again here without context.",
+            return_reports=True,
+        )
+
+        nlp_res = [x for x in extr.resolutions if x.acronym.upper() == "NLP"]
+        assert nlp_res, extr
+
+        last = nlp_res[-1]
+        # Near-tie (margin below threshold) => distance tiebreak => pick nearest def span.
+        assert last.chosen_sense_id is not None
+        assert "nice_lovely_plants" in last.chosen_sense_id, last
+        assert last.margin < 0.10, last  # confirms it was in the "not confident" zone
+
+    def test_disambiguation_overlap_can_win_when_distance_not_dominating(self):
+        # Make the final NLP mention much closer (and semantically aligned) to the NLP sense,
+        # while pushing the Plants definition far away via filler.
+        filler = " ".join(["filler"] * 250)
+
+        det, extr, r = detect_and_extract(
+            "Natural language processing (NLP) is a CS topic. "
+            "In this paper we discuss language models and processing techniques; NLP is crucial. "
+            f"{filler} "
+            "Nice Lovely Plants (NLP) are available in shops.",
+            return_reports=True,
+        )
+
+        # Pick the resolution for the NLP occurrence in the "language/processing" sentence.
+        # (There will be multiple; choose the one with start after the first def and before the plants def.)
+        nlp_res = [x for x in extr.resolutions if x.acronym.upper() == "NLP"]
+        assert len(nlp_res) >= 2, nlp_res
+
+        # The second occurrence is the one in the language/processing sentence in this construction.
+        mid = nlp_res[1]
+        assert mid.chosen_sense_id is not None
+        assert "natural_language_processing" in mid.chosen_sense_id, mid

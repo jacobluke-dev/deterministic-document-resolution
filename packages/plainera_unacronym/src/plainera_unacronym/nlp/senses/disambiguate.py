@@ -1,9 +1,25 @@
+"""
+Acronym sense disambiguation for documents with multiple in-text definitions.
+
+This module resolves each acronym occurrence to the most likely meaning
+(`AcronymSense`) when a document defines the same acronym more than once.
+Senses are built from extracted definitions and tracked with definition spans.
+Each occurrence is scored against candidate senses using proximity to definition
+spans and local context token overlap, with a conservative margin-based tiebreak.
+If no sense is clearly dominant, the occurrence is left undecided rather than
+assigned incorrectly.
+
+This stage enables per-occurrence correctness and ambiguity detection beyond
+a single global glossary pick.
+"""
+
+
 import re
 
-from ..common.types import OccurrenceLite, OccurrenceResolution, AcronymSense
+from plainera_unacronym.nlp.common.types import OccurrenceLite, OccurrenceResolution
 
 
-def _tokens(s: str) -> list[str]:
+def _ascii_tokens(s: str) -> list[str]:
     """
         Tokenize ASCII-ish words/numbers with optional internal apostrophes/hyphens.
 
@@ -69,6 +85,8 @@ def _min_distance_to_spans(pos: float, spans: list[tuple[int, int]]) -> int:
             best = int(d)
     return best
 
+# Require a clear spatial advantage (≥3 chars) to break near-score ties
+DIST_TIEBREAK_MIN_ADVANTAGE = 3
 
 def choose_with_tiebreak(
     occ, cand_probs, senses_by_id, *, margin_threshold: float = 0.10, near_tie_margin: float = 0.06
@@ -133,9 +151,9 @@ def choose_with_tiebreak(
     if (p1 - p2) <= near_tie_margin and len(items) > 1:
         sid2 = items[1][0]
         d1, d2 = dist_for(sid1), dist_for(sid2)
-        if d2 + 2 < d1:
+        if d1 - d2 >= DIST_TIEBREAK_MIN_ADVANTAGE:
             return sid2, margin
-        if d1 + 2 < d2:
+        if d2 - d1 >= DIST_TIEBREAK_MIN_ADVANTAGE:
             return sid1, margin
 
     return None, margin
@@ -200,7 +218,7 @@ def disambiguate_occurrences(
 
         L = max(0, occ.start - window_chars)
         R = min(len(text), occ.end + window_chars)
-        ctx_tokens = set(_tokens(text[L:R]))
+        ctx_tokens = set(_ascii_tokens(text[L:R]))
 
         for s in sense_list:
             # 1) distance score to nearest def span
@@ -213,7 +231,7 @@ def disambiguate_occurrences(
                 dist_score = 0.0
 
             # 2) label overlap
-            label_tokens = set(_tokens(s.definition))
+            label_tokens = set(_ascii_tokens(s.definition))
             overlap = len(label_tokens & ctx_tokens) / max(1, len(label_tokens)) if label_tokens else 0.0
 
             score = dist_weight * dist_score + overlap_weight * overlap

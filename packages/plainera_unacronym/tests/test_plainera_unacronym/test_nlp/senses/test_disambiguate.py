@@ -3,7 +3,7 @@ from types import SimpleNamespace as NS
 import pytest
 
 from plainera_unacronym.nlp.common.types import OccurrenceLite, AcronymSense
-from plainera_unacronym.nlp.senses.disambiguate import _tokens, _center, _min_distance_to_spans, choose_with_tiebreak, \
+from plainera_unacronym.nlp.senses.disambiguate import _ascii_tokens, _center, _min_distance_to_spans, choose_with_tiebreak, \
     disambiguate_occurrences
 
 
@@ -30,7 +30,7 @@ class TestTokens:
         ],
     )
     def test_tokenization_cases(self, s, expected):
-        assert _tokens(s) == expected
+        assert _ascii_tokens(s) == expected
 
 
 class TestCenter:

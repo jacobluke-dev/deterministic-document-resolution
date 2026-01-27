@@ -26,10 +26,45 @@ def _fill_missing_from_defs(
     det_cfg: DetectorConfig,
     defs: list[ExtractedDefinition],
 ) -> dict[str, Optional[InTextPick]]:
+    """Fill missing acronym picks from existing extracted definitions.
+
+    For each acronym in ``firsts``, selects the best matching definition from
+    ``defs`` using proximity to the first occurrence, then confidence, then
+    earliest position. The ``text`` parameter is currently unused and kept for
+    signature consistency and future span validation.
+
+        Selection heuristic:
+        - Prefer definitions whose acronym span is closest to the acronym's first
+          occurrence (minimum absolute distance between ``acr_start`` and the
+          first occurrence start offset).
+        - Break ties by higher definition confidence (descending).
+        - Break remaining ties by earlier acronym span (ascending ``acr_start``).
+
+        Note:
+            ``text`` is not currently used, but is threaded through to keep the
+            helper signature consistent with other pipeline utilities and to enable
+            future span validation (bounds checks, surface verification) without
+            changing call sites.
+
+        Args:
+            text:
+                The full source text being processed. Currently unused.
+            firsts:
+                Mapping of normalized acronym key to its first occurrence metadata.
+            det_cfg:
+                Detector configuration used for normalizing acronym keys
+                (e.g. allowed characters, dotted display mode).
+            defs:
+                Extracted definitions gathered from one or more strategies.
+
+        Returns:
+            A mapping from normalized acronym key to an ``InTextPick`` if a suitable
+            definition is found, otherwise ``None``.
+        """
     index: dict[str, list[ExtractedDefinition]] = {}
     for d in defs:
         k = normalize_acronym_key(d.acronym, det_cfg.allow_chars,
-                                  dotted_mode=det_cfg.dotted_display, )
+                                  dotted_mode=det_cfg.dotted_display)
         if k:
             index.setdefault(k, []).append(d)
 
@@ -100,14 +135,15 @@ class ExtractionFlow:
         self._tracer = Tracer(trace_filter) if trace else None
 
     # ---- stage methods: (FlowState) -> StageResult[FlowState] ----
-
-    def _st_detect(self, s: FlowState) -> StageResult[FlowState]:
+    @staticmethod
+    def _st_detect(s: FlowState) -> StageResult[FlowState]:
         det = Detector(config=s.det_cfg).detect(s.text)
         s.det_res = det
         s._last_info = f"firsts={len(det.unique_acronyms)} occs={len(det.occurrences)}"
         return StageResult(s, s._last_info)
 
-    def _st_post_detect_cleanup(self, s: FlowState) -> StageResult[FlowState]:
+    @staticmethod
+    def _st_post_detect_cleanup(s: FlowState) -> StageResult[FlowState]:
         det = s.det_res
         assert det is not None
 
@@ -126,17 +162,20 @@ class ExtractionFlow:
         s._last_info = f"anchored picks {got}/{len(s.picks)}"
         return StageResult(s, s._last_info)
 
-    def _st_defs_from_picks(self, s: FlowState) -> StageResult[FlowState]:
+    @staticmethod
+    def _st_defs_from_picks(s: FlowState) -> StageResult[FlowState]:
         s.anchored_defs = defs_from_picks(s.text, s.picks)
         s._last_info = f"anchored defs={len(s.anchored_defs)}"
         return StageResult(s, s._last_info)
 
-    def _st_harvest(self, s: FlowState) -> StageResult[FlowState]:
+    @staticmethod
+    def _st_harvest(s: FlowState) -> StageResult[FlowState]:
         s.harvested_defs = harvest_defs_all(s.text, s.det_res.occurrences, s.ext_cfg)
         s._last_info = f"harvested={len(s.harvested_defs)}"
         return StageResult(s, s._last_info)
 
-    def _st_sentence_backref(self, s: FlowState) -> StageResult[FlowState]:
+    @staticmethod
+    def _st_sentence_backref(s: FlowState) -> StageResult[FlowState]:
         s.backref_defs = extract_sentence_backrefs(
             text=s.text,
             firsts=s.det_res.unique_acronyms,
@@ -145,7 +184,8 @@ class ExtractionFlow:
         s._last_info = f"backref={len(s.backref_defs)}"
         return StageResult(s, s._last_info)
 
-    def _st_merge(self, s: FlowState) -> StageResult[FlowState]:
+    @staticmethod
+    def _st_merge(s: FlowState) -> StageResult[FlowState]:
         s.all_defs = dedupe_defs(
             s.anchored_defs
             + s.harvested_defs
@@ -155,7 +195,8 @@ class ExtractionFlow:
         s._last_info = f"merged unique={len(s.all_defs)}"
         return StageResult(s, s._last_info)
 
-    def _st_gapfill(self, s: FlowState) -> StageResult[FlowState]:
+    @staticmethod
+    def _st_gapfill(s: FlowState) -> StageResult[FlowState]:
         missing = [k for k, v in s.picks.items() if v is None]
         if missing:
             fills = _fill_missing_from_defs(s.text, firsts=s.det_res.unique_acronyms, det_cfg=s.det_cfg,
