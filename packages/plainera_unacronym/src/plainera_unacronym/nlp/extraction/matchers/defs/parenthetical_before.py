@@ -10,7 +10,7 @@ from plainera_unacronym.nlp.extraction.matchers.defs.common import (LocalDefMatc
                                                                     first_alnum_char_upper,
                                                                     build_initials_stream,
                                                                     align_acronym_to_initials,
-                                                                    expand_numeric_leading_window)
+                                                                    expand_numeric_leading_window, build_kept_phrase)
 from plainera_unacronym.nlp.extraction.matchers.numeric_matcher import consume_left_numeric_designator
 
 
@@ -124,18 +124,15 @@ def find_parenthetical_longform_before_acr(snippet: str, acr: str, cfg) -> list[
         return (init is not None) and (not init.isalpha())
 
     # 5) Build kept phrase inside the window: matched tokens + bridges + numeric-leading
-    kept_tokens: list[str] = []
-    for idx in range(tok_left, tok_right + 1):
-        tok = tokens[idx]
-        keep_numericish = _numeric_leading(idx)
-        if idx in hit_tokens or tok.lower() in bridges or keep_numericish:
-            kept_tokens.append(tok)
-
-    if not kept_tokens:  # extreme edge case: keep raw window
-        kept_tokens = tokens[tok_left: tok_right + 1]
-
-    phrase = " ".join(kept_tokens)
-    phrase = strip_trailing_punct_str(collapse_ws(phrase))
+    phrase = build_kept_phrase(
+        tokens,
+        tok_left=tok_left,
+        tok_right=tok_right,
+        hit_tokens=hit_tokens,
+        bridges=bridges,
+        include_numeric_leading=True,
+        first_alnum_char_upper=first_alnum_char_upper,
+    )
     if not phrase:
         return []
 
