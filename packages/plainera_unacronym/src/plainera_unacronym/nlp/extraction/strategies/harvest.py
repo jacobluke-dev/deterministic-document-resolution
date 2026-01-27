@@ -1,8 +1,9 @@
 from plainera_unacronym.nlp.common.types import ExtractedDefinition
-from plainera_unacronym.nlp.extraction.matchers.helper_patterns import (
+from plainera_unacronym.nlp.extraction.matchers.defs import (
     find_parenthetical_longform_after_acr,
     find_parenthetical_longform_before_acr,
 )
+
 from plainera_unacronym.nlp.extraction.matchers.tighten import tighten_label_by_acronym
 
 

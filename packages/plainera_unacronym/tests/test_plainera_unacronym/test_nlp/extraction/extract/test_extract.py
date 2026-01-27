@@ -7,7 +7,7 @@ from plainera_unacronym.nlp.extraction.core.collect import _two_words, _parenthe
 from plainera_unacronym.nlp.extraction.core.extract_defs import _acr_pat, _def_pat, _compile_parenthetical, \
     _compile_inline
 
-from plainera_unacronym.nlp.extraction.matchers.helper_patterns import has_letters
+from plainera_unacronym.nlp.common.shared import has_letters
 from plainera_unacronym.nlp.extraction.strategies.plan_builder import build_plan
 
 

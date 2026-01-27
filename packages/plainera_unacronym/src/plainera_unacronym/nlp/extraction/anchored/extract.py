@@ -8,9 +8,11 @@ from plainera_unacronym.nlp.extraction import ExtractionConfig
 from plainera_unacronym.nlp.extraction.anchored.normalise import tighten_definition_span
 from plainera_unacronym.nlp.extraction.anchored.patterns import compile_anchored_exact
 from plainera_unacronym.nlp.extraction.core.collect import initials_match
-from plainera_unacronym.nlp.extraction.matchers.helper_patterns import (find_parenthetical_longform_after_acr,
-                                                                        find_parenthetical_longform_before_acr,
-                                                                        find_inline_longform_after_acr)
+from plainera_unacronym.nlp.extraction.matchers.defs import (
+    find_inline_longform_after_acr,
+    find_parenthetical_longform_after_acr,
+    find_parenthetical_longform_before_acr,
+)
 from plainera_unacronym.nlp.extraction.matchers.tighten import tighten_label_by_acronym
 
 Span = tuple[int, int]

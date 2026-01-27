@@ -1,9 +1,8 @@
 import re
 from typing import Iterator
 
-from plainera_unacronym.nlp.common.shared import normalize_definition, collapse_ws, strip_trailing_punct_str
+from plainera_unacronym.nlp.common.shared import normalize_definition, collapse_ws, strip_trailing_punct_str, has_letters
 from plainera_unacronym.nlp.extraction.anchored.normalise import tighten_definition_span
-from plainera_unacronym.nlp.extraction.matchers.helper_patterns import has_letters
 from plainera_unacronym.nlp.extraction.matchers.tighten import tighten_label_by_acronym
 
 from plainera_unacronym.nlp.common.types import ExtractedDefinition

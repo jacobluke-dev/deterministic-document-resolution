@@ -1,11 +1,12 @@
 import pytest
 
 from plainera_unacronym.nlp.extraction.core.collect import initials_match
-from plainera_unacronym.nlp.extraction.matchers.helper_patterns import (
-    has_letters,
+from plainera_unacronym.nlp.common.shared import has_letters
+from plainera_unacronym.nlp.extraction.matchers.defs import (
     find_parenthetical_longform_after_acr,
     find_parenthetical_longform_before_acr,
 )
+
 
 # TODO needs mergging with other has_letters tests
 class TestHasLetters:

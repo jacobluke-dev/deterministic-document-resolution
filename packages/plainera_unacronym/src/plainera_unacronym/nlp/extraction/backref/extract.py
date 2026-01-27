@@ -80,11 +80,10 @@ from plainera_unacronym.nlp.common.shared import normalize_definition
 from plainera_unacronym.nlp.common.types import ExtractedDefinition
 from plainera_unacronym.nlp.extraction.config import ExtractionConfig
 from plainera_unacronym.nlp.extraction.anchored.normalise import (
-    tighten_definition_span,
     collapse_ws,
 )
 from plainera_unacronym.nlp.extraction.core.collect import initials_match
-from plainera_unacronym.nlp.extraction.matchers.helper_patterns import has_letters
+from plainera_unacronym.nlp.common.shared import has_letters
 from plainera_unacronym.nlp.extraction.matchers.tighten import tighten_label_by_acronym
 
 

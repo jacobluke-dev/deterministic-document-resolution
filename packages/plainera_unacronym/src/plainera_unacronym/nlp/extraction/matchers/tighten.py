@@ -1,7 +1,7 @@
 import re
 from typing import Optional
 
-from plainera_unacronym.nlp.common.constants_regex import BRIDGES_DEFAULT, DEFAULT_STOPWORDS
+from plainera_unacronym.nlp.common.constants_regex import BRIDGES_DEFAULT
 from plainera_unacronym.nlp.common.shared import canonicalize, strip_trailing_punct_str, collapse_ws
 from plainera_unacronym.nlp.extraction.matchers.common import match_from, initials_seq, is_mixed_case_acronym
 
