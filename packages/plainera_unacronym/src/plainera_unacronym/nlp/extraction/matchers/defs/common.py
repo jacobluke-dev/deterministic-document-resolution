@@ -191,7 +191,7 @@ def _align_rtl_scan(
 
 
 def _align_ltr_min_window(
-    A: list[str],
+    alignment_letters: list[str],
     *,
     stream: InitialsStream,
     tokens: list[str],
@@ -200,7 +200,7 @@ def _align_ltr_min_window(
     allow_lower_on_non_stop: bool,
     lowercase_prefix_exception: bool,
 ) -> Optional[AlignmentHit]:
-    L = [c.upper() for c in A]  # stream letters are uppercase
+    L = [c.upper() for c in alignment_letters]  # stream letters are uppercase
 
     best_used: Optional[list[int]] = None
     best_span: Optional[tuple[int, int]] = None  # (tok_left, tok_right)
@@ -217,7 +217,7 @@ def _align_ltr_min_window(
                 continue
 
             tok_idx = stream.owners[lj]
-            want_stop = A[ai].islower()
+            want_stop = alignment_letters[ai].islower()
 
             # --- stopword / case constraints ---
             if not want_stop:
@@ -238,7 +238,7 @@ def _align_ltr_min_window(
                         if tok0.isalpha() and tok0.isupper() and len(tok0) > 1:
                             ok = False
                         else:
-                            ok = tok0[:1].lower() == A[0].lower()
+                            ok = tok0[:1].lower() == alignment_letters[0].lower()
 
             if not ok:
                 continue
