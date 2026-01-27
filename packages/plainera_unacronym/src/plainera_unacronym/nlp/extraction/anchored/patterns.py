@@ -1,9 +1,27 @@
 import re
 from plainera_unacronym.nlp.extraction import ExtractionConfig
 from plainera_unacronym.nlp.common.constants_regex import QUOTE as QUOTE_RE
+from dataclasses import dataclass
+from typing import Literal, Any
+
+Strategy = Literal[
+    "direct_def",
+    "helper_def_before",
+    "helper_def_after",
+    "helper_inline_after",
+]
 
 
-def compile_anchored_exact(acr: str, cfg: ExtractionConfig):
+@dataclass(frozen=True, slots=True)
+class PatternSpec:
+    pat: re.Pattern[str]
+    base_conf: float
+    strategy: Strategy
+    kind: str
+
+
+def compile_anchored_exact(acr: str, cfg: ExtractionConfig) -> tuple[
+    PatternSpec, PatternSpec, PatternSpec, PatternSpec, PatternSpec, PatternSpec, Any, Any]:
     ACR = re.escape(acr)
 
     DOT = r"(?:\.)?"
@@ -67,12 +85,12 @@ def compile_anchored_exact(acr: str, cfg: ExtractionConfig):
     ]
 
     return (
-        (fwd_paren, cfg.conf_parenthetical, "def_before"),
-        (fwd_brack, cfg.conf_parenthetical, "def_before_direct"),
-        (rev_paren, cfg.conf_parenthetical, "def_after"),
-        (rev_brack, cfg.conf_parenthetical, "def_after_direct"),
-        (before_acr_paren, cfg.conf_parenthetical, "before_acr_paren"),
-        (before_acr_brack, cfg.conf_parenthetical, "paren_before_acr"),
-        *[(p, cfg.conf_inline, "inline") for p in inlines_after],
-        *[(p, cfg.conf_inline, "inline_before") for p in inlines_before],
+        PatternSpec(fwd_paren, cfg.conf_parenthetical, "helper_def_before", "def_before"),
+        PatternSpec(fwd_brack, cfg.conf_parenthetical, "direct_def", "def_before_direct"),
+        PatternSpec(rev_paren, cfg.conf_parenthetical, "helper_def_after", "def_after"),
+        PatternSpec(rev_brack, cfg.conf_parenthetical, "direct_def", "def_after_direct"),
+        PatternSpec(before_acr_paren, cfg.conf_parenthetical, "direct_def", "before_acr_paren"),
+        PatternSpec(before_acr_brack, cfg.conf_parenthetical, "direct_def", "paren_before_acr"),
+        *[PatternSpec(p, cfg.conf_inline, "helper_inline_after", "inline") for p in inlines_after],
+        *[PatternSpec(p, cfg.conf_inline, "direct_def", "inline_before") for p in inlines_before],
     )

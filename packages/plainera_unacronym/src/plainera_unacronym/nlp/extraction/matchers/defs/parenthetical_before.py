@@ -1,12 +1,16 @@
 import re
 
 from plainera_unacronym.nlp.common.constants_regex import DEFAULT_STOPWORDS, BRIDGES_DEFAULT, QUOTE
-from plainera_unacronym.nlp.common.shared import has_letters, strip_trailing_punct_str, collapse_ws, \
-    normalize_definition
-from plainera_unacronym.nlp.extraction.matchers.common import split_compound, is_mixed_case_acronym
-from plainera_unacronym.nlp.extraction.matchers.defs.common import LocalDefMatch, is_acronym_like_token, \
-    _acronym_letters_rtl, first_alnum_char_upper, has_numeric_evidence, acr_alignment_targets, align, \
-    build_initials_stream, align_acronym_to_initials, expand_numeric_leading_window
+from plainera_unacronym.nlp.common.shared import (has_letters,
+                                                  strip_trailing_punct_str,
+                                                  collapse_ws,
+                                                  normalize_definition)
+from plainera_unacronym.nlp.extraction.matchers.common import is_mixed_case_acronym
+from plainera_unacronym.nlp.extraction.matchers.defs.common import (LocalDefMatch,
+                                                                    first_alnum_char_upper,
+                                                                    build_initials_stream,
+                                                                    align_acronym_to_initials,
+                                                                    expand_numeric_leading_window)
 from plainera_unacronym.nlp.extraction.matchers.numeric_matcher import consume_left_numeric_designator
 
 
@@ -104,7 +108,6 @@ def find_parenthetical_longform_before_acr(snippet: str, acr: str, cfg) -> list[
     tok_left = hit.tok_left
     tok_right = len(tokens) - 1  # anchored to end in this matcher
 
-
     if acr and acr[0].isdigit():
         tok_left = consume_left_numeric_designator(acr=acr, tokens=tokens, tok_left=tok_left)
 
@@ -129,7 +132,7 @@ def find_parenthetical_longform_before_acr(snippet: str, acr: str, cfg) -> list[
             kept_tokens.append(tok)
 
     if not kept_tokens:  # extreme edge case: keep raw window
-        kept_tokens = tokens[tok_left : tok_right + 1]
+        kept_tokens = tokens[tok_left: tok_right + 1]
 
     phrase = " ".join(kept_tokens)
     phrase = strip_trailing_punct_str(collapse_ws(phrase))

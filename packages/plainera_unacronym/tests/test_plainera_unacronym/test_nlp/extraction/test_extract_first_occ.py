@@ -29,10 +29,11 @@ def _apply_for_acr(text: str, acr: str, cfg) -> list[tuple[str, float, str, str]
     returns list of (label, conf, acr, def) for all matches across all patterns.
     """
     results = []
-    for pat, conf, label in compile_anchored_exact(acr, cfg):
-        for m in pat.finditer(text):
-            results.append((label, conf, m.group("acr"), m.group("def")))
+    for spec in compile_anchored_exact(acr, cfg):
+        for m in spec.pat.finditer(text):
+            results.append((spec.kind, spec.base_conf, m.group("acr"), m.group("def")))
     return results
+
 
 
 class TestCompileAnchoredExact:
@@ -49,15 +50,21 @@ class TestCompileAnchoredExact:
             + n_cues  # inlines_before
         )
         assert len(out) == expected
+        spec = out
+        print(spec)
+        pat = spec[0].pat
+        base_conf = spec[0].base_conf
+        kind = spec[0].kind
+        strategy = spec[0].strategy
 
-        for pat, conf, label in out:
-            assert isinstance(pat, re.Pattern)
-            # Flags must include IGNORECASE | MULTILINE
-            assert (pat.flags & re.IGNORECASE) == re.IGNORECASE
-            assert (pat.flags & re.MULTILINE) == re.MULTILINE
-            assert isinstance(conf, float)
-            assert label in {"before_acr_paren", "def_after_direct", "def_before_direct", "paren_before_acr",
-                             "def_before", "def_after", "inline", "inline_before"}
+        assert isinstance(pat, re.Pattern)
+        # Flags must include IGNORECASE | MULTILINE
+        assert (pat.flags & re.IGNORECASE) == re.IGNORECASE
+        assert (pat.flags & re.MULTILINE) == re.MULTILINE
+        assert isinstance(base_conf, float)
+        assert kind in {"before_acr_paren", "def_after_direct", "def_before_direct", "paren_before_acr",
+                         "def_before", "def_after", "inline", "inline_before"}
+        assert strategy in {"direct_def", "helper_def_before", "helper_inline_after", "helper_def_after"}
 
     def test_parenthetical_fwd_and_rev_match(self):
         cfg = _cfg()
@@ -67,12 +74,12 @@ class TestCompileAnchoredExact:
         )
         pats = compile_anchored_exact("PDF", cfg)
 
-        fwd = next((p for p in pats if p[2] == "def_before"), None)
-        rev = next((p for p in pats if p[2] == "def_after"), None)
+        fwd = next((p for p in pats if p.kind == "def_before"), None)
+        rev = next((p for p in pats if p.kind == "def_after"), None)
         assert fwd and rev
 
-        m1 = fwd[0].search(text)
-        m2 = rev[0].search(text)
+        m1 = fwd.pat.search(text)
+        m2 = rev.pat.search(text)
         assert m1 and m2
         assert m1.group("acr").lower() == "pdf"
         assert m2.group("acr").lower() == "pdf"
@@ -80,8 +87,8 @@ class TestCompileAnchoredExact:
         assert "Portable" in m2.group("def")
 
         # confidences are wired correctly
-        assert fwd[1] == cfg.conf_parenthetical
-        assert rev[1] == cfg.conf_parenthetical
+        assert fwd.base_conf == cfg.conf_parenthetical
+        assert rev.base_conf == cfg.conf_parenthetical
 
     def test_inline_cues_match(self):
         cfg = _cfg()
@@ -89,16 +96,16 @@ class TestCompileAnchoredExact:
             "PDF, short for Portable Document Format, is common. "
             "PDF stands for Portable Document Format."
         )
-        inlines = [p for p in compile_anchored_exact("PDF", cfg) if p[2] == "inline"]
+        inlines = [p for p in compile_anchored_exact("PDF", cfg) if p.kind == "inline"]
         assert len(inlines) == len(cfg.inline_cues)
 
         hits = 0
-        for pat, conf, label in inlines:
-            for m in pat.finditer(text):
+        for spec in inlines:
+            for m in spec.pat.finditer(text):
                 assert m.group("acr").lower() == "pdf"
                 # DEF is non-greedy; only require non-empty capture
                 assert m.group("def").strip() != ""
-                assert conf == cfg.conf_inline
+                assert spec.base_conf == cfg.conf_inline
                 hits += 1
         assert hits >= 2  # at least the two examples above
 
@@ -106,9 +113,9 @@ class TestCompileAnchoredExact:
         # Tight limit still matches; DEF capture must be <= max_phrase_chars
         cfg = _cfg(max_phrase_chars=10)
         long_def_text = "Incredibly long descriptive name for a format (PDF)"
-        fwd = next((p for p in compile_anchored_exact("PDF", cfg) if p[2] == "def_before"), None)
+        fwd = next((p for p in compile_anchored_exact("PDF", cfg) if p.kind == "def_before"), None)
         assert fwd
-        m = fwd[0].search(long_def_text)
+        m = fwd.pat.search(long_def_text)
         assert m is not None
         assert len(m.group("def")) <= 10
 
@@ -123,19 +130,19 @@ class TestCompileAnchoredExact:
 
         # R&D: forward parenthetical present
         pats = compile_anchored_exact("R&D", cfg)
-        fwd = next((p for p in pats if p[2] == "def_before"), None)
-        assert fwd and fwd[0].search(text)
+        fwd = next((p for p in pats if p.kind == "def_before"), None)
+        assert fwd and fwd.pat.search(text)
 
         # C/A: reverse parenthetical present
         pats = compile_anchored_exact("C/A", cfg)
-        rev = next((p for p in pats if p[2] == "def_after"), None)
-        m = rev[0].search(text)
+        rev = next((p for p in pats if p.kind == "def_after"), None)
+        m = rev.pat.search(text)
         assert m and "Cost per Acquisition" in m.group("def")
 
         # SME: forward parenthetical present
         pats = compile_anchored_exact("SME", cfg)
-        fwd = next((p for p in pats if p[2] == "def_before"), None)
-        assert fwd and fwd[0].search(text)
+        fwd = next((p for p in pats if p.kind == "def_before"), None)
+        assert fwd and fwd.pat.search(text)
 
     def test_mixed_forms_multiple_acronyms_across_text(self):
         cfg = _cfg()
@@ -254,7 +261,14 @@ class TestExtractNearFirstsUnit:
         )
 
         def fake_compile(_acr, _cfg):
-            return ((pat_inline, 0.995, "inline"),)
+            return (
+                mod.PatternSpec(
+                    pat=pat_inline,
+                    base_conf=0.995,
+                    strategy="helper_inline_after",
+                    kind="inline",
+                ),
+            )
 
         monkeypatch.setattr(ext, "compile_anchored_exact", fake_compile)
         out = extract_near_firsts(text, {"PDF": fo}, window_left=10, window_right=50, cfg=_cfg())

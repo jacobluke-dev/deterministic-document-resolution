@@ -11,8 +11,6 @@ Typical usage:
     )
 """
 
-from __future__ import annotations
-
 import re
 from typing import Mapping, Sequence
 
@@ -95,7 +93,7 @@ def consume_left_numeric_designator(
     """
     If `acr` begins with digits (e.g., '5G', '12V') and the token immediately
     to the left expresses the same number, consume it by returning a decremented
-    tok_left. Otherwise return tok_left unchanged.
+    tok_left. Otherwise, return tok_left unchanged.
 
     Supports:
       - word ordinals: "fifth generation (5G)"

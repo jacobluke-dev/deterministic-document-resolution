@@ -24,15 +24,25 @@ _QUOTE_CHARS = set("\"'“”‘’")
 _TAIL_PUNCT = set(",;:—–-")
 
 
+_DET_PREFIX_RE = re.compile(r"^\s*(?:the|a|an)\b\s+", re.IGNORECASE)
+
+def _strip_leading_determiner(s: str) -> str:
+    return _DET_PREFIX_RE.sub("", s, count=1)
+
 def _clean_definition(orig: str, *, acr_norm: str, cfg: ExtractionConfig, kind: str) -> Optional[str]:
     # Inline-only raw length gate (before tightening)
-    if kind == "inline" or kind == "inline_before":
-        raw = " ".join(orig.split())  # collapse whitespace
+    if kind in {"inline", "inline_before"}:
+        raw = " ".join(orig.split())
         if len(raw) > cfg.max_phrase_chars:
             return None
 
-    # Only inline needs span-tightening; parentheticals are already tight.
-    base = tighten_definition_span(orig) if kind == "inline" else orig
+    # Inline-after needs span tightening; inline-before should NOT be tightened.
+    if kind == "inline":
+        base = tighten_definition_span(orig)
+    elif kind == "inline_before":
+        base = _strip_leading_determiner(orig)
+    else:
+        base = orig
 
     clean = tighten_label_by_acronym(base, acr_norm)
     clean = normalize_definition(clean)
@@ -172,6 +182,19 @@ def _distance_from_fo(*, a0_local: int, left: int, fo_start_offset: int) -> int:
     return abs((a0_local + left) - fo_start_offset)
 
 
+def _resolve_span(strategy: str, *, seg: str, m: re.Match[str], acr_key: str, a1_local: int, cfg: ExtractionConfig) -> OptSpan:
+    if strategy == "direct_def":
+        d0, d1 = m.span("def")
+        return None if d0 >= d1 else (d0, d1)
+    if strategy == "helper_def_after":
+        return _calc_def_span("def_after", acr_norm=acr_key, seg=seg, acr_end_local=a1_local, cfg=cfg)
+    if strategy == "helper_def_before":
+        return _calc_def_span("def_before", acr_norm=acr_key, seg=seg, m=m, cfg=cfg)
+    if strategy == "helper_inline_after":
+        return _calc_def_span("inline", acr_norm=acr_key, seg=seg, acr_end_local=a1_local, cfg=cfg)
+    return None
+
+
 def extract_near_firsts(
     text: str,
     firsts: Mapping[str, FirstOccurrence],
@@ -192,7 +215,11 @@ def extract_near_firsts(
 
         best: Optional[ExtractedDefinition] = None
 
-        for pat, base_conf, kind in compile_anchored_exact(acr_surface, cfg):
+        for spec in compile_anchored_exact(acr_surface, cfg):
+            pat = spec.pat
+            base_conf = spec.base_conf
+            kind = spec.kind
+            strategy = spec.strategy
 
             for m in pat.finditer(seg):
                 a0_local, a1_local = m.span("acr")
@@ -211,70 +238,17 @@ def extract_near_firsts(
                         a1_local = fo_a1_local
                     else:
                         continue
-
-                if kind == "def_after":
-                    span = _calc_def_span(kind, acr_norm=acr_key, seg=seg, acr_end_local=a1_local, cfg=cfg)
-                    if span is None:
-                        continue
-                    d0_local, d1_local = span
-                    if d0_local >= d1_local:
-                        continue
-
-                elif kind == "def_before":
-                    span = _calc_def_span(kind, acr_norm=acr_key, seg=seg, m=m, cfg=cfg)
-                    if span is None:
-                        continue
-                    d0_local, d1_local = span
-                    if d0_local >= d1_local:
-                        continue
-
-                elif kind == "def_before_direct":
-                    d0_local, d1_local = m.span("def")
-                    if d0_local >= d1_local:
-                        continue
-
-                elif kind == "def_after_direct":
-                    d0_local, d1_local = m.span("def")
-                    if d0_local >= d1_local:
-                        continue
-
-                elif kind == "before_acr_paren":
-                    d0_local, d1_local = m.span("def")
-                    if d0_local >= d1_local:
-                        continue
-
-                elif kind == "paren_before_acr":
-                    d0_local, d1_local = m.span("def")
-                    if d0_local >= d1_local:
-                        continue
-
-                elif kind == "inline_before":
-                    d0_local, d1_local = m.span("def")
-                    if d0_local >= d1_local:
-                        continue
-
-                else:  # "inline" → look-ahead initials alignment (no parentheses)
-
-                    span = _calc_def_span('inline', acr_norm=acr_key, seg=seg, acr_end_local=a1_local, cfg=cfg)
-                    if span is None:
-                        continue
-                    d0_local, d1_local = span
-                    if d0_local >= d1_local:
-                        continue
+                span = _resolve_span(strategy, seg=seg, m=m, acr_key=acr_key, a1_local=a1_local, cfg=cfg)
+                if span is None:
+                    continue
+                d0_local, d1_local = span
+                if d0_local >= d1_local:
+                    continue
 
                 # Original (pre-clean) definition slice from the segment
                 orig = seg[d0_local:d1_local]
 
-                if kind in {"inline", "inline_before"}:
-                    raw = " ".join(orig.split())
-                    if len(raw) > cfg.max_phrase_chars:
-                        continue
-
                 clean = _clean_definition(orig, acr_norm=acr_key, cfg=cfg, kind=kind)
-
-                if cfg.require_two_words and kind in {"inline", "inline_before"}:
-                    if len(_TOKEN_RE.findall(clean)) < 2:
-                        continue
                 if clean is None:
                     continue
 
