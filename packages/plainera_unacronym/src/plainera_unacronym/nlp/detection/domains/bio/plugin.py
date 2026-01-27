@@ -5,12 +5,13 @@ from plainera_unacronym.nlp.detection.domains.bio.config import BioConfig
 from plainera_unacronym.nlp.detection.domains.bio.patterns import bio_pattern
 from plainera_unacronym.nlp.detection.domains.bio.rules import keep_guard as bio_keep_guard
 from plainera_unacronym.nlp.detection.heuristics.gate import should_enable_bio
+from plainera_unacronym.nlp.plugins.interface import DomainPlugin
 from plainera_unacronym.nlp.plugins.registry import register_plugin
 
 _BIO_SNIFF_RE = re.compile(r"\b(?:mRNA|miRNA|sgRNA|SARS-CoV-2|MERS-CoV|H\d{1,2}N\d{1,2}|IL-\d{1,3}|[35][′'\"]-?UTR)\b")
 
 
-class BioPlugin:
+class BioPlugin(DomainPlugin):
     name = "bio"
 
     def _cfg(self, cfg: DetectorConfig) -> BioConfig:
