@@ -187,3 +187,5 @@ INLINE_CUE_FRAGMENTS: Final[tuple[str, ...]] = (
 )
 
 PUNCT_TRIM = ".,;:)]}»”'\""
+
+TOKEN_RE = re.compile(r"[A-Za-z0-9][\w’'\-]*")

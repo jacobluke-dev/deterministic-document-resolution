@@ -2,6 +2,7 @@ import re
 from typing import Mapping, Optional
 
 from plainera_unacronym.nlp import FirstOccurrence
+from plainera_unacronym.nlp.common.constants_regex import TOKEN_RE
 from plainera_unacronym.nlp.common.shared import normalize_definition
 from plainera_unacronym.nlp.common.types import InTextPick, ExtractedDefinition
 from plainera_unacronym.nlp.extraction import ExtractionConfig
@@ -19,7 +20,6 @@ Span = tuple[int, int]
 OptSpan = Optional[Span]
 
 _POSSESSIVE_JOIN_RE = re.compile(r"\s*(?:['’]s\b)?\s*(?:[,;:—–-]\s*)?")
-_TOKEN_RE = re.compile(r"[A-Za-z0-9][\w’'\-]*")
 _QUOTE_CHARS = set("\"'“”‘’")
 _TAIL_PUNCT = set(",;:—–-")
 
@@ -28,6 +28,20 @@ _DET_PREFIX_RE = re.compile(r"^\s*(?:the|a|an)\b\s+", re.IGNORECASE)
 
 def _strip_leading_determiner(s: str) -> str:
     return _DET_PREFIX_RE.sub("", s, count=1)
+
+
+def _build_local_window(
+    text: str,
+    fo: FirstOccurrence,
+    window_left: int,
+    window_right: int,
+) -> tuple[int, int, str]:
+    # Build a local window around the first occurrence
+    left = max(0, fo.start_offset - window_left)
+    right = min(len(text), fo.end_offset + window_right)
+    seg = text[left:right]
+    return left, right, seg
+
 
 def _clean_definition(orig: str, *, acr_norm: str, cfg: ExtractionConfig, kind: str) -> Optional[str]:
     # Inline-only raw length gate (before tightening)
@@ -51,39 +65,15 @@ def _clean_definition(orig: str, *, acr_norm: str, cfg: ExtractionConfig, kind: 
         return None
 
     if cfg.require_two_words and kind == "inline":
-        if len(_TOKEN_RE.findall(clean)) < 2:
+        if len(TOKEN_RE.findall(clean)) < 2:
             return None
 
     return clean
 
 
-def _build_local_window(
-    text: str,
-    fo: FirstOccurrence,
-    window_left: int,
-    window_right: int,
-) -> tuple[int, int, str]:
-    # Build a local window around the first occurrence
-    left = max(0, fo.start_offset - window_left)
-    right = min(len(text), fo.end_offset + window_right)
-    seg = text[left:right]
-    return left, right, seg
-
-
 def _fo_occurrence_position(fo: FirstOccurrence, left: int) -> tuple[int, int]:
     # FO position in the local segment
     return fo.start_offset - left, fo.end_offset - left
-
-
-def _span_of_pre_definition(seg: str, paren_start: int) -> tuple[int, int] | None:
-    """
-    Return (start, end) span for definition immediately before '(' within seg.
-    End is right-trimmed to avoid capturing the space before '('.
-    """
-    end = len(seg[:paren_start].rstrip())
-    if end <= 0:
-        return None
-    return 0, end
 
 
 def _trim_span(seg: str, d0: int, d1: int) -> tuple[int, int]:

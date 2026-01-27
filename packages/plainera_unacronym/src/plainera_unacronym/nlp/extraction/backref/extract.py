@@ -76,6 +76,7 @@ import re
 from typing import Mapping
 
 from plainera_unacronym.nlp import FirstOccurrence
+from plainera_unacronym.nlp.common.constants_regex import TOKEN_RE
 from plainera_unacronym.nlp.common.shared import normalize_definition
 from plainera_unacronym.nlp.common.types import ExtractedDefinition
 from plainera_unacronym.nlp.extraction.config import ExtractionConfig
@@ -89,9 +90,6 @@ from plainera_unacronym.nlp.extraction.matchers.tighten import tighten_label_by_
 
 # Sentence boundary: keep it simple and predictable.
 _SENT_BOUNDARY_RE = re.compile(r"(?<=[.!?…])\s+|\n+")
-
-_TOKEN_RE = re.compile(r"[A-Za-z0-9][\w’'\-]*")
-
 
 def _best_span_by_initials(acr: str, sent: str, *, max_chars: int) -> str | None:
     """
@@ -215,7 +213,7 @@ def extract_sentence_backrefs(*, text: str, firsts: Mapping[str, FirstOccurrence
                 continue
             if len(cand) > max_chars:
                 continue
-            if require_two_words and len(_TOKEN_RE.findall(cand)) < 2:
+            if require_two_words and len(TOKEN_RE.findall(cand)) < 2:
                 continue
             if not initials_match(acr, cand):
                 continue
