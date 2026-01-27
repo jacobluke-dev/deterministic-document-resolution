@@ -3,7 +3,6 @@ from typing import Optional
 
 from plainera_unacronym.nlp import Detector
 from plainera_unacronym.nlp.detection.cleanup.post_detect_cleanup import DroppedOccurrence, post_detect_cleanup
-from plainera_unacronym.nlp.extraction import extract_iter
 from plainera_unacronym.nlp.extraction.backref.extract import extract_sentence_backrefs
 from plainera_unacronym.nlp.extraction.core.defs import defs_from_picks, dedupe_defs
 
@@ -52,22 +51,6 @@ def _fill_missing_from_defs(
             original_definition=best.original_definition,
         )
     return fills
-
-
-def extract_pipeline_iter(
-    text: str,
-    det_cfg: Optional[DetectorConfig],  # kept for signature parity / future use
-    ext_cfg: ExtractionConfig,
-    plan: object | None = None,  # reserved for future policy hooks
-) -> list[ExtractedDefinition]:
-    """
-    Global free-scan extractor used by Stage E.
-
-    Currently a thin adapter over existing `extract_iter`, returning all
-    in-text definitions found anywhere in the document. Deduping is handled
-    later by the merge stage.
-    """
-    return list(extract_iter(text, ext_cfg))
 
 
 @dataclass
