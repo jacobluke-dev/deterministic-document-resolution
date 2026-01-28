@@ -3,7 +3,9 @@ import pprint
 import pytest
 from types import SimpleNamespace as NS
 
-import plainera_unacronym.nlp.extraction.engine.detect_flow as mod
+import plainera_unacronym.nlp.extraction.engine.state as state
+import plainera_unacronym.nlp.extraction.engine.stage_funcs as stage_fxn
+
 from plainera_unacronym.nlp.common.types import DetectorResult, Occurrence, DetectorConfig, FirstOccurrence, InTextPick
 from plainera_unacronym.nlp.execute import detect_and_extract
 from plainera_unacronym.nlp.extraction import ExtractionConfig
@@ -16,7 +18,7 @@ def _first_occ(text: str, acr: str, start: int, confidence: float) -> FirstOccur
 
 def _ed(acr: str, d: str, a0: int = 0, a1: int = 0, d0: int = 0, d1: int = 0, conf: float = 0.95, src="in_text",
         orig=None):
-    return mod.ExtractedDefinition(
+    return state.ExtractedDefinition(
         acronym=acr,
         definition=d,
         source=src,
@@ -62,7 +64,7 @@ class TestDetectAndExtractUnit:
                     unique_acronyms={"PDF": _first_occ(text, "PDF", 28, 0.5)},
                 )
 
-        monkeypatch.setattr(mod, "Detector", FakeDetector)
+        monkeypatch.setattr(stage_fxn, "Detector", FakeDetector)
 
         # Anchored picks: found
         anchored_pick = InTextPick(
@@ -72,24 +74,24 @@ class TestDetectAndExtractUnit:
             confidence=0.98,
             original_definition="Portable Document Format",
         )
-        monkeypatch.setattr(mod, "extract_near_firsts", lambda *a, **k: {"PDF": anchored_pick})
+        monkeypatch.setattr(stage_fxn, "extract_near_firsts", lambda *a, **k: {"PDF": anchored_pick})
 
         # defs_from_picks returns one ED
-        monkeypatch.setattr(mod, "defs_from_picks", lambda _text, picks: [_ed("PDF", "Portable Document Format")])
+        monkeypatch.setattr(stage_fxn, "defs_from_picks", lambda _text, picks: [_ed("PDF", "Portable Document Format")])
 
         # harvest returns nothing extra
-        monkeypatch.setattr(mod, "harvest_defs_all", lambda *_: [])
+        monkeypatch.setattr(stage_fxn, "harvest_defs_all", lambda *_: [])
 
         # dedupe returns what it gets
-        monkeypatch.setattr(mod, "dedupe_defs", lambda defs: defs)
+        monkeypatch.setattr(stage_fxn, "dedupe_defs", lambda defs: defs)
 
         # build_senses: single sense per acronym
-        monkeypatch.setattr(mod, "build_senses", lambda defs: {"PDF": [NS(sense_id="PDF::Portable Document Format")]})
+        monkeypatch.setattr(stage_fxn, "build_senses", lambda defs: {"PDF": [NS(sense_id="PDF::Portable Document Format")]})
 
         # disambiguate_occurrences: one resolution using that sense
         Res = NS  # simple container
         monkeypatch.setattr(
-            mod,
+            stage_fxn,
             "disambiguate_occurrences",
             lambda **kw: [NS(chosen_sense_id="PDF::Portable Document Format", occurrence=NS(acronym="PDF"))],
         )
@@ -119,11 +121,11 @@ class TestDetectAndExtractUnit:
                     unique_acronyms={"ABC": _first_occ(text, "ABC", 29, 0.5)},
                 )
 
-        monkeypatch.setattr("plainera_unacronym.nlp.extraction.engine.detect_flow.Detector", FakeDetector)
-        monkeypatch.setattr("plainera_unacronym.nlp.extraction.engine.detect_flow.extract_near_firsts",
+        monkeypatch.setattr("plainera_unacronym.nlp.extraction.engine.stage_funcs.Detector", FakeDetector)
+        monkeypatch.setattr("plainera_unacronym.nlp.extraction.engine.stage_funcs.extract_near_firsts",
                             lambda *a, **k: {"ABC": None})
-        monkeypatch.setattr("plainera_unacronym.nlp.extraction.engine.detect_flow.defs_from_picks", lambda *_: [])
-        monkeypatch.setattr("plainera_unacronym.nlp.extraction.engine.detect_flow.harvest_defs_all", lambda *_: [])
+        monkeypatch.setattr("plainera_unacronym.nlp.extraction.engine.stage_funcs.defs_from_picks", lambda *_: [])
+        monkeypatch.setattr("plainera_unacronym.nlp.extraction.engine.stage_funcs.harvest_defs_all", lambda *_: [])
 
         det_res, extr = detect_and_extract(text, det_cfg=det_cfg, ext_cfg=ext_cfg)
         assert extr.strategy == "anchored+harvest"
