@@ -1,117 +1,37 @@
-from dataclasses import dataclass, field
-from typing import Optional
-
-from plainera_unacronym.nlp import Detector
-from plainera_unacronym.nlp.detection.cleanup.post_detect_cleanup import DroppedOccurrence, post_detect_cleanup
-from plainera_unacronym.nlp.extraction.backref.extract import extract_sentence_backrefs
-from plainera_unacronym.nlp.extraction.core.defs import defs_from_picks, dedupe_defs
-
-from plainera_unacronym.nlp.extraction.engine.stages import Stage, StageResult, Chain, StageReport, Tracer
+from plainera_unacronym.nlp.common.types import DetectorConfig, DetectorResult, ExtractionResult
 from plainera_unacronym.nlp.extraction.config import ExtractionConfig
-from plainera_unacronym.nlp.extraction.anchored.extract import extract_near_firsts
-from plainera_unacronym.nlp.extraction.strategies.harvest import harvest_defs_all
-
-from plainera_unacronym.nlp.common.types import (DetectorConfig, InTextPick, ExtractedDefinition, FirstOccurrence,
-                                                 OccurrenceLite, ExtractionResult, DetectorResult)
-from plainera_unacronym.nlp.common.shared import normalize_acronym_key
-
-from plainera_unacronym.nlp.senses.disambiguate import disambiguate_occurrences
-from plainera_unacronym.nlp.senses.sense_build import build_senses
-
-
-def _fill_missing_from_defs(
-    text: str,
-    *,
-    firsts: dict[str, FirstOccurrence],
-    det_cfg: DetectorConfig,
-    defs: list[ExtractedDefinition],
-) -> dict[str, Optional[InTextPick]]:
-    """Fill missing acronym picks from existing extracted definitions.
-
-    For each acronym in ``firsts``, selects the best matching definition from
-    ``defs`` using proximity to the first occurrence, then confidence, then
-    earliest position. The ``text`` parameter is currently unused and kept for
-    signature consistency and future span validation.
-
-        Selection heuristic:
-        - Prefer definitions whose acronym span is closest to the acronym's first
-          occurrence (minimum absolute distance between ``acr_start`` and the
-          first occurrence start offset).
-        - Break ties by higher definition confidence (descending).
-        - Break remaining ties by earlier acronym span (ascending ``acr_start``).
-
-        Note:
-            ``text`` is not currently used, but is threaded through to keep the
-            helper signature consistent with other pipeline utilities and to enable
-            future span validation (bounds checks, surface verification) without
-            changing call sites.
-
-        Args:
-            text:
-                The full source text being processed. Currently unused.
-            firsts:
-                Mapping of normalized acronym key to its first occurrence metadata.
-            det_cfg:
-                Detector configuration used for normalizing acronym keys
-                (e.g. allowed characters, dotted display mode).
-            defs:
-                Extracted definitions gathered from one or more strategies.
-
-        Returns:
-            A mapping from normalized acronym key to an ``InTextPick`` if a suitable
-            definition is found, otherwise ``None``.
-        """
-    index: dict[str, list[ExtractedDefinition]] = {}
-    for d in defs:
-        k = normalize_acronym_key(d.acronym, det_cfg.allow_chars,
-                                  dotted_mode=det_cfg.dotted_display)
-        if k:
-            index.setdefault(k, []).append(d)
-
-    fills: dict[str, Optional[InTextPick]] = {}
-    for key, fo in firsts.items():
-        cands = index.get(key, [])
-        if not cands:
-            fills[key] = None
-            continue
-        best = min(
-            cands,
-            key=lambda c: (abs(c.acr_start - fo.start_offset), -c.confidence, c.acr_start),
-        )
-        fills[key] = InTextPick(
-            definition=best.definition,
-            acr_span=(best.acr_start, best.acr_end),
-            def_span=(best.def_start, best.def_end),
-            confidence=best.confidence,
-            original_definition=best.original_definition,
-        )
-    return fills
-
-
-@dataclass
-class FlowState:
-    text: str
-    det_cfg: DetectorConfig
-    ext_cfg: ExtractionConfig
-
-    det_res: Optional[DetectorResult] = None
-    cleanup_dropped: list[DroppedOccurrence] = field(default_factory=list)
-    picks: dict[str, Optional[InTextPick]] = field(default_factory=dict)
-
-    anchored_defs: list[ExtractedDefinition] = field(default_factory=list)
-    harvested_defs: list[ExtractedDefinition] = field(default_factory=list)
-    global_defs: list[ExtractedDefinition] = field(default_factory=list)
-    backref_defs: list[ExtractedDefinition] = field(default_factory=list)
-    all_defs: list[ExtractedDefinition] = field(default_factory=list)
-
-    strategy: str = "anchored+harvest"
-    coverage: float = 0.0
-    missing_keys: tuple[str, ...] = ()
-
-    extr: Optional[ExtractionResult] = None
+from .stages import Stage, Chain, StageReport, Tracer
+from .state import FlowState
+from . import stage_funcs as f
 
 
 class ExtractionFlow:
+    """Run the end-to-end acronym detection and extraction pipeline.
+
+        This orchestrates a staged workflow over a single input text:
+          1) Detect acronym occurrences and first occurrences.
+          2) Apply post-detection cleanup to remove/adjust problematic occurrences.
+          3) Extract local (anchored) definitions near first occurrences.
+          4) Harvest additional definition candidates across the document.
+          5) Extract sentence back-references (definition appears earlier, acronym appears later).
+          6) Merge and de-duplicate extracted definitions.
+          7) Gap-fill missing picks using extracted definitions.
+          8) Build senses and disambiguate occurrences.
+
+        The pipeline is executed via a `Chain` of `Stage`s, producing stage reports and
+        optionally trace events for debugging.
+
+        Attributes:
+            det_cfg (DetectorConfig): Configuration used by the acronym detector.
+            ext_cfg (ExtractionConfig): Configuration used by extraction strategies.
+            window_left (int): Characters to include to the left of a first occurrence
+                when building the local anchored extraction window.
+            window_right (int): Characters to include to the right of a first occurrence
+                when building the local anchored extraction window.
+            trace_events (list[TraceEvent] | None): Trace events captured during the last run
+                when tracing is enabled; otherwise None.
+
+    """
     def __init__(
         self,
         det_cfg: DetectorConfig | None = None,
@@ -125,6 +45,22 @@ class ExtractionFlow:
         trace: bool = False,
         trace_filter: str | None = None,
     ):
+        """Initialize an ExtractionFlow.
+
+        Args:
+            det_cfg (DetectorConfig | None): Detector config. If None, then `DetectorConfig()`.
+            ext_cfg (ExtractionConfig | None): Extraction config. If None, then `ExtractionConfig()`.
+            window_left (int): Chars to include to the left of the first occurrence
+                when performing anchored extraction.
+            window_right (int): Chars to include to the right of the first occurrence
+                when performing anchored extraction.
+            disambig_window_chars (int | None): Optional runtime override for the
+                disambiguation context window size (in chars). If None, uses config defaults.
+            disambig_margin_threshold (float | None): Optional runtime override for the
+                disambiguation margin threshold. If None, uses config defaults.
+            trace (bool): If True, capture structured trace events for selected stage fields.
+            trace_filter (str | None): Optional regex filter applied to acronym keys when tracing.
+        """
         self.trace_events = None
         self.det_cfg = det_cfg or DetectorConfig()
         self.ext_cfg = ext_cfg or ExtractionConfig()
@@ -134,150 +70,82 @@ class ExtractionFlow:
         self._ovr_margin = disambig_margin_threshold
         self._tracer = Tracer(trace_filter) if trace else None
 
-    # ---- stage methods: (FlowState) -> StageResult[FlowState] ----
-    @staticmethod
-    def _st_detect(s: FlowState) -> StageResult[FlowState]:
-        det = Detector(config=s.det_cfg).detect(s.text)
-        s.det_res = det
-        s._last_info = f"firsts={len(det.unique_acronyms)} occs={len(det.occurrences)}"
-        return StageResult(s, s._last_info)
+    def build_chain(self) -> Chain[FlowState]:
+        """Build the staged execution chain for the extraction pipeline.
 
-    @staticmethod
-    def _st_post_detect_cleanup(s: FlowState) -> StageResult[FlowState]:
-        det = s.det_res
-        assert det is not None
+        Returns:
+            Chain[FlowState]: A chain of `Stage`s that transform a `FlowState`
+            through detection, extraction, merge, gap-fill, and disambiguation.
 
-        cleaned, summary, dropped = post_detect_cleanup(s.text, det, s.det_cfg)
-        s.det_res = cleaned
-        s.cleanup_dropped = dropped
-        s._last_info = summary
-        return StageResult(s, s._last_info)
+        """
+        wl, wr = self.window_left, self.window_right
 
-    def _st_anchored(self, s: FlowState) -> StageResult[FlowState]:
-        s.picks = extract_near_firsts(
-            s.text, firsts=s.det_res.unique_acronyms, cfg=s.ext_cfg,
-            window_left=self.window_left, window_right=self.window_right
-        )
-        got = sum(1 for v in s.picks.values() if v)
-        s._last_info = f"anchored picks {got}/{len(s.picks)}"
-        return StageResult(s, s._last_info)
+        # compute disambig knobs once here (engine concern)
+        def _win(s: FlowState) -> int:
+            return self._ovr_win if self._ovr_win is not None else getattr(getattr(s.ext_cfg, "disambig", s.det_cfg),
+                                                                           "window_chars", 320)
 
-    @staticmethod
-    def _st_defs_from_picks(s: FlowState) -> StageResult[FlowState]:
-        s.anchored_defs = defs_from_picks(s.text, s.picks)
-        s._last_info = f"anchored defs={len(s.anchored_defs)}"
-        return StageResult(s, s._last_info)
+        def _margin(s: FlowState) -> float:
+            return self._ovr_margin if self._ovr_margin is not None else getattr(getattr(s.ext_cfg, "disambig", None),
+                                                                                 "margin_threshold", 0.20)
 
-    @staticmethod
-    def _st_harvest(s: FlowState) -> StageResult[FlowState]:
-        s.harvested_defs = harvest_defs_all(s.text, s.det_res.occurrences, s.ext_cfg)
-        s._last_info = f"harvested={len(s.harvested_defs)}"
-        return StageResult(s, s._last_info)
-
-    @staticmethod
-    def _st_sentence_backref(s: FlowState) -> StageResult[FlowState]:
-        s.backref_defs = extract_sentence_backrefs(
-            text=s.text,
-            firsts=s.det_res.unique_acronyms,
-            cfg=s.ext_cfg,
-        )
-        s._last_info = f"backref={len(s.backref_defs)}"
-        return StageResult(s, s._last_info)
-
-    @staticmethod
-    def _st_merge(s: FlowState) -> StageResult[FlowState]:
-        s.all_defs = dedupe_defs(
-            s.anchored_defs
-            + s.harvested_defs
-            + s.global_defs
-            + s.backref_defs
-        )
-        s._last_info = f"merged unique={len(s.all_defs)}"
-        return StageResult(s, s._last_info)
-
-    @staticmethod
-    def _st_gapfill(s: FlowState) -> StageResult[FlowState]:
-        missing = [k for k, v in s.picks.items() if v is None]
-        if missing:
-            fills = _fill_missing_from_defs(s.text, firsts=s.det_res.unique_acronyms, det_cfg=s.det_cfg,
-                                            defs=s.all_defs)
-            for k in missing:
-                s.picks[k] = s.picks[k] or fills.get(k)
-        s.strategy = "anchored+harvest"
-        s.coverage = (len(s.picks) - sum(1 for v in s.picks.values() if v is None)) / max(1, len(s.picks))
-        s.missing_keys = tuple(sorted(k for k, v in s.picks.items() if v is None))
-        s._last_info = f"{s.strategy} coverage={s.coverage:.2%} missing={len(s.missing_keys)}"
-        return StageResult(s, s._last_info)
-
-    def _st_senses_and_assemble(self, s: FlowState) -> StageResult[FlowState]:
-        senses_by_acr = build_senses(s.all_defs)
-        sense_index = {x.sense_id: x for xs in senses_by_acr.values() for x in xs}
-        occs = [OccurrenceLite(o.acronym, o.start_offset, o.end_offset) for o in s.det_res.occurrences]
-
-        # pull knobs from ext_cfg if we add a nested disambig config, else use overrides/defaults
-        win_chars = self._ovr_win if self._ovr_win is not None else getattr(getattr(s.ext_cfg, "disambig", s.det_cfg),
-                                                                            "window_chars", 320)
-        margin = self._ovr_margin if self._ovr_margin is not None else getattr(getattr(s.ext_cfg, "disambig", None),
-                                                                               "margin_threshold", 0.20)
-
-        resolutions = disambiguate_occurrences(
-            text=s.text, occurrences=occs, senses=senses_by_acr,
-            window_chars=win_chars, margin_threshold=margin,
-        )
-        undecided = [r for r in resolutions if r.chosen_sense_id is None]
-        ambiguous = tuple(sorted(k for k, v in senses_by_acr.items() if len(v) > 1))
-
-        s.extr = ExtractionResult(
-            picks=s.picks, definitions=s.all_defs, strategy=s.strategy, coverage=s.coverage,
-            missing_keys=s.missing_keys, senses_by_acronym=senses_by_acr, sense_index=sense_index,
-            resolutions=resolutions, ambiguous_keys=ambiguous, undecided=undecided,
-        )
-        s._last_info = f"senses={sum(len(v) for v in senses_by_acr.values())}, undecided={len(undecided)}"
-        return StageResult(s, s._last_info)
-
-    # Build a Chain using bound methods
-    def build_chain(self) -> Chain[FlowState, FlowState]:
         return Chain([
             Stage("detect",
-                  self._st_detect,
+                  f.st_detect,
                   lambda s: f"firsts={len(s.det_res.unique_acronyms)}"),
             Stage("post_detect_cleanup",
-                  self._st_post_detect_cleanup,
+                  f.st_post_detect_cleanup,
                   lambda s: f"firsts={len(s.det_res.unique_acronyms)} dropped={len(s.cleanup_dropped)}",
                   trace_fields=("cleanup_dropped",)),
             Stage("anchored_picks",
-                  self._st_anchored,
+                  lambda s: f.st_anchored(s, window_left=wl, window_right=wr),
                   lambda s: f"{sum(1 for v in s.picks.values() if v)}/{len(s.picks)}",
                   trace_fields=("picks",)),
             Stage("defs_from_picks",
-                  self._st_defs_from_picks,
+                  f.st_defs_from_picks,
                   lambda s: f"{len(s.anchored_defs)}",
                   trace_fields=("anchored_defs",)),
             Stage("harvest",
-                  self._st_harvest,
+                  f.st_harvest,
                   lambda s: f"{len(s.harvested_defs)}",
                   trace_fields=("harvested_defs",)),
             Stage("sentence_backref",
-                  self._st_sentence_backref,
+                  f.st_sentence_backref,
                   lambda s: f"{len(s.backref_defs)}",
                   trace_fields=("sentence_backref",)),
             Stage("merge_dedupe",
-                  self._st_merge,
+                  f.st_merge,
                   lambda s: f"{len(s.all_defs)}",
                   trace_fields=("all_defs",)),
             Stage("gap_fill_picks",
-                  self._st_gapfill,
+                  f.st_gapfill,
                   lambda s: f"cov={s.coverage:.0%} miss={len(s.missing_keys)}",
                   trace_fields=("picks",)),
             Stage("senses_disambiguate",
-                  self._st_senses_and_assemble,
+                  lambda s: f.st_senses_and_assemble(s, disambig_window_chars=_win(s),
+                                                        disambig_margin_threshold=_margin(s)
+                                                     ),
                   lambda s: "ready"),
         ])
 
     def run(self, text: str) -> tuple[DetectorResult, ExtractionResult, list[StageReport]]:
+        """Run the pipeline over `text`.
+
+        Args:
+            text (str): Source document text.
+
+        Returns:
+            tuple[DetectorResult, ExtractionResult, list[StageReport]]:
+                - DetectorResult: Raw detector output after cleanup.
+                - ExtractionResult: Final extraction output (picks, defs, senses, resolutions).
+                - list[StageReport]: Per-stage execution reports.
+
+        Raises:
+            AssertionError: If the pipeline completes without producing detector or extraction results.
+
+        """
         state = FlowState(text=text, det_cfg=self.det_cfg, ext_cfg=self.ext_cfg)
-        chain = self.build_chain()
-        state, reports = chain.run(state, tracer=self._tracer)  # <<< tracer passed once
+        state, reports = self.build_chain().run(state, tracer=self._tracer)
         assert state.det_res and state.extr
-        self.trace_events = self._tracer.events if self._tracer else []  # expose for tests
+        self.trace_events = self._tracer.events if self._tracer else []
         return state.det_res, state.extr, reports
