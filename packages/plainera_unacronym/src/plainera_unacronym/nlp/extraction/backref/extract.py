@@ -71,14 +71,13 @@
         was found in a prior sentence using initials-based span selection.
     """
 
-
-import re
 from typing import Mapping
 
 from plainera_unacronym.nlp import FirstOccurrence
 from plainera_unacronym.nlp.common.constants_regex import TOKEN_RE
 from plainera_unacronym.nlp.common.shared import normalize_definition
 from plainera_unacronym.nlp.common.types import ExtractedDefinition
+from plainera_unacronym.nlp.extraction.backref.spans import find_span_index, best_span_by_initials, sent_spans
 from plainera_unacronym.nlp.extraction.config import ExtractionConfig
 from plainera_unacronym.nlp.extraction.anchored.normalise import (
     collapse_ws,
@@ -88,159 +87,139 @@ from plainera_unacronym.nlp.common.shared import has_letters
 from plainera_unacronym.nlp.extraction.matchers.tighten import tighten_label_by_acronym
 
 
-# Sentence boundary: keep it simple and predictable.
-_SENT_BOUNDARY_RE = re.compile(r"(?<=[.!?…])\s+|\n+")
-
-def _best_span_by_initials(acr: str, sent: str, *, max_chars: int) -> str | None:
+def _candidate_from_prev_sentence(
+    *,
+    acr_norm: str,
+    prev_text: str,
+    cfg: ExtractionConfig,
+    max_chars: int,
+    require_two_words: bool,
+) -> str | None:
     """
-    Find the shortest contiguous token span in `sent` whose initials match `acr`.
-    Returns the span text (whitespace-collapsed), or None.
+    Returns a normalised candidate definition string, or None.
+    `prev_text` should be the raw sentence slice (already extracted from `text`).
     """
-    tokens = [t for t in sent.split() if t]
-    if not tokens:
+    prev_raw = prev_text.strip()
+    if not prev_raw:
         return None
 
-    # Precompute initials for each token (ignore tokens starting with non-alpha)
-    tok_inits = [t[0].upper() if t and t[0].isalpha() else "" for t in tokens]
-    A = [c.upper() for c in acr if c.isalpha()]
-    if not A:
+    prev_collapsed = collapse_ws(prev_raw)
+    if len(prev_collapsed) > max_chars * 3:
         return None
 
-    best: tuple[int, int] | None = None  # (i,j) inclusive span
+    sent = prev_collapsed.rstrip(" \t\r\n.?!…;:")
 
-    for i in range(len(tokens)):
-        ai = 0
-        for j in range(i, len(tokens)):
-            if tok_inits[j] and tok_inits[j] == A[ai]:
-                ai += 1
-                if ai == len(A):
-                    # candidate span found: minimise length (j-i), then chars
-                    cand = " ".join(tokens[i : j + 1]).strip()
-                    cand = collapse_ws(cand)
-                    if len(cand) <= max_chars:
-                        if best is None:
-                            best = (i, j)
-                        else:
-                            bi, bj = best
-                            # prefer fewer tokens, then fewer chars
-                            if (j - i) < (bj - bi):
-                                best = (i, j)
-                            elif (j - i) == (bj - bi) and len(cand) < len(" ".join(tokens[bi : bj + 1])):
-                                best = (i, j)
-                    break  # for this i, smallest j already
-
-    if best is None:
+    cand = best_span_by_initials(acr_norm, sent, max_chars=max_chars)
+    if not cand:
         return None
 
-    i, j = best
-    out = " ".join(tokens[i : j + 1]).strip()
-    out = collapse_ws(out)
-    return out if out else None
+    cand = tighten_label_by_acronym(
+        cand,
+        acr_norm,
+        bridges=set(getattr(cfg, "bridges", ())),
+    )
+    cand = normalize_definition(cand)
+
+    if not cand or not has_letters(cand):
+        return None
+    if cand.replace(" ", "").upper() == acr_norm.replace(" ", ""):
+        return None
+    if len(cand) > max_chars:
+        return None
+    if require_two_words and len(TOKEN_RE.findall(cand)) < 2:
+        return None
+    if not initials_match(acr_norm, cand):
+        return None
+
+    return cand
 
 
+def _find_backref_candidate(
+    *,
+    text: str,
+    spans: list[tuple[int, int]],
+    si: int,
+    acr_norm: str,
+    cfg: ExtractionConfig,
+    max_chars: int,
+    require_two_words: bool,
+) -> tuple[str, tuple[int, int]] | None:
+    """
+    Returns (candidate, (prev_s, prev_e)) or None.
+    """
+    sent_lookback = getattr(cfg, "sentence_backref_lookback", 2)
 
-def _sent_spans(text: str) -> list[tuple[int, int]]:
-    """Return (start,end) spans for sentence-ish chunks."""
-    spans: list[tuple[int, int]] = []
-    start = 0
-    for m in _SENT_BOUNDARY_RE.finditer(text):
-        end = m.start()
-        if end > start:
-            spans.append((start, end))
-        start = m.end()
-    if start < len(text):
-        spans.append((start, len(text)))
-    return spans
+    for back in range(1, min(sent_lookback, si) + 1):
+        prev_s, prev_e = spans[si - back]
+        prev_slice = text[prev_s:prev_e]
 
+        cand = _candidate_from_prev_sentence(
+            acr_norm=acr_norm,
+            prev_text=prev_slice,
+            cfg=cfg,
+            max_chars=max_chars,
+            require_two_words=require_two_words,
+        )
+        if cand:
+            return cand, (prev_s, prev_e)
 
-def _find_span_index(spans: list[tuple[int, int]], pos: int) -> int | None:
-    for i, (s, e) in enumerate(spans):
-        if s <= pos < e:
-            return i
     return None
 
 
-def extract_sentence_backrefs(*, text: str, firsts: Mapping[str, FirstOccurrence], cfg: ExtractionConfig) -> list[ExtractedDefinition]:
+def _emit_backref_def(
+    *,
+    acr_norm: str,
+    fo: FirstOccurrence,
+    cand: str,
+    prev_span: tuple[int, int],
+    text: str,
+) -> ExtractedDefinition:
+    prev_s, prev_e = prev_span
+    return ExtractedDefinition(
+        acronym=acr_norm,
+        definition=cand,
+        source="backref",
+        confidence=0.50,
+        acr_start=fo.start_offset,
+        acr_end=fo.end_offset,
+        def_start=prev_s,
+        def_end=prev_e,
+        original_definition=text[prev_s:prev_e].strip(),
+        kind="sentence_backref",
+    )
 
+
+def extract_sentence_backrefs(*, text: str, firsts: Mapping[str, FirstOccurrence], cfg: ExtractionConfig) -> list[
+    ExtractedDefinition]:
     max_chars = getattr(cfg, "max_phrase_chars", 200)
     require_two_words = getattr(cfg, "require_two_words", False)
 
-    sent_lookback = getattr(cfg, "sentence_backref_lookback", 2)
-
-    spans = _sent_spans(text)
+    spans = sent_spans(text)
     if not spans:
         return []
 
     out: list[ExtractedDefinition] = []
 
     for key, fo in firsts.items():
-        acr = (key or fo.acronym).upper()
+        acr_norm = (key or fo.acronym).upper()
 
-        si = _find_span_index(spans, fo.start_offset)
+        si = find_span_index(spans, fo.start_offset)
         if si is None or si == 0:
             continue
 
-        best_cand: str | None = None
-        best_prev_span: tuple[int, int] | None = None
-
-        # NEW: try sentence si-1, si-2, ... up to sent_lookback
-        for back in range(1, min(sent_lookback, si) + 1):
-            prev_s, prev_e = spans[si - back]
-            prev_raw = text[prev_s:prev_e].strip()
-            if not prev_raw:
-                continue
-
-            prev_collapsed = collapse_ws(prev_raw)
-            if len(prev_collapsed) > max_chars * 3:
-                continue
-
-            sent = prev_collapsed.rstrip(" \t\r\n.?!…;:")
-
-            cand = _best_span_by_initials(acr, sent, max_chars=max_chars)
-            if not cand:
-                continue
-
-            cand = tighten_label_by_acronym(
-                cand,
-                acr,
-                bridges=set(getattr(cfg, "bridges", ())),
-            )
-            cand = normalize_definition(cand)
-
-            if not cand or not has_letters(cand):
-                continue
-            if cand.replace(" ", "").upper() == acr.replace(" ", ""):
-                continue
-            if len(cand) > max_chars:
-                continue
-            if require_two_words and len(TOKEN_RE.findall(cand)) < 2:
-                continue
-            if not initials_match(acr, cand):
-                continue
-
-            # first valid match wins because we’re scanning nearest-first
-            best_cand = cand
-            best_prev_span = (prev_s, prev_e)
-            break
-
-        if not best_cand or not best_prev_span:
+        hit = _find_backref_candidate(
+            text=text,
+            spans=spans,
+            si=si,
+            acr_norm=acr_norm,
+            cfg=cfg,
+            max_chars=max_chars,
+            require_two_words=require_two_words,
+        )
+        if not hit:
             continue
 
-        prev_s, prev_e = best_prev_span
-
-        out.append(
-            ExtractedDefinition(
-                acronym=acr,
-                definition=best_cand,
-                source="backref",
-                confidence=0.50,
-                acr_start=fo.start_offset,
-                acr_end=fo.end_offset,
-                def_start=prev_s,
-                def_end=prev_e,
-                original_definition=text[prev_s:prev_e].strip(),
-                kind="sentence_backref",
-            )
-        )
+        cand, prev_span = hit
+        out.append(_emit_backref_def(acr_norm=acr_norm, fo=fo, cand=cand, prev_span=prev_span, text=text))
 
     return out
