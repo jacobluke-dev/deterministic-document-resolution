@@ -187,7 +187,14 @@ def st_gapfill(s: FlowState) -> StageResult[FlowState]:
         for k in missing:
             s.picks[k] = s.picks[k] or fills.get(k)
 
-    s.strategy = "anchored+harvest"
+    used = []
+    if any(s.anchored_defs): used.append("anchored")
+    if any(s.harvested_defs): used.append("harvest")
+    if any(s.backref_defs): used.append("backref")
+    if missing: used.append("gapfill")
+
+    s.strategy = "hybrid-filled" if "gapfill" in used else "+".join(used) or "anchored"
+
     s.coverage = (len(s.picks) - sum(1 for v in s.picks.values() if v is None)) / max(1, len(s.picks))
     s.missing_keys = tuple(sorted(k for k, v in s.picks.items() if v is None))
     s.last_info = f"{s.strategy} coverage={s.coverage:.2%} missing={len(s.missing_keys)}"
@@ -229,7 +236,7 @@ def st_senses_and_assemble(
     ambiguous = tuple(sorted(k for k, v in senses_by_acr.items() if len(v) > 1))
 
     s.extr = ExtractionResult(
-        picks=s.picks, definitions=s.all_defs, strategy=s.strategy, coverage=s.coverage,
+        picks=s.picks, definitions=s.all_defs, extraction_strategy=s.strategy, coverage=s.coverage,
         missing_keys=s.missing_keys, senses_by_acronym=senses_by_acr, sense_index=sense_index,
         resolutions=resolutions, ambiguous_keys=ambiguous, undecided=undecided,
     )

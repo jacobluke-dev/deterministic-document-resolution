@@ -1,22 +1,19 @@
 import re
+
+from plainera_unacronym.nlp.common.types import Definition_strategy
 from plainera_unacronym.nlp.extraction import ExtractionConfig
 from plainera_unacronym.nlp.common.constants_regex import QUOTE as QUOTE_RE
 from dataclasses import dataclass
 from typing import Literal, Any
 
-Strategy = Literal[
-    "direct_def",
-    "helper_def_before",
-    "helper_def_after",
-    "helper_inline_after",
-]
+
 
 
 @dataclass(frozen=True, slots=True)
 class PatternSpec:
     pat: re.Pattern[str]
     base_conf: float
-    strategy: Strategy
+    strategy: Definition_strategy
     kind: str
 
 

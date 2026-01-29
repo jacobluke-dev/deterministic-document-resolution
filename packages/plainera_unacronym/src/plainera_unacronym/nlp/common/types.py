@@ -1,10 +1,27 @@
 import re
 from dataclasses import dataclass, field
-from typing import Any, FrozenSet, Literal, Mapping, Optional
+from typing import Any, FrozenSet, Literal, Mapping, Optional, TypeAlias
 
 from plainera_unacronym.nlp.common.constants_regex import ALLOW_CHARS, DottedMode
 
 SCHEMA_VERSION = "1.1.0"
+
+# -------------------------- STRATEGIES ------------------------------------
+
+
+Extraction_strategy: TypeAlias = Literal[
+    "anchored",
+    "hybrid-filled",
+    "global",
+    "anchored+harvest+global",
+]
+
+Definition_strategy = Literal[
+    "direct_def",
+    "helper_def_before",
+    "helper_def_after",
+    "helper_inline_after",
+]
 
 
 # -------------------------- OCCURRENCE -------------------------------------
@@ -133,7 +150,7 @@ class ExtractionResult:
     # or full global matches if we did the fallback)
     definitions: list[ExtractedDefinition]
     # which strategy ultimately produced 'picks' / 'definitions'
-    strategy: Literal["anchored", "hybrid-filled", "global", "anchored+harvest+global"]
+    extraction_strategy: Extraction_strategy
     # convenience metric: fraction of acronyms with a pick
     coverage: float
     # normalized keys that had no in-text definition

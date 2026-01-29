@@ -3,7 +3,7 @@ from typing import Optional
 
 from plainera_unacronym.nlp.detection.cleanup.post_detect_cleanup import DroppedOccurrence
 from plainera_unacronym.nlp.common.types import (
-    DetectorConfig, InTextPick, ExtractedDefinition, ExtractionResult, DetectorResult
+    DetectorConfig, InTextPick, ExtractedDefinition, ExtractionResult, DetectorResult, Extraction_strategy
 )
 from plainera_unacronym.nlp.extraction.config import ExtractionConfig
 
@@ -24,7 +24,7 @@ class FlowState:
     backref_defs: list[ExtractedDefinition] = field(default_factory=list)
     all_defs: list[ExtractedDefinition] = field(default_factory=list)
 
-    strategy: str = "anchored+harvest"
+    strategy: Extraction_strategy = "anchored+harvest"
     coverage: float = 0.0
     missing_keys: tuple[str, ...] = ()
 

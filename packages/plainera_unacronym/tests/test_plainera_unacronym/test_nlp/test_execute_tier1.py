@@ -98,7 +98,7 @@ class TestDetectAndExtractUnit:
 
         det_res, extr = detect_and_extract(text, det_cfg=det_cfg, ext_cfg=ext_cfg)
 
-        assert extr.strategy == "anchored+harvest"
+        assert extr.extraction_strategy == "anchored"
         assert extr.missing_keys == ()
         assert 0 < extr.coverage <= 1.0
         assert "PDF" in extr.senses_by_acronym
@@ -128,7 +128,7 @@ class TestDetectAndExtractUnit:
         monkeypatch.setattr("plainera_unacronym.nlp.extraction.engine.stage_funcs.harvest_defs_all", lambda *_: [])
 
         det_res, extr = detect_and_extract(text, det_cfg=det_cfg, ext_cfg=ext_cfg)
-        assert extr.strategy == "anchored+harvest"
+        assert extr.extraction_strategy == "hybrid-filled"
         assert extr.picks.get("ABC") is None
         assert not any(d.acronym == "ABC" for d in extr.definitions)
 
