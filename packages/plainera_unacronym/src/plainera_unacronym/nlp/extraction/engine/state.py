@@ -12,7 +12,7 @@ class FlowState:
     text: str
     det_cfg: DetectorConfig
     ext_cfg: ExtractionConfig
-    _last_info: str = ""
+    last_info: str = ""
 
     det_res: Optional[DetectorResult] = None
     cleanup_dropped: list[DroppedOccurrence] = field(default_factory=list)
