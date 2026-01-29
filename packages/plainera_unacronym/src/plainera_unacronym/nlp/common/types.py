@@ -8,7 +8,7 @@ SCHEMA_VERSION = "1.1.0"
 
 # -------------------------- STRATEGIES ------------------------------------
 
-
+# TODO these will be adjusted to tier 1 tier 2 or some other consideration right now these will do
 Extraction_strategy: TypeAlias = Literal[
     "anchored",
     "hybrid-filled",
