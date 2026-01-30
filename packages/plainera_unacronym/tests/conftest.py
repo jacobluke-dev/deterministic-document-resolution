@@ -25,3 +25,13 @@ def patch_sink(monkeypatch):
     dummy = NullSink()
     monkeypatch.setattr(det, "sink", dummy, raising=True)
     yield dummy
+
+
+@pytest.fixture
+def _patch(monkeypatch):
+    def _apply(func, **replacements):
+        g = func.__globals__
+        for name, impl in replacements.items():
+            monkeypatch.setitem(g, name, impl)
+        return func  # optional convenience
+    return _apply

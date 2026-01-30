@@ -43,11 +43,80 @@ LEXICAL_SPLITS = {
     "hypertext": ("Hyper", "text"),
 }
 
+_LEAD_DIGIT_RE = re.compile(r"^\d+[A-Za-z]+$")
+_SINGLE_LETTER_TRAIL_DIGIT_RE = re.compile(r"^[A-Za-z]\d+$")
+
+
+def should_preserve_alnum_token(token: str) -> bool:
+    """Return True if an ASCII alphanumeric token should be kept intact.
+
+    This is used by token splitting logic to avoid fragmenting tokens that are
+    commonly treated as single units in technical text (e.g. "2FA", "HTTP2",
+    "RFC7231", "B2B").
+
+    The token must be ASCII alphanumeric and contain both letters and digits.
+    It is preserved when:
+      - It starts with a digit (e.g. "2FA", "7Zip"), or
+      - It ends with a digit (e.g. "HTTP2", "v1", "x86"), or
+      - It is all-uppercase (e.g. "B2B", "RFC7231", "SHA256", "H264").
+
+    Args:
+        token (str): Candidate token (already separator-split) to evaluate.
+
+    Returns:
+        bool: True if the token should be preserved as a single part; otherwise False.
+    """
+    if not token or not token.isalnum():
+        return False
+
+    has_alpha = any(ch.isalpha() for ch in token)
+    has_digit = any(ch.isdigit() for ch in token)
+    if not (has_alpha and has_digit):
+        return False
+
+    if token[0].isdigit() or token[-1].isdigit():
+        return True
+
+    # Key addition: ALLCAPS+digits like B2B (digits in the middle)
+    return token.upper() == token
+
 
 def match_from(letters: list[str], acronym_list: list[str], start: int) -> Optional[tuple[int, list[int]]]:
-    """
-    Greedily align A as a subsequence of letters starting at index `start`.
-    Returns (end_index_exclusive_in_letters, matched_letter_positions) or None.
+    """Greedily align an acronym as an ordered subsequence of `letters`, starting at `start`.
+
+    Scans `letters` from index `start` onward and tries to match `acronym_list`
+    in order (no backtracking). When a match is found, records the letter index
+    used and advances to the next acronym character. If all acronym characters
+    are matched, returns the scan end position and the indices that were used.
+
+    Args:
+        letters (list[str]): Stream of candidate letters (typically already uppercased).
+        acronym_list (list[str]): Acronym characters to match in order.
+        start (int): Index into `letters` to begin scanning from.
+
+    Returns:
+        Optional[tuple[int, list[int]]]:
+            If successful, returns a tuple `(end_idx, used_positions)` where:
+              - `end_idx` is the index in `letters` where the scan stopped
+                (exclusive; i.e., the next position you would continue scanning from),
+              - `used_positions` is the list of indices in `letters` that matched
+                each character of `acronym_list` in order.
+            Returns None if the acronym cannot be fully matched.
+
+    Notes:
+        - This is a greedy subsequence matcher: it finds the earliest possible
+          completion given the starting point, but does not guarantee a globally
+          optimal match if multiple alignments exist.
+        - Caller is responsible for any normalisation (e.g., uppercasing, filtering
+          to alnum) before passing inputs.
+
+    Examples:
+        >>> match_from(list("ABCD"), list("AC"), 0)
+        (3, [0, 2])
+        >>> match_from(list("ABCD"), list("DA"), 0) is None
+        True
+        >>> match_from(list("AAB"), list("AB"), 1)
+        (3, [1, 2])
     """
     li, ai = start, 0
     used = []
@@ -60,20 +129,50 @@ def match_from(letters: list[str], acronym_list: list[str], start: int) -> Optio
         return li, used
     return None
 
+
 def is_mixed_case_acronym(acr: str) -> bool:
+    """Return True if `acr` contains both uppercase and lowercase letters.
+
+        Non-letter characters (digits, punctuation, symbols) are ignored for the
+        purposes of the check.
+
+        Args:
+            acr (str): Acronym candidate to inspect.
+
+        Returns:
+            bool: True if the alphabetic characters in `acr` include at least one
+            lowercase and at least one uppercase letter; otherwise False.
+        """
     letters = [c for c in acr if c.isalpha()]
     return any(c.islower() for c in letters) and any(c.isupper() for c in letters)
 
 
 def initials_seq(tokens: list[str], *, expand_allcaps: bool = False) -> tuple[list[str], list[int]]:
-    """
-    Build a sequence of initials (letters+digits) from tokens.
-    owners[k] = token index that produced letters[k].
+    """Build an initials stream (letters/digits) from a list of tokens.
 
-    Unicode-aware: picks the first character in each part where ch.isalpha() or ch.isdigit().
+    Produces:
+      - `letters`: the extracted initials (uppercased), one per token-part.
+      - `owners`: parallel list mapping each `letters[i]` back to the originating
+        token index in `tokens`.
 
-    Special-case: ALL-CAPS alphabetic tokens (e.g., "RNA") contribute *all* letters
-    so mixed-case acronyms like "mRNA" can align to phrases like "messenger RNA".
+    Each token is first trimmed using `PUNCT_TRIM`, then split into sub-parts via
+    `split_compound()` (e.g., hyphens, slashes, CamelCase). For each part, the
+    first alphanumeric character contributes an initial.
+
+    If `expand_allcaps` is True, ALL-CAPS alphabetic tokens of length > 1
+    contribute *all* their letters (e.g., "RNA" -> "R","N","A"). This enables
+    alignment of mixed-case acronyms such as "mRNA" to phrases like
+    "messenger RNA".
+
+    Args:
+        tokens (list[str]): Token strings to derive initials from.
+        expand_allcaps (bool): Whether to expand ALL-CAPS alphabetic tokens into
+            multiple initials instead of taking a single initial.
+
+    Returns:
+        tuple[list[str], list[int]]: A `(letters, owners)` pair where `letters`
+        are uppercased initials (letters/digits) and `owners[i]` is the token
+        index that produced `letters[i]`.
     """
     letters, owners = [], []
     for ti, tok in enumerate(tokens):
@@ -95,13 +194,30 @@ def initials_seq(tokens: list[str], *, expand_allcaps: bool = False) -> tuple[li
 
 
 def split_compound(token: str) -> list[str]:
-    """Split hyphen/slash/dot/& and (ASCII) CamelCase into parts.
+    """Split a compound token into sub-parts for initials extraction and matching.
 
-    Rules:
-    - Non-ASCII pieces (e.g., 'Ångström') are kept intact (no Camel split).
-    - ASCII pieces with both letters and digits that START or END with a digit
-      are kept intact as a single part (e.g., '3D', 'v1').
-    - Otherwise, ASCII CamelCase is split using _ASCII_CAMEL_RE.
+    This function performs *lightweight*, deterministic token segmentation using:
+      1) hard separators: hyphen (`-`), slash (`/`), dot (`.`), ampersand (`&`)
+      2) ASCII-only CamelCase / alnum chunking via `_ASCII_CAMEL_RE`
+      3) optional lexical overrides via `LEXICAL_SPLITS`
+      4) an alphanumeric preservation rule via `should_preserve_alnum_token()`
+
+    Behaviour rules:
+      - If a piece contains non-ASCII letters/symbols (i.e. not strictly `[A-Za-z0-9]`),
+        it is kept intact (no CamelCase splitting).
+      - If `LEXICAL_SPLITS` contains the lowercase form of a piece (e.g. "postgresql"),
+        the configured split is used verbatim.
+      - If `should_preserve_alnum_token(piece)` is True (e.g. for acronym-ish alnum like
+        "2FA" or "HTTP2"), the piece is kept intact.
+      - Otherwise, the piece is split using `_ASCII_CAMEL_RE` into parts such as
+        "XML" + "Http" + "Request", or "Foo" + "Bar".
+
+    Args:
+        token (str): Input token to split (may include separators/CamelCase/alnum).
+
+    Returns:
+        list[str]: Ordered list of sub-parts derived from the token. Empty parts are
+        not returned.
     """
     pieces = re.split(r"[\-\/\.\&]", token)
     out: list[str] = []
@@ -113,17 +229,14 @@ def split_compound(token: str) -> list[str]:
             out.append(p)
             continue
 
-        has_alpha = bool(re.search(r"[A-Za-z]", p))
-        has_digit = bool(re.search(r"[0-9]", p))
-
         # ---- SPECIAL-CASE LEXICAL COMPOUNDS ----
         low = p.lower()
         if low in LEXICAL_SPLITS:
             out.extend(LEXICAL_SPLITS[low])
             continue
 
-        # Keep leading-digit+letters or trailing-digit combos intact: '3D', 'v1', 'HTTP2'
-        if has_alpha and has_digit and (p[0].isdigit() or p[-1].isdigit()):
+        # ---- digit handling ----
+        if should_preserve_alnum_token(p):
             out.append(p)
             continue
 
