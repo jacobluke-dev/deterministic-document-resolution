@@ -90,15 +90,41 @@ def consume_left_numeric_designator(
     tok_left: int,
     word_to_digits: Mapping[str, str] = WORD_TO_DIGITS,
 ) -> int:
-    """
-    If `acr` begins with digits (e.g., '5G', '12V') and the token immediately
-    to the left expresses the same number, consume it by returning a decremented
-    tok_left. Otherwise, return tok_left unchanged.
+    """Optionally consume a left-hand numeric designator for digit-prefixed acronyms.
 
-    Supports:
-      - word ordinals: "fifth generation (5G)"
-      - numeric ordinals: "5th generation (5G)" (also works if tokeniser yields "5th-generation")
-      - plain numerics: "5 generation (5G)" (rare but seen in notes/spec bullets)
+    If ``acr`` begins with one or more digits (e.g. ``"5G"``, ``"12V"``) and the
+    token immediately to the left of ``tok_left`` expresses the same number,
+    this function returns ``tok_left - 1`` to expand the candidate phrase window
+    left by one token. Otherwise, it returns ``tok_left`` unchanged.
+
+    Recognised forms for the left token (after light normalisation):
+      - Numeric ordinals: ``"5th"``, ``"12th"`` (case-insensitive suffix)
+      - Plain numerics: ``"5"``, ``"12"``
+      - Word numerics/ordinals via ``word_to_digits``: ``"fifth" -> "5"``, ``"twelve" -> "12"``
+      - Hyphenated tokens: if the token is hyphenated (e.g. ``"5th-generation"``),
+        only the head segment (``"5th"``) is considered.
+
+    Normalisation rules:
+      - Strips *edge* punctuation (keeps internal hyphens).
+      - Lowercases the left token for matching.
+
+    Args:
+        acr (str): Acronym surface form. Only digit-prefixed acronyms are eligible.
+        tokens (Sequence[str]): Token stream for the candidate phrase.
+        tok_left (int): Current left boundary token index (0-based).
+        word_to_digits (Mapping[str, str]): Mapping of word numerics/ordinals to digits.
+
+    Returns:
+        int: ``tok_left - 1`` if the immediate left token matches the acronym's
+        leading digits; otherwise ``tok_left``.
+
+    Examples:
+        >>> consume_left_numeric_designator(acr="5G", tokens=["fifth","generation"], tok_left=1)
+        0
+        >>> consume_left_numeric_designator(acr="12V", tokens=["12th","edition"], tok_left=1)
+        0
+        >>> consume_left_numeric_designator(acr="GPU", tokens=["graphics","processing"], tok_left=1)
+        1
     """
     if tok_left <= 0 or not acr:
         return tok_left
@@ -109,9 +135,20 @@ def consume_left_numeric_designator(
 
     want = m.group("n")  # full leading digit run (e.g., "12" in "12V")
 
+    # Before normalisation
     prev_raw = tokens[tok_left - 1].strip().lower()
     if not prev_raw:
         return tok_left
+
+    # If previous token ends with '.', only block consumption when the next token
+    # looks like a new-sentence start (capitalised).
+    if prev_raw.endswith(".") and tok_left < len(tokens):
+        nxt = tokens[tok_left].lstrip()
+        nxt0 = nxt[0] if nxt else ""
+        if nxt0 in "\"'“”‘’([{" and len(nxt) > 1:
+            nxt0 = nxt[1]
+        if nxt0.isupper():
+            return tok_left
 
     # normalisation: strip edge punctuation, keep internal hyphens
     prev = _EDGE_PUNCT_RE.sub("", prev_raw)
