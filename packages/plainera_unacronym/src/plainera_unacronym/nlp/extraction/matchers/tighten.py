@@ -41,9 +41,24 @@ def _tokenize_preserve(text: str) -> list[str]:
 def _best_window_for_acronym(
     tokens: list[str], acronym: str
 ) -> Optional[tuple[int, int, set[int]]]:
-    """
-    Return (tok_start, tok_end_inclusive, hit_token_indices_set) for the *shortest contiguous*
-    token window whose (non-stopword, compound-aware) initials match `acronym` in order.
+    """Select the shortest contiguous token window whose initials match an acronym.
+
+    Builds a compound-aware initials stream from `tokens` (via `initials_seq`) and
+    searches for the shortest contiguous window of tokens whose initials contain
+    the alphanumeric characters of `acronym` as an ordered subsequence.
+
+    Returns both the chosen token-span and the set of token indices that actually
+    contributed matched initials ("hits").
+
+    Args:
+        tokens (list[str]): Token strings to search within.
+        acronym (str): Acronym whose alphanumeric characters must match in order.
+
+    Returns:
+        Optional[tuple[int, int, set[int]]]: A tuple `(tok_start, tok_end_inclusive, hits)`
+        where `tok_start`/`tok_end_inclusive` bound the chosen window in `tokens` and
+        `hits` is the set of token indices that contributed matched initials. Returns
+        None if no match is possible (e.g., empty acronym or no initials produced).
     """
     A = [c.upper() for c in acronym if c.isalnum()]
     if not A:
@@ -240,12 +255,43 @@ def tighten_label_by_acronym(
     bridges: Optional[set[str]] = None,
     keep_case: bool = True,
 ) -> str:
-    """
-    Canonicalise -> tokenise (compound-aware) -> prefer an initials-in-order window
-    for split acronyms (C/A, R&D, A/B/C), keeping bridge words inside the window;
-    otherwise fall back to the legacy smallest-window alignment.
+    """Tighten a candidate definition by aligning it to an acronym.
 
-    Returns a pruned, whitespace-collapsed phrase (case preserved unless keep_case=False).
+    Canonicalises and tokenises `raw_label` (compound-aware), then attempts to
+    reduce the label to the smallest defensible phrase that still corresponds to
+    `acronym`.
+
+    The tightening proceeds in two stages:
+
+    1) Split-acronym preference:
+       If `acronym` contains split markers (e.g. "C/A", "R&D", "A/B/C"), prefer
+       an "initials-in-order" window over tokens and keep only:
+         - tokens that contributed matched initials,
+         - bridge words within the chosen window (e.g. "of", "and") if supplied,
+         - numeric-leading neighbours (e.g. "3M") adjacent to the window.
+
+    2) Legacy fallback:
+       Otherwise, select the shortest contiguous token window whose initials match
+       the acronym in order (via `_best_window_for_acronym`), then prune to hit
+       tokens plus any bridge words (and numeric-leading neighbours).
+
+    This function does *not* implement stopword logic beyond the optional `bridges`
+    set. Any stopword filtering used to compute initials/alignments is handled by
+    lower-level helpers (e.g. token/initial generation and matching).
+
+    Args:
+        raw_label (str): Candidate long-form label/definition extracted from text.
+        acronym (str): Acronym used to align and prune the label.
+        bridges (Optional[set[str]]): Lowercased "bridge" words that may be retained
+            inside a chosen window even if they are not hit tokens (e.g. {"of", "and"}).
+            If None, defaults to `BRIDGES_DEFAULT`.
+        keep_case (bool): If True, preserve the original casing of the retained tokens.
+            If False, return the tightened phrase lowercased.
+
+    Returns:
+        str: A whitespace-collapsed, punctuation-trimmed phrase tightened around the
+        acronym alignment. If no alignment is possible, returns the canonicalised
+        label (trimmed/collapsed) as a conservative fallback.
     """
     if not raw_label or not acronym:
         out = raw_label or ""
@@ -264,10 +310,10 @@ def tighten_label_by_acronym(
     if preferred:
         return preferred
 
-    # 2) Legacy fallback
-    legacy = _phrase_from_best_window(tokens=tokens, acronym=acronym, bridges=br, keep_case=keep_case)
-    if legacy:
-        return legacy
+    # 2) fallback
+    fallback = _phrase_from_best_window(tokens=tokens, acronym=acronym, bridges=br, keep_case=keep_case)
+    if fallback:
+        return fallback
 
     out = strip_trailing_punct_str(collapse_ws(s))
     return out if keep_case else out.lower()
