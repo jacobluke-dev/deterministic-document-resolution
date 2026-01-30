@@ -265,7 +265,10 @@ class TestDetectAndExtractIntegrationEdgeCases:
         # Ensure numeric-leading tokens (e.g., 3M) are kept in the definition window
         text = "PF (3M Portable format) is a special case in this doc."
         det_cfg, ext_cfg = _cfg_integrated()
-        det_res, extr = detect_and_extract(text, det_cfg=det_cfg, ext_cfg=ext_cfg)
+        det_res, extr, r = detect_and_extract(text, det_cfg=det_cfg, ext_cfg=ext_cfg, return_reports=True)
+        pprint.pprint(extr)
+        pprint.pprint(r)
+        pprint.pprint(det_res)
         by = {}
         for d in extr.definitions:
             by.setdefault(d.acronym, []).append(d)
