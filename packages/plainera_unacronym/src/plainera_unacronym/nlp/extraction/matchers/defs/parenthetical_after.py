@@ -124,7 +124,6 @@ def find_parenthetical_longform_after_acr(
             lowercase_prefix_exception=True,
         )
         if hit is None:
-            # optional relax (keep if you already relied on this behaviour)
             hit = align_acronym_to_initials(
                 acr,
                 stream,

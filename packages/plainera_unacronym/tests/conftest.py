@@ -35,3 +35,14 @@ def _patch(monkeypatch):
             monkeypatch.setitem(g, name, impl)
         return func  # optional convenience
     return _apply
+
+class DummyCfgCls:
+    def __init__(self, max_phrase_chars=80):
+        self.max_phrase_chars = max_phrase_chars
+        self.require_initials_match = False
+
+
+@pytest.fixture
+def dummy_cfg():
+    """Return the DummyCfg class so tests can instantiate per-case configs."""
+    return DummyCfgCls

@@ -49,8 +49,8 @@ def find_inline_longform_after_acr(
         tokens, starts, ends = [], [], []
         for m in re.finditer(r"\S+", s):
             tok = m.group(0)
-            tokens.append(tok);
-            starts.append(m.start());
+            tokens.append(tok)
+            starts.append(m.start())
             ends.append(m.end())
             # bail early if we hit a clear clause boundary token at the end
             if tok.endswith((".", ":", ";")):

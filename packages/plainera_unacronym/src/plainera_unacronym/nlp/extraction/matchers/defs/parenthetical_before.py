@@ -91,7 +91,6 @@ def find_parenthetical_longform_before_acr(snippet: str, acr: str, cfg) -> list[
     )
 
     if hit is None:
-        # your fallback relax:
         hit = align_acronym_to_initials(
             acr,
             stream,
