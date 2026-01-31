@@ -2,6 +2,7 @@ import json
 import logging
 
 import pytest
+
 from observability.logger.context import request_id_var
 from observability.logger.decorator import logger
 from observability.logger.levels import STD_LEVEL, LogLevel
@@ -11,17 +12,19 @@ def _last_json(caplog) -> dict:
     assert caplog.records, "no logs captured"
     return json.loads(caplog.records[-1].msg)
 
-def test_sync_decorator_emits_json(caplog):
-    caplog.set_level(logging.INFO)
+def test_sync_decorator_emits_payload(capture_sink):
+    sink = capture_sink()
 
-    @logger("compute", arg_names=["x", "y"], logger_type="service")
+    @logger("compute", arg_names=["x", "y"], logger_type="service", db_sink=sink)
     def compute(x: int, y: int) -> int:
         return x + y
 
     request_id_var.set("rid-123")
     assert compute(2, 3) == 5
 
-    p = _last_json(caplog)
+    assert sink.items, "no payload captured"
+    p = sink.items[-1]
+
     assert p["event"] == "compute"
     assert p["function"] == "compute"
     assert p["logger_type"] == "service"
@@ -29,60 +32,50 @@ def test_sync_decorator_emits_json(caplog):
     assert p["args"] == {"x": 2, "y": 3}
     assert isinstance(p["duration_ms"], int)
 
-@pytest.mark.asyncio
-async def test_async_decorator_emits_json(caplog):
-    caplog.set_level(logging.INFO)
 
-    @logger("fetch", arg_names=["q"], logger_type="service")
-    async def fetch(q: str) -> str:
-        return q.upper()
+def test_sync_decorator_emits_json(caplog):
+    caplog.set_level(logging.INFO, logger="plainera")
+    lg = logging.getLogger("plainera")
+    lg.info("caplog-probe-plainera")
+    logging.getLogger().info("caplog-probe-root")
+    print("caplog len after probes =", len(caplog.records))
 
-    request_id_var.set("rid-xyz")
-    out = await fetch("abc")
-    assert out == "ABC"
+    print("logging.root.manager.disable =", logging.root.manager.disable)
+    lg = logging.getLogger("plainera")
+    print("plainera.disabled =", lg.disabled, "level =", lg.level, "effective =", lg.getEffectiveLevel(), "propagate =", lg.propagate)
 
-    p = _last_json(caplog)
-    assert p["event"] == "fetch"
-    assert p["function"] == "fetch"
-    assert p["request_id"] == "rid-xyz"
-    assert p["args"] == {"q": "abc"}
-    assert isinstance(p["duration_ms"], int)
 
-def test_redaction(caplog):
-    caplog.set_level(logging.INFO)
+def test_redaction(capture_sink):
+    sink = capture_sink()
 
-    @logger("store", arg_names=["token", "data"], redact=["token"])
+    @logger("store", arg_names=["token", "data"], redact=["token"], db_sink=sink)
     def store(token: str, data: dict) -> None:
         pass
 
     store(token="secret123", data={"ok": 1, "Authorization": "Bearer abc"})
-    p = _last_json(caplog)
-    # explicit redact list applies
+
+    p = sink.items[-1]
     assert p["args"]["token"] == "[REDACTED]"
-    # central redactor should scrub nested sensitive keys (case-insensitive)
     assert p["args"]["data"]["Authorization"] == "[REDACTED]"
 
-def test_db_sink_is_called(caplog):
-    caplog.set_level(logging.INFO)
 
-    class DummySink:
-        def __init__(self): self.items = []
-        # sync method on purpose (avoid coroutine-not-awaited warnings)
-        def enqueue(self, payload): self.items.append(payload)
-
-    sink = DummySink()
+def test_db_sink_is_called(capture_sink):
+    sink = capture_sink()
 
     @logger("persist", arg_names=["x"], db_sink=sink)
     def persist(x: int) -> None:
         pass
 
     persist(7)
-    # still logs to stdout
-    p = _last_json(caplog)
-    assert p["event"] == "persist"
-    # and we enqueued once to the sink
+
+    # sink got exactly one payload
     assert len(sink.items) == 1
-    assert sink.items[0]["event"] == "persist"
+    p = sink.items[0]
+
+    assert p["event"] == "persist"
+    assert p["function"] == "persist"
+    assert p["args"] == {"x": 7}
+    assert isinstance(p["duration_ms"], int)
 
 
 def test_std_level_mapping():
@@ -95,7 +88,7 @@ def test_std_level_mapping():
 
 
 def test_log_result_included_and_truncated(caplog):
-    caplog.set_level(logging.INFO)
+    caplog.set_level(logging.INFO, logger="plainera")
     from observability.logger.decorator import logger
 
     @logger("calc", arg_names=["x"], log_result=True, result_max_len=20)

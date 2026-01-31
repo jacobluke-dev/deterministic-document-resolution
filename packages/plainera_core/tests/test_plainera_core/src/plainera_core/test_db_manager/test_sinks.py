@@ -239,7 +239,7 @@ class TestCompositeSink:
 
 
 class TestRouterSink:
-    @pytest.mark.asyncio
+
     def test_routes_payloads_by_predicate_and_schedules_coroutines(self, monkeypatch):
         # predicates
         def only_error(p): return p.get("level") == "error"

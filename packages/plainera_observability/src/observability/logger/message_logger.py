@@ -6,6 +6,17 @@ from .emit import emit
 from .levels import LogLevel
 
 
+import logging
+
+LOG_NAME = "plainera"
+log = logging.getLogger(LOG_NAME)
+
+# library best practice
+if not log.handlers:
+    log.addHandler(logging.NullHandler())
+
+
+
 def _to_text(v: Any, limit: int = 2048) -> Optional[str]:
     """
     Convert a value into a log-safe string, with optional truncation.
