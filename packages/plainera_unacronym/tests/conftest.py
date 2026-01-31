@@ -46,3 +46,28 @@ class DummyCfgCls:
 @pytest.fixture
 def dummy_cfg():
     return DummyCfgCls
+
+
+class HitCls:
+    def __init__(self, tok_left, tok_right=0, hit_tokens=None):
+        if hit_tokens is None:
+            hit_tokens = {0}
+        self.tok_left = tok_left
+        self.tok_right = tok_right
+        self.hit_tokens = set(hit_tokens)
+
+
+@pytest.fixture
+def hit_cfg():
+    return HitCls
+
+
+@pytest.fixture
+def build_stream_seen():
+    seen = {}
+
+    def _impl(tokens, **kwargs):
+        seen.update(kwargs)
+        return "STREAM"
+
+    return _impl, seen

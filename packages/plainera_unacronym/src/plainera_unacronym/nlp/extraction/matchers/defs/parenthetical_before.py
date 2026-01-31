@@ -2,7 +2,6 @@ import re
 
 from plainera_unacronym.nlp.common.constants_regex import DEFAULT_STOPWORDS, BRIDGES_DEFAULT, QUOTE
 from plainera_unacronym.nlp.common.shared import (has_letters,
-                                                  strip_trailing_punct_str,
                                                   collapse_ws,
                                                   normalize_definition)
 from plainera_unacronym.nlp.extraction.matchers.common import is_mixed_case_acronym
@@ -116,11 +115,6 @@ def find_parenthetical_longform_before_acr(snippet: str, acr: str, cfg) -> list[
 
     if acr_starts_with_digit:
         tok_left = consume_left_numeric_designator(acr=acr, tokens=tokens, tok_left=tok_left)
-
-    # Expand window to include adjacent numeric-leading tokens (e.g., "3M")
-    def _numeric_leading(idx: int) -> bool:
-        init = first_alnum_char_upper(tokens[idx])
-        return (init is not None) and (not init.isalpha())
 
     # 5) Build kept phrase inside the window: matched tokens + bridges + numeric-leading
     phrase = build_kept_phrase(

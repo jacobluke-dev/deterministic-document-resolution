@@ -3,13 +3,6 @@ import pytest
 from plainera_unacronym.nlp.extraction.matchers.defs import find_parenthetical_longform_after_acr
 
 
-class _Hit:
-    def __init__(self, tok_left, tok_right, hit_tokens):
-        self.tok_left = tok_left
-        self.tok_right = tok_right
-        self.hit_tokens = set(hit_tokens)
-
-
 class TestFindParentheticalLongformAfterAcrUnit:
     def test_no_parenthesized_match_returns_empty(self, _patch, dummy_cfg):
         # Patching anyway to prove independence; they won't be called
@@ -125,18 +118,17 @@ class TestFindParentheticalLongformAfterAcrUnit:
 
 
 class TestFindParentheticalLongformAfterAcrUnitInitialsPath:
-    def test_alignment_success_uses_window_and_span(self, _patch, dummy_cfg):
+    def test_alignment_success_uses_window_and_span(self, _patch, dummy_cfg, hit_cfg, build_stream_seen):
         # tokens: Portable Document Format -> pick [0..2]
-        def fake_stream(tokens, **kwargs):
-            return "STREAM", tokens, kwargs
+        build_stream_fn, _ = build_stream_seen
 
         def fake_align(acr, stream, tokens, **kwargs):
-            return _Hit(tok_left=0, tok_right=2, hit_tokens={0, 1, 2})
+            return hit_cfg(tok_left=0, tok_right=2, hit_tokens={0, 1, 2})
 
         _patch(
             find_parenthetical_longform_after_acr,
             has_letters=lambda s: True,
-            build_initials_stream=fake_stream,
+            build_initials_stream=build_stream_fn,
             align_acronym_to_initials=fake_align,
             expand_numeric_leading_window=lambda tokens, i, j: (i, j),
             normalize_definition=lambda s: s,
@@ -153,11 +145,11 @@ class TestFindParentheticalLongformAfterAcrUnitInitialsPath:
         assert m.definition == "Portable Document Format"
         assert snip[m.def_start:m.def_end] == "Portable Document Format"
 
-    def test_alignment_fallback_when_upper_on_stop_disallowed_then_allowed(self, _patch, dummy_cfg):
+    def test_alignment_fallback_when_upper_on_stop_disallowed_then_allowed(self, _patch, dummy_cfg, hit_cfg,
+                                                                           build_stream_seen):
         calls = {"align": []}
 
-        def fake_stream(tokens, **kwargs):
-            return "STREAM"
+        build_stream_fn, _ = build_stream_seen
 
         def fake_align(acr, stream, tokens, **kwargs):
             # First call: allow_upper_on_stop=False -> fail
@@ -165,12 +157,12 @@ class TestFindParentheticalLongformAfterAcrUnitInitialsPath:
             calls["align"].append(kwargs.get("allow_upper_on_stop"))
             if kwargs.get("allow_upper_on_stop") is False:
                 return None
-            return _Hit(tok_left=0, tok_right=2, hit_tokens={0, 2})  # intentionally omit middle token
+            return hit_cfg(tok_left=0, tok_right=2, hit_tokens={0, 2})  # intentionally omit middle token
 
         _patch(
             find_parenthetical_longform_after_acr,
             has_letters=lambda s: True,
-            build_initials_stream=fake_stream,
+            build_initials_stream=build_stream_fn,
             align_acronym_to_initials=fake_align,
             expand_numeric_leading_window=lambda tokens, i, j: (i, j),
             normalize_definition=lambda s: s,
@@ -186,21 +178,20 @@ class TestFindParentheticalLongformAfterAcrUnitInitialsPath:
         # Ensure fallback path was taken (False then True)
         assert calls["align"] == [False, True]
 
-    def test_mixed_case_acronym_sets_allow_lower_on_non_stop_true(self, _patch, dummy_cfg):
+    def test_mixed_case_acronym_sets_allow_lower_on_non_stop_true(self, _patch, dummy_cfg, hit_cfg, build_stream_seen):
         calls = {}
 
-        def fake_stream(tokens, **kwargs):
-            return "STREAM"
+        build_stream_fn, _ = build_stream_seen
 
         def fake_align(acr, stream, tokens, **kwargs):
             calls["allow_lower_on_non_stop"] = kwargs.get("allow_lower_on_non_stop")
-            return _Hit(tok_left=0, tok_right=1, hit_tokens={0, 1})
+            return hit_cfg(tok_left=0, tok_right=1, hit_tokens={0, 1})
 
         _patch(
             find_parenthetical_longform_after_acr,
             has_letters=lambda s: True,
             is_mixed_case_acronym=lambda acr: True,
-            build_initials_stream=fake_stream,
+            build_initials_stream=build_stream_fn,
             align_acronym_to_initials=fake_align,
             expand_numeric_leading_window=lambda tokens, i, j: (i, j),
             normalize_definition=lambda s: s,
@@ -216,18 +207,17 @@ class TestFindParentheticalLongformAfterAcrUnitInitialsPath:
 
 
 class TestFindParentheticalLongformAfterAcrUnitKeptTokens:
-    def test_bridges_are_kept_even_if_not_hit_token(self, _patch, dummy_cfg):
+    def test_bridges_are_kept_even_if_not_hit_token(self, _patch, dummy_cfg, hit_cfg, build_stream_seen):
         # Hit tokens only include Ministry + Magic, but "of" should remain if cfg.bridges includes it
-        def fake_stream(tokens, **kwargs):
-            return "STREAM"
+        build_stream_fn, _ = build_stream_seen
 
         def fake_align(acr, stream, tokens, **kwargs):
-            return _Hit(tok_left=0, tok_right=2, hit_tokens={0, 2})
+            return hit_cfg(tok_left=0, tok_right=2, hit_tokens={0, 2})
 
         _patch(
             find_parenthetical_longform_after_acr,
             has_letters=lambda s: True,
-            build_initials_stream=fake_stream,
+            build_initials_stream=build_stream_fn,
             align_acronym_to_initials=fake_align,
             expand_numeric_leading_window=lambda tokens, i, j: (i, j),
             normalize_definition=lambda s: s,
@@ -242,13 +232,12 @@ class TestFindParentheticalLongformAfterAcrUnitKeptTokens:
         assert len(out) == 1
         assert out[0].definition == "Ministry of Magic"
 
-    def test_expand_numeric_leading_window_can_extend_left_span(self, _patch, dummy_cfg):
-        def fake_stream(tokens, **kwargs):
-            return "STREAM"
+    def test_expand_numeric_leading_window_can_extend_left_span(self, _patch, dummy_cfg, hit_cfg, build_stream_seen):
+        build_stream_fn, _ = build_stream_seen
 
         def fake_align(acr, stream, tokens, **kwargs):
             # pretend acronym hits "Portable format" only
-            return _Hit(tok_left=1, tok_right=2, hit_tokens={1, 2})
+            return hit_cfg(tok_left=1, tok_right=2, hit_tokens={1, 2})
 
         def fake_expand(tokens, i, j):
             # expand to include numeric-leading token
@@ -257,7 +246,7 @@ class TestFindParentheticalLongformAfterAcrUnitKeptTokens:
         _patch(
             find_parenthetical_longform_after_acr,
             has_letters=lambda s: True,
-            build_initials_stream=fake_stream,
+            build_initials_stream=build_stream_fn,
             align_acronym_to_initials=fake_align,
             expand_numeric_leading_window=fake_expand,
             normalize_definition=lambda s: s,
@@ -278,18 +267,17 @@ class TestFindParentheticalLongformAfterAcrUnitKeptTokens:
 
 
 class TestFindParentheticalLongformAfterAcrUnitSpans:
-    def test_repeated_tokens_span_points_to_correct_occurrence(self, _patch, dummy_cfg):
-        def fake_stream(tokens, **kwargs):
-            return "STREAM"
+    def test_repeated_tokens_span_points_to_correct_occurrence(self, _patch, dummy_cfg, hit_cfg, build_stream_seen):
+        build_stream_fn, _ = build_stream_seen
 
         def fake_align(acr, stream, tokens, **kwargs):
             # pick the last two "A" tokens => indices 1..2
-            return _Hit(tok_left=1, tok_right=2, hit_tokens={1, 2})
+            return hit_cfg(tok_left=1, tok_right=2, hit_tokens={1, 2})
 
         _patch(
             find_parenthetical_longform_after_acr,
             has_letters=lambda s: True,
-            build_initials_stream=fake_stream,
+            build_initials_stream=build_stream_fn,
             align_acronym_to_initials=fake_align,
             expand_numeric_leading_window=lambda tokens, i, j: (i, j),
             normalize_definition=lambda s: s,
@@ -446,17 +434,17 @@ class TestFindParentheticalLongformAfterAcrIntegrationEdgesCases:
         cfg = dummy_cfg()
         assert find_parenthetical_longform_after_acr("(Portable Document Format)", cfg, acr="PDF", require_initials_match=False) == []
 
-    def test_returns_empty_if_normalize_definition_fails_in_initials_path(self, _patch, dummy_cfg):
-        def fake_stream(tokens, **kwargs):
-            return "STREAM"
+    def test_returns_empty_if_normalize_definition_fails_in_initials_path(self, _patch, dummy_cfg, hit_cfg,
+                                                                          build_stream_seen):
+        build_stream_fn, _ = build_stream_seen
 
         def fake_align(acr, stream, tokens, **kwargs):
-            return _Hit(tok_left=0, tok_right=len(tokens) - 1, hit_tokens=set(range(len(tokens))))
+            return hit_cfg(tok_left=0, tok_right=len(tokens) - 1, hit_tokens=set(range(len(tokens))))
 
         _patch(
             find_parenthetical_longform_after_acr,
             has_letters=lambda s: True,
-            build_initials_stream=fake_stream,
+            build_initials_stream=build_stream_fn,
             align_acronym_to_initials=fake_align,
             expand_numeric_leading_window=lambda tokens, i, j: (i, j),
             normalize_definition=lambda s: "",  # force failure
