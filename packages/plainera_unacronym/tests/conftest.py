@@ -1,3 +1,4 @@
+import logging
 from typing import Callable
 
 import plainera_unacronym.nlp.detection.detector as det
@@ -44,5 +45,4 @@ class DummyCfgCls:
 
 @pytest.fixture
 def dummy_cfg():
-    """Return the DummyCfg class so tests can instantiate per-case configs."""
     return DummyCfgCls
