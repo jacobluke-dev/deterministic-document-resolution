@@ -17,15 +17,25 @@ class LocalDefMatch:
 
 @dataclass(frozen=True, slots=True)
 class InitialsStream:
-    letters: list[str]  # scan-order initials (already UPPER)
-    owners: list[int]  # token index per letter
-    is_stop: list[bool]  # per-letter stopword status (same len as letters)
+    """
+    `letters` is a list of scan-order initials (uppercased),
+    `owners[i]` is the token index that produced `letters[i]`, and
+    `is_stop[i]` is the stopword status of the owning token.
+    """
+    letters: list[str]
+    owners: list[int]
+    is_stop: list[bool]
 
 
 @dataclass(frozen=True, slots=True)
 class AlignmentHit:
-    used_letter_pos: list[int]  # indices into stream.letters
-    hit_tokens: set[int]  # token indices that contributed
+    """
+    `used_letter_pos`: indices into `stream.letters` used by the match,
+    `hit_tokens`: set of token indices that contributed initials,
+    `tok_left`/`tok_right`: inclusive token-span bounds covering `hit_tokens`.
+    """
+    used_letter_pos: list[int]
+    hit_tokens: set[int]
     tok_left: int
     tok_right: int
 
@@ -39,14 +49,36 @@ def build_initials_stream(
     split_compounds: bool,
     treat_acronym_tokens_as_multi_letter: bool,
 ) -> InitialsStream:
-    """
-    Build a canonical initials stream over tokens.
+    """Build a scan-order initials stream over `tokens`.
 
-    - letters are always uppercased
-    - owners maps each letter back to a token index
-    - is_stop is per-letter stopword status derived from owning token
+    The returned stream is the canonical representation used by acronym alignment:
+    a flat list of initials (always uppercased) plus metadata mapping each initial
+    back to its owning token and that token's stopword status.
 
-    Flags are explicit; no hidden policy.
+    Scan direction affects both:
+      * token traversal order, and
+      * per-token part traversal order when `split_compounds=True`.
+
+    Behaviour by option:
+      * `treat_acronym_tokens_as_multi_letter`: acronym-like tokens (e.g. "U.S.A", "HTTP")
+        contribute multiple letters rather than a single initial.
+      * `expand_allcaps_tokens`: ALLCAPS alphabetic tokens contribute multiple letters.
+      * Otherwise: each token contributes one initial per part, where parts are either:
+          - `split_compound(tok)` if `split_compounds=True`, or
+          - the token itself (as a single part).
+
+    Args:
+        tokens: Token strings (typically whitespace tokens from a snippet window).
+        stopwords: Lowercased stopword set. from config
+        scan: scanning direction either "ltr" or "rtl"
+        expand_allcaps_tokens: If True, expand ALLCAPS alpha tokens (len > 1) into
+            multiple letters (in scan order).
+        split_compounds: If True, split compound tokens (hyphen/slash/dot/&/CamelCase,
+            depending on `split_compound` implementation) and take initials per part.
+        treat_acronym_tokens_as_multi_letter: If True, treat acronym-like tokens as
+            multi-letter sources (e.g. "U.S.A" yields U,S,A).
+    Returns:
+        An `InitialsStream`
     """
     letters: list[str] = []
     owners: list[int] = []
@@ -108,9 +140,32 @@ def _lowercase_prefix_ok(
     acr_pos: int,
     lowercase_prefix_exception: bool,
 ) -> bool:
-    """
-    Narrow exception: allow mixed-case leading lowercase (mRNA / iOS) to map to non-stopword token[0]
-    only when it genuinely looks like a prefix char on token0.
+    """Return True if a leading lowercase acronym char may map to token[0].
+
+    This is a narrow exception used for mixed-case acronyms such as "mRNA" or "iOS".
+    It permits the *first* acronym character (acr_pos == 0) to align to the *first*
+    token (token_idx == 0) even if that token is not a stopword, but only when the
+    token genuinely appears to begin with that lowercase prefix.
+
+    Args:
+        acr: Acronym string being aligned (maybe mixed-case).
+        tokens: Token list for the alignment window.
+        token_idx: Candidate token index the acronym char would align to.
+        acr_pos: Candidate acronym position being aligned.
+        lowercase_prefix_exception: Feature flag enabling this exception.
+
+    Returns:
+        True if the exception applies for this `(acr_pos, token_idx)` pair, else False.
+
+    Notes:
+        The exception is disabled when:
+          * `lowercase_prefix_exception` is False,
+          * `acr_pos != 0` or `token_idx != 0`,
+          * `acr` is not mixed-case (per `is_mixed_case_acronym`), or
+          * token[0] is a pure ALLCAPS alphabetic token.
+
+        Matching is performed by comparing the first character of token[0] and `acr`
+        case-insensitively after trimming punctuation via `PUNCT_TRIM`.
     """
     if not lowercase_prefix_exception:
         return False
@@ -136,6 +191,43 @@ def align_acronym_to_initials(
     allow_lower_on_non_stop: bool,
     lowercase_prefix_exception: bool,
 ) -> Optional[AlignmentHit]:
+    """Align an acronym string against an `InitialsStream`.
+
+        This function aligns acronym characters (letters and/or numeric designators,
+        depending on `acr_alignment_targets`) to the stream's scan-order initials, and
+        returns token-span metadata describing which tokens contributed.
+
+        Two alignment modes are supported:
+          * `"rtl_scan"`: scan-based matching from RTL over `stream.letters`.
+          * `"ltr_min_window"`: LTR matching that prefers a minimal token window
+            (delegated to `_align_ltr_min_window`).
+
+        Stopword constraints are enforced by the underlying aligner:
+          * Uppercase acr letters typically must align to non-stopword tokens, unless
+            `allow_upper_on_stop=True`.
+          * Lowercase acronym letters may align to stopword tokens; if
+            `allow_lower_on_non_stop=True` they may also align to non-stopword tokens.
+
+        Args:
+            acr: Acronym string to align. If empty, returns None.
+            stream: Precomputed initials stream over the candidate token window.
+                If `stream.letters` is empty, returns None.
+            tokens: Original tokens used to build the stream; used for stopword status and
+                any mode-specific heuristics.
+            stopwords: Lowercased stopword set for determining token stopword status.
+            mode: Alignment strategy selector: `"rtl_scan"` or `"ltr_min_window"`.
+            allow_upper_on_stop: If True, permit uppercase acronym letters to land on
+                stopword tokens.
+            allow_lower_on_non_stop: If True, permit lowercase acronym letters to land on
+                non-stopword tokens (useful for mixed-case acronyms).
+            lowercase_prefix_exception: If True, enable a narrow exception allowing a
+                leading lowercase acronym character (e.g. "mRNA") to map to token[0]
+                when it looks like a true prefix (see `_lowercase_prefix_ok`).
+
+        Returns:
+            An `AlignmentHit` if alignment succeeds, else None.
+
+        """
     if not acr or not stream.letters:
         return None
 
@@ -166,14 +258,33 @@ def align_acronym_to_initials(
 
 
 def _align_rtl_scan(
-    A: list[str],
+    acronym_alignment: list[str],
     *,
     stream: InitialsStream,
     allow_upper_on_stop: bool,
     allow_lower_on_non_stop: bool,
 ) -> Optional[AlignmentHit]:
+    """Align acronym targets to the stream using right-to-left scanning.
+
+        This is a thin wrapper around `align_rtl_scan(...)` that converts the matched
+        stream-letter positions into token-span metadata (`AlignmentHit`).
+
+        Args:
+            acronym_alignment: Acronym alignment targets (typically from `acr_alignment_targets`), in the
+                order expected by the RTL scan aligner.
+            stream: Initials stream providing `letters`, `owners`, and per-letter stopword
+                status `is_stop`.
+            allow_upper_on_stop: If True, permit uppercase targets to match initials owned
+                by stopword tokens.
+            allow_lower_on_non_stop: If True, permit lowercase targets to match initials
+                owned by non-stopword tokens.
+
+        Returns:
+            An `AlignmentHit` if a match is found, else None. The hit's token bounds are
+            derived from the owning tokens of the matched stream positions.
+        """
     used = align_rtl_scan(
-        A, stream.letters, stream.is_stop,
+        acronym_alignment, stream.letters, stream.is_stop,
         allow_upper_on_stop=allow_upper_on_stop,
         allow_lower_on_non_stop=allow_lower_on_non_stop,
     )
@@ -292,17 +403,23 @@ def expand_numeric_leading_window(
 def is_acronym_parenthetical_with_tail(snippet: str, acr: str) -> bool:
     """
     True for: (ACR, ...), ("ACR": ...), ('ACR' - ...)
-    False for: (Long Form), (ACR)
+    False for: (Long Form), (ACR), (ACR, )
     """
     acr_esc = re.escape(acr)
     Q = r"""["'“”‘’]"""
     QUOTE = rf"(?:\s*{Q}\s*)?"
 
     return bool(re.match(
-        rf"\(\s*{QUOTE}{acr_esc}{QUOTE}\b\s*[,;:—–-]\s*\S",
+        # word boundary must apply to the acronym, not the closing quote
+        rf"\(\s*{QUOTE}{acr_esc}\b{QUOTE}\s*"
+        # delimiter introducing the tail
+        rf"[,;:—–-]\s*"
+        # tail must start with a real char, not whitespace / ')'
+        rf"[^)\s]",
         snippet,
         flags=re.UNICODE,
     ))
+
 
 
 # Hard clause boundary for inline defs (stop scanning / gating at these)
@@ -370,8 +487,8 @@ def align_rtl_scan(
 
     Returns indices into `initials` used for the match, or None if not fully matched.
     """
-    ti = len(targets) - 1          # target index (RTL)
-    li = 0                         # initials scan index
+    ti = len(targets) - 1  # target index (RTL)
+    li = 0  # initials scan index
     used: list[int] = []
 
     while li < len(initials) and ti >= 0:
