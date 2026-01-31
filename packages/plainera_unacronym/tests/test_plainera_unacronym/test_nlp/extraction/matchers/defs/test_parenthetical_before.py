@@ -2,8 +2,6 @@ import pytest
 from plainera_unacronym.nlp.extraction.matchers.defs import find_parenthetical_longform_before_acr
 
 
-
-
 class TestFindParentheticalLongformBeforeAcrIntegration:
     def test_basic_forward_phrase_then_acr(self, dummy_cfg):
         cfg = dummy_cfg()
@@ -47,7 +45,6 @@ class TestFindParentheticalLongformBeforeAcrUnitAlignmentAndFallback:
         build_stream_fn, _ = build_stream_seen
 
         calls = {"allow_upper_on_stop": []}
-
 
         def fake_align(acr, stream, tokens, **kwargs):
             calls["allow_upper_on_stop"].append(kwargs.get("allow_upper_on_stop"))

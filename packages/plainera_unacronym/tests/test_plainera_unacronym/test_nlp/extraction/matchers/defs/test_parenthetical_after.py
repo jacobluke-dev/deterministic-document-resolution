@@ -116,7 +116,6 @@ class TestFindParentheticalLongformAfterAcrUnit:
         assert find_parenthetical_longform_after_acr("(Portable)", cfg, acr="P") == []
 
 
-
 class TestFindParentheticalLongformAfterAcrUnitInitialsPath:
     def test_alignment_success_uses_window_and_span(self, _patch, dummy_cfg, hit_cfg, build_stream_seen):
         # tokens: Portable Document Format -> pick [0..2]
@@ -299,16 +298,17 @@ class TestFindParentheticalLongformAfterAcrUnitSpans:
 class TestFindParentheticalLongformAfterAcrUnitMissingAcronymBehaviour:
     def test_require_initials_match_true_but_acr_none_currently_accepts_all(self, dummy_cfg):
         cfg = dummy_cfg()
-        out = find_parenthetical_longform_after_acr("(Portable Document Format)", cfg, acr=None, require_initials_match=True)
+        out = find_parenthetical_longform_after_acr("(Portable Document Format)", cfg, acr=None,
+                                                    require_initials_match=True)
         assert len(out) == 1
         assert out[0].definition == "Portable Document Format"
 
     def test_require_initials_match_true_but_acr_empty_string_currently_accepts_all(self, dummy_cfg):
         cfg = dummy_cfg()
-        out = find_parenthetical_longform_after_acr("(Portable Document Format)", cfg, acr="", require_initials_match=True)
+        out = find_parenthetical_longform_after_acr("(Portable Document Format)", cfg, acr="",
+                                                    require_initials_match=True)
         assert len(out) == 1
         assert out[0].definition == "Portable Document Format"
-
 
 
 class TestFindLongformAfterAcrIntegration:
@@ -432,7 +432,8 @@ class TestFindParentheticalLongformAfterAcrIntegrationEdgesCases:
             normalize_definition=lambda s: "",  # force failure
         )
         cfg = dummy_cfg()
-        assert find_parenthetical_longform_after_acr("(Portable Document Format)", cfg, acr="PDF", require_initials_match=False) == []
+        assert find_parenthetical_longform_after_acr("(Portable Document Format)", cfg, acr="PDF",
+                                                     require_initials_match=False) == []
 
     def test_returns_empty_if_normalize_definition_fails_in_initials_path(self, _patch, dummy_cfg, hit_cfg,
                                                                           build_stream_seen):
@@ -454,4 +455,5 @@ class TestFindParentheticalLongformAfterAcrIntegrationEdgesCases:
         )
 
         cfg = dummy_cfg()
-        assert find_parenthetical_longform_after_acr("(Portable Document Format)", cfg, acr="PDF", require_initials_match=True) == []
+        assert find_parenthetical_longform_after_acr("(Portable Document Format)", cfg, acr="PDF",
+                                                     require_initials_match=True) == []
