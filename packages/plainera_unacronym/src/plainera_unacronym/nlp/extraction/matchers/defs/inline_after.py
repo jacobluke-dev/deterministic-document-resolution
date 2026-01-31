@@ -29,7 +29,7 @@ def find_inline_longform_after_acr(
     # --- gate the whole inline clause tail (NOT the minimal initials window) ---
     tail, _ = inline_clause_tail(snippet)
 
-    if len(collapse_ws(tail[0])) > max_phrase_chars:
+    if len(collapse_ws(tail)) > max_phrase_chars:
         return []
 
     stop = getattr(cfg, "stop", DEFAULT_STOPWORDS)
@@ -133,6 +133,9 @@ def find_inline_longform_after_acr(
         include_numeric_leading=True,
         first_alnum_char_upper=first_alnum_char_upper,
     )
+
+    if not kept_idx:
+        return []
 
     ds, de = starts[kept_idx[0]], ends[kept_idx[-1]]
 
