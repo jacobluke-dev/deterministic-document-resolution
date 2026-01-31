@@ -21,50 +21,47 @@ def find_parenthetical_longform_after_acr(
     acr: Optional[str] = None,
     require_initials_match: bool = True,  # renamed flag
 ) -> list[LocalDefMatch]:
-    """Extract a parenthetical long form that appears *immediately after* an acronym.
+    """Extract a parenthetical long-form from the start of `snippet`.
 
-    Parses ``snippet`` starting at the acronym's end and looks for a tight
-    ``( … )`` that contains the expanded long form. If ``require_initials_match``
-    is True and ``acr`` is provided, the function validates the long form by
-    aligning the acronym letters (ignoring non-alnum) to the initials of the
-    long-form tokens (compound- and CamelCase-aware), with these constraints:
-    uppercase acronym letters must land on non-stopwords; lowercase letters
-    must land on stopwords. The returned span tightly hugs the chosen token
-    window, and the definition text is normalized for display.
+    The function is *anchored at the beginning* of `snippet` and looks for a
+    tight parenthetical of the form ``( ... )`` (allowing leading whitespace).
+    It captures the inner text up to `cfg.max_phrase_chars` characters, rejects
+    non-letter content, and returns at most one `LocalDefMatch`.
 
-    If ``require_initials_match`` is False, the raw inner text of the
-    parentheses is used (after trimming outer spaces) without alignment.
+    If `require_initials_match` is False, the trimmed inner parenthetical text
+    is passed through `tighten_definition_span()` then `normalize_definition()`
+    and returned as-is. The returned offsets (`def_start`, `def_end`) tightly
+    hug the inner text (excluding inner leading/trailing spaces).
+
+    If `require_initials_match` is True and `acr` is provided (truthy), the
+    inner text is tokenised (whitespace split), an initials stream is built via
+    `build_initials_stream()`, and the acronym is aligned to token initials via
+    `align_acronym_to_initials()` in `ltr_min_window` mode. Alignment is tried
+    first with stricter stopword constraints, then re-tried with a relaxed
+    `allow_upper_on_stop=True` fallback. The matched token window may be
+    expanded leftward by `expand_numeric_leading_window()`. The display
+    definition is constructed from hit tokens plus any bridge tokens
+    (`cfg.bridges`) and numeric-leading tokens inside the final window, then
+    normalised for display.
+
+    Note: if `require_initials_match` is True but `acr` is missing/empty, no
+    alignment is performed and the full parenthetical content is returned
+    (after normalisation), since there is nothing to validate against.
 
     Args:
-        snippet: Text that begins at, or right after, the acronym; the search
-            is anchored at the start and expects ``( … )`` immediately after.
-        cfg: Config object. Recognized attributes:
-            - ``max_phrase_chars`` (int): Max characters allowed inside the
-              parentheses (default: 80).
-            - ``stopwords`` (set[str]): Tokens ignored for uppercase letters and
-              required for lowercase letters during alignment.
-            - ``bridges`` (set[str]): Extra tokens to keep inside the final
-              window for readability (e.g., “of”, “for”).
-        acr: The acronym to validate against (e.g., ``"PDF"``). Ignored when
-            ``require_initials_match`` is False.
-        require_initials_match: When True, only return a match if the acronym
-            can be aligned to token initials as described above.
+        snippet: Text expected to start with optional whitespace followed by
+            a parenthetical long-form, e.g. ``"(Portable Document Format) ..."``.
+        cfg: Config object. Recognised attributes:
+            - max_phrase_chars (int): Maximum characters inside parentheses (default 80)
+            - stop (set[str]) or stopwords (set[str]): stopword set for alignment
+            - bridges (set[str]): tokens kept for readability when building the display definition
+        acr: Acronym to validate against when `require_initials_match` is True.
+        require_initials_match: When True and `acr` is provided, only return a
+            match if acronym-to-initials alignment succeeds.
 
     Returns:
-        A list with zero or one ``LocalDefMatch``:
-        - ``def_start`` / ``def_end``: Tight character offsets into ``snippet``
-          covering the chosen window inside the parentheses.
-        - ``definition``: Normalized display string built from matched tokens
-          plus any bridge and numeric-leading tokens within the window.
-
-    Examples:
-        >>> cfg = type("Cfg", (), {"max_phrase_chars": 80})()
-        >>> find_parenthetical_longform_after_acr("(Portable Document Format)", cfg, acr="PDF")
-        [LocalDefMatch(..., definition='Portable Document Format')]
-
-        >>> # Disable alignment if you only want the parenthetical text
-        >>> find_parenthetical_longform_after_acr("(noisy   RAW )", cfg, require_initials_match=False)
-        [LocalDefMatch(..., definition='noisy RAW')]
+        list[LocalDefMatch]: zero or one match with offsets into `snippet`
+        and a normalised definition string.
     """
 
     bridges = getattr(cfg, "bridges", BRIDGES_DEFAULT)
