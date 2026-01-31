@@ -72,8 +72,9 @@ class TestAlignAcronymToInitials:
         _patch(
             align_acronym_to_initials,
             has_numeric_evidence=lambda tokens: False,
-            acr_alignment_targets=lambda acr, has_numeric_evidence: ["P", "D", "F"],
-            _align_rtl_scan=fake_align_rtl,
+            acr_alignment_targets=lambda acr,
+            has_numeric_evidence: ["P", "D", "F"],
+            _align_rtl_scan_wrapper=fake_align_rtl,
         )
 
         stream = InitialsStream(letters=["P", "D", "F"], owners=[0, 1, 2], is_stop=[False, False, False])

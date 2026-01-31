@@ -10,8 +10,7 @@ from plainera_unacronym.nlp.extraction.matchers.defs.common import (LocalDefMatc
                                                                     kept_token_indices,
                                                                     build_initials_stream,
                                                                     align_acronym_to_initials,
-                                                                    phrase_from_indices,
-                                                                    first_alnum_char_upper)
+                                                                    phrase_from_indices)
 
 def find_inline_longform_after_acr(
     snippet: str,
@@ -190,8 +189,7 @@ def find_inline_longform_after_acr(
         tok_right=j,
         hit_tokens=hit_tokens,
         bridges=bridges,
-        include_numeric_leading=True,
-        first_alnum_char_upper=first_alnum_char_upper,
+        include_numeric_leading=True
     )
 
     if not kept_idx:

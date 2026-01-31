@@ -239,7 +239,7 @@ def align_acronym_to_initials(
         return None
 
     if mode == "rtl_scan":
-        return _align_rtl_scan(
+        return _align_rtl_scan_wrapper(
             Align_letters,
             stream=stream,
             allow_upper_on_stop=allow_upper_on_stop,
@@ -257,7 +257,7 @@ def align_acronym_to_initials(
     )
 
 
-def _align_rtl_scan(
+def _align_rtl_scan_wrapper(
     acronym_alignment: list[str],
     *,
     stream: InitialsStream,
@@ -311,6 +311,35 @@ def _align_ltr_min_window(
     allow_lower_on_non_stop: bool,
     lowercase_prefix_exception: bool,
 ) -> Optional[AlignmentHit]:
+    """Align acronym letters to a initials stream using a minimal token-span strategy.
+
+        Scans the stream left-to-right and tries to match `alignment_letters` in order.
+        Among all valid matches, selects the one that minimises `(tok_right - tok_left)`
+        where token bounds are derived from `stream.owners`.
+
+        Case/stopword constraints:
+          - Uppercase target letters prefer non-stopword tokens unless `allow_upper_on_stop`.
+          - Lowercase target letters prefer stopword tokens; mapping to non-stopwords is
+            only allowed when `allow_lower_on_non_stop`, and can be further restricted
+            by `lowercase_prefix_exception` for mixed-case acronyms (e.g. iOS/mRNA).
+
+        Args:
+            alignment_letters: Acronym letters to align (may include lowercase to signal
+                stopword preference). Must be alphanumeric-only upstream.
+            stream: Prebuilt initials stream (letters are expected uppercase).
+            tokens: Original token list the stream was derived from.
+            is_stop_token: Parallel list to `tokens` indicating stopword status per token.
+            allow_upper_on_stop: If True, allow uppercase target letters to align onto
+                stopword tokens.
+            allow_lower_on_non_stop: If True, allow lowercase target letters to align onto
+                non-stopword tokens (subject to `lowercase_prefix_exception`).
+            lowercase_prefix_exception: If True, allow a narrow exception for a leading
+                lowercase letter in a mixed-case acronym to map to token0.
+
+        Returns:
+            An `AlignmentHit` describing the chosen alignment, or `None` if no valid
+            alignment exists.
+        """
     L = [c.upper() for c in alignment_letters]  # stream letters are uppercase
 
     best_used: Optional[list[int]] = None
@@ -384,8 +413,18 @@ def expand_numeric_leading_window(
     tok_left: int,
     tok_right: int,
 ) -> tuple[int, int]:
-    """
-    Expand [tok_left..tok_right] to include adjacent numeric-leading tokens (e.g. "3M", "2").
+    """Expand a token window to include adjacent numeric-leading tokens.
+
+    A token is treated as numeric-leading if its first alphanumeric character
+    exists and is not a letter (e.g., "3M", "2", "10GbE").
+
+    Args:
+        tokens: Token sequence that the window refers to.
+        tok_left: Inclusive left token index of the current window.
+        tok_right: Inclusive right token index of the current window.
+
+    Returns:
+        A tuple ``(new_left, new_right)`` representing the expanded inclusive window.
     """
 
     def _numeric_leading(idx: int) -> bool:
@@ -402,8 +441,16 @@ def expand_numeric_leading_window(
 
 def is_acronym_parenthetical_with_tail(snippet: str, acr: str) -> bool:
     """
+    Check whether `snippet` is a parenthetical containing `acr` plus a trailing “tail”.
     True for: (ACR, ...), ("ACR": ...), ('ACR' - ...)
     False for: (Long Form), (ACR), (ACR, )
+    Args:
+        snippet: The parenthetical text to classify (typically including the surrounding parentheses).
+        acr: The acronym expected to appear at the start of the parenthetical content.
+
+    Returns:
+        True if `snippet` matches the acronym-parenthetical-with-tail pattern; otherwise False.
+
     """
     acr_esc = re.escape(acr)
     Q = r"""["'“”‘’]"""
@@ -421,15 +468,18 @@ def is_acronym_parenthetical_with_tail(snippet: str, acr: str) -> bool:
     ))
 
 
-
 # Hard clause boundary for inline defs (stop scanning / gating at these)
 _INLINE_BOUNDARY_RE = re.compile(r"[.;:](?=\s|$)|[\r\n]")
 
 
 def inline_clause_tail(s: str) -> tuple[str, int]:
-    """
-    Return (tail_text, tail_end_index) where tail is from start of `s` up to
-    the first hard boundary, or full `s` if none.
+    """Return the leading clause fragment before any hard boundary.
+
+    A “hard boundary” is matched by `_INLINE_BOUNDARY_RE` (e.g. `. ; :` at
+    token/line ends, or a newline). If no boundary is found, the full string is returned.
+
+    Returns:
+        (tail_text, tail_end_index) where `tail_text == s[:tail_end_index]`.
     """
     m = _INLINE_BOUNDARY_RE.search(s)
     end = m.start() if m else len(s)
@@ -437,6 +487,10 @@ def inline_clause_tail(s: str) -> tuple[str, int]:
 
 
 def first_alnum_char_upper(s: str) -> str | None:
+    """Return the first alphanumeric character in `s`, uppercased.
+
+        Returns None if `s` contains no alphanumeric characters.
+    """
     for ch in s:
         if ch.isalnum():
             return ch.upper()
@@ -444,10 +498,17 @@ def first_alnum_char_upper(s: str) -> str | None:
 
 
 def acr_alignment_targets(acr: str, *, has_numeric_evidence: bool) -> list[str]:
-    """
-    Alignment targets for acronym matching.
-    If the candidate definition has no numeric-leading token evidence, digits are treated as optional
-    (i.e., dropped) so E2E can match "end-to-end".
+    """Return acronym chars to align (alnum only), optionally dropping digits.
+
+    If `has_numeric_evidence` is True, keep digits (e.g., "10GbE").
+    Otherwise drop digits so acronyms like "E2E" can match "end-to-end".
+
+    Args:
+        acr: Acronym text (may include punctuation).
+        has_numeric_evidence: Whether the candidate phrase indicates digits matter.
+
+    Returns:
+        Alignment target characters, or [] if `acr` has no alnum chars.
     """
     chars = [c for c in acr if c.isalnum()]
     if not chars:
@@ -463,6 +524,16 @@ def acr_alignment_targets(acr: str, *, has_numeric_evidence: bool) -> list[str]:
 
 
 def has_numeric_evidence(tokens: list[str]) -> bool:
+    """True if any token starts (by first alnum char) with a non-letter.
+
+    Uses `first_alnum_char_upper(token)` and checks `not init.isalpha()`.
+
+    Args:
+        tokens: Candidate phrase tokens.
+
+    Returns:
+        Whether the phrase contains numeric-leading evidence.
+    """
     for tok in tokens:
         init = first_alnum_char_upper(tok)
         if init is not None and not init.isalpha():
@@ -478,14 +549,29 @@ def align_rtl_scan(
     allow_upper_on_stop: bool,
     allow_lower_on_non_stop: bool = False,
 ) -> list[int] | None:
-    """
-    Match `targets` RIGHT->LEFT against `initials` scanned in stream order.
+    """Align acronym targets right-to-left against an initials stream scanned in order.
 
-    - `targets` are caseful characters from `acr_alignment_targets` (e.g. ['m','R','N','A'])
-    - `initials` are uppercase initials in scan order
-    - `is_stop_letter[i]` is stopword-status of the owner token for `initials[i]`
+    This performs a greedy scan over `initials` from left to right, while consuming
+    `targets` from right to left. A target character matches when the uppercased
+    target equals the current initials letter and stopword constraints are satisfied.
 
-    Returns indices into `initials` used for the match, or None if not fully matched.
+    Stopword constraints:
+      - Lowercase target (e.g. 'o' in "MofM") prefers a stopword owner letter. It may
+        align to non-stop letters only if `allow_lower_on_non_stop=True`.
+      - Uppercase target prefers a non-stop owner letter. It may align to stop letters
+        only if `allow_upper_on_stop=True`.
+
+    Args:
+        targets: Acronym alignment targets (caseful). Lowercase indicates a stopword
+            preference; uppercase indicates a non-stopword preference.
+        initials: Initials letters in scan order (expected uppercase).
+        is_stop_letter: Parallel to `initials`; True if the owning token is a stopword.
+        allow_upper_on_stop: If True, allow uppercase targets to align onto stop letters.
+        allow_lower_on_non_stop: If True, allow lowercase targets to align onto non-stop letters.
+
+    Returns:
+        A list of indices into `initials` representing the matched letters (in scan order),
+        or None if the full target sequence cannot be matched.
     """
     ti = len(targets) - 1  # target index (RTL)
     li = 0  # initials scan index
@@ -515,6 +601,18 @@ _ACR_TOKEN_RE = re.compile(r"^[A-Z](?:[A-Z0-9]|[A-Z]\.){1,}$")  # RNA, HTTP2, U.
 
 
 def is_acronym_like_token(tok: str) -> bool:
+    """Return True if `tok` looks like an acronym/initialism.
+
+        Treats tokens as acronym-like if, after trimming common trailing punctuation,
+        they match dotted/compact patterns such as "U.S.A" or contain uppercase letters
+        (and optional digits) with no lowercase letters (e.g. "HTTP2", "RNA").
+
+        Args:
+            tok: Raw token text, possibly with trailing punctuation.
+
+        Returns:
+            True if the token resembles an acronym/initialism; otherwise False.
+    """
     # Trim light punctuation that commonly sticks to tokens
     t = tok.strip(".,;:)]}»”'\"")
     if len(t) < 2:
@@ -527,9 +625,20 @@ def is_acronym_like_token(tok: str) -> bool:
 
 
 def _acronym_letters_rtl(tok: str) -> list[str]:
-    """
-    Return alnum chars from token as UPPER, in RTL order.
-    Example: 'RNA' -> ['A','N','R'], 'U.S.A' -> ['A','S','U'], 'HTTP2' -> ['2','P','T','T','H'] (digits kept).
+    """Extract acronym characters in right-to-left order.
+
+    Strips light trailing/leading punctuation, keeps only alphanumeric characters,
+    uppercases letters, and returns them in RTL order.
+
+    Args:
+        tok: Token potentially containing an acronym/initialism (e.g. "U.S.A", "HTTP2").
+
+    Returns:
+        List of uppercased alphanumeric characters in RTL order.
+        Examples:
+          - "RNA" -> ["A", "N", "R"]
+          - "U.S.A" -> ["A", "S", "U"]
+          - "HTTP2" -> ["2", "P", "T", "T", "H"]
     """
     t = tok.strip(".,;:)]}»”'\"")
     chars = [c.upper() for c in t if c.isalnum()]
@@ -537,18 +646,35 @@ def _acronym_letters_rtl(tok: str) -> list[str]:
     return chars
 
 
-def strip_inline_cue_prefix(t: str, cfg) -> tuple[str, int] | None:
-    """
-    If `t` begins with an inline cue ("stands for", "means", ...), return:
-      - remaining text after the cue
-      - number of characters stripped (offset into original `t`)
+def strip_inline_cue_prefix(snippet: str, cfg) -> tuple[str, int] | None:
+    """Strips a leading inline cue phrase from text.
+
+    This detects whether `snippet` starts with one of `cfg.inline_cues` (case-insensitive),
+    allowing optional leading whitespace and an optional leading comma, then
+    requires at least one whitespace character after the cue.
+
+    Args:
+        snippet: Input text to test/strip.
+        cfg: Config object providing `inline_cues` (iterable of regex fragments).
+
+    Returns:
+        A tuple of (`remaining_text`, `offset`) where `remaining_text` is `t` with the
+        matched prefix removed, and `offset` is the character index into `t` where the
+        remaining text begins. Returns None if no cue matches at the start.
     """
     cues = getattr(cfg, "inline_cues", ())
     for cue in cues:
-        m = re.match(rf"^\s*,?\s*(?:{cue})\s+", t, flags=re.IGNORECASE)
+        m = re.match(rf"^\s*,?\s*(?:{cue})\s+", snippet, flags=re.IGNORECASE)
         if m:
-            return t[m.end():], m.end()
+            return snippet[m.end():], m.end()
     return None
+
+
+def _numeric_leading(token, include_numeric_leading: bool) -> bool:
+    if not include_numeric_leading:
+        return False
+    init = first_alnum_char_upper(token)
+    return (init is not None) and (not init.isalpha())
 
 
 def kept_token_indices(
@@ -558,19 +684,13 @@ def kept_token_indices(
     tok_right: int,
     hit_tokens: set[int],
     bridges: set[str],
-    include_numeric_leading: bool,
-    first_alnum_char_upper: Callable[[str], str],
+    include_numeric_leading: bool
 ) -> list[int]:
-    def _numeric_leading(idx: int) -> bool:
-        if not include_numeric_leading:
-            return False
-        init = first_alnum_char_upper(tokens[idx])
-        return (init is not None) and (not init.isalpha())
 
     kept = [
         idx
         for idx in range(tok_left, tok_right + 1)
-        if idx in hit_tokens or tokens[idx].lower() in bridges or _numeric_leading(idx)
+        if idx in hit_tokens or tokens[idx].lower() in bridges or _numeric_leading(tokens[idx], include_numeric_leading)
     ]
     return kept or list(range(tok_left, tok_right + 1))
 
@@ -586,19 +706,13 @@ def build_kept_phrase(
     tok_right: int,
     hit_tokens: set[int],
     bridges: set[str],
-    include_numeric_leading: bool = True,
-    first_alnum_char_upper: Callable[[str], str],
+    include_numeric_leading: bool = True
 ) -> str:
-    def _numeric_leading(idx: int) -> bool:
-        if not include_numeric_leading:
-            return False
-        init = first_alnum_char_upper(tokens[idx])
-        return (init is not None) and (not init.isalpha())
 
     kept: list[str] = []
     for idx in range(tok_left, tok_right + 1):
         tok = tokens[idx]
-        if idx in hit_tokens or tok.lower() in bridges or _numeric_leading(idx):
+        if idx in hit_tokens or tok.lower() in bridges or _numeric_leading(tokens[idx], include_numeric_leading):
             kept.append(tok)
 
     if not kept:

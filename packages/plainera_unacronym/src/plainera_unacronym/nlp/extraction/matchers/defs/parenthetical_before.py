@@ -123,8 +123,7 @@ def find_parenthetical_longform_before_acr(snippet: str, acr: str, cfg) -> list[
         tok_right=tok_right,
         hit_tokens=hit_tokens,
         bridges=bridges,
-        include_numeric_leading=True,
-        first_alnum_char_upper=first_alnum_char_upper,
+        include_numeric_leading=True
     )
     if not phrase:
         return []
