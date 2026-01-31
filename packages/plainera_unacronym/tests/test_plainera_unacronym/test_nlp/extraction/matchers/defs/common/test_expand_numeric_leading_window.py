@@ -63,3 +63,9 @@ class TestExpandNumericLeadingWindowIntegration:
         tokens2 = ["Portable", "Format", "2"]
         # Already at right edge; should not overflow
         assert expand_numeric_leading_window(tokens2, tok_left=0, tok_right=1) == (0, 2)
+
+
+class TestNumericLeadingUsedByExpandNumericLeadingWindow:
+    def test_expand_window_pulls_in_numeric_neighbors(self):
+        tokens = ["3M", "Portable", "Format", "2", "PDF"]
+        assert expand_numeric_leading_window(tokens, tok_left=1, tok_right=2) == (0, 3)

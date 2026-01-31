@@ -671,6 +671,21 @@ def strip_inline_cue_prefix(snippet: str, cfg) -> tuple[str, int] | None:
 
 
 def _numeric_leading(token, include_numeric_leading: bool) -> bool:
+    """
+        Returns True if `token` should be treated as numeric-leading.
+
+        A token is numeric-leading when `include_numeric_leading` is True and the
+        first alphanumeric character in `token` exists and is NOT a letter
+        (e.g. starts with a digit like "3M", "10GbE", "(2FA)").
+
+        Args:
+            token: Raw token text (may include surrounding punctuation/whitespace).
+            include_numeric_leading: Feature-flag; when False this always returns False.
+
+        Returns:
+            True if numeric-leading tokens should be included and `token` begins
+            (after skipping non-alnum) with a non-alpha alnum character; otherwise False.
+    """
     if not include_numeric_leading:
         return False
     init = first_alnum_char_upper(token)
@@ -686,7 +701,31 @@ def kept_token_indices(
     bridges: set[str],
     include_numeric_leading: bool
 ) -> list[int]:
+    """
+        Select token indices to retain for a rendered definition phrase.
 
+        Keeps:
+          - tokens that directly contributed to the acronym alignment (`hit_tokens`)
+          - "bridge" tokens that improve readability (e.g. {"of", "and"})
+          - numeric-leading tokens when enabled (e.g. "3M", "2", "10GbE")
+
+        If nothing qualifies, falls back to the full contiguous window
+        `[tok_left .. tok_right]` to avoid returning an empty selection.
+
+        Args:
+            tokens: Token list for the candidate definition span.
+            tok_left: Inclusive left bound of the matched token window.
+            tok_right: Inclusive right bound of the matched token window.
+            hit_tokens: Token indices that contributed initials used in the match.
+            bridges: Lowercased connector tokens that should be preserved for readability.
+            include_numeric_leading: If True, include numeric-leading tokens inside the window.
+
+        Returns:
+            A list of indices (ascending) within `[tok_left..tok_right]` to keep.
+
+        Raises:
+            None.
+        """
     kept = [
         idx
         for idx in range(tok_left, tok_right + 1)
@@ -696,7 +735,24 @@ def kept_token_indices(
 
 
 def phrase_from_indices(tokens: list[str], idxs: list[int]) -> str:
+    """
+    Build a display phrase from selected token indices.
+
+    Joins `tokens[i]` for `i` in `idxs`, collapses internal whitespace, then strips
+    any trailing punctuation/whitespace (per `strip_trailing_punct_str`).
+
+    Args:
+        tokens: Source token list.
+        idxs: Indices into `tokens` to include, in the desired output order.
+
+    Returns:
+        The rendered phrase string (may be empty if `idxs` is empty or selected tokens collapse away).
+
+    Raises:
+        IndexError: If any index in `idxs` is out of range for `tokens`.
+    """
     return strip_trailing_punct_str(collapse_ws(" ".join(tokens[i] for i in idxs)))
+
 
 
 def build_kept_phrase(
@@ -708,6 +764,34 @@ def build_kept_phrase(
     bridges: set[str],
     include_numeric_leading: bool = True
 ) -> str:
+    """
+        Build a display phrase for a matched token window.
+
+        Keeps tokens in the inclusive window `[tok_left..tok_right]` if they are:
+        - contributing hit tokens (`idx in hit_tokens`), or
+        - bridge tokens (`tokens[idx].lower() in bridges`), or
+        - numeric-leading tokens (when `include_numeric_leading=True`).
+
+        If nothing qualifies, falls back to keeping the full window.
+        Output is whitespace-collapsed and has trailing punctuation stripped.
+
+        Args:
+            tokens: Full token list for the candidate phrase.
+            tok_left: Leftmost token index (inclusive) of the candidate window.
+            tok_right: Rightmost token index (inclusive) of the candidate window.
+            hit_tokens: Token indices that directly contributed to the acronym match.
+            bridges: Lowercased bridge words to keep for readability (e.g. {"of", "and"}).
+            include_numeric_leading: Whether numeric-leading tokens (e.g. "3M", "2") are kept.
+
+        Returns:
+            A rendered phrase string (may be empty if the selected window contains only whitespace).
+
+        Raises:
+            IndexError: If `tok_left`/`tok_right` are out of range for `tokens`.
+            ValueError: If `tok_left > tok_right`.
+        """
+    if tok_left > tok_right:
+        raise ValueError("tok_left must be <= tok_right")
 
     kept: list[str] = []
     for idx in range(tok_left, tok_right + 1):
