@@ -357,3 +357,170 @@ class TestBuildInitialsStreamIntegration:
         # first_alnum_char_upper should typically return '3' for '3M'
         assert stream.owners[0] == 0
         assert stream.letters[0].isdigit() or stream.letters[0] == "3"
+
+import pytest
+
+from plainera_unacronym.nlp.common.constants_regex import DEFAULT_STOPWORDS
+from plainera_unacronym.nlp.extraction.matchers.defs.common import (
+    build_initials_stream,
+    align_acronym_to_initials,
+)
+
+
+class TestAlignAcronymToInitialsIntegration:
+    def test_ltr_min_window_basic_aligns_and_span_is_correct(self):
+        tokens = ["Portable", "Document", "Format"]
+        stopwords = DEFAULT_STOPWORDS  # fine; none of these are stopwords anyway
+
+        stream = build_initials_stream(
+            tokens,
+            stopwords=stopwords,
+            scan="ltr",
+            expand_allcaps_tokens=False,
+            split_compounds=False,
+            treat_acronym_tokens_as_multi_letter=False,
+        )
+
+        hit = align_acronym_to_initials(
+            "PDF",
+            stream,
+            tokens=tokens,
+            stopwords=stopwords,
+            mode="ltr_min_window",
+            allow_upper_on_stop=False,
+            allow_lower_on_non_stop=False,
+            lowercase_prefix_exception=False,
+        )
+
+        assert hit is not None
+        assert hit.tok_left == 0
+        assert hit.tok_right == 2
+        assert hit.hit_tokens == {0, 1, 2}
+
+    def test_rtl_scan_basic_aligns_and_span_is_correct(self):
+        tokens = ["Portable", "Document", "Format"]
+        stopwords = DEFAULT_STOPWORDS
+
+        # build RTL stream (letters emitted in RTL scan order)
+        stream = build_initials_stream(
+            tokens,
+            stopwords=stopwords,
+            scan="rtl",
+            expand_allcaps_tokens=False,
+            split_compounds=False,
+            treat_acronym_tokens_as_multi_letter=False,
+        )
+
+        hit = align_acronym_to_initials(
+            "PDF",
+            stream,
+            tokens=tokens,
+            stopwords=stopwords,
+            mode="rtl_scan",
+            allow_upper_on_stop=False,
+            allow_lower_on_non_stop=False,
+            lowercase_prefix_exception=False,  # irrelevant in rtl mode
+        )
+
+        assert hit is not None
+        assert hit.tok_left == 0
+        assert hit.tok_right == 2
+        assert hit.hit_tokens == {0, 1, 2}
+
+    def test_stopword_constraint_blocks_when_uppercase_letter_lands_on_stopword(self):
+        tokens = ["Ministry", "of", "Magic"]
+        stopwords = {"of"}  # keep it explicit
+
+        stream = build_initials_stream(
+            tokens,
+            stopwords=stopwords,
+            scan="ltr",
+            expand_allcaps_tokens=False,
+            split_compounds=False,
+            treat_acronym_tokens_as_multi_letter=False,
+        )
+
+        # "MOM": middle letter is 'O' which corresponds to token "of" (stopword)
+        hit = align_acronym_to_initials(
+            "MOM",
+            stream,
+            tokens=tokens,
+            stopwords=stopwords,
+            mode="ltr_min_window",
+            allow_upper_on_stop=False,          # strict: uppercase may NOT land on stopword
+            allow_lower_on_non_stop=False,
+            lowercase_prefix_exception=False,
+        )
+
+        assert hit is None
+
+    def test_allow_upper_on_stop_allows_stopword_landing(self):
+        tokens = ["Ministry", "of", "Magic"]
+        stopwords = {"of"}
+
+        stream = build_initials_stream(
+            tokens,
+            stopwords=stopwords,
+            scan="ltr",
+            expand_allcaps_tokens=False,
+            split_compounds=False,
+            treat_acronym_tokens_as_multi_letter=False,
+        )
+
+        hit = align_acronym_to_initials(
+            "MOM",
+            stream,
+            tokens=tokens,
+            stopwords=stopwords,
+            mode="ltr_min_window",
+            allow_upper_on_stop=True,           # relaxed
+            allow_lower_on_non_stop=False,
+            lowercase_prefix_exception=False,
+        )
+
+        assert hit is not None
+        assert hit.hit_tokens == {0, 1, 2}
+        assert (hit.tok_left, hit.tok_right) == (0, 2)
+
+    def test_mixed_case_prefix_exception_required_for_mrna_style(self):
+        # First acronym char is lowercase => matcher treats it as "wants stopword",
+        # and the ONLY intended escape hatch is lowercase_prefix_exception for token[0].
+        tokens = ["molecule", "Ribonucleic", "Nucleic", "Acid"]
+        stopwords = set()
+
+        stream = build_initials_stream(
+            tokens,
+            stopwords=stopwords,
+            scan="ltr",
+            expand_allcaps_tokens=False,
+            split_compounds=False,
+            treat_acronym_tokens_as_multi_letter=False,
+        )
+
+        # Without lowercase_prefix_exception, this should fail (by design).
+        hit_no_exc = align_acronym_to_initials(
+            "mRNA",
+            stream,
+            tokens=tokens,
+            stopwords=stopwords,
+            mode="ltr_min_window",
+            allow_upper_on_stop=False,
+            allow_lower_on_non_stop=True,       # mixed-case acronyms usually set this True
+            lowercase_prefix_exception=False,
+        )
+        assert hit_no_exc is None
+
+        # With lowercase_prefix_exception=True, it should align.
+        hit_exc = align_acronym_to_initials(
+            "mRNA",
+            stream,
+            tokens=tokens,
+            stopwords=stopwords,
+            mode="ltr_min_window",
+            allow_upper_on_stop=False,
+            allow_lower_on_non_stop=True,
+            lowercase_prefix_exception=True,
+        )
+        assert hit_exc is not None
+        assert hit_exc.hit_tokens == {0, 1, 2, 3}
+        assert (hit_exc.tok_left, hit_exc.tok_right) == (0, 3)
