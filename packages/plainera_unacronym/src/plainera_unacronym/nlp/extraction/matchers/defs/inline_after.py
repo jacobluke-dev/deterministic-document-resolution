@@ -13,7 +13,6 @@ from plainera_unacronym.nlp.extraction.matchers.defs.common import (LocalDefMatc
                                                                     phrase_from_indices,
                                                                     first_alnum_char_upper)
 
-
 def find_inline_longform_after_acr(
     snippet: str,
     cfg,
@@ -22,6 +21,67 @@ def find_inline_longform_after_acr(
     max_chars: int | None = None,
     require_initials_match: bool = True,
 ) -> list[LocalDefMatch]:
+    """
+    Find an inline long-form definition that appears immediately after an acronym.
+
+    This matcher targets patterns where an acronym is followed by cue words and then a
+    definitional phrase, e.g.:
+
+        "PDF stands for Portable Document Format"
+        "API means Application Programming Interface"
+        "NLP (in this context) refers to Natural Language Processing"
+
+    The function returns at most one `LocalDefMatch` containing:
+      - `def_start`/`def_end`: character offsets into the *input slice* being searched
+      - `definition`: a normalized display string for the extracted long-form
+      - `raw`: the raw extracted window with whitespace collapsed (for debugging/audit)
+
+    The matcher has two modes:
+
+    1) Initials-matched mode (`require_initials_match=True`, default)
+       - Uses `strip_inline_cue_prefix()` to require and remove leading cue words
+         (e.g., "stands for", "means", "is short for", etc.).
+       - Tokenizes the remaining tail and aligns `acr` to the token initials stream
+         using `align_acronym_to_initials()` (LTR minimal window).
+       - Expands the kept tokens using `kept_token_indices()` to include bridges
+         (e.g., "of") and numeric-leading tokens for readability.
+       - Produces a normalized definition via `tighten_definition_span()` and
+         `normalize_definition()`.
+
+    2) Fast-path mode (`require_initials_match=False`)
+       - Does not require cue words or initials alignment.
+       - Takes up to 6 tokens from the beginning of the searchable slice, or stops
+         earlier on a hard clause boundary token ('.', ':', ';').
+       - Normalizes and returns that bounded phrase (subject to length gates).
+
+    Length gating:
+      - The function first gates the full inline clause tail (up to the first hard
+        boundary, via `inline_clause_tail()`) against `cfg.max_phrase_chars`.
+      - It then searches within a bounded prefix of `snippet` (`search_cap`), where:
+            search_cap = max_chars if provided else cfg.max_phrase_chars * 2
+      - Both the raw extracted window and the normalized display definition are
+        rejected if they exceed `cfg.max_phrase_chars`.
+
+    Configuration:
+      - `cfg.max_phrase_chars` (int, default 200): maximum allowed length for the
+        extracted definition and raw window.
+      - `cfg.stop` (set[str], optional): stopword set used during initials alignment
+        (defaults to `DEFAULT_STOPWORDS` if missing).
+      - `cfg.bridges` (set[str], optional): tokens permitted between matched tokens
+        when building the kept phrase (defaults to `BRIDGES_DEFAULT` if missing).
+
+    Args:
+        snippet: Text beginning at/near the inline definition clause to be scanned.
+        cfg: Configuration object providing limits and optional token sets.
+        acr: The acronym to resolve (e.g., "PDF").
+        max_chars: Optional cap on how many characters of `snippet` are searched.
+        require_initials_match: If True, require cue words + initials alignment.
+            If False, use a short heuristic extraction without alignment.
+
+    Returns:
+        A list containing zero or one `LocalDefMatch`. Returns an empty list if no
+        suitable inline definition is found or if any length/normalization gate fails.
+    """
     if not snippet:
         return []
     max_phrase_chars = getattr(cfg, "max_phrase_chars", 200)
