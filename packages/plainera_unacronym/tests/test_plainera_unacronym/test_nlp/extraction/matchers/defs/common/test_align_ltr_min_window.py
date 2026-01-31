@@ -1,3 +1,5 @@
+import pytest
+
 from plainera_unacronym.nlp.extraction.matchers.defs.common import _align_ltr_min_window, InitialsStream
 
 

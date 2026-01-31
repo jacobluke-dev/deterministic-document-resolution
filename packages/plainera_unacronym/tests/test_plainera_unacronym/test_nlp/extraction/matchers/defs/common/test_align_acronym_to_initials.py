@@ -1,3 +1,5 @@
+import pytest
+
 from plainera_unacronym.nlp.common.constants_regex import DEFAULT_STOPWORDS
 from plainera_unacronym.nlp.extraction.matchers.defs.common import AlignmentHit, align_acronym_to_initials, \
     InitialsStream, build_initials_stream
@@ -303,3 +305,47 @@ class TestAlignAcronymToInitialsIntegration:
         assert hit_exc is not None
         assert hit_exc.hit_tokens == {0, 1, 2, 3}
         assert (hit_exc.tok_left, hit_exc.tok_right) == (0, 3)
+
+class TestAlignAcronymToInitialsPreflightAndPlumbing:
+    def test_numeric_evidence_is_passed_into_acr_alignment_targets(self, _patch, hit_cfg):
+        seen = {"has_num": None, "A": None, "mode": None}
+
+        def fake_has_numeric_evidence(tokens):
+            return True
+
+        def fake_acr_alignment_targets(acr, has_numeric_evidence):
+            seen["has_num"] = has_numeric_evidence
+            return ["A"]  # minimal non-empty
+
+        def fake_align_rtl_scan(A, stream_letters, stream_is_stop, **kwargs):
+            seen["A"] = A
+            return [0]  # "used positions"
+
+        _patch(
+            align_acronym_to_initials,
+            has_numeric_evidence=fake_has_numeric_evidence,
+            acr_alignment_targets=fake_acr_alignment_targets,
+            align_rtl_scan=fake_align_rtl_scan,
+        )
+
+        # Minimal stream object shape for rtl_scan
+        class Stream:
+            letters = ["A"]
+            owners = [0]
+            is_stop = [False]
+
+        out = align_acronym_to_initials(
+            "A",
+            Stream(),
+            tokens=["Alpha"],
+            stopwords=set(),
+            mode="rtl_scan",
+            allow_upper_on_stop=False,
+            allow_lower_on_non_stop=False,
+            lowercase_prefix_exception=False,
+        )
+
+        assert seen["has_num"] is True
+        assert seen["A"] == ["A"]
+        assert out is not None
+        assert out.tok_left == 0 and out.tok_right == 0

@@ -1,3 +1,5 @@
+import pytest
+
 from plainera_unacronym.nlp.extraction.matchers.defs.common import build_initials_stream
 
 
@@ -255,9 +257,6 @@ class TestBuildInitialsStreamOptions:
         assert stream.owners == []
         assert stream.is_stop == []
 
-import pytest
-from plainera_unacronym.nlp.extraction.matchers.defs.common import build_initials_stream
-
 
 class TestBuildInitialsStreamIntegration:
     def test_plain_words_ltr(self):
@@ -358,169 +357,177 @@ class TestBuildInitialsStreamIntegration:
         assert stream.owners[0] == 0
         assert stream.letters[0].isdigit() or stream.letters[0] == "3"
 
-import pytest
 
-from plainera_unacronym.nlp.common.constants_regex import DEFAULT_STOPWORDS
-from plainera_unacronym.nlp.extraction.matchers.defs.common import (
-    build_initials_stream,
-    align_acronym_to_initials,
-)
+class TestBuildInitialsStreamPrecedence:
+    def test_acronym_like_wins_over_allcaps_and_compound_split_ltr(self, _patch):
+        calls = {"acronym_letters": 0, "split_compound": 0, "first_alnum": 0}
 
+        def fake_is_acronym_like_token(tok):
+            return True
 
-class TestAlignAcronymToInitialsIntegration:
-    def test_ltr_min_window_basic_aligns_and_span_is_correct(self):
-        tokens = ["Portable", "Document", "Format"]
-        stopwords = DEFAULT_STOPWORDS  # fine; none of these are stopwords anyway
+        def fake_acronym_letters_rtl(tok):
+            calls["acronym_letters"] += 1
+            return ["A", "B", "C"]  # already RTL per contract
+
+        def fake_split_compound(tok):
+            calls["split_compound"] += 1
+            raise AssertionError("split_compound should NOT be called for acronym-like tokens")
+
+        def fake_first_alnum(part):
+            calls["first_alnum"] += 1
+            raise AssertionError("first_alnum_char_upper should NOT be called for acronym-like tokens")
+
+        _patch(
+            build_initials_stream,
+            is_acronym_like_token=fake_is_acronym_like_token,
+            _acronym_letters_rtl=fake_acronym_letters_rtl,
+            split_compound=fake_split_compound,
+            first_alnum_char_upper=fake_first_alnum,
+            PUNCT_TRIM="",
+        )
 
         stream = build_initials_stream(
-            tokens,
-            stopwords=stopwords,
+            ["HTTP"],
+            stopwords=set(),
             scan="ltr",
-            expand_allcaps_tokens=False,
-            split_compounds=False,
-            treat_acronym_tokens_as_multi_letter=False,
+            expand_allcaps_tokens=True,
+            split_compounds=True,
+            treat_acronym_tokens_as_multi_letter=True,
         )
 
-        hit = align_acronym_to_initials(
-            "PDF",
-            stream,
-            tokens=tokens,
-            stopwords=stopwords,
-            mode="ltr_min_window",
-            allow_upper_on_stop=False,
-            allow_lower_on_non_stop=False,
-            lowercase_prefix_exception=False,
+        assert calls["acronym_letters"] == 1
+        assert calls["split_compound"] == 0
+        assert calls["first_alnum"] == 0
+
+        # ltr reverses the rtl list
+        assert stream.letters == ["C", "B", "A"]
+        assert stream.owners == [0, 0, 0]
+        assert stream.is_stop == [False, False, False]
+
+    def test_acronym_like_wins_over_allcaps_and_compound_split_rtl(self, _patch):
+        def fake_is_acronym_like_token(tok):
+            return True
+
+        def fake_acronym_letters_rtl(tok):
+            return ["A", "B", "C"]  # RTL order
+
+        _patch(
+            build_initials_stream,
+            is_acronym_like_token=fake_is_acronym_like_token,
+            _acronym_letters_rtl=fake_acronym_letters_rtl,
+            split_compound=lambda tok: (_ for _ in ()).throw(AssertionError("should not split")),
+            first_alnum_char_upper=lambda part: (_ for _ in ()).throw(AssertionError("should not read first alnum")),
+            PUNCT_TRIM="",
         )
 
-        assert hit is not None
-        assert hit.tok_left == 0
-        assert hit.tok_right == 2
-        assert hit.hit_tokens == {0, 1, 2}
-
-    def test_rtl_scan_basic_aligns_and_span_is_correct(self):
-        tokens = ["Portable", "Document", "Format"]
-        stopwords = DEFAULT_STOPWORDS
-
-        # build RTL stream (letters emitted in RTL scan order)
         stream = build_initials_stream(
-            tokens,
-            stopwords=stopwords,
+            ["HTTP"],
+            stopwords=set(),
             scan="rtl",
-            expand_allcaps_tokens=False,
+            expand_allcaps_tokens=True,
+            split_compounds=True,
+            treat_acronym_tokens_as_multi_letter=True,
+        )
+
+        # rtl uses the rtl list as-is
+        assert stream.letters == ["A", "B", "C"]
+
+
+class TestBuildInitialsStreamAllcapsNegativeCases:
+    def test_allcaps_not_expanded_when_len_is_1(self, _patch):
+        # Expansion branch requires len(tok_clean) > 1, so this should behave like normal (single initial).
+        _patch(
+            build_initials_stream,
+            is_acronym_like_token=lambda tok: False,
+            first_alnum_char_upper=lambda part: part[0].upper() if part else None,
+            split_compound=lambda tok: [tok],
+            PUNCT_TRIM="",
+        )
+
+        stream = build_initials_stream(
+            ["A"],
+            stopwords=set(),
+            scan="ltr",
+            expand_allcaps_tokens=True,
             split_compounds=False,
             treat_acronym_tokens_as_multi_letter=False,
         )
 
-        hit = align_acronym_to_initials(
-            "PDF",
-            stream,
-            tokens=tokens,
-            stopwords=stopwords,
-            mode="rtl_scan",
-            allow_upper_on_stop=False,
-            allow_lower_on_non_stop=False,
-            lowercase_prefix_exception=False,  # irrelevant in rtl mode
+        assert stream.letters == ["A"]
+        assert stream.owners == [0]
+
+    def test_allcaps_not_expanded_when_not_alpha(self, _patch):
+        # "HTTP2" is not .isalpha(), so must NOT expand H,T,T,P (should just take first alnum char).
+        _patch(
+            build_initials_stream,
+            is_acronym_like_token=lambda tok: False,
+            first_alnum_char_upper=lambda part: part[0].upper() if part else None,
+            split_compound=lambda tok: [tok],
+            PUNCT_TRIM="",
         )
 
-        assert hit is not None
-        assert hit.tok_left == 0
-        assert hit.tok_right == 2
-        assert hit.hit_tokens == {0, 1, 2}
+        stream = build_initials_stream(
+            ["HTTP2"],
+            stopwords=set(),
+            scan="ltr",
+            expand_allcaps_tokens=True,
+            split_compounds=False,
+            treat_acronym_tokens_as_multi_letter=False,
+        )
 
-    def test_stopword_constraint_blocks_when_uppercase_letter_lands_on_stopword(self):
-        tokens = ["Ministry", "of", "Magic"]
-        stopwords = {"of"}  # keep it explicit
+        assert stream.letters == ["H"]
+        assert stream.owners == [0]
+
+
+class TestBuildInitialsStreamPunctTrimAndInvariants:
+    def test_punct_trim_is_applied_before_first_alnum(self, _patch):
+        seen = {"part": None}
+
+        def fake_first_alnum(part):
+            seen["part"] = part
+            return part[0].upper() if part else None
+
+        _patch(
+            build_initials_stream,
+            is_acronym_like_token=lambda tok: False,
+            first_alnum_char_upper=fake_first_alnum,
+            split_compound=lambda tok: [tok],
+            PUNCT_TRIM="()",
+        )
 
         stream = build_initials_stream(
-            tokens,
-            stopwords=stopwords,
+            ["(PDF)"],
+            stopwords=set(),
             scan="ltr",
             expand_allcaps_tokens=False,
             split_compounds=False,
             treat_acronym_tokens_as_multi_letter=False,
         )
 
-        # "MOM": middle letter is 'O' which corresponds to token "of" (stopword)
-        hit = align_acronym_to_initials(
-            "MOM",
-            stream,
-            tokens=tokens,
-            stopwords=stopwords,
-            mode="ltr_min_window",
-            allow_upper_on_stop=False,          # strict: uppercase may NOT land on stopword
-            allow_lower_on_non_stop=False,
-            lowercase_prefix_exception=False,
+        assert seen["part"] == "PDF"
+        assert stream.letters == ["P"]
+
+    def test_stream_invariants_lengths_match(self, _patch):
+        # Mixed inputs with some punctuation/stopword; ensure len(letters)==len(owners)==len(is_stop).
+        _patch(
+            build_initials_stream,
+            is_acronym_like_token=lambda tok: False,
+            split_compound=lambda tok: [tok],
+            first_alnum_char_upper=lambda part: next((ch.upper() for ch in part if ch.isalnum()), None),
+            PUNCT_TRIM="()",
         )
 
-        assert hit is None
-
-    def test_allow_upper_on_stop_allows_stopword_landing(self):
-        tokens = ["Ministry", "of", "Magic"]
-        stopwords = {"of"}
-
+        tokens = ["(Portable)", "of", "Document", "Format", "123"]
         stream = build_initials_stream(
             tokens,
-            stopwords=stopwords,
+            stopwords={"of"},
             scan="ltr",
             expand_allcaps_tokens=False,
-            split_compounds=False,
+            split_compounds=True,
             treat_acronym_tokens_as_multi_letter=False,
         )
 
-        hit = align_acronym_to_initials(
-            "MOM",
-            stream,
-            tokens=tokens,
-            stopwords=stopwords,
-            mode="ltr_min_window",
-            allow_upper_on_stop=True,           # relaxed
-            allow_lower_on_non_stop=False,
-            lowercase_prefix_exception=False,
-        )
-
-        assert hit is not None
-        assert hit.hit_tokens == {0, 1, 2}
-        assert (hit.tok_left, hit.tok_right) == (0, 2)
-
-    def test_mixed_case_prefix_exception_required_for_mrna_style(self):
-        # First acronym char is lowercase => matcher treats it as "wants stopword",
-        # and the ONLY intended escape hatch is lowercase_prefix_exception for token[0].
-        tokens = ["molecule", "Ribonucleic", "Nucleic", "Acid"]
-        stopwords = set()
-
-        stream = build_initials_stream(
-            tokens,
-            stopwords=stopwords,
-            scan="ltr",
-            expand_allcaps_tokens=False,
-            split_compounds=False,
-            treat_acronym_tokens_as_multi_letter=False,
-        )
-
-        # Without lowercase_prefix_exception, this should fail (by design).
-        hit_no_exc = align_acronym_to_initials(
-            "mRNA",
-            stream,
-            tokens=tokens,
-            stopwords=stopwords,
-            mode="ltr_min_window",
-            allow_upper_on_stop=False,
-            allow_lower_on_non_stop=True,       # mixed-case acronyms usually set this True
-            lowercase_prefix_exception=False,
-        )
-        assert hit_no_exc is None
-
-        # With lowercase_prefix_exception=True, it should align.
-        hit_exc = align_acronym_to_initials(
-            "mRNA",
-            stream,
-            tokens=tokens,
-            stopwords=stopwords,
-            mode="ltr_min_window",
-            allow_upper_on_stop=False,
-            allow_lower_on_non_stop=True,
-            lowercase_prefix_exception=True,
-        )
-        assert hit_exc is not None
-        assert hit_exc.hit_tokens == {0, 1, 2, 3}
-        assert (hit_exc.tok_left, hit_exc.tok_right) == (0, 3)
+        assert len(stream.letters) == len(stream.owners) == len(stream.is_stop)
+        # sanity: stopword "of" contributes 'O' but is_stop should mark it True for that letter
+        # depending on your first_alnum/part selection, it should contribute once.
+        assert True in stream.is_stop

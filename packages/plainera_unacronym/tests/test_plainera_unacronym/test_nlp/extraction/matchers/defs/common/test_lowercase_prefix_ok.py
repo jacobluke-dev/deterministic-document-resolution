@@ -1,3 +1,5 @@
+import pytest
+
 from plainera_unacronym.nlp.extraction.matchers.defs.common import _lowercase_prefix_ok
 
 
@@ -42,6 +44,7 @@ class TestLowercasePrefixOkUnit:
             acr="mRNA", tokens=['("molecule")'], token_idx=0, acr_pos=0, lowercase_prefix_exception=True
         ) is True
 
+
 class TestLowerCasePrefixOkIntegration:
     def test_prefix_match_false_when_exception_disabled(self):
         assert _lowercase_prefix_ok(
@@ -67,4 +70,28 @@ class TestLowerCasePrefixOkIntegration:
     def test_prefix_match_false_when_first_char_does_not_match(self):
         assert _lowercase_prefix_ok(
             acr="mRNA", tokens=["protein"], token_idx=0, acr_pos=0, lowercase_prefix_exception=True
+        ) is False
+
+
+class TestLowercasePrefixOkEdges:
+    def test_allows_lowercase_prefix_on_token0_even_if_not_alpha(self, _patch):
+        _patch(_lowercase_prefix_ok, is_mixed_case_acronym=lambda acr: True, PUNCT_TRIM="")
+
+        assert _lowercase_prefix_ok(
+            acr="iOS",
+            tokens=["iOS-compatible"],
+            token_idx=0,
+            acr_pos=0,
+            lowercase_prefix_exception=True,
+        ) is True
+
+    def test_empty_token_after_trim_returns_false(self, _patch):
+        _patch(_lowercase_prefix_ok, is_mixed_case_acronym=lambda acr: True, PUNCT_TRIM=".")
+
+        assert _lowercase_prefix_ok(
+            acr="iOS",
+            tokens=["..."],
+            token_idx=0,
+            acr_pos=0,
+            lowercase_prefix_exception=True,
         ) is False
