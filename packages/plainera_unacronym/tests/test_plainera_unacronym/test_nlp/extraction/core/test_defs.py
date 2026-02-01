@@ -1,3 +1,4 @@
+from plainera_unacronym.nlp.common.types import ExtractedDefinition
 import plainera_unacronym.nlp.extraction.core.defs as mod
 import pytest
 from plainera_unacronym.nlp.common.types import InTextPick  # noqa: E402
@@ -105,6 +106,29 @@ class TestDefsFromPicks:
 
 
 class TestDefsFromPicksIntegration:
+
+    def test_end_to_end_pto_strips_trailing_punct_from_acr_surface(self):
+        text = "Please turn over (PTO)."
+        long = "Please turn over"
+
+        a0 = text.index("PTO")
+        a1 = a0 + len("PTO).")  # includes trailing ').' in the span
+        d0, d1 = _span(text, long)
+
+        picks = {
+            "pto": InTextPick(
+                definition=long,
+                acr_span=(a0, a1),
+                def_span=(d0, d1),
+                confidence=0.87,
+                original_definition=long,
+            )
+        }
+
+        out = defs_from_picks(text, picks)
+        assert len(out) == 1
+        assert out[0].acronym == "PTO"
+
     def test_end_to_end_pto_forward_form(self):
         """
         Real tighten_label_by_acronym is used. Classic forward form:
@@ -213,7 +237,13 @@ class TestDefsFromPicksIntegration:
         ]
 
 
-class TestSenseKeyIntegration:
+class TestSenseKey:
+    def test_acronym_is_uppercased(self):
+        assert _sense_key("Pdf", "Portable Document Format")[0] == "PDF"
+
+    def test_stands_for_is_normalized(self):
+        assert _sense_key("pdf", "PDF stands for Portable Document Format")[1] == "portable document format"
+
     def test_trailing_proper_noun_chunk(self):
         key = _sense_key("BIC", "The British-Irish Council")
         assert key == ("BIC", "british-irish council")
@@ -226,9 +256,6 @@ class TestSenseKeyIntegration:
         # Intentional mismatch: function does not relate acronym to label
         key = _sense_key("GPU", "Portable Document Format")
         assert key == ("GPU", "portable document format")
-
-
-from plainera_unacronym.nlp.common.types import ExtractedDefinition  # noqa: E402
 
 
 def _ed(acr: str, defn: str, *, a0=0, a1=3, d0=10, d1=20, conf=0.9) -> ExtractedDefinition:
@@ -290,7 +317,7 @@ class TestDedupeDefsIntegration:
 
     def test_mismatched_label_forms_dedupe_with_same_acronym(self):
         a = _ed("PDF", "Portable Document Format")
-        b = _ed("pdf", "PDF stands for Portable Document Format")  # same acronym after upper
+        b = _ed("pdf", "And, which the Portable Document Format")  # proven normalisation form
         out = dedupe_defs([a, b])
         assert len(out) == 1
         assert out[0] is a

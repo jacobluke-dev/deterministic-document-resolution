@@ -6,6 +6,38 @@ from plainera_unacronym.nlp.extraction.matchers.tighten import tighten_label_by_
 
 
 def defs_from_picks(text: str, picks: dict[str, Optional[InTextPick]]) -> list[ExtractedDefinition]:
+    """Convert extracted in-text picks into `ExtractedDefinition` records.
+
+    For each non-null `InTextPick`, this builds an `ExtractedDefinition` using:
+    - the pick's acronym and definition spans (absolute offsets into `text`)
+    - the pick's confidence and original definition text
+    - a normalised acronym key derived from the surface acronym in `text`
+
+    The acronym is normalised by:
+    1) slicing the surface form from `text` using `pick.acr_span`
+    2) stripping trailing punctuation from that surface form
+    3) uppercasing the result
+
+    The definition label is then normalised via `tighten_label_by_acronym()` using
+    the computed acronym key.
+
+    Args:
+        text (str): Original document text that the picks' spans refer to.
+        picks (dict[str, Optional[InTextPick]]): Mapping of acronym key to an
+            optional in-text pick. Entries with `None` are skipped.
+
+    Returns:
+        list[ExtractedDefinition]: One `ExtractedDefinition` per non-null pick,
+        with acronym normalised to an uppercase key and spans mapped directly
+        from the pick.
+
+    Notes:
+        - This function does not validate span bounds; it assumes `acr_span` and
+          `def_span` are valid absolute offsets into `text`.
+        - Dictionary ordering is preserved, so output ordering follows `picks.items()`
+          in the current runtime.
+
+    """
     out: list[ExtractedDefinition] = []
     for _, pick in picks.items():
         if pick is None:
@@ -27,7 +59,6 @@ def defs_from_picks(text: str, picks: dict[str, Optional[InTextPick]]) -> list[E
             )
         )
     return out
-
 
 
 def _sense_key(acr: str, label: str) -> tuple[str, str]:
@@ -64,6 +95,24 @@ def _sense_key(acr: str, label: str) -> tuple[str, str]:
 
 
 def dedupe_defs(defs: list[ExtractedDefinition]) -> list[ExtractedDefinition]:
+    """Deduplicate extracted definitions by stable sense key.
+
+        Definitions are considered duplicates when they resolve to the same sense key,
+        computed via `_sense_key(d.acronym, d.definition)`. The first occurrence is
+        kept and subsequent duplicates are dropped. The `definition` field is preserved
+        exactly as provided (it is assumed to have been tightened/normalised upstream).
+
+        Args:
+            defs (list[ExtractedDefinition]): Candidate definitions to deduplicate.
+
+        Returns:
+            list[ExtractedDefinition]: A filtered list containing only the first instance
+            of each unique `(acronym, definition)` sense key, preserving original order.
+
+        Notes:
+            - Deduplication is based on `_sense_key/tighten_label`, not spans or confidence.
+            - Output ordering follows the input ordering (stable dedupe).
+    """
     seen: set[tuple[str, str]] = set()
     out: list[ExtractedDefinition] = []
     for d in defs:
