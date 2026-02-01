@@ -10,6 +10,22 @@ from plainera_unacronym.nlp.plugins.registry import register_plugin
 
 _BIO_SNIFF_RE = re.compile(r"\b(?:mRNA|miRNA|sgRNA|SARS-CoV-2|MERS-CoV|H\d{1,2}N\d{1,2}|IL-\d{1,3}|[35][′'\"]-?UTR)\b")
 
+# TODO
+# One more architectural heads-up (so future Jacob doesn’t swear at past Jacob)
+#
+# Your registry.py currently holds DomainPlugin used by detection (bio sniffing etc.).
+# build_plan() is an extraction concern (inline cues, parenthetical allow hooks).
+#
+# So either:
+#
+# you’re intentionally reusing one registry for both (fine, but then DomainPlugin should expose extraction hooks too), or
+#
+# you should split registries: domain_registry.py vs extraction_registry.py.
+#
+# Right now, you’ve wired extraction planning to a registry that (so far) only supports detection plugins.
+# That mismatch is exactly how “it compiles but does nothing” bugs are born. (The classic.)
+#
+# If you want, paste DomainPlugin (interface) and your intended extraction plugin hook shape, and I’ll tell you whether to split or extend cleanly.
 
 class BioPlugin(DomainPlugin):
     name = "bio"
