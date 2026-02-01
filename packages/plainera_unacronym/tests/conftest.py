@@ -4,9 +4,12 @@ from typing import Callable
 import plainera_unacronym.nlp.detection.detector as det
 import pytest
 
+from plainera_unacronym.nlp.common.types import Span
+
+
 @pytest.fixture
-def span() -> Callable[[str, str], tuple[int, int]]:
-    def _span(text: str, token: str) -> tuple[int, int]:
+def span() -> Callable[[str, str], Span]:
+    def _span(text: str, token: str) -> Span:
         s = text.index(token)
         return s, s + len(token)
     return _span

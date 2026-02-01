@@ -1,13 +1,14 @@
 import re
 from typing import Optional
 
+from plainera_unacronym.nlp.common.types import Span
 from plainera_unacronym.nlp.extraction import ExtractionConfig
 from plainera_unacronym.nlp.extraction.core.collect import initials_match
 from plainera_unacronym.nlp.extraction.matchers.defs import (find_inline_longform_after_acr,
                                                              find_parenthetical_longform_before_acr,
                                                              find_parenthetical_longform_after_acr)
 
-Span = tuple[int, int]
+
 OptSpan = Optional[Span]
 
 _POSSESSIVE_JOIN_RE = re.compile(r"\s*(?:['’]s\b)?\s*(?:[,;:—–-]\s*)?")
@@ -15,7 +16,7 @@ _QUOTE_CHARS = set("\"'“”‘’")
 _TAIL_PUNCT = set(",;:—–-")
 
 
-def _trim_span(seg: str, d0: int, d1: int) -> tuple[int, int]:
+def _trim_span(seg: str, d0: int, d1: int) -> Span:
     while d0 < d1 and seg[d0].isspace():
         d0 += 1
     while d1 > d0 and seg[d1 - 1].isspace():

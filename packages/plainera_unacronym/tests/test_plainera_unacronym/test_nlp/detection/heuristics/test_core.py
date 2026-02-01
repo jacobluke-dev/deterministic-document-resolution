@@ -7,6 +7,7 @@ import plainera_unacronym.nlp.plugins.registry as domain_mod
 import pytest
 from plainera_unacronym.nlp import DetectorConfig
 from plainera_unacronym.nlp.common.constants_regex import TRAILING_PUNCT_CHARS
+from plainera_unacronym.nlp.common.types import Span
 from plainera_unacronym.nlp.detection.heuristics.core import (
     _collect_core_hits,
     _collect_domain_hits,
@@ -26,7 +27,7 @@ from plainera_unacronym.nlp.detection.heuristics.core import (
 )
 
 
-def _idx(text: str, token: str) -> tuple[int, int]:
+def _idx(text: str, token: str) -> Span:
     s = text.index(token)
     return s, s + len(token)
 
@@ -877,7 +878,7 @@ class TestAcceptCandidate:
         assert out is None
         assert calls["strip_called"] is True
 
-    def _span(self, text: str, token: str) -> tuple[int, int]:
+    def _span(self, text: str, token: str) -> Span:
         s = text.index(token)
         return s, s + len(token)
 

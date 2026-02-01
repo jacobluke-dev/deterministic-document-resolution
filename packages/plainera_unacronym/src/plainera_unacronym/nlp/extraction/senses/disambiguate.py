@@ -16,7 +16,7 @@ a single global glossary pick.
 
 import re
 
-from plainera_unacronym.nlp.common.types import OccurrenceLite, OccurrenceResolution
+from plainera_unacronym.nlp.common.types import OccurrenceLite, OccurrenceResolution, Span
 
 
 def _ascii_tokens(s: str) -> list[str]:
@@ -56,7 +56,7 @@ def _center(s: int, e: int) -> float:
     return (s + e) / 2.0
 
 
-def _min_distance_to_spans(pos: float, spans: list[tuple[int, int]]) -> int:
+def _min_distance_to_spans(pos: float, spans: list[Span]) -> int:
     """
        Return the minimum integer distance from a position to the centers of spans.
 
@@ -115,7 +115,7 @@ def choose_with_tiebreak(
                 distance/overlap scoring.
             senses_by_id (dict[str, AcronymSense]):
                 Lookup for senses by `sense_id`. Each sense may provide `def_spans`
-                (list[tuple[int, int]]) used for distance tiebreaking.
+                (list[Span]) used for distance tiebreaking.
             margin_threshold (float, optional):
                 Minimum relative margin to accept the probabilistic winner. Default 0.10.
             near_tie_margin (float, optional):

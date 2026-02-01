@@ -1,7 +1,7 @@
 from typing import Mapping, Optional
 
 from plainera_unacronym.nlp import FirstOccurrence
-from plainera_unacronym.nlp.common.types import InTextPick, ExtractedDefinition
+from plainera_unacronym.nlp.common.types import InTextPick, ExtractedDefinition, Span
 from plainera_unacronym.nlp.extraction import ExtractionConfig
 from plainera_unacronym.nlp.extraction.anchored.clean import clean_definition
 from plainera_unacronym.nlp.extraction.anchored.patterns import compile_anchored_exact
@@ -22,7 +22,7 @@ def _build_local_window(
     return left, right, seg
 
 
-def _fo_occurrence_position(fo: FirstOccurrence, left: int) -> tuple[int, int]:
+def _fo_occurrence_position(fo: FirstOccurrence, left: int) -> Span:
     # FO position in the local segment
     return fo.start_offset - left, fo.end_offset - left
 

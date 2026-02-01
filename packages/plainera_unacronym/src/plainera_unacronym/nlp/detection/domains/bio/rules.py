@@ -1,13 +1,12 @@
 import re
 from typing import Iterator
 
+from plainera_unacronym.nlp.common.types import TextSpan, Span
 from .config import _STATS_CI_RE, _STATS_OR_HR_RR_RE, BioConfig
 from .patterns import bio_pattern
 
-Span = tuple[str, int, int]
 
-
-def extra_candidates(text: str, cfg: BioConfig) -> Iterator[Span]:
+def extra_candidates(text: str, cfg: BioConfig) -> Iterator[TextSpan]:
     """Yield biomedical candidate spans found by the bio regex.
 
     Scans ``text`` with the precompiled bio pattern (see ``bio_pattern()``) to
@@ -43,7 +42,7 @@ def extra_candidates(text: str, cfg: BioConfig) -> Iterator[Span]:
             yield m.group(0), m.start(), m.end()
 
 
-def _sentence_slice(text: str, s: int, e: int, max_chars: int) -> tuple[int, int]:
+def _sentence_slice(text: str, s: int, e: int, max_chars: int) -> Span:
     left = max(text.rfind(".", 0, s), text.rfind("?", 0, s), text.rfind("!", 0, s))
     right_candidates = [text.find(".", e), text.find("?", e), text.find("!", e)]
     right = min([p for p in right_candidates if p != -1] or [len(text)])

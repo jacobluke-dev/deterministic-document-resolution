@@ -4,6 +4,7 @@ from typing import Optional, Literal, Callable
 
 from plainera_unacronym.nlp.common.constants_regex import PUNCT_TRIM
 from plainera_unacronym.nlp.common.shared import strip_trailing_punct_str, collapse_ws
+from plainera_unacronym.nlp.common.types import Span
 from plainera_unacronym.nlp.extraction.matchers.common import is_mixed_case_acronym, split_compound
 
 
@@ -343,7 +344,7 @@ def _align_ltr_min_window(
     L = [c.upper() for c in alignment_letters]  # stream letters are uppercase
 
     best_used: Optional[list[int]] = None
-    best_span: Optional[tuple[int, int]] = None  # (tok_left, tok_right)
+    best_span: Optional[Span] = None  # (tok_left, tok_right)
 
     for li in range(len(stream.letters)):
         if (len(stream.letters) - li) < len(L):
@@ -412,7 +413,7 @@ def expand_numeric_leading_window(
     tokens: list[str],
     tok_left: int,
     tok_right: int,
-) -> tuple[int, int]:
+) -> Span:
     """Expand a token window to include adjacent numeric-leading tokens.
 
     A token is treated as numeric-leading if its first alphanumeric character

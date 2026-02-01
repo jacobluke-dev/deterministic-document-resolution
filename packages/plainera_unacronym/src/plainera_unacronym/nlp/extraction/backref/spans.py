@@ -1,6 +1,7 @@
 import re
 
 from plainera_unacronym.nlp.common.shared import collapse_ws
+from plainera_unacronym.nlp.common.types import Span
 
 # Sentence boundary: keep it simple and predictable.
 _SENT_BOUNDARY_RE = re.compile(r"(?<=[.!?…])\s+|\n+")
@@ -20,7 +21,7 @@ def best_span_by_initials(acr: str, sent: str, *, max_chars: int) -> str | None:
     if not A:
         return None
 
-    best: tuple[int, int] | None = None  # (i,j) inclusive span
+    best: Span | None = None  # (i,j) inclusive span
 
     for i in range(len(tokens)):
         ai = 0
@@ -51,9 +52,9 @@ def best_span_by_initials(acr: str, sent: str, *, max_chars: int) -> str | None:
     out = collapse_ws(out)
     return out if out else None
 
-def sent_spans(text: str) -> list[tuple[int, int]]:
+def sent_spans(text: str) -> list[Span]:
     """Return (start,end) spans for sentence-ish chunks."""
-    spans: list[tuple[int, int]] = []
+    spans: list[Span] = []
     start = 0
     for m in _SENT_BOUNDARY_RE.finditer(text):
         end = m.start()
@@ -65,7 +66,7 @@ def sent_spans(text: str) -> list[tuple[int, int]]:
     return spans
 
 
-def find_span_index(spans: list[tuple[int, int]], pos: int) -> int | None:
+def find_span_index(spans: list[Span], pos: int) -> int | None:
     for i, (s, e) in enumerate(spans):
         if s <= pos < e:
             return i

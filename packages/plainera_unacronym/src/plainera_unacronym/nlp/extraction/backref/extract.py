@@ -76,7 +76,7 @@ from typing import Mapping
 from plainera_unacronym.nlp import FirstOccurrence
 from plainera_unacronym.nlp.common.constants_regex import TOKEN_RE
 from plainera_unacronym.nlp.common.shared import normalize_definition
-from plainera_unacronym.nlp.common.types import ExtractedDefinition
+from plainera_unacronym.nlp.common.types import ExtractedDefinition, Span
 from plainera_unacronym.nlp.extraction.backref.spans import find_span_index, best_span_by_initials, sent_spans
 from plainera_unacronym.nlp.extraction.config import ExtractionConfig
 from plainera_unacronym.nlp.extraction.anchored.normalise import (
@@ -137,13 +137,13 @@ def _candidate_from_prev_sentence(
 def _find_backref_candidate(
     *,
     text: str,
-    spans: list[tuple[int, int]],
+    spans: list[Span],
     si: int,
     acr_norm: str,
     cfg: ExtractionConfig,
     max_chars: int,
     require_two_words: bool,
-) -> tuple[str, tuple[int, int]] | None:
+) -> tuple[str, Span] | None:
     """
     Returns (candidate, (prev_s, prev_e)) or None.
     """
@@ -171,7 +171,7 @@ def _emit_backref_def(
     acr_norm: str,
     fo: FirstOccurrence,
     cand: str,
-    prev_span: tuple[int, int],
+    prev_span: Span,
     text: str,
 ) -> ExtractedDefinition:
     prev_s, prev_e = prev_span

@@ -10,10 +10,8 @@ from plainera_unacronym.nlp.common.constants_regex import (
     TRAILING_PUNCT_CHARS,
 )
 from plainera_unacronym.nlp.common.shared import has_paren_definition, normalize_acronym_key
-from plainera_unacronym.nlp.common.types import DetectorConfig, pattern_cache
+from plainera_unacronym.nlp.common.types import DetectorConfig, pattern_cache, TextSpan, Span
 from plainera_unacronym.nlp.plugins.registry import DOMAIN_PLUGINS
-
-Span = tuple[str, int, int]
 
 
 def compile_pattern(cfg: DetectorConfig) -> re.Pattern[str]:
@@ -99,7 +97,7 @@ def caps_ratio(token: str) -> float:
     return upp / len(ls)
 
 
-def strip_trailing_punct_span(text: str, start: int, end: int) -> tuple[int, int]:
+def strip_trailing_punct_span(text: str, start: int, end: int) -> Span:
     # Exclude common trailing punctuation from offsets.
     while end > start and text[end - 1] in TRAILING_PUNCT_CHARS:
         end -= 1
@@ -214,7 +212,7 @@ def score(surface: str, text: str, start: int, end: int, cfg: DetectorConfig) ->
     return max(0.0, min(1.0, score))
 
 
-def context_window(text: str, start: int, end: int, window_chars: int) -> tuple[int, int]:
+def context_window(text: str, start: int, end: int, window_chars: int) -> Span:
     # Left: back to previous terminator (or start), then skip spaces
     left = start
     while left > 0 and text[left - 1] not in ".!?\n\r":
@@ -241,7 +239,7 @@ def _has_lower_and_upper(tok: str) -> bool:
     return any(c.islower() for c in tok if c.isalpha()) and any(c.isupper() for c in tok if c.isalpha())
 
 
-def _accept_candidate(text: str, cfg: DetectorConfig, s: int, e: int) -> Span | None:
+def _accept_candidate(text: str, cfg: DetectorConfig, s: int, e: int) -> TextSpan | None:
     """Apply the standard gating to a raw (s, e) span and return a normalized Span or None.
 
     Gates (identical to legacy path):
@@ -310,9 +308,9 @@ def _accept_candidate(text: str, cfg: DetectorConfig, s: int, e: int) -> Span | 
     return surface, s, e
 
 
-def _collect_core_hits(text: str, cfg: DetectorConfig, pat: re.Pattern[str]) -> list[Span]:
+def _collect_core_hits(text: str, cfg: DetectorConfig, pat: re.Pattern[str]) -> list[TextSpan]:
     """Collect accepted core-regex hits in text order."""
-    out: list[Span] = []
+    out: list[TextSpan] = []
     for m in pat.finditer(text):
         s, e = m.span("tok")  # our pattern's named group
         hit = _accept_candidate(text, cfg, s, e)
@@ -321,12 +319,12 @@ def _collect_core_hits(text: str, cfg: DetectorConfig, pat: re.Pattern[str]) -> 
     return out
 
 
-def _collect_domain_hits(text: str, cfg: DetectorConfig) -> list[Span]:
+def _collect_domain_hits(text: str, cfg: DetectorConfig) -> list[TextSpan]:
     """Collect accepted domain-plugin hits and sort for containment checks.
 
     Sorted by (start asc, length desc) so longer domain spans come first.
     """
-    hits: list[Span] = []
+    hits: list[TextSpan] = []
     for name in cfg.enabled_domains or ():
         plug = DOMAIN_PLUGINS.get(name)
         if not plug:
@@ -340,7 +338,7 @@ def _collect_domain_hits(text: str, cfg: DetectorConfig) -> list[Span]:
     return hits
 
 
-def _contained_in_any(s: int, e: int, containers: list[Span]) -> bool:
+def _contained_in_any(s: int, e: int, containers: list[TextSpan]) -> bool:
     """True if (s,e) is fully contained in any (ds,de) span in containers."""
     for _, ds, de in containers:
         if ds <= s and e <= de:
@@ -350,33 +348,35 @@ def _contained_in_any(s: int, e: int, containers: list[Span]) -> bool:
     return False
 
 
-def iter_candidates_with(text: str, cfg: DetectorConfig, pat: re.Pattern[str]) -> Iterator[Span]:
+def iter_candidates_with(text: str, cfg: DetectorConfig, pat: re.Pattern[str]) -> Iterator[TextSpan]:
     """Yield core candidates, suppressing only those fully contained by domain spans; then yield domain spans.
 
     This preserves normal heuristics while avoiding obvious fragments (e.g., drop 'IFN' if 'IFN-γ' exists).
     """
-    core_hits = _collect_core_hits(text, cfg, pat)
-    dom_hits = _collect_domain_hits(text, cfg)
+    core_hits: list[TextSpan] = _collect_core_hits(text, cfg, pat)
+    dom_hits: list[TextSpan] = _collect_domain_hits(text, cfg)
 
-    seen: set[tuple[int, int]] = set()
+    seen: set[Span] = set()
 
     # 1) Core first (unless contained by any domain span)
-    for surface, s, e in core_hits:
-        key = (s, e)
+    for c in core_hits:
+        _, s, e = c
+        key: Span = (s, e)
         if key in seen:
             continue
         if _contained_in_any(s, e, dom_hits):
             continue
         seen.add(key)
-        yield surface, s, e
+        yield c
 
     # 2) Then domain hits (skip duplicates by offsets)
-    for surface, s, e in dom_hits:
-        key = (s, e)
+    for h in dom_hits:
+        _, s, e = h
+        key: Span = (s, e)
         if key in seen:
             continue
         seen.add(key)
-        yield surface, s, e
+        yield h
 
 
 def reason_tags(surface: str, text: str, start: int, end: int, cfg: DetectorConfig) -> list[str]:  # noqa: C901

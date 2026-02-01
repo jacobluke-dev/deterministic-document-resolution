@@ -6,6 +6,29 @@ from plainera_unacronym.nlp.common.constants_regex import ALLOW_CHARS, DottedMod
 
 SCHEMA_VERSION = "1.1.0"
 
+
+# -------------------------- SPANS ------------------------------------
+
+Span: TypeAlias = tuple[int, int]
+TextSpan: TypeAlias = tuple[str, int, int]
+
+
+@dataclass(frozen=True, slots=True)
+class TextSpan:
+    text: str
+    start: int
+    end: int  # half-open [start, end)
+
+    @property
+    def span(self) -> Span:
+        return self.start, self.end
+
+    @property
+    def length(self) -> int:
+        return self.end - self.start
+
+
+
 # -------------------------- STRATEGIES ------------------------------------
 
 # TODO these will be adjusted to tier 1 tier 2 or some other consideration right now these will do
@@ -33,7 +56,7 @@ class Occurrence:
     start_offset: int
     end_offset: int  # end-exclusive
     confidence: float
-    context_window: tuple[int, int]  # (left_idx, right_idx) in the original text
+    context_window: Span  # (left_idx, right_idx) in the original text
     normalized_key: str | None = None
     reasons: tuple[str, ...] | None = None
 
@@ -52,7 +75,7 @@ class AcronymSense:
     acronym: str
     definition: str  # tightened, normalized label ("European Medicines Agency")
     sense_id: str  # stable key, e.g., "ema|european_medicines_agency"
-    def_spans: list[tuple[int, int]]  # locations where this sense was defined
+    def_spans: list[Span]  # locations where this sense was defined
     support: int  # number of defining mentions merged into this sense
 
 
@@ -135,8 +158,8 @@ class ExtractedDefinition:
 @dataclass(frozen=True, slots=True)
 class InTextPick:
     definition: str
-    acr_span: tuple[int, int]
-    def_span: tuple[int, int]
+    acr_span: Span
+    def_span: Span
     confidence: float
     original_definition: str
     kind: str = "unknown"

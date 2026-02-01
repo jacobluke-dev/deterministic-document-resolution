@@ -2,7 +2,7 @@ import math
 from types import SimpleNamespace as NS
 import pytest
 
-from plainera_unacronym.nlp.common.types import OccurrenceLite, AcronymSense
+from plainera_unacronym.nlp.common.types import OccurrenceLite, AcronymSense, Span
 from plainera_unacronym.nlp.extraction.senses.disambiguate import _ascii_tokens, _center, _min_distance_to_spans, \
     choose_with_tiebreak, disambiguate_occurrences
 
@@ -127,7 +127,7 @@ class TestMinDistanceToSpansUnit:
         assert _center(2, 8) == _center(8, 2) == 5.0
 
 
-def _ref_min_distance_to_centers(pos: float, spans: list[tuple[int, int]]) -> int:
+def _ref_min_distance_to_centers(pos: float, spans: list[Span]) -> int:
     if not spans:
         return 10 ** 9
     centers = [(_center(s, e)) for s, e in spans]
