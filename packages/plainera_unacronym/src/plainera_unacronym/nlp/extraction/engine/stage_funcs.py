@@ -55,7 +55,7 @@ def st_post_detect_cleanup(s: FlowState) -> StageResult[FlowState]:
     return StageResult(s, s.last_info)
 
 
-def st_anchored_first_occurrence_picks(s: FlowState, *, window_left: int, window_right: int) -> StageResult[FlowState]:
+def st_picks_first_occurrence_anchored(s: FlowState, *, window_left: int, window_right: int) -> StageResult[FlowState]:
     """Extract near first occurrences using anchored patterns within a local window.
 
         Uses `extract_near_firsts` around each first occurrence (FO) to produce
@@ -83,7 +83,7 @@ def st_anchored_first_occurrence_picks(s: FlowState, *, window_left: int, window
     return StageResult(s, s.last_info)
 
 
-def st_defs_from_picks(s: FlowState) -> StageResult[FlowState]:
+def st_defs_from_first_occurrence_picks(s: FlowState) -> StageResult[FlowState]:
     """Convert anchored picks into concrete extracted definition records.
 
         Converts `s.picks` to a list of `ExtractedDefinition` objects and stores them
@@ -100,7 +100,7 @@ def st_defs_from_picks(s: FlowState) -> StageResult[FlowState]:
     return StageResult(s, s.last_info)
 
 
-def st_harvest_defs_all_occurrences(s: FlowState) -> StageResult[FlowState]:
+def st_defs_scan_all_occurrences(s: FlowState) -> StageResult[FlowState]:
     """Harvest additional definitions across all occurrences.
 
         Runs the harvest strategy across all detected occurrences (not only first
