@@ -46,6 +46,12 @@ def _cfgs():
 
 
 class TestDetectAndExtractUnit:
+    @staticmethod
+    def noop_defs_scan_all_occurrences(s):
+        # Stage normally populates harvested defs; for this unit test we want “none found”.
+        s.harvested_defs = []
+        return stage_fxn.StageResult(s, "harvested=0")
+
     def test_strategy_anchored_plus_harvest_when_nothing_missing(self, monkeypatch):
         text = "Portable Document Format (PDF)."
 
@@ -80,7 +86,7 @@ class TestDetectAndExtractUnit:
         monkeypatch.setattr(stage_fxn, "defs_from_picks", lambda _text, picks: [_ed("PDF", "Portable Document Format")])
 
         # harvest returns nothing extra
-        monkeypatch.setattr(stage_fxn, "harvest_defs_all", lambda *_: [])
+        monkeypatch.setattr(stage_fxn, "extract_defs_all_occurrences", lambda *_: [])
 
         # dedupe returns what it gets
         monkeypatch.setattr(stage_fxn, "dedupe_defs", lambda defs: defs)
@@ -125,7 +131,7 @@ class TestDetectAndExtractUnit:
         monkeypatch.setattr("plainera_unacronym.nlp.extraction.engine.stage_funcs.extract_near_firsts",
                             lambda *a, **k: {"ABC": None})
         monkeypatch.setattr("plainera_unacronym.nlp.extraction.engine.stage_funcs.defs_from_picks", lambda *_: [])
-        monkeypatch.setattr("plainera_unacronym.nlp.extraction.engine.stage_funcs.harvest_defs_all", lambda *_: [])
+        monkeypatch.setattr("plainera_unacronym.nlp.extraction.engine.stage_funcs.extract_defs_all_occurrences", lambda *_: [])
 
         det_res, extr = detect_and_extract(text, det_cfg=det_cfg, ext_cfg=ext_cfg)
         assert extr.extraction_strategy == "hybrid-filled"
