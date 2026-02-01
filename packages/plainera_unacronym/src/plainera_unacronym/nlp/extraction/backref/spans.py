@@ -7,9 +7,21 @@ from plainera_unacronym.nlp.common.types import Span
 _SENT_BOUNDARY_RE = re.compile(r"(?<=[.!?…])\s+|\n+")
 
 def best_span_by_initials(acr: str, sent: str, *, max_chars: int) -> str | None:
-    """
-    Find the shortest contiguous token span in `sent` whose initials match `acr`.
-    Returns the span text (whitespace-collapsed), or None.
+    """Find the shortest contiguous token span whose initials match an acronym.
+
+    Splits `sent` on whitespace into tokens and builds token initials using the first
+    character of each token when alphabetic. Then searches for the shortest contiguous
+    token window whose initials match the alphabetic characters of `acr` in order.
+    The returned span is whitespace-collapsed via `collapse_ws` and must be <= `max_chars`.
+
+    Args:
+        acr (str): Acronym to match. Non-letters are ignored.
+        sent (str): Sentence text to search within.
+        max_chars (int): Maximum allowed length of the returned span (in characters).
+
+    Returns:
+        str | None: The best-matching span text (whitespace-collapsed) if found,
+        otherwise None.
     """
     tokens = [t for t in sent.split() if t]
     if not tokens:
@@ -52,8 +64,20 @@ def best_span_by_initials(acr: str, sent: str, *, max_chars: int) -> str | None:
     out = collapse_ws(out)
     return out if out else None
 
+
 def sent_spans(text: str) -> list[Span]:
-    """Return (start,end) spans for sentence-ish chunks."""
+    """Split text into sentence-ish spans using a simple boundary regex.
+
+    Sentence boundaries are detected by `_SENT_BOUNDARY_RE` (punctuation followed by
+    whitespace, or one-or-more newlines). Returned spans are `(start, end)` offsets
+    into the original `text` (end-exclusive). Empty spans are not returned.
+
+    Args:
+        text (str): Source text to split.
+
+    Returns:
+        list[Span]: List of `(start, end)` spans (end-exclusive) covering the text.
+    """
     spans: list[Span] = []
     start = 0
     for m in _SENT_BOUNDARY_RE.finditer(text):
@@ -67,6 +91,19 @@ def sent_spans(text: str) -> list[Span]:
 
 
 def find_span_index(spans: list[Span], pos: int) -> int | None:
+    """Find the index of the span that contains a position.
+
+    A position is considered inside a span when `start <= pos < end`
+    (end-exclusive).
+
+    Args:
+        spans (list[Span]): List of `(start, end)` spans (end-exclusive).
+        pos (int): Position to locate within the spans.
+
+    Returns:
+        int | None: Index of the first span containing `pos`, or None if `pos`
+        is not contained in any span.
+    """
     for i, (s, e) in enumerate(spans):
         if s <= pos < e:
             return i
