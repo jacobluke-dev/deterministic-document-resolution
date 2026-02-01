@@ -5,9 +5,10 @@ from plainera_unacronym.nlp.extraction.backref.extract import extract_sentence_b
 from plainera_unacronym.nlp.extraction.core.defs import defs_from_picks, dedupe_defs
 from plainera_unacronym.nlp.extraction.strategies.harvest import harvest_defs_all
 from plainera_unacronym.nlp.extraction.strategies.gapfill import fill_missing_from_defs
-from plainera_unacronym.nlp.senses.disambiguate import disambiguate_occurrences
-from plainera_unacronym.nlp.senses.sense_build import build_senses
+from plainera_unacronym.nlp.extraction.senses.disambiguate import disambiguate_occurrences
+from plainera_unacronym.nlp.extraction.senses.sense_build import build_senses
 from plainera_unacronym.nlp.common.types import OccurrenceLite, ExtractionResult
+
 from .stages import StageResult
 from .state import FlowState
 

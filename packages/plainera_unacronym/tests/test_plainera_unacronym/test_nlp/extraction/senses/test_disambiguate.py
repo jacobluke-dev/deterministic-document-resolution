@@ -3,8 +3,8 @@ from types import SimpleNamespace as NS
 import pytest
 
 from plainera_unacronym.nlp.common.types import OccurrenceLite, AcronymSense
-from plainera_unacronym.nlp.senses.disambiguate import _ascii_tokens, _center, _min_distance_to_spans, choose_with_tiebreak, \
-    disambiguate_occurrences
+from plainera_unacronym.nlp.extraction.senses.disambiguate import _ascii_tokens, _center, _min_distance_to_spans, \
+    choose_with_tiebreak, disambiguate_occurrences
 
 
 class TestTokens:
