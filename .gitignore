@@ -21,6 +21,7 @@ build/
 
 # coverage
 .coverage
+.coverage.*
 coverage.xml
 **/coverage.xml
 htmlcov/
