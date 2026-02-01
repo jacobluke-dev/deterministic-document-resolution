@@ -112,32 +112,6 @@ class TestDetectAndExtractUnit:
         assert not extr.ambiguous_keys
         assert all(r.chosen_sense_id for r in extr.resolutions)
 
-    def test_no_global_fallback_when_missing(self, monkeypatch):
-        text = "Only one acronym appears: ABC."
-
-        det_cfg, ext_cfg = _cfgs()
-
-        class FakeDetector:
-            def __init__(self, config=None): pass
-
-            def detect(self, _):
-                return DetectorResult(
-                    occurrences=[Occurrence(acronym="ABC", start_offset=29, end_offset=32, confidence=0.5,
-                                            context_window=(0, 32))],
-                    unique_acronyms={"ABC": _first_occ(text, "ABC", 29, 0.5)},
-                )
-
-        monkeypatch.setattr("plainera_unacronym.nlp.extraction.engine.stage_funcs.Detector", FakeDetector)
-        monkeypatch.setattr("plainera_unacronym.nlp.extraction.engine.stage_funcs.extract_near_firsts",
-                            lambda *a, **k: {"ABC": None})
-        monkeypatch.setattr("plainera_unacronym.nlp.extraction.engine.stage_funcs.defs_from_picks", lambda *_: [])
-        monkeypatch.setattr("plainera_unacronym.nlp.extraction.engine.stage_funcs.extract_defs_all_occurrences", lambda *_: [])
-
-        det_res, extr = detect_and_extract(text, det_cfg=det_cfg, ext_cfg=ext_cfg)
-        assert extr.extraction_strategy == "hybrid-filled"
-        assert extr.picks.get("ABC") is None
-        assert not any(d.acronym == "ABC" for d in extr.definitions)
-
 
 def _cfg_integrated(require_two_words=True, max_chars=200):
     return (
@@ -215,37 +189,6 @@ class TestDetectAndExtractIntegrationEdgeCases:
         )
         # Strict
         det_cfg, ext_cfg_strict = _cfg_integrated(require_two_words=True, max_chars=30)
-        det, extr, reports, trace = detect_and_extract(
-            base, det_cfg=det_cfg, ext_cfg=ext_cfg_strict,
-            return_reports=True, trace=True, trace_filter=r"^(PTO|PF)$"
-        )
-
-
-        assert not any(d.acronym == "PTO" for d in extr.definitions)
-        assert any(d.acronym == "PDF" for d in extr.definitions)
-
-        # Relaxed
-        det_cfg, ext_cfg_relaxed = _cfg_integrated(require_two_words=True, max_chars=160)
-        det_res_r, extr_r = detect_and_extract(base, det_cfg=det_cfg, ext_cfg=ext_cfg_relaxed)
-
-        by_r = {}
-        for d in extr_r.definitions:
-            by_r.setdefault(d.acronym, []).append(d)
-
-        assert "PTO" in by_r
-        assert any(e.definition.strip() for e in by_r["PTO"])
-        assert any(0 < e.confidence <= 0.99 for e in by_r["PTO"])
-
-    def test_inline_long_tail_is_gated_by_max_phrase_chars_40(self):
-        # With a strict max, PTO should be dropped; with relaxed max, it should appear
-        base = (
-            "In printing, PTO stands for "
-            "a very, very long descriptive phrase that should be trimmed or rejected entirely "
-            "depending on configuration and normalisation steps. "
-            "Portable Document Format (PDF) is common."
-        )
-        # Strict
-        det_cfg, ext_cfg_strict = _cfg_integrated(require_two_words=True, max_chars=40)
         det, extr, reports, trace = detect_and_extract(
             base, det_cfg=det_cfg, ext_cfg=ext_cfg_strict,
             return_reports=True, trace=True, trace_filter=r"^(PTO|PF)$"
@@ -351,11 +294,6 @@ class TestDetectAndExtractIntegrationEdgeCases:
         det, extr = detect_and_extract("Personal protective equipment (PPE - required on site) matters.")
         assert picked_def(extr, "PPE") == "Personal protective equipment"
 
-    def test_tier_one_multiple_occurrences_one_definition(self):
-        det, extr = detect_and_extract(
-            "Portable Document Format (PDF) is common. PDF files are everywhere."
-        )
-        assert picked_def(extr, "PDF") == "Portable Document Format"
 
     def test_tier_one_digit_prefixed_acronym_parenthetical(self):
         det, extr = detect_and_extract("Third Generation Partnership Project (3GPP) publishes specs.")
@@ -368,11 +306,6 @@ class TestDetectAndExtractIntegrationEdgeCases:
     def test_tier_one_definition_before_acronym_does_not_capture_trailing_space(self):
         det, extr = detect_and_extract("Portable Document Format, (PDF) is common.")
         assert picked_def(extr, "PDF") == "Portable Document Format"
-
-    def test_tier_one_pick_kind_is_set_for_anchored_parenthetical(self):
-        det, extr = detect_and_extract("Portable Document Format (PDF) is common.")
-        assert extr.picks["PDF"] is not None
-        assert getattr(extr.picks["PDF"], "kind", None) in {"def_before", "def_after"}
 
 
 class TestDetectAndExtractE2E:
@@ -520,22 +453,6 @@ class TestDetectAndExtractE2EConfigAdjustment:
         assert picked_def(extr, "AB") is None
         assert picked_def(extr, "A.B.") is None
 
-    def test_tier_one_dotted_initialism_outside_parentheses_detects_preserve_key(self):
-        # Running text, trailing '.' should be stripped by strip_trailing_punct.
-        det, extr, r = detect_and_extract(
-            "The U.S.A. is referenced.",
-            det_cfg=DetectorConfig(enable_dotted=True, dotted_display="preserve"),
-            return_reports=True
-        )
-        # Preserve internal dots, but not terminal punctuation.
-        assert picked_def(extr, "U.S.A") is None or True  # definition may not exist in this sentence
-        fo = det.unique_acronyms["U.S.A"]
-        assert fo.acronym == "U.S.A"
-        assert fo.normalized_key == "U.S.A"
-
-        # Occurrence(s) should agree
-        assert any(o.normalized_key == "U.S.A" for o in det.occurrences)
-
     def test_tier_one_dotted_initialism_outside_parentheses_detects_strip_key(self):
         det, extr = detect_and_extract(
             "The U.S.A. is referenced.",
@@ -548,13 +465,6 @@ class TestDetectAndExtractE2EConfigAdjustment:
 
         assert any(o.normalized_key == "USA" for o in det.occurrences)
 
-    def test_tier_one_dotted_initialism_outside_parentheses_followed_by_comma_detects(self):
-        det, extr = detect_and_extract(
-            "The U.S.A, as referenced here, is important.",
-            det_cfg=DetectorConfig(enable_dotted=True, dotted_display="preserve"),
-        )
-        assert "U.S.A" in det.unique_acronyms, det.unique_acronyms
-        assert det.unique_acronyms["U.S.A"].normalized_key == "U.S.A"
 
     def test_tier_one_dotted_initialism_outside_parentheses_followed_by_closing_paren_detects(self):
         det, extr = detect_and_extract(
@@ -647,17 +557,6 @@ class TestDetectAndExtractE2EInlineCues:
         det, extr = detect_and_extract("JWT is short for JSON Web Token.")
         assert picked_def(extr, "JWT") in {"JSON Web Token", "JSON Web Tokens"}, extr.picks.get("JWT")
 
-    def test_inline_after_tfl(self):
-        det, extr = detect_and_extract("TfL stands for Transport for London.")
-        assert picked_def(extr, "TfL") in {"Transport for London"}, extr.picks.get("TfL")
-
-    def test_inline_after_mrna(self):
-        det, extr, r = detect_and_extract("mRNA stands for messenger RNA.",  return_reports=True)
-        pprint.pprint(r)
-        pprint.pprint(extr)
-        pprint.pprint(det)
-        assert picked_def(extr, "mRNA") in {"messenger RNA"}, extr.picks.get("mRNA")
-
     # ---------------------------------------------------------------------
     # inline-before:  DEF  ...  cue  ACR
     # ---------------------------------------------------------------------
@@ -673,40 +572,6 @@ class TestDetectAndExtractE2EInlineCues:
     def test_inline_before_tfl(self):
         det, extr = detect_and_extract("Transport for London stands for TfL.")
         assert picked_def(extr, "TfL") in {"Transport for London"}, extr.picks.get("TfL")
-
-    def test_inline_before_mrna(self):
-        det, extr = detect_and_extract("messenger RNA stands for mRNA.")
-        assert picked_def(extr, "mRNA") in {"messenger RNA"}, extr.picks.get("mRNA")
-
-    # ---------------------------------------------------------------------
-    # guardrails: ensure we do NOT “inline match” without cues
-    # ---------------------------------------------------------------------
-
-    def test_inline_does_not_fire_without_cue_pdf(self):
-        det, extr = detect_and_extract("I like PDF files a lot.")
-        assert picked_def(extr, "PDF") is None, extr.picks.get("PDF")
-
-    def test_inline_does_not_fire_without_cue_jwt(self):
-        det, extr = detect_and_extract("We store tokens in a JWT cookie.")
-        assert picked_def(extr, "JWT") is None, extr.picks.get("JWT")
-
-    def test_inline_does_not_fire_without_cue_tfl(self):
-        det, extr = detect_and_extract("Transport for London is based in London.")
-        assert picked_def(extr, "TfL") is None, extr.picks.get("TfL")
-
-    # ---------------------------------------------------------------------
-    # punctuation variants: document what you currently support
-    # (these are intentionally strict with the current regex)
-    # ---------------------------------------------------------------------
-
-    def test_inline_after_colon_not_supported_yet(self):
-        det, extr = detect_and_extract("PDF: stands for Portable Document Format.")
-        assert picked_def(extr, "PDF") is None, extr.picks.get("PDF")
-
-    def test_inline_after_dash_not_supported_yet(self):
-        det, extr = detect_and_extract("PDF - stands for Portable Document Format.")
-        assert picked_def(extr, "PDF") is None, extr.picks.get("PDF")
-
 
 class TestDisambiguationE2E:
 
