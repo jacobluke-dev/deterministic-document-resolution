@@ -16,14 +16,8 @@ class Occ:
         self.end_offset = end
 
 
-def _patch(monkeypatch, func, **repl):
-    g = func.__globals__
-    for name, impl in repl.items():
-        monkeypatch.setitem(g, name, impl)
-
-
 class TestHarvestDefsAllUnit:
-    def test_before_path_maps_absolute_spans_and_uppercases_for_tighten(self, monkeypatch):
+    def test_before_path_maps_absolute_spans_and_uppercases_for_tighten(self, _patch):
         # Text:           0123456789012345678901234567890123456789
         text =           "AAA Portable Document Format (PDF) ZZZ"
         acr0 = text.index("PDF")
@@ -40,7 +34,7 @@ class TestHarvestDefsAllUnit:
         ]
         # The after finder should not be called for this test; return empty
         _patch(
-            monkeypatch, harvest_defs_all,
+            harvest_defs_all,
             find_parenthetical_longform_before_acr=lambda snippet, acr, cfg: [
                 SimpleNamespace(
                     def_start=d0,  # note: in harvest, we expect these to be relative to snippet start L
@@ -70,7 +64,7 @@ class TestHarvestDefsAllUnit:
         assert item.original_definition == "Portable Document Format"
         assert item.confidence == pytest.approx(0.95)
 
-    def test_after_path_maps_relative_right_offset(self, monkeypatch):
+    def test_after_path_maps_relative_right_offset(self, _patch):
         text = "See GPU (Graphics Processing Unit) for details"
         acr0 = text.index("GPU")
         acr1 = acr0 + 3
@@ -93,7 +87,7 @@ class TestHarvestDefsAllUnit:
 
         cfg = Cfg(window_chars=len(text))
         _patch(
-            monkeypatch, harvest_defs_all,
+            harvest_defs_all,
             find_parenthetical_longform_before_acr=lambda *a, **k: [],
             find_parenthetical_longform_after_acr=fake_after,
             tighten_label_by_acronym=lambda raw, acr_up: raw,
@@ -107,7 +101,7 @@ class TestHarvestDefsAllUnit:
         assert text[item.def_start:item.def_end] == inner
         assert (item.acr_start, item.acr_end) == (acr0, acr1)
 
-    def test_window_clamps_and_multiple_occs_accumulate(self, monkeypatch):
+    def test_window_clamps_and_multiple_occs_accumulate(self, _patch):
         text = "PDF (Portable Document Format) ... lead-in ... GPU (Graphics Processing Unit)"
         pdf0 = text.index("PDF")
         pdf1 = pdf0 + 3
@@ -140,7 +134,7 @@ class TestHarvestDefsAllUnit:
             return []
 
         _patch(
-            monkeypatch, harvest_defs_all,
+            harvest_defs_all,
             find_parenthetical_longform_before_acr=fake_before,
             find_parenthetical_longform_after_acr=fake_after,
             tighten_label_by_acronym=lambda raw, up: raw,
@@ -155,7 +149,7 @@ class TestHarvestDefsAllUnit:
             "Graphics Processing Unit",
         ]
 
-    def test_small_window_finds_nothing(self, monkeypatch):
+    def test_small_window_finds_nothing(self, _patch):
         text = "PDF (Portable Document Format) ... GPU (Graphics Processing Unit)"
         pdf0 = text.index("PDF")
         pdf1 = pdf0 + 3
@@ -164,7 +158,7 @@ class TestHarvestDefsAllUnit:
         cfg = Cfg(window_chars=3)
 
         _patch(
-            monkeypatch, harvest_defs_all,
+            harvest_defs_all,
             find_parenthetical_longform_before_acr=lambda *a, **k: [],
             find__parenthetical_longform_after_acr=lambda *a, **k: [],
             tighten_label_by_acronym=lambda raw, up: raw,
