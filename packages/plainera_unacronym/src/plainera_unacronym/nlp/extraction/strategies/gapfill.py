@@ -32,7 +32,7 @@ def fill_missing_from_defs(
             changing call sites.
 
         Args:
-            text:
+            _text:
                 The full source text being processed. Currently unused.
             firsts:
                 Mapping of normalized acronym key to its first occurrence metadata.
