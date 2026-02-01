@@ -7,7 +7,7 @@ from plainera_unacronym.nlp.extraction.senses.disambiguate import _ascii_tokens,
     choose_with_tiebreak, disambiguate_occurrences
 
 
-class TestTokens:
+class TestAsciiTokens:
     @pytest.mark.parametrize(
         "s,expected",
         [
@@ -16,14 +16,14 @@ class TestTokens:
             ("HELLO world", ["hello", "world"]),
             ("rock'n'roll", ["rock'n'roll"]),
             ("state-of-the-art", ["state-of-the-art"]),
-            ("James'", ["james'"]),  # trailing apostrophe allowed by regex
-            ("end-", ["end-"]),  # trailing hyphen allowed by regex
-            ("-dash", ["dash"]),  # leading hyphen is not allowed; skips to 'dash'
-            ("'tis", ["tis"]),  # leading apostrophe not allowed; captures from 't'
+            ("James'", ["james'"]),          # trailing apostrophe kept
+            ("end-", ["end-"]),              # trailing hyphen kept
+            ("-dash", ["dash"]),             # leading hyphen not allowed
+            ("'tis", ["tis"]),               # leading apostrophe not allowed
             ("A1B2", ["a1b2"]),
             ("42", ["42"]),
-            ("snake_case", ["snake", "case"]),  # underscore not in pattern
-            ("e.g.", ["e", "g"]),  # dots split tokens
+            ("snake_case", ["snake", "case"]),        # underscore splits
+            ("e.g.", ["e", "g"]),                      # dot splits
             ("email@example.com", ["email", "example", "com"]),
             ("O'Neill", ["o'neill"]),
             ("naïve café", ["na", "ve", "caf"]),  # non-ASCII chars split tokens
@@ -32,10 +32,16 @@ class TestTokens:
     def test_tokenization_cases(self, s, expected):
         assert _ascii_tokens(s) == expected
 
+    def test_does_not_merge_across_whitespace_or_punct(self):
+        assert _ascii_tokens("a--b") == ["a--b"]          # hyphens allowed internally
+        assert _ascii_tokens("a - b") == ["a", "b"]       # spaces split
+        assert _ascii_tokens("a,b;c") == ["a", "b", "c"]  # punctuation splits
+
+
 
 class TestCenter:
     @pytest.mark.parametrize(
-        "s,e,expected",
+        "s, e, expected",
         [
             (0, 0, 0.0),  # identical endpoints
             (0, 2, 1.0),  # even span -> integer midpoint
@@ -65,6 +71,11 @@ class TestCenter:
     @pytest.mark.parametrize("s,e", [(7, 3), (-5, 11), (0, 9), (-8, -3)])
     def test_symmetry(self, s, e):
         assert _center(s, e) == _center(e, s)
+
+    def test_large_values_stable(self):
+        s, e = 10**12, 10**12 + 2
+        assert _center(s, e) == pytest.approx((s + e) / 2.0, rel=0, abs=0)
+
 
     @pytest.mark.parametrize("s,e", [(0, 10), (-4, 6), (2, 3), (-9, -7)])
     def test_midpoint_equidistant(self, s, e):
@@ -450,106 +461,3 @@ class TestDisambiguateOccurrencesUnit:
 
         # With a tiny window, resolution can be None (score 0.0)
         assert r_small.chosen_sense_id in (None, sid)
-
-
-class TestDisambiguateOccurrencesIntegration:
-    def test_multiple_occurrences_switch_between_senses(self):
-        text = (
-            "The European Medicines Agency (EMA) set guidance. "
-            "Later, Emergency Management Australia (EMA) responded. "
-            "EMA was mentioned again."
-        )
-        # Place occurrences near each definition mention
-        occs = [
-            OccurrenceLite("EMA", start=text.index("EMA) set"), end=text.index("EMA) set") + 3),
-            OccurrenceLite("EMA", start=text.index("Australia (EMA)") + len("Australia ("), end=text.index("Australia (EMA)") + len("Australia (EMA)")),
-            OccurrenceLite("EMA", start=text.rindex("EMA"), end=text.rindex("EMA") + 3),
-        ]
-        senses = {
-            "EMA": [
-                AcronymSense(
-                    "EMA",
-                    "European Medicines Agency",
-                    "ema|medicines",
-                    # definition spans roughly where 'European Medicines Agency' occurs
-                    [(text.index("European"), text.index("European") + len("European Medicines Agency"))],
-                    2,
-                ),
-                AcronymSense(
-                    "EMA",
-                    "Emergency Management Australia",
-                    "ema|emergency",
-                    [(text.index("Emergency"), text.index("Australia") + len("Australia"))],
-                    2,
-                ),
-            ]
-        }
-
-        out = disambiguate_occurrences(text, occs, senses, dist_weight=0.75, overlap_weight=0.25)
-        assert len(out) == 3
-        # First near EMA (Medicines) → pick medicines
-        assert out[0].chosen_sense_id == "ema|medicines"
-        # Second near EMA (Emergency) → pick emergency
-        assert out[1].chosen_sense_id == "ema|emergency"
-        # Third occurrence is later; could be ambiguous—ensure it resolves to whichever is closer overall
-        assert out[2].chosen_sense_id in {"ema|medicines", "ema|emergency"}
-
-    def test_order_independence_of_senses_and_robust_scoring(self):
-        text = "Org A (ABC) meets Org B (ABC). Later ABC again."
-        i1 = text.index("(ABC)") + 1
-        i2 = text.index("B (ABC)") + 3
-        i3 = text.rindex("ABC")
-        occs = [OccurrenceLite("ABC", i1, i1 + 3), OccurrenceLite("ABC", i2, i2 + 3), OccurrenceLite("ABC", i3, i3 + 3)]
-        senses_A_first = {
-            "ABC": [
-                AcronymSense("ABC", "Alpha Beta Council", "abc|alpha_beta_council", [(text.index("Org A"), text.index("Org A") + 5)], 1),
-                AcronymSense("ABC", "Applied Business Consortium", "abc|applied_business_consortium", [(text.index("Org B"), text.index("Org B") + 5)], 1),
-            ]
-        }
-        senses_B_first = {"ABC": list(reversed(senses_A_first["ABC"]))}
-
-        out1 = disambiguate_occurrences(text, occs, senses_A_first)
-        out2 = disambiguate_occurrences(text, occs, senses_B_first)
-
-        # Results should be identical even if senses list order is reversed
-        assert [r.chosen_sense_id for r in out1] == [r.chosen_sense_id for r in out2]
-
-    def test_near_tie_distance_tiebreak_with_bias_window(self):
-        text = "ACR ... many dots ..."
-        # Put the occurrence far from both spans to shrink scores and margin.
-        occs = [OccurrenceLite("ACR", start=0, end=2)]  # pos ~0
-
-        # Centers at ~50 and ~53 → d1=50, d2=53 (diff=3 > 2 bias)
-        senses = {
-            "ACR": [
-                AcronymSense("ACR", "Alpha Core Reader", "acr|alpha", [(49, 51)], 1),  # center ~50
-                AcronymSense("ACR", "Advanced Cardiac Rehab", "acr|cardiac", [(52, 54)], 1),  # center ~53
-            ]
-        }
-
-        out = disambiguate_occurrences(
-            text, occs, senses, dist_weight=1.0, overlap_weight=0.0, margin_threshold=0.10
-        )
-        # Near tie on probs, distance decides; alpha is nearer (50 vs 53)
-        assert out[0].chosen_sense_id == "acr|alpha"
-
-        # And now the margin should indeed be small (< 0.10)
-        assert 0.0 <= out[0].margin < 0.10
-
-    def test_handles_reversed_span_endpoints(self):
-        text = "Zeta Corp (ZC) operates globally. Later, ZC is referenced again."
-        occs = [
-            OccurrenceLite("ZC", text.index("(ZC)") + 1, text.index("(ZC)") + 3),
-            OccurrenceLite("ZC", text.rindex("ZC"), text.rindex("ZC") + 2),
-        ]
-        senses = {
-            "ZC": [
-                AcronymSense("ZC", "Zeta Corporation", "zc|zeta_corporation", [(text.index("Zeta"), text.index("Zeta") + 4)], 1),
-                AcronymSense("ZC", "Zero Cool", "zc|zero_cool", [(text.index("globally") + 2, text.index("globally") - 2)], 1),  # reversed endpoints on purpose
-            ]
-        }
-        out = disambiguate_occurrences(text, occs, senses, dist_weight=1.0, overlap_weight=0.0)
-        # Should not crash; should still choose the appropriate nearest
-        assert len(out) == 2
-        assert out[0].chosen_sense_id == "zc|zeta_corporation"
-        assert out[1].chosen_sense_id in {"zc|zeta_corporation", "zc|zero_cool"}

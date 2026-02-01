@@ -44,13 +44,14 @@ def _ascii_tokens(s: str) -> list[str]:
 
 
 def _center(s: int, e: int) -> float:
-    """
-    Returns the center point of the given interval.
+    """Return the midpoint of an interval.
+
     Args:
-        s (int): the interval start
-        e (int): the interval end
+        s: Interval start.
+        e: Interval end.
+
     Returns:
-        float: the center point
+        The midpoint `(s + e) / 2.0` as a float.
     """
     return (s + e) / 2.0
 
