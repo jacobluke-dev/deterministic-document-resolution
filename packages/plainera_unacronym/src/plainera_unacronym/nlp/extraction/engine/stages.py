@@ -60,17 +60,28 @@ class TraceEvent:
 
 
 class Tracer:
-    """Capture stage-by-stage diffs of selected state fields.
+    """Captures stage-by-stage diffs of selected state fields.
 
-    The tracer snapshots specific attributes (configured per stage via `trace_fields`)
-    before and after each stage, then records an event only when the snapshot changes.
+    The tracer snapshots selected attributes (configured per stage by the caller)
+    before and after each stage, then records a `TraceEvent` only when the
+    snapshot changes.
 
     Filtering:
-        If `filter_regex` is provided, snapshots are filtered by acronym key where possible.
+        If `filter_regex` is provided, snapshots are filtered to reduce noise.
+        - For dict snapshots (e.g. picks), the regex is applied to the dict key.
+        - For list snapshots (e.g. definitions), the regex is applied to the item's
+          `acronym` attribute (if present).
+
+    Typical usage is inside a stage runner:
+        before = tracer.snapshot(state, fields)
+        state = stage_fn(state)
+        after = tracer.snapshot(state, fields)
+        tracer.record(stage_name, before, after)
 
     Args:
-        filter_regex (str | None): Optional regex used to filter acronym keys in snapshots.
-            Useful for narrowing trace output to a specific acronym while debugging.
+        filter_regex (str | None): Optional regex pattern used to filter snapshot
+            rows. Intended for narrowing traces while debugging a specific acronym
+            or key. If None, no filtering is applied.
     """
 
     def __init__(self, filter_regex: Optional[str] = None):
@@ -78,14 +89,18 @@ class Tracer:
         self.events: List[TraceEvent] = []
 
     def snapshot(self, state: Any, fields: Sequence[str]) -> dict:
-        """Snapshot selected attributes from `state`.
+        """Build a snapshot of selected attributes from `state`.
+
+        Only attributes that exist on `state` are included. Each value is
+        normalised via `_snap_value()` into a trace-friendly structure.
 
         Args:
-            state (Any): The pipeline state object (e.g., `FlowState`).
+            state (Any): Pipeline state object (e.g., `FlowState`).
             fields (Sequence[str]): Attribute names to snapshot.
 
         Returns:
-            dict: Mapping of field name -> normalised snapshot value.
+            dict: Mapping of field name to a normalised, serialisable snapshot
+            value. Fields not found on `state` are omitted.
         """
         snap: dict = {}
         for f in fields:
@@ -94,12 +109,16 @@ class Tracer:
         return snap
 
     def record(self, stage: str, before: Optional[dict], after: Optional[dict]) -> None:
-        """Record a trace event if snapshots differ.
+        """Record a trace event if the snapshot changed.
+
+        No event is recorded when:
+        - `before` or `after` is None
+        - the snapshots are equal
 
         Args:
             stage (str): Stage name.
-            before (dict | None): Snapshot prior to stage execution.
-            after (dict | None): Snapshot after stage execution.
+            before (dict | None): Snapshot taken before stage execution.
+            after (dict | None): Snapshot taken after stage execution.
 
         Returns:
             None
@@ -113,15 +132,23 @@ class Tracer:
     def _snap_value(self, v: Any) -> Any:
         """Normalise common extraction structures into trace-friendly rows.
 
-        Supports:
-            - dict[str, InTextPick | None]
-            - list[ExtractedDefinition]
+        Supported inputs:
+            - dict[str, InTextPick | None]:
+                Converted to a list of row dicts. Entries with None values are
+                omitted. If filtering is enabled, the regex is applied to the dict key.
+            - list[ExtractedDefinition]:
+                Converted to a list of row dicts. If filtering is enabled, the regex
+                is applied to each item's `acronym` attribute (when present).
+
+        For unsupported inputs, returns None (so the snapshot contains a stable,
+        low-noise representation).
 
         Args:
-            v (Any): Value to snapshot.
+            v (Any): Value to normalise.
 
         Returns:
-            Any: A serialisable structure (typically list[dict]) or None.
+            Any: A serialisable structure (typically a list of dict rows) or None
+            if `v` is not a recognised/handled structure.
         """
         # Picks: dict[str, InTextPick|None] -> list of row dicts
         if isinstance(v, dict):
