@@ -1,7 +1,7 @@
 from types import SimpleNamespace
 
 import pytest
-from plainera_unacronym.nlp.extraction.strategies.harvest import harvest_defs_all
+from plainera_unacronym.nlp.extraction.strategies.harvest import extract_defs_all_occurrences
 
 
 class Cfg:
@@ -16,10 +16,10 @@ class Occ:
         self.end_offset = end
 
 
-class TestHarvestDefsAllUnit:
+class TestExtractDefsAllOccurrencesUnit:
     def test_before_path_maps_absolute_spans_and_uppercases_for_tighten(self, _patch):
         # Text:           0123456789012345678901234567890123456789
-        text =           "AAA Portable Document Format (PDF) ZZZ"
+        text = "AAA Portable Document Format (PDF) ZZZ"
         acr0 = text.index("PDF")
         acr1 = acr0 + 3
         occs = [Occ("Pdf", acr0, acr1)]  # original case retained in output
@@ -29,26 +29,23 @@ class TestHarvestDefsAllUnit:
         d0 = text.index("Portable")
         d1 = d0 + len("Portable Document Format")
 
-        fake_before = [
-            SimpleNamespace(def_start=d0, def_end=d1, definition="Portable Document Format")
-        ]
         # The after finder should not be called for this test; return empty
         _patch(
-            harvest_defs_all,
+            extract_defs_all_occurrences,
             find_parenthetical_longform_before_acr=lambda snippet, acr, cfg: [
                 SimpleNamespace(
                     def_start=d0,  # note: in harvest, we expect these to be relative to snippet start L
                     def_end=d1,
                     definition="Portable Document Format",
                 )
-            ] if snippet in (text[:acr1+1], text[:acr1]) else [],
+            ] if snippet in (text[:acr1 + 1], text[:acr1]) else [],
             find_parenthetical_longform_after_acr=lambda right, cfg, acr=None: [],
             tighten_label_by_acronym=lambda raw, acr_up: f"TIGHT[{raw}|{acr_up}]",
         )
 
         # To make def_start/def_end values relative to snippet L, force L=0 with large window
         cfg = Cfg(window_chars=len(text))
-        out = harvest_defs_all(text, occs, cfg)
+        out = extract_defs_all_occurrences(text, occs, cfg)
         assert len(out) == 1
         item = out[0]
 
@@ -87,13 +84,13 @@ class TestHarvestDefsAllUnit:
 
         cfg = Cfg(window_chars=len(text))
         _patch(
-            harvest_defs_all,
+            extract_defs_all_occurrences,
             find_parenthetical_longform_before_acr=lambda *a, **k: [],
             find_parenthetical_longform_after_acr=fake_after,
             tighten_label_by_acronym=lambda raw, acr_up: raw,
         )
 
-        out = harvest_defs_all(text, occs, cfg)
+        out = extract_defs_all_occurrences(text, occs, cfg)
         assert len(out) == 1
         item = out[0]
         assert item.acronym == "GPU"
@@ -134,14 +131,14 @@ class TestHarvestDefsAllUnit:
             return []
 
         _patch(
-            harvest_defs_all,
+            extract_defs_all_occurrences,
             find_parenthetical_longform_before_acr=fake_before,
             find_parenthetical_longform_after_acr=fake_after,
             tighten_label_by_acronym=lambda raw, up: raw,
         )
 
         occs = [Occ("PDF", pdf0, pdf1), Occ("GPU", gpu0, gpu1)]
-        out = harvest_defs_all(text, occs, cfg)
+        out = extract_defs_all_occurrences(text, occs, cfg)
 
         assert [o.acronym for o in out] == ["PDF", "GPU"]
         assert [o.definition for o in out] == [
@@ -158,18 +155,99 @@ class TestHarvestDefsAllUnit:
         cfg = Cfg(window_chars=3)
 
         _patch(
-            harvest_defs_all,
+            extract_defs_all_occurrences,
             find_parenthetical_longform_before_acr=lambda *a, **k: [],
-            find__parenthetical_longform_after_acr=lambda *a, **k: [],
+            find_parenthetical_longform_after_acr=lambda *a, **k: [],
             tighten_label_by_acronym=lambda raw, up: raw,
         )
 
-        out = harvest_defs_all(text, [Occ("PDF", pdf0, pdf1), Occ("GPU", gpu0, gpu1)], cfg)
+        out = extract_defs_all_occurrences(text, [Occ("PDF", pdf0, pdf1), Occ("GPU", gpu0, gpu1)], cfg)
         assert out == []
 
+    def test_appends_results_from_both_before_and_after_for_same_occ(self, _patch):
+        text = "Portable Document Format (PDF) is common."
+        acr0 = text.index("PDF")
+        acr1 = acr0 + 3
+        occs = [Occ("PDF", acr0, acr1)]
+        cfg = Cfg(window_chars=len(text))
+
+        phrase = "Portable Document Format"
+        d0 = text.index(phrase)
+        d1 = d0 + len(phrase)
+
+        before_match = SimpleNamespace(def_start=d0, def_end=d1, definition=phrase)
+        # after matcher reports spans relative to `right = snippet[rel_a1:]`
+        after_match = SimpleNamespace(def_start=(d0 - acr1), def_end=(d1 - acr1), definition=phrase)
+
+        _patch(
+            extract_defs_all_occurrences,
+            find_parenthetical_longform_before_acr=lambda pre, acr, cfg: [before_match],
+            find_parenthetical_longform_after_acr=lambda right, cfg, acr=None: [after_match],
+            tighten_label_by_acronym=lambda raw, up: raw,
+        )
+
+        out = extract_defs_all_occurrences(text, occs, cfg)
+        assert len(out) == 2
+        # both should map to the same absolute span and same original slice
+        for item in out:
+            assert (item.acr_start, item.acr_end) == (acr0, acr1)
+            assert text[item.def_start:item.def_end] == phrase
+            assert item.original_definition == phrase
+            assert item.definition == phrase
+            assert item.source == "in_text"
+            assert item.confidence == pytest.approx(0.95)
+
+    def test_window_clamp_L_nonzero_maps_before_match_relative_spans_to_absolute(self, _patch):
+        # Build text with a prefix so L will be > 0 when window clamps.
+        prefix = "0123456789"  # len=10
+        body = "Portable Document Format (PDF) is common."
+        text = prefix + body
+
+        acr0 = text.index("PDF")
+        acr1 = acr0 + 3
+
+        # Choose a window smaller than acr0 so L>0, but large enough to still include the definition.
+        win = 30
+        cfg = Cfg(window_chars=win)
+        occs = [Occ("PDF", acr0, acr1)]
+
+        # What harvest will compute:
+        L = max(0, acr0 - win)
+        R = min(len(text), acr1 + win)
+        snippet = text[L:R]
+        rel_a1 = acr1 - L
+
+        # `pre` is snippet up to rel_a1+1, and BEFORE matcher spans are relative to snippet start (L).
+        phrase = "Portable Document Format"
+        abs_d0 = text.index(phrase)
+        abs_d1 = abs_d0 + len(phrase)
+        rel_d0 = abs_d0 - L
+        rel_d1 = abs_d1 - L
+
+        def fake_before(pre, acr, cfg):
+            # sanity: definition must be inside the clamped snippet region
+            assert phrase in snippet
+            return [SimpleNamespace(def_start=rel_d0, def_end=rel_d1, definition=phrase)]
+
+        _patch(
+            extract_defs_all_occurrences,
+            find_parenthetical_longform_before_acr=fake_before,
+            find_parenthetical_longform_after_acr=lambda *a, **k: [],
+            tighten_label_by_acronym=lambda raw, up: raw,
+        )
+
+        out = extract_defs_all_occurrences(text, occs, cfg)
+        assert len(out) == 1
+        item = out[0]
+
+        # This is the whole point: absolute mapping must be correct when L != 0
+        assert (item.def_start, item.def_end) == (abs_d0, abs_d1)
+        assert text[item.def_start:item.def_end] == phrase
+        assert item.original_definition == phrase
+        assert (item.acr_start, item.acr_end) == (acr0, acr1)
 
 
-class TestHarvestDefsAllIntegration:
+class TestExtractDefsAllOccurrencesIntegration:
     def test_before_and_after_patterns_end_to_end(self):
         text = (
             "We refer to the Portable Document Format (PDF) throughout. "
@@ -182,7 +260,7 @@ class TestHarvestDefsAllIntegration:
 
         cfg = Cfg(window_chars=80)
         occs = [Occ("PDF", pdf0, pdf1), Occ("GPU", gpu0, gpu1)]
-        out = harvest_defs_all(text, occs, cfg)
+        out = extract_defs_all_occurrences(text, occs, cfg)
 
         # We expect two results, one from "before", one from "after"
         assert len(out) == 2
@@ -213,12 +291,12 @@ class TestHarvestDefsAllIntegration:
 
         # Window that doesn't reach the words before "PDF"
         cfg = Cfg(window_chars=1)
-        out = harvest_defs_all(text, [Occ("PDF", pdf0, pdf1)], cfg)
+        out = extract_defs_all_occurrences(text, [Occ("PDF", pdf0, pdf1)], cfg)
         assert out == []
 
         # Large enough window finds it
         cfg2 = Cfg(window_chars=50)
-        out2 = harvest_defs_all(text, [Occ("PDF", pdf0, pdf1)], cfg2)
+        out2 = extract_defs_all_occurrences(text, [Occ("PDF", pdf0, pdf1)], cfg2)
         assert len(out2) == 1
         assert out2[0].definition == "Portable Document Format"
 
@@ -233,7 +311,7 @@ class TestHarvestDefsAllIntegration:
         cfg = Cfg(window_chars=len(text))  # ensure the window covers the whole phrase
         occs = [Occ("QAE", acr0, acr1)]
 
-        out = harvest_defs_all(text, occs, cfg)
+        out = extract_defs_all_occurrences(text, occs, cfg)
         assert len(out) == 1
 
         item = out[0]
@@ -265,7 +343,7 @@ class TestHarvestDefsAllIntegration:
         cfg = Cfg(window_chars=len(text))  # ensure the window covers the whole phrase
         occs = [Occ("QAE", acr0, acr1)]
 
-        out = harvest_defs_all(text, occs, cfg)
+        out = extract_defs_all_occurrences(text, occs, cfg)
         assert len(out) == 1
 
         item = out[0]

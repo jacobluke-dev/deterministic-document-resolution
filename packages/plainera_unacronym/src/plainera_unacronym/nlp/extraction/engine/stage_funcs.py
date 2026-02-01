@@ -3,7 +3,7 @@ from plainera_unacronym.nlp.detection.cleanup.post_detect_cleanup import post_de
 from plainera_unacronym.nlp.extraction.anchored.extract import extract_near_firsts
 from plainera_unacronym.nlp.extraction.backref.extract import extract_sentence_backrefs
 from plainera_unacronym.nlp.extraction.core.defs import defs_from_picks, dedupe_defs
-from plainera_unacronym.nlp.extraction.strategies.harvest import harvest_defs_all
+from plainera_unacronym.nlp.extraction.strategies.harvest import extract_defs_all_occurrences
 from plainera_unacronym.nlp.extraction.strategies.gapfill import fill_missing_from_defs
 from plainera_unacronym.nlp.extraction.senses.disambiguate import disambiguate_occurrences
 from plainera_unacronym.nlp.extraction.senses.sense_build import build_senses
@@ -55,7 +55,7 @@ def st_post_detect_cleanup(s: FlowState) -> StageResult[FlowState]:
     return StageResult(s, s.last_info)
 
 
-def st_anchored(s: FlowState, *, window_left: int, window_right: int) -> StageResult[FlowState]:
+def st_anchored_first_occurrence_picks(s: FlowState, *, window_left: int, window_right: int) -> StageResult[FlowState]:
     """Extract near first occurrences using anchored patterns within a local window.
 
         Uses `extract_near_firsts` around each first occurrence (FO) to produce
@@ -100,7 +100,7 @@ def st_defs_from_picks(s: FlowState) -> StageResult[FlowState]:
     return StageResult(s, s.last_info)
 
 
-def st_harvest(s: FlowState) -> StageResult[FlowState]:
+def st_harvest_defs_all_occurrences(s: FlowState) -> StageResult[FlowState]:
     """Harvest additional definitions across all occurrences.
 
         Runs the harvest strategy across all detected occurrences (not only first
@@ -117,7 +117,7 @@ def st_harvest(s: FlowState) -> StageResult[FlowState]:
             AssertionError: If `s.det_res` is None (detect stage not run).
         """
     assert s.det_res is not None
-    s.harvested_defs = harvest_defs_all(s.text, s.det_res.occurrences, s.ext_cfg)
+    s.harvested_defs = extract_defs_all_occurrences(s.text, s.det_res.occurrences, s.ext_cfg)
     s.last_info = f"harvested={len(s.harvested_defs)}"
     return StageResult(s, s.last_info)
 
