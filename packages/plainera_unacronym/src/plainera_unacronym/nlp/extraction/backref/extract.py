@@ -148,8 +148,25 @@ def _find_backref_candidate(
     max_chars: int,
     require_two_words: bool,
 ) -> tuple[str, Span] | None:
-    """
-    Returns (candidate, (prev_s, prev_e)) or None.
+    """Search previous sentence spans for a back-reference definition candidate.
+
+    Looks backwards from the sentence containing an acronym occurrence (sentence index `si`)
+    and evaluates up to `cfg.sentence_backref_lookback` previous sentences (nearest first).
+    For each prior sentence, delegates to `_candidate_from_prev_sentence` to produce a
+    cleaned/validated candidate definition.
+
+    Args:
+        text (str): Full document text.
+        spans (list[Span]): Sentence-like spans as (start, end) offsets into `text`.
+        si (int): Index of the span that contains the acronym occurrence.
+        acr_norm (str): Normalised acronym (typically uppercased).
+        cfg (ExtractionConfig): Extraction configuration (reads `sentence_backref_lookback`).
+        max_chars (int): Maximum allowed candidate length (characters).
+        require_two_words (bool): If True, candidate must contain at least two tokens.
+
+    Returns:
+        tuple[str, Span] | None: `(candidate, (prev_start, prev_end))` for the first
+        previous sentence that yields a candidate, otherwise None.
     """
     sent_lookback = getattr(cfg, "sentence_backref_lookback", 2)
 
@@ -193,10 +210,44 @@ def _emit_backref_def(
     )
 
 
-def extract_sentence_backrefs(*, text: str, firsts: Mapping[str, FirstOccurrence], cfg: ExtractionConfig) -> list[
-    ExtractedDefinition]:
+def _alpha_len(s: str) -> int:
+    """Count alphabetic characters in a string.
+
+    Non-letter characters (digits, punctuation, whitespace) are ignored. Uses
+    `str.isalpha()` so Unicode letters are counted as well.
+
+    Args:
+        s (str): Input string.
+
+    Returns:
+        int: Number of alphabetic characters in `s`.
+    """
+    return sum(1 for c in s if c.isalpha())
+
+
+def extract_sentence_backrefs(
+    *,
+    text: str,
+    firsts: Mapping[str, FirstOccurrence],
+    cfg: ExtractionConfig,
+) -> list[ExtractedDefinition]:
+    """Extract Tier-1 sentence back-reference definitions.
+
+    For each first occurrence, locate the sentence containing the acronym and
+    search previous sentence(s) for a plausible long-form candidate. Emits a
+    backref definition when a candidate passes backref guardrails.
+
+    Args:
+        text (str): Full document text.
+        firsts (Mapping[str, FirstOccurrence]): Normalised key -> first occurrence.
+        cfg (ExtractionConfig): Extraction configuration.
+
+    Returns:
+        list[ExtractedDefinition]: Zero or more backref definitions.
+    """
     max_chars = getattr(cfg, "max_phrase_chars", 200)
-    require_two_words = getattr(cfg, "require_two_words", False)
+    lookback = getattr(cfg, "sentence_backref_lookback", 2)
+    require_two_words = getattr(cfg, "sentence_backref_require_two_words", True)
 
     spans = sent_spans(text)
     if not spans:
@@ -205,8 +256,9 @@ def extract_sentence_backrefs(*, text: str, firsts: Mapping[str, FirstOccurrence
     out: list[ExtractedDefinition] = []
 
     for key, fo in firsts.items():
-        acr_norm = (key or fo.acronym).upper()
-        if len([c for c in acr_norm if c.isalpha()]) < cfg.min_acr_len:
+        acr_norm = (fo.normalized_key or key or fo.acronym).upper()
+        acr_alpha_len = sum(1 for c in acr_norm if c.isalpha())
+        if acr_alpha_len < cfg.min_acr_len:
             continue
 
         si = find_span_index(spans, fo.start_offset)
@@ -226,6 +278,14 @@ def extract_sentence_backrefs(*, text: str, firsts: Mapping[str, FirstOccurrence
             continue
 
         cand, prev_span = hit
-        out.append(_emit_backref_def(acr_norm=acr_norm, fo=fo, cand=cand, prev_span=prev_span, text=text))
+        out.append(
+            _emit_backref_def(
+                acr_norm=acr_norm,
+                fo=fo,
+                cand=cand,
+                prev_span=prev_span,
+                text=text,
+            )
+        )
 
     return out
