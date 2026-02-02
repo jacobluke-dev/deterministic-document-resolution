@@ -75,16 +75,11 @@ from typing import Mapping
 
 from plainera_unacronym.nlp import FirstOccurrence
 from plainera_unacronym.nlp.common.constants_regex import TOKEN_RE
-from plainera_unacronym.nlp.common.shared import normalize_definition
 from plainera_unacronym.nlp.common.types import ExtractedDefinition, Span
+from plainera_unacronym.nlp.extraction.anchored.clean import clean_definition
 from plainera_unacronym.nlp.extraction.backref.spans import find_span_index, best_span_by_initials, sent_spans
 from plainera_unacronym.nlp.extraction.config import ExtractionConfig
-from plainera_unacronym.nlp.extraction.anchored.normalise import (
-    collapse_ws,
-)
-from plainera_unacronym.nlp.extraction.core.collect import initials_match
-from plainera_unacronym.nlp.common.shared import has_letters
-from plainera_unacronym.nlp.extraction.matchers.tighten import tighten_label_by_acronym
+from plainera_unacronym.nlp.extraction.anchored.normalise import tighten_definition_span
 
 
 def _candidate_from_prev_sentence(
@@ -95,43 +90,52 @@ def _candidate_from_prev_sentence(
     max_chars: int,
     require_two_words: bool,
 ) -> str | None:
-    """
-    Returns a normalised candidate definition string, or None.
-    `prev_text` should be the raw sentence slice (already extracted from `text`).
+    """Build a validated candidate definition from a previous sentence.
+
+    Prefers a definition-ish span from the previous sentence using `tighten_definition_span`
+    and the shared `clean_definition` pipeline. Falls back to an initials-based shortest
+    span (`best_span_by_initials`) and cleans it the same way.
+
+    Args:
+        acr_norm (str): Normalised acronym (typically uppercased) to match against.
+        prev_text (str): Raw previous-sentence slice from the document.
+        cfg (ExtractionConfig): Extraction configuration used by `clean_definition`.
+        max_chars (int): Maximum allowed candidate length (characters) for span selection.
+        require_two_words (bool): If True, require >=2 tokens (enforced post-clean).
+
+    Returns:
+        str | None: Cleaned candidate definition if found, otherwise None.
     """
     prev_raw = prev_text.strip()
     if not prev_raw:
         return None
 
-    prev_collapsed = collapse_ws(prev_raw)
-    if len(prev_collapsed) > max_chars * 3:
-        return None
+    sent = prev_raw.rstrip(" \t\r\n.?!…;:")
 
-    sent = prev_collapsed.rstrip(" \t\r\n.?!…;:")
+    # 1) Prefer a definition-ish run using the same normaliser as anchored inline.
+    base = tighten_definition_span(sent)
+    clean = clean_definition(base, acr_norm=acr_norm, cfg=cfg, kind="inline")
+    if clean:
+        if clean.replace(" ", "").upper() != acr_norm.replace(" ", ""):
+            if not require_two_words or len(TOKEN_RE.findall(clean)) >= 2:
+                return clean
 
+    # 2) Fallback: initials-based shortest span, then reuse the same cleaner.
     cand = best_span_by_initials(acr_norm, sent, max_chars=max_chars)
     if not cand:
         return None
 
-    cand = tighten_label_by_acronym(
-        cand,
-        acr_norm,
-        bridges=set(getattr(cfg, "bridges", ())),
-    )
-    cand = normalize_definition(cand)
-
-    if not cand or not has_letters(cand):
-        return None
-    if cand.replace(" ", "").upper() == acr_norm.replace(" ", ""):
-        return None
-    if len(cand) > max_chars:
-        return None
-    if require_two_words and len(TOKEN_RE.findall(cand)) < 2:
-        return None
-    if not initials_match(acr_norm, cand):
+    clean = clean_definition(cand, acr_norm=acr_norm, cfg=cfg, kind="inline")
+    if not clean:
         return None
 
-    return cand
+    if clean.replace(" ", "").upper() == acr_norm.replace(" ", ""):
+        return None
+
+    if require_two_words and len(TOKEN_RE.findall(clean)) < 2:
+        return None
+
+    return clean
 
 
 def _find_backref_candidate(
@@ -202,6 +206,8 @@ def extract_sentence_backrefs(*, text: str, firsts: Mapping[str, FirstOccurrence
 
     for key, fo in firsts.items():
         acr_norm = (key or fo.acronym).upper()
+        if len([c for c in acr_norm if c.isalpha()]) < cfg.min_acr_len:
+            continue
 
         si = find_span_index(spans, fo.start_offset)
         if si is None or si == 0:

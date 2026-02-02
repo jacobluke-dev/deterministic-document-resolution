@@ -372,6 +372,15 @@ class TestDetectAndExtractE2E:
         )
         assert picked_def(extr, "JWT") == "JSON Web Tokens", extr.picks.get("JWT")
 
+    def test_tier_one_sso_is_extracted_via_sentence_backref(self):
+        det, extr, r = detect_and_extract(
+            "We use Single sign-on in hospitals. This method of auth is known as SSO.", return_reports=True
+        )
+        pprint.pprint(det)
+        pprint.pprint(extr)
+        pprint.pprint(r)
+        assert picked_def(extr, "SSO") == "Single sign-on", extr.picks.get("SSO")
+
     def test_tier_one_negative_mismatch_plausible_longform_wrong_acronym(self):
         det, extr = detect_and_extract("Operational readiness (SLA) was reviewed.")
         assert extr.picks.get("SLA") is None, extr.picks.get("SLA")

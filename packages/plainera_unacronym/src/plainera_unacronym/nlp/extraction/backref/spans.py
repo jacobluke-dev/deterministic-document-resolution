@@ -3,8 +3,38 @@ import re
 from plainera_unacronym.nlp.common.shared import collapse_ws
 from plainera_unacronym.nlp.common.types import Span
 
+
 # Sentence boundary: keep it simple and predictable.
 _SENT_BOUNDARY_RE = re.compile(r"(?<=[.!?…])\s+|\n+")
+# Split on ASCII hyphen, unicode hyphen/dashes, and slash.
+_SUBTOK_SPLIT_RE = re.compile(r"[-\u2010\u2011\u2012\u2013\u2014/]+")
+_EDGE_PUNCT_RE = re.compile(r"^[^\w]+|[^\w]+$")
+
+
+def token_initials(token: str) -> str:
+    """Return initials contributed by a token, including hyphenated subparts.
+
+    Examples:
+        token_initials("Single") -> "S"
+        token_initials("sign-on") -> "SO"
+        token_initials("3M") -> ""   (ignored; non-alpha leading)
+        token_initials("(SSO)") -> "S" (after trimming edges; still only first subpart)
+    """
+    if not token:
+        return ""
+
+    t = _EDGE_PUNCT_RE.sub("", token)
+    if not t or not t[0].isalpha():
+        return ""
+
+    parts = [p for p in _SUBTOK_SPLIT_RE.split(t) if p]
+    out: list[str] = []
+    for p in parts:
+        p = _EDGE_PUNCT_RE.sub("", p)
+        if p and p[0].isalpha():
+            out.append(p[0].upper())
+    return "".join(out)
+
 
 def best_span_by_initials(acr: str, sent: str, *, max_chars: int) -> str | None:
     """Find the shortest contiguous token span whose initials match an acronym.
@@ -27,41 +57,45 @@ def best_span_by_initials(acr: str, sent: str, *, max_chars: int) -> str | None:
     if not tokens:
         return None
 
-    # Precompute initials for each token (ignore tokens starting with non-alpha)
-    tok_inits = [t[0].upper() if t and t[0].isalpha() else "" for t in tokens]
     A = [c.upper() for c in acr if c.isalpha()]
     if not A:
         return None
 
-    best: Span | None = None  # (i,j) inclusive span
+    tok_inits = [token_initials(t) for t in tokens]  # may be multi-letter, e.g. "SO"
+
+    best: Span | None = None  # (i, j) inclusive
 
     for i in range(len(tokens)):
-        ai = 0
+        ai = 0  # index into A
         for j in range(i, len(tokens)):
-            if tok_inits[j] and tok_inits[j] == A[ai]:
+            init = tok_inits[j]
+            if not init:
+                continue
+
+            # consume as many letters of `init` as match the acronym tail
+            k = 0
+            while ai < len(A) and k < len(init) and init[k] == A[ai]:
                 ai += 1
-                if ai == len(A):
-                    # candidate span found: minimise length (j-i), then chars
-                    cand = " ".join(tokens[i : j + 1]).strip()
-                    cand = collapse_ws(cand)
-                    if len(cand) <= max_chars:
-                        if best is None:
+                k += 1
+
+            if ai == len(A):
+                cand = collapse_ws(" ".join(tokens[i: j + 1]).strip())
+                if cand and len(cand) <= max_chars:
+                    if best is None:
+                        best = (i, j)
+                    else:
+                        bi, bj = best
+                        if (j - i) < (bj - bi) or (
+                            (j - i) == (bj - bi) and len(cand) < len(" ".join(tokens[bi: bj + 1]))
+                        ):
                             best = (i, j)
-                        else:
-                            bi, bj = best
-                            # prefer fewer tokens, then fewer chars
-                            if (j - i) < (bj - bi):
-                                best = (i, j)
-                            elif (j - i) == (bj - bi) and len(cand) < len(" ".join(tokens[bi : bj + 1])):
-                                best = (i, j)
-                    break  # for this i, smallest j already
+                break  # for this i, smallest j wins
 
     if best is None:
         return None
 
     i, j = best
-    out = " ".join(tokens[i : j + 1]).strip()
-    out = collapse_ws(out)
+    out = collapse_ws(" ".join(tokens[i: j + 1]).strip())
     return out if out else None
 
 

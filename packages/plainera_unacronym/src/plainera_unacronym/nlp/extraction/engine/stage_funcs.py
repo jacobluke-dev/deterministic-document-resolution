@@ -17,7 +17,7 @@ def st_detect(s: FlowState) -> StageResult[FlowState]:
     """Run detection to find acronym occurrences and first occurrences.
 
        Populates `s.det_res` with the detector output and records a short summary
-       into `s._last_info`.
+       into `s.last_info`.
 
        Args:
            s (FlowState): Mutable flow state containing input text and detector config.
@@ -36,7 +36,7 @@ def st_post_detect_cleanup(s: FlowState) -> StageResult[FlowState]:
 
         Runs `post_detect_cleanup` on the detector result, updates `s.det_res` with
         the cleaned result, stores dropped occurrences in `s.cleanup_dropped`, and
-        records the cleanup summary in `s._last_info`.
+        records the cleanup summary in `s.last_info`.
 
         Args:
             s (FlowState): Mutable flow state. Must already contain `s.det_res`.
@@ -60,7 +60,7 @@ def st_picks_first_occurrence_anchored(s: FlowState, *, window_left: int, window
 
         Uses `extract_near_firsts` around each first occurrence (FO) to produce
         `InTextPick` candidates. Stores results in `s.picks` and records pick
-        coverage in `s._last_info`.
+        coverage in `s.last_info`.
 
         Args:
             s (FlowState): Mutable flow state. Must already contain `s.det_res`.
@@ -87,7 +87,7 @@ def st_defs_from_first_occurrence_picks(s: FlowState) -> StageResult[FlowState]:
     """Convert anchored picks into concrete extracted definition records.
 
         Converts `s.picks` to a list of `ExtractedDefinition` objects and stores them
-        in `s.anchored_defs`. Updates `s._last_info` with a count summary.
+        in `s.anchored_defs`. Updates `s.last_info` with a count summary.
 
         Args:
             s (FlowState): Mutable flow state containing `s.picks`.
@@ -105,7 +105,7 @@ def st_defs_scan_all_occurrences(s: FlowState) -> StageResult[FlowState]:
 
         Runs the harvest strategy across all detected occurrences (not only first
         occurrences). Stores results in `s.harvested_defs` and records a count in
-        `s._last_info`.
+        `s.last_info`.
 
         Args:
             s (FlowState): Mutable flow state. Must already contain `s.det_res`.
@@ -127,7 +127,7 @@ def st_sentence_backref(s: FlowState) -> StageResult[FlowState]:
 
         Runs the back-reference strategy to find definitions in prior sentences for
         acronyms that appear later without an inline/parenthetical long-form.
-        Stores results in `s.backref_defs` and records a count in `s._last_info`.
+        Stores results in `s.backref_defs` and records a count in `s.last_info`.
 
         Args:
             s (FlowState): Mutable flow state. Must already contain `s.det_res`.
@@ -149,7 +149,7 @@ def st_merge(s: FlowState) -> StageResult[FlowState]:
 
         Concatenates definitions from anchored, harvested, global, and backref
         sources, then removes duplicates using `dedupe_defs`. Stores results in
-        `s.all_defs` and records the unique count in `s._last_info`.
+        `s.all_defs` and records the unique count in `s.last_info`.
 
         Args:
             s (FlowState): Mutable flow state containing per-strategy definition lists.
@@ -168,7 +168,7 @@ def st_gapfill(s: FlowState) -> StageResult[FlowState]:
         For acronym keys where `s.picks[key]` is None, selects the best matching
         definition from `s.all_defs` (typically based on proximity/confidence via
         `fill_missing_from_defs`) and fills `s.picks`. Updates coverage metrics and
-        `s.missing_keys`, and records a summary in `s._last_info`.
+        `s.missing_keys`, and records a summary in `s.last_info`.
 
         Args:
             s (FlowState): Mutable flow state. Must already contain `s.det_res` and `s.all_defs`.
@@ -210,7 +210,7 @@ def st_senses_and_assemble(
         Builds sense candidates from `s.all_defs`, then performs occurrence-level
         disambiguation over the document to choose a sense per occurrence. Populates
         `s.extr` with picks, definitions, senses, and disambiguation outputs.
-        Records counts (total senses and undecided occurrences) in `s._last_info`.
+        Records counts (total senses and undecided occurrences) in `s.last_info`.
 
         Args:
             s (FlowState): Mutable flow state. Must already contain `s.det_res` and `s.all_defs`.

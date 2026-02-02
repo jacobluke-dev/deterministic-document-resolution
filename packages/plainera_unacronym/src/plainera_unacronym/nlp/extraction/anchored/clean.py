@@ -2,7 +2,7 @@ import re
 from typing import Optional
 
 from plainera_unacronym.nlp.common.constants_regex import TOKEN_RE
-from plainera_unacronym.nlp.common.shared import normalize_definition
+from plainera_unacronym.nlp.common.shared import normalize_definition, has_letters
 from plainera_unacronym.nlp.extraction import ExtractionConfig
 from plainera_unacronym.nlp.extraction.anchored.normalise import tighten_definition_span
 from plainera_unacronym.nlp.extraction.matchers.tighten import tighten_label_by_acronym
@@ -28,7 +28,7 @@ def clean_definition(orig: str, *, acr_norm: str, cfg: ExtractionConfig, kind: s
         base = orig
 
     clean = normalize_definition(tighten_label_by_acronym(base, acr_norm))
-    if not clean or len(clean) > cfg.max_phrase_chars:
+    if not clean or not has_letters(clean) or len(clean) > cfg.max_phrase_chars:
         return None
 
     if cfg.require_two_words and kind in INLINE_KINDS:
