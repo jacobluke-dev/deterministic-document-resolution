@@ -6,7 +6,6 @@ from plainera_unacronym.nlp.common.shared import (has_letters,
                                                   normalize_definition)
 from plainera_unacronym.nlp.extraction.matchers.common import is_mixed_case_acronym
 from plainera_unacronym.nlp.extraction.matchers.defs.common import (LocalDefMatch,
-                                                                    first_alnum_char_upper,
                                                                     build_initials_stream,
                                                                     align_acronym_to_initials,
                                                                     expand_numeric_leading_window, build_kept_phrase)
@@ -14,21 +13,51 @@ from plainera_unacronym.nlp.extraction.matchers.numeric_matcher import consume_l
 
 
 def find_parenthetical_longform_before_acr(snippet: str, acr: str, cfg) -> list[LocalDefMatch]:
-    """
-    Find:  Long Form ... (ACR)   anchored at the end of `snippet`.
+    """Find a long-form definition immediately before a parenthesised acronym.
 
-    Strategy (RIGHT→LEFT):
-      1) Capture the text immediately before '(ACR)' with a look-ahead.
-      2) Tokenize LTR (to get stable character spans), but *match* RTL.
-      3) Split tokens into parts (hyphen/slash/dot/& and CamelCase).
-         Build a per-part initials sequence RTL.
-      4) Match ACR letters (ignoring non-alnum), with constraints:
-         - UPPERCASE letter → must land on a non-stopword token
-         - lowercase letter → must land on a stopword token
-      5) The token window is [leftmost contributing token .. last token].
-         Expand the window to include adjacent numeric-leading tokens.
-      6) Keep matched tokens + bridges + numeric-leading tokens (for readability).
-      7) Return tight character spans over the original `snippet` and a normalized phrase.
+    Matches the anchored pattern:
+
+        Long Form ... (ACR)
+
+    where the closing wrapper `(...ACR...)` must occur at the end of `snippet`.
+    The long-form window is selected by scanning tokens right-to-left and aligning
+    the acronym letters to an initials stream built from the candidate phrase.
+
+    High-level behaviour:
+      - Uses a regex look-ahead to capture the text immediately before `(ACR)` while
+        allowing a small “tail” inside the wrapper such as `(ACR, ...)`.
+      - Tokenises the candidate prefix left-to-right to preserve stable character spans,
+        but performs matching right-to-left to prefer the nearest plausible definition.
+      - Builds an initials stream that can split compounds (hyphens/slashes/dots/& and
+        CamelCase) and optionally treat acronym-like tokens as multi-letter parts.
+      - Attempts acronym-to-initials alignment with strict rules first, then retries
+        with relaxed rules if needed.
+      - Expands the chosen token window to include adjacent numeric-leading tokens and
+        keeps matched tokens plus configured bridge words for readability.
+      - Returns tight `(def_start, def_end)` spans into the original `snippet` along with
+        a normalised display definition.
+
+    Args:
+        snippet: Text ending with a parenthesised acronym occurrence, e.g.
+            `"Portable Document Format (PDF)."` The matcher is anchored to the end.
+        acr: Acronym surface form to align (letters/digits supported).
+        cfg: Extraction config-like object. Reads:
+            - `max_phrase_chars` (default 80)
+            - `stopwords` (default `DEFAULT_STOPWORDS`)
+            - `bridges` (default `BRIDGES_DEFAULT`)
+
+    Returns:
+        A list of `LocalDefMatch`. Empty if no match is found. When present, the
+        list contains a single best match with:
+          - `def_start` / `def_end`: character offsets into `snippet`
+          - `definition`: normalised definition string for display
+          - `raw`: whitespace-collapsed raw window from `snippet[def_start:def_end]`
+
+    Notes:
+        - This function enforces `max_phrase_chars` on the raw pre-wrapper prefix
+          before any tightening/normalisation.
+        - Offsets are computed against the original `snippet`; normalisation does
+          not alter indices.
     """
     max_chars = getattr(cfg, "max_phrase_chars", 80)
     stop = getattr(cfg, "stopwords", DEFAULT_STOPWORDS)
