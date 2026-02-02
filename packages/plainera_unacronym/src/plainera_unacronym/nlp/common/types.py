@@ -195,3 +195,8 @@ class OccurrenceBuildError(Exception):
 pattern_cache: dict[tuple[Any, ...], re.Pattern[str]] = {}
 
 soft_dotted_drop: frozenset[str] = frozenset({"EG", "IE", "AKA"})
+
+INLINE = "inline"
+INLINE_BEFORE = "inline_before"
+
+INLINE_KINDS = {INLINE, INLINE_BEFORE}
