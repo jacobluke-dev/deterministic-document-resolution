@@ -101,13 +101,18 @@ def find_parenthetical_longform_after_acr(
 
     # ---- choose window (i, j) and hit_tokens ----
     if acr and require_initials_match:
+        needs_compound_split = any(
+            ("-" in t) or ("/" in t) or ("&" in t) or ("." in t)
+            for t in tokens
+        )
+
         stream = build_initials_stream(
             tokens,
             stopwords=stop,
             scan="ltr",
             expand_allcaps_tokens=is_mixed_case_acronym(acr),
-            split_compounds=False,
-            treat_acronym_tokens_as_multi_letter=False,
+            split_compounds=needs_compound_split,
+            treat_acronym_tokens_as_multi_letter=needs_compound_split,
         )
 
         hit = align_acronym_to_initials(
