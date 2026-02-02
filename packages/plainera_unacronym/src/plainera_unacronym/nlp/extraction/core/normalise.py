@@ -18,6 +18,29 @@ _LAST_PROPER_CHUNK = re.compile(r"([A-Z][\w’'-]+(?:\s+[A-Z][\w’'-]+){1,})$")
 
 
 def tighten_label(s: str) -> str:
+    """Normalise and tighten a candidate definition label for display.
+
+        This is a *display/UX* helper that tries to reduce noisy surrounding text
+        while keeping the most meaningful phrase.
+
+        Pipeline:
+          1) `normalize_definition(s)` (canonicalise apostrophes/dashes, collapse
+             whitespace, trim trailing punctuation).
+          2) Remove common leading connector phrases (e.g. "and", "which", "for")
+             up to two times to handle stacked connectors.
+          3) If the string ends with a multi-word Proper-Noun chunk (TitleCase /
+             ALLCAPS-ish words), return that trailing chunk (with a leading article removed).
+          4) Otherwise, remove a single leading article ("the", "a", "an").
+          5) If the string contains " stands for ", " means ", " is ", or " are ",
+             return the RHS (right-hand side) as the tightened label.
+          6) Fallback: return the (already normalised) string.
+
+        Args:
+            s: Candidate definition string.
+
+        Returns:
+            A tightened, display-friendly definition label.
+    """
     s = normalize_definition(s)
 
     # drop leading connectors (run twice to be safe)
