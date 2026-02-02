@@ -15,7 +15,29 @@ def _build_local_window(
     window_left: int,
     window_right: int,
 ) -> tuple[int, int, str]:
-    # Build a local window around the first occurrence
+    """Build a bounded local text window around a first occurrence.
+
+    Computes a `[left:right]` slice around `fo` using the provided window sizes,
+    clamped to the document bounds. Returns both absolute indices and the sliced
+    segment for downstream matching.
+
+    Args:
+        text (str): Full document text.
+        fo (FirstOccurrence): First occurrence acr.
+        window_left (int): No. chars to the left of `fo.start_offset`.
+        window_right (int): No. chars to the right of `fo.end_offset`.
+
+    Returns:
+        tuple[int, int, str]: `(left, right, seg)` where:
+            - `left` is the clamped start index (inclusive),
+            - `right` is the clamped end index (exclusive),
+            - `seg` is `text[left:right]`.
+
+    Notes:
+        - `left` is clamped to `0` and `right` is clamped to `len(text)`.
+        - This function does not validate that `fo` offsets are within bounds; callers
+          should ensure `fo.start_offset <= fo.end_offset` and both are valid indices.
+    """
     left = max(0, fo.start_offset - window_left)
     right = min(len(text), fo.end_offset + window_right)
     seg = text[left:right]
@@ -23,11 +45,33 @@ def _build_local_window(
 
 
 def _fo_occurrence_position(fo: FirstOccurrence, left: int) -> Span:
-    # FO position in the local segment
+    """Return the first-occurrence span relative to a local window.
+
+    Args:
+        fo (FirstOccurrence): First occurrence with absolute offsets in the full text.
+        left (int): Absolute start index of the local window in the full text.
+
+    Returns:
+        Span: `(start, end)` offsets relative to the local segment (`text[left:right]`).
+    """
     return fo.start_offset - left, fo.end_offset - left
 
-
 def _pick_better(best: Optional[ExtractedDefinition], cand: ExtractedDefinition) -> ExtractedDefinition:
+    """Choose the better of two definition candidates.
+
+        Selection rules:
+            1) If `best` is None, return `cand`.
+            2) Prefer higher `confidence`.
+            3) If confidence ties, prefer the shorter definition span
+               (`def_end - def_start`).
+
+        Args:
+            best (ExtractedDefinition | None): Current best candidate.
+            cand (ExtractedDefinition): New candidate to compare.
+
+        Returns:
+            ExtractedDefinition: The chosen candidate.
+        """
     if best is None:
         return cand
     return cand if cand.confidence > best.confidence else min((best, cand),
@@ -35,10 +79,35 @@ def _pick_better(best: Optional[ExtractedDefinition], cand: ExtractedDefinition)
 
 
 def _anchored_confidence(*, base_conf: float, dist: float) -> float:
+    """Compute anchored confidence with a small distance penalty.
+
+        Applies a linear penalty of 0.0005 per character of distance, capped at
+        200 characters, and caps the final confidence at 0.99.
+
+        Args:
+            base_conf (float): Base confidence for the matched pattern.
+            dist (float): Character distance from the first occurrence.
+
+        Returns:
+            float: Confidence score in the range `(-inf, 0.99]`.
+        """
     return min(base_conf - min(dist, 200) * 0.0005, 0.99)
 
 
 def _distance_from_fo(*, a0_local: int, left: int, fo_start_offset: int) -> int:
+    """Return absolute character distance from the first occurrence start.
+
+        Converts a local segment offset back to an absolute offset by adding `left`,
+        then returns the absolute difference from `fo_start_offset`.
+
+        Args:
+            a0_local (int): Acronym start offset within the local segment.
+            left (int): Absolute start index of the local segment in the full text.
+            fo_start_offset (int): Absolute start offset of the first occurrence.
+
+        Returns:
+            int: Absolute distance in characters.
+        """
     return abs((a0_local + left) - fo_start_offset)
 
 
