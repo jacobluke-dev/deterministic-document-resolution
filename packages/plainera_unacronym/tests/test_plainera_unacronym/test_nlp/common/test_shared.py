@@ -1,7 +1,9 @@
 import pytest
 from plainera_unacronym.nlp.common.constants_regex import APOSTROPHE_VARIANTS
-from plainera_unacronym.nlp.common.shared import has_paren_definition, normalize_acronym_key, tighten_label, \
-    strip_trailing_punct_str
+from plainera_unacronym.nlp.extraction.core.normalise import tighten_label
+from plainera_unacronym.nlp.common.shared import (has_paren_definition,
+                                                  normalize_acronym_key,
+                                                  strip_trailing_punct_str)
 from plainera_unacronym.nlp.extraction.anchored.normalise import tighten_definition_span
 
 

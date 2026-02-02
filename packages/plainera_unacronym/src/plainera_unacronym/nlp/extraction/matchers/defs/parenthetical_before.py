@@ -1,9 +1,8 @@
 import re
 
 from plainera_unacronym.nlp.common.constants_regex import DEFAULT_STOPWORDS, BRIDGES_DEFAULT, QUOTE
-from plainera_unacronym.nlp.common.shared import (has_letters,
-                                                  collapse_ws,
-                                                  normalize_definition)
+from plainera_unacronym.nlp.extraction.core.normalise import has_letters, normalize_definition
+from plainera_unacronym.nlp.common.shared import collapse_ws
 from plainera_unacronym.nlp.extraction.matchers.common import is_mixed_case_acronym
 from plainera_unacronym.nlp.extraction.matchers.defs.common import (LocalDefMatch,
                                                                     build_initials_stream,

@@ -1,7 +1,6 @@
 import pytest
 
-from plainera_unacronym.nlp.extraction.core.collect import initials_match
-from plainera_unacronym.nlp.common.shared import has_letters
+from plainera_unacronym.nlp.extraction.core.normalise import  has_letters
 
 
 class TestHasLetters:

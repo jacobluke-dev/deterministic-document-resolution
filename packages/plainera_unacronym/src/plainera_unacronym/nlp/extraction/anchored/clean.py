@@ -2,10 +2,10 @@ import re
 from typing import Optional
 
 from plainera_unacronym.nlp.common.constants_regex import TOKEN_RE
-from plainera_unacronym.nlp.common.shared import normalize_definition, has_letters
 from plainera_unacronym.nlp.common.types import INLINE_KINDS, INLINE, INLINE_BEFORE
 from plainera_unacronym.nlp.extraction import ExtractionConfig
 from plainera_unacronym.nlp.extraction.anchored.normalise import tighten_definition_span
+from plainera_unacronym.nlp.extraction.core.normalise import normalize_definition, has_letters
 from plainera_unacronym.nlp.extraction.matchers.tighten import tighten_label_by_acronym
 
 _DET_PREFIX_RE = re.compile(r"^\s*(?:the|a|an)\b\s+", re.IGNORECASE)

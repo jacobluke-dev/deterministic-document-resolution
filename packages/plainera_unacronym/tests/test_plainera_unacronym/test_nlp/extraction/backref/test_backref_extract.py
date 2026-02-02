@@ -2,7 +2,7 @@ import pytest
 
 from plainera_unacronym.nlp import FirstOccurrence
 from plainera_unacronym.nlp.common.constants_regex import BRIDGES_DEFAULT
-from plainera_unacronym.nlp.common.shared import normalize_definition
+from plainera_unacronym.nlp.extraction.core.normalise import normalize_definition
 from plainera_unacronym.nlp.common.types import ExtractedDefinition
 from plainera_unacronym.nlp.extraction.backref.spans import best_span_by_initials
 from plainera_unacronym.nlp.extraction.config import ExtractionConfig

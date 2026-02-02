@@ -2,10 +2,8 @@ import re
 from typing import Optional
 
 from plainera_unacronym.nlp.common.constants_regex import BRIDGES_DEFAULT, DEFAULT_STOPWORDS
-from plainera_unacronym.nlp.common.shared import (has_letters,
-                                                  normalize_definition,
-                                                  strip_trailing_punct_str,
-                                                  collapse_ws)
+from plainera_unacronym.nlp.extraction.core.normalise import has_letters, normalize_definition
+from plainera_unacronym.nlp.common.shared import strip_trailing_punct_str, collapse_ws
 from plainera_unacronym.nlp.extraction.anchored.normalise import tighten_definition_span
 from plainera_unacronym.nlp.extraction.matchers.common import is_mixed_case_acronym
 from plainera_unacronym.nlp.extraction.matchers.defs.common import (LocalDefMatch,
