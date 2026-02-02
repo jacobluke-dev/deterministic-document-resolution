@@ -17,11 +17,27 @@ _TAIL_PUNCT = set(",;:—–-")
 
 
 def _trim_span(seg: str, d0: int, d1: int) -> Span:
+    """Trim leading/trailing whitespace from a slice span.
+
+    Adjusts (d0, d1) inward while the characters at the boundaries are
+    whitespace (per `str.isspace()`), without touching internal whitespace.
+
+    Args:
+        seg: The string being spanned.
+        d0: Start index (inclusive).
+        d1: End index (exclusive).
+
+    Returns:
+        A tuple (new_d0, new_d1) such that `seg[new_d0:new_d1]` has no leading
+        or trailing whitespace relative to the original `seg[d0:d1]` slice.
+        If the slice is all-whitespace, returns (k, k) for some k in [d0, d1].
+    """
     while d0 < d1 and seg[d0].isspace():
         d0 += 1
     while d1 > d0 and seg[d1 - 1].isspace():
         d1 -= 1
     return d0, d1
+
 
 
 def _calc_def_span_def_before(
@@ -31,6 +47,33 @@ def _calc_def_span_def_before(
     m: re.Match[str],
     cfg: ExtractionConfig,
 ) -> OptSpan:
+    """Resolve a definition span for the forward-parenthetical form: `DEF (ACR...)`.
+
+    Handles two cases:
+
+    1) **Plain wrapper** `Long Form (ACR)`:
+       Uses `find_parenthetical_longform_before_acr` on the matched snippet to
+       reuse the “helper” logic and return its definition span.
+
+    2) **Complex wrapper** where the acronym is decorated inside the wrapper:
+       - quotes around acronym: `("ACR")`, `('ACR')`, `(“ACR”)`
+       - trailing tail punctuation: `(ACR, ...)`, `(ACR - ...)`, etc.
+       - dotted acronym with terminal dot inside wrapper: `(U.S.A.)`
+
+       In these cases, bypasses the helper and returns the trimmed `m.group("def")`
+       span **only if** `initials_match(acr_norm, phrase)` passes.
+
+    Args:
+        acr_norm: Normalised acronym key used for initials validation.
+        seg: The local segment/window being searched.
+        m: Regex match containing named groups `def` and `acr`.
+        cfg: Extraction configuration passed through to helper matchers.
+
+    Returns:
+        (d0, d1) indices into `seg` for the selected definition, or None when no
+        valid span can be resolved.
+    """
+
     # 1) quotes around acronym inside wrapper: ("PDF") / ('PDF') / (“PDF”)
     q_before = m.start("acr") - 1
     q_after = m.end("acr")
@@ -74,6 +117,26 @@ def _calc_def_span_inline_after(
     acr_end_local: int,
     cfg: ExtractionConfig,
 ) -> OptSpan:
+    """Resolve the definition span for an inline-after pattern.
+
+    This helper is used for patterns like:
+
+        "ACR stands for Long Form"
+
+    It slices the segment at `acr_end_local`, runs the inline-after matcher on the
+    suffix, and (if a match is found) re-bases the matcher’s local definition span
+    back into `seg` offsets.
+
+    Args:
+        acr_norm (str): Normalised acronym (typically uppercased) to match.
+        seg (str): Local text segment being scanned.
+        acr_end_local (int): End offset of the acronym within `seg` (exclusive).
+        cfg (ExtractionConfig): Extraction configuration (uses `max_phrase_chars`).
+
+    Returns:
+        Span | None: `(def_start, def_end)` offsets into `seg` if a definition is
+        found; otherwise `None`.
+    """
     snippet = seg[acr_end_local:]
     mm = find_inline_longform_after_acr(
         snippet,
@@ -96,6 +159,30 @@ def _calc_def_span_def_after(
     acr_end_local: int,
     cfg: ExtractionConfig,
 ) -> OptSpan:
+    """Resolve the definition span for an acronym-first parenthetical/bracket form.
+
+        Handles shapes like:
+
+            "ACR (Long Form)"
+            "ACR’s (Long Form)"
+            "ACR, (Long Form)"
+            "ACR - (Long Form)"
+
+        It slices `seg` at `acr_end_local`, optionally consumes a possessive/joiner
+        (e.g. `'s`, commas, dashes) via `_POSSESSIVE_JOIN_RE`, then runs the
+        acronym-after matcher on the remaining snippet. If a match is found, the
+        matcher’s local definition span is re-based back into `seg` coordinates.
+
+        Args:
+            acr_norm (str): Normalised acronym (typically uppercased) to match.
+            seg (str): Local text segment being scanned.
+            acr_end_local (int): End offset of the acronym within `seg` (exclusive).
+            cfg (ExtractionConfig): Extraction configuration passed to the matcher.
+
+        Returns:
+            Span | None: `(def_start, def_end)` offsets into `seg` if a definition is
+            found; otherwise `None`.
+    """
     snippet = seg[acr_end_local:]
 
     j = _POSSESSIVE_JOIN_RE.match(snippet)
@@ -127,6 +214,7 @@ def _calc_def_span(
     m: re.Match[str] = None,
     cfg: ExtractionConfig,
 ) -> OptSpan:
+    print(kind, acr_norm, seg, acr_end_local, m)
     if kind == "def_after":
         assert acr_end_local is not None
         return _calc_def_span_def_after(acr_norm=acr_norm, seg=seg, acr_end_local=acr_end_local, cfg=cfg)

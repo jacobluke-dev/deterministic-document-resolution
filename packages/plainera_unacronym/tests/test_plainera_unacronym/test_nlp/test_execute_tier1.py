@@ -315,8 +315,11 @@ class TestDetectAndExtractE2E:
         det, extr = detect_and_extract("Single sign-on (SSO) is enabled.")
         assert picked_def(extr, "SSO") in {"Single sign-on"}, extr.picks.get("SSO")
 
-    def test_parenthetical_preserves_lowercase_hyphen_token(self):
-        det, extr = detect_and_extract("single sign-on (SSO) is enabled.")
+    def test_parenthetical_reserve_token(self):
+        det, extr, r = detect_and_extract("SSO (single sign-on) is enabled.", return_reports=True)
+        pprint.pprint(r)
+        pprint.pprint(extr)
+        pprint.pprint(det)
         assert picked_def(extr, "SSO") == "single sign-on", extr.picks.get("SSO")
 
     def test_parenthetical_all_lowercase_definition_is_allowed(self):
@@ -373,12 +376,8 @@ class TestDetectAndExtractE2E:
         assert picked_def(extr, "JWT") == "JSON Web Tokens", extr.picks.get("JWT")
 
     def test_tier_one_sso_is_extracted_via_sentence_backref(self):
-        det, extr, r = detect_and_extract(
-            "We use Single sign-on in hospitals. This method of auth is known as SSO.", return_reports=True
-        )
-        pprint.pprint(det)
-        pprint.pprint(extr)
-        pprint.pprint(r)
+        det, extr = detect_and_extract(
+            "We use Single sign-on in hospitals. This method of auth is known as SSO.")
         assert picked_def(extr, "SSO") == "Single sign-on", extr.picks.get("SSO")
 
     def test_tier_one_negative_mismatch_plausible_longform_wrong_acronym(self):
