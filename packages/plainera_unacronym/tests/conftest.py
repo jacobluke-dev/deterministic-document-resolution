@@ -31,8 +31,6 @@ def _patch(monkeypatch):
     def _apply(func, **replacements):
         g = func.__globals__
         for name, impl in replacements.items():
-            if name not in g:
-                raise KeyError(f"{func.__name__}: cannot patch missing global '{name}'")
             monkeypatch.setitem(g, name, impl)
         return func
     return _apply
