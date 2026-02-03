@@ -5,11 +5,36 @@ from plainera_unacronym.nlp.common.shared import canonicalize, collapse_ws, stri
 
 
 def normalize_definition(s: str) -> str:
-    """
-    UX/display normalisation for definitions:
-      - NFKC + fold dash/apostrophes
-      - collapse whitespace
-      - strip trailing punctuation
+    """Normalise a definition string for consistent UX/display.
+
+    This is a *presentation-layer* normaliser used to make extracted long-forms
+    stable and user-friendly without changing their semantic content.
+
+    It performs three steps:
+
+    1) Canonicalisation (`canonicalize`)
+       - Applies Unicode NFKC normalisation.
+       - Folds common dash variants (en/em dashes) to ASCII "-".
+       - Folds common apostrophe variants (curly quotes, primes) to ASCII "'".
+
+    2) Whitespace normalisation (`collapse_ws`)
+       - Collapses any run of whitespace (spaces, tabs, newlines) to a single
+         ASCII space.
+       - Trims leading and trailing whitespace.
+
+    3) Trailing punctuation trimming (`strip_trailing_punct_str`)
+       - Removes trailing punctuation characters (e.g. ",.;:)]}»”'\"") and any
+         trailing whitespace.
+
+    This function is intentionally conservative: it does not lowercase, remove
+    internal punctuation, or rewrite wording. It is designed for deterministic
+    display output and easier deduplication across extraction paths.
+
+    Args:
+        s: Raw definition text (may contain Unicode punctuation and messy spacing).
+
+    Returns:
+        A normalised definition string suitable for display and comparison.
     """
     return strip_trailing_punct_str(collapse_ws(canonicalize(s)))
 
@@ -17,7 +42,7 @@ def normalize_definition(s: str) -> str:
 _LAST_PROPER_CHUNK = re.compile(r"([A-Z][\w’'-]+(?:\s+[A-Z][\w’'-]+){1,})$")
 
 
-def tighten_label(s: str) -> str:
+def tighten_label(def_str: str) -> str:
     """Normalise and tighten a candidate definition label for display.
 
         This is a *display/UX* helper that tries to reduce noisy surrounding text
@@ -36,34 +61,34 @@ def tighten_label(s: str) -> str:
           6) Fallback: return the (already normalised) string.
 
         Args:
-            s: Candidate definition string.
+            def_str: Candidate definition string.
 
         Returns:
             A tightened, display-friendly definition label.
     """
-    s = normalize_definition(s)
+    def_str = normalize_definition(def_str)
 
     # drop leading connectors (run twice to be safe)
     for _ in range(2):
-        s = LEADING_CONNECTORS.sub("", s).strip()
+        def_str = LEADING_CONNECTORS.sub("", def_str).strip()
 
     # if we have a trailing proper-noun chunk, use it
-    m = _LAST_PROPER_CHUNK.search(s)
+    m = _LAST_PROPER_CHUNK.search(def_str)
     if m:
         chunk = m.group(1)
         return ARTICLE.sub("", chunk).strip()
 
     # else: remove leading article only
-    s = ARTICLE.sub("", s).strip()
+    def_str = ARTICLE.sub("", def_str).strip()
 
     # common “X is/means/stands for Y” patterns → keep the RHS
     for splitter in (" stands for ", " means ", " is ", " are "):
-        parts = s.split(splitter, 1)
+        parts = def_str.split(splitter, 1)
         if len(parts) == 2:
             return parts[1].strip()
 
     # fallback: return as-is (already normalized)
-    return s
+    return def_str
 
 
 def has_letters(s: str) -> bool:
