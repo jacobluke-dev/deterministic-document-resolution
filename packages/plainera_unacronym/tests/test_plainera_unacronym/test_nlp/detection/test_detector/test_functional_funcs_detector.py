@@ -3,7 +3,10 @@ from dataclasses import dataclass
 import plainera_unacronym.nlp.detection.detector as det
 import pytest
 from plainera_unacronym.nlp import DetectorConfig, Occurrence
-from plainera_unacronym.nlp.detection.detector import _build_occurrence_from_match, _score_chunk_worker
+from plainera_unacronym.nlp.common.types import OccurrenceBuildError
+from plainera_unacronym.nlp.detection.detector import (_build_occurrence_from_match,
+                                                       _score_chunk_worker,
+                                                       _adjust_end_for_trailing_dot)
 
 
 @dataclass(frozen=True, slots=True)
@@ -13,6 +16,72 @@ class _TestCfg(DetectorConfig):
     dotted_display: str = "strip"
     debug_reasons: bool = False
     debug_anomalies: bool = False
+
+
+class TestAdjustEndForTrailingDotUnit:
+    def test_strip_mode_does_not_advance_when_dot_present(self):
+        cfg = DetectorConfig(dotted_display="strip")
+        text = "NASA."
+        s, e = 0, 4  # span is "NASA", dot is at text[4]
+        assert text[e] == "."
+        assert _adjust_end_for_trailing_dot(cfg, text, s, e) == e
+
+    def test_preserve_mode_advances_by_one_when_dot_present(self):
+        cfg = DetectorConfig(dotted_display="preserve")
+        text = "NASA."
+        s, e = 0, 4
+        assert text[e] == "."
+        assert _adjust_end_for_trailing_dot(cfg, text, s, e) == e + 1
+
+    def test_preserve_mode_does_not_advance_when_no_dot(self):
+        cfg = DetectorConfig(dotted_display="preserve")
+        text = "NASA!"
+        s, e = 0, 4
+        assert text[e] == "!"
+        assert _adjust_end_for_trailing_dot(cfg, text, s, e) == e
+
+    def test_at_end_of_text_never_advances(self):
+        cfg = DetectorConfig(dotted_display="preserve")
+        text = "NASA"
+        s, e = 0, 4  # e == len(text)
+        assert _adjust_end_for_trailing_dot(cfg, text, s, e) == e
+
+    @pytest.mark.parametrize("display_mode", ["strip", "preserve", "unknown"])
+    def test_unknown_mode_behaves_like_strip(self, display_mode):
+        # getattr(cfg, "dotted_display", "strip") reads whatever you set,
+        # but only "preserve" causes advancement.
+        cfg = DetectorConfig(dotted_display=display_mode)  # type: ignore[arg-type]
+        text = "U.S."
+        s, e = 0, 3  # span "U.S", dot at index 3
+        assert text[e] == "."
+        expected = e + 1 if display_mode == "preserve" else e
+        assert _adjust_end_for_trailing_dot(cfg, text, s, e) == expected
+
+    @pytest.mark.parametrize(
+        "text,s,e",
+        [
+            ("NASA.", -1, 4),   # negative start
+            ("NASA.", 0, -1),   # negative end
+            ("NASA.", 0, 999),  # end out of bounds
+            ("NASA.", 3, 2),    # s >= end_for_occ (invalid slice)
+        ],
+    )
+    def test_raises_on_bad_offsets(self, text, s, e):
+        cfg = DetectorConfig(dotted_display="strip")
+        with pytest.raises(OccurrenceBuildError):
+            _adjust_end_for_trailing_dot(cfg, text, s, e)
+
+    def test_raises_when_preserve_advances_past_text_end(self):
+        # e points at the last character '.', so preserve would try to advance past end.
+        cfg = DetectorConfig(dotted_display="preserve")
+        text = "X."
+        s, e = 0, 1  # span "X", dot at index 1 (OK to advance to 2)
+        assert _adjust_end_for_trailing_dot(cfg, text, s, e) == 2
+
+        # Now make the span include the dot already; e == len(text), cannot look at text[e]
+        # and also no advancement should happen; still must validate offsets.
+        s2, e2 = 0, 2
+        assert _adjust_end_for_trailing_dot(cfg, text, s2, e2) == 2
 
 
 class TestBuildOccurrenceFromMatch:
@@ -25,7 +94,7 @@ class TestBuildOccurrenceFromMatch:
 
         def fake_context_window(text, s, e, win):
             calls["context_window"] = (text, s, e, win)
-            return (111, 222)
+            return 111, 222
 
         _patch(
             _build_occurrence_from_match,

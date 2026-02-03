@@ -18,9 +18,25 @@ def _alpha_len(s: str) -> int:
 
 
 def strip_terminal_plural(surface: str) -> str:
+    """
+    Strip terminal plural/possessive suffixes (e.g. "GPUs", "CPU's", "CPU’s") from
+    fully-uppercase acronym tokens, but never from dotted initialisms (e.g. "U.S.A.s").
+
+    Args:
+        surface: Raw matched surface token.
+
+    Returns:
+        Surface with a trailing suffix removed when the stem is all-caps and not dotted;
+        otherwise the input unchanged.
+    """
     for suf in PLURAL_SUFFIXES_DEFAULT:
-        if surface.endswith(suf) and surface[: -len(suf)].isupper():
-            return surface[: -len(suf)]
+        if surface.endswith(suf):
+            stem = surface[: -len(suf)]
+            # Don't strip on dotted initialisms (U.S.A.s)
+            if "." in stem:
+                return surface
+            if stem.isupper():
+                return stem
     return surface
 
 

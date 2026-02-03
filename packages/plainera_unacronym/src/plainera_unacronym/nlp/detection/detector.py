@@ -7,7 +7,7 @@ from observability.logger.decorator import logger
 from observability.logger.levels import LogLevel
 from observability.logger.message_logger import message_logger
 
-from plainera_unacronym.nlp.common.constants_regex import ALLOW_CHARS, DOT_MODE_DEFAULT
+from plainera_unacronym.nlp.common.constants_regex import ALLOW_CHARS
 from plainera_unacronym.nlp.common.shared import normalize_acronym_key, strip_trailing_punct_str
 from plainera_unacronym.nlp.common.types import (
     DetectorConfig,
@@ -35,7 +35,70 @@ from .nlp_helpers import _cfg_fingerprint, top_n_values
 
 DEFAULT_CONFIG = DetectorConfig()
 ALLOW_CHARS_DEFAULTS = ALLOW_CHARS
-DEFAULT_DOT_MODE_DEFAULT = DOT_MODE_DEFAULT
+
+
+def _adjust_end_for_trailing_dot(cfg: DetectorConfig, text: str, s: int, e: int) -> int:
+    """
+    Apply the dotted-display policy to an occurrence end-offset.
+
+    If `cfg.dotted_display == "preserve"` and the character immediately following the
+    matched span (`text[e]`) is a literal '.', advance the end offset by one so the
+    occurrence span includes that trailing dot (e.g. matching "U.S" in "U.S." yields an
+    end offset that includes the final period). In "strip" mode (or when no trailing dot
+    exists), the end offset is returned unchanged.
+
+    This function validates that the resulting span `[s, end_for_occ)` is a well-formed
+    slice into `text`.
+
+    Args:
+        cfg: Detection configuration; reads `dotted_display` ("strip" or "preserve").
+        text: The full source text the offsets refer to.
+        s: Start offset (inclusive) of the matched surface.
+        e: End offset (exclusive) of the matched surface (before trailing-dot adjustment).
+
+    Returns:
+        int: The adjusted end offset (exclusive) to use for the occurrence.
+
+    Raises:
+        OccurrenceBuildError: If the adjusted offsets are invalid (out of bounds or
+            start/end ordering is wrong).
+    """
+    display_mode = getattr(cfg, "dotted_display", "strip")
+
+    has_trailing_dot = e < len(text) and text[e] == "."
+
+    # Surface to display (may include the trailing dot if preserving)
+    end_for_occ = e + 1 if (display_mode == "preserve" and has_trailing_dot) else e
+    if not (0 <= s < end_for_occ <= len(text)):
+        raise OccurrenceBuildError("bad_offsets")
+    return end_for_occ
+
+
+def _normalize_surface_for_key(surface: str) -> str:
+    """
+        Normalise a matched surface into (base_surface, key_base) for occurrence/key construction.
+
+        The `base_surface` is produced by stripping terminal plural suffixes from fully-uppercase
+        acronym tokens (e.g. "GPUs" -> "GPU", "CPU's" -> "CPU"). The `key_base` is then derived
+        from `base_surface` by removing trailing punctuation via `strip_trailing_punct_str()`,
+        ensuring acronym/key strings do not end with punctuation.
+
+        Note:
+            This does not canonicalize internal punctuation (e.g. dotted initialisms) — that is
+            handled later by `normalize_acronym_key(..., dotted_mode=cfg.dotted_display)`.
+
+        Args:
+            surface: Raw matched surface form, typically `text[s:e]`.
+
+        Returns:
+            str:
+                - key_base: `base_surface` with trailing punctuation stripped, suitable for
+                  key normalization and for storing as the occurrence acronym.
+    """
+
+    # IMPORTANT: strip trailing punct from base so acronym/key never has terminal dot
+    key_base = strip_trailing_punct_str(strip_terminal_plural(surface))
+    return key_base
 
 
 def _build_occurrence_from_match(
@@ -50,14 +113,12 @@ def _build_occurrence_from_match(
     Build an `Occurrence` from a single candidate span and return it with its display key.
 
     Applies the dotted-display policy from `cfg.dotted_display` ("strip" or "preserve").
-    If preserving and the next character in `text` is a trailing '.', the dot is included
-    in the displayed surface and the end offset is advanced by one. The surface is then
-    normalized (and plural stripped) to compute a display key for first-occurrence maps.
+    preserve mode extends the occurrence span to include a trailing dot (offset only);
+    the acronym/key do not retain terminal punctuation
     When `cfg.debug_reasons` is enabled, reason tags are attached.
 
     Args:
-        cfg: Detection configuration (uses `allow_chars`, `window_chars`,
-            `dotted_display`, and optionally `debug_reasons`).
+        cfg: Detection configuration
         text: Full source text.
         surface: Matched surface form (typically `text[s:e]`).
         s: Start offset (inclusive) of the match.
@@ -77,25 +138,17 @@ def _build_occurrence_from_match(
         * `context_window` is derived from the adjusted `(s, end_for_occ)` span.
         * Normalization uses `normalize_key(..., dotted_mode=cfg.dotted_display)`.
     """
-    display_mode = getattr(cfg, "dotted_display", "strip")
+    end_for_occ = _adjust_end_for_trailing_dot(cfg, text, s, e)
 
-    has_trailing_dot = e < len(text) and text[e] == "."
+    key_base = _normalize_surface_for_key(surface)
 
-    # Surface to display (may include the trailing dot if preserving)
-    surface_for_display = surface + "." if (display_mode == "preserve" and has_trailing_dot) else surface
-    end_for_occ = e + 1 if (display_mode == "preserve" and has_trailing_dot) else e
-    if not (0 <= s < end_for_occ <= len(text)):
-        raise OccurrenceBuildError("bad_offsets")
-
-    base = strip_terminal_plural(surface_for_display)
-    if not base.strip():
+    if not key_base.strip():
         raise OccurrenceBuildError("empty_acronym")
 
-    key_base = strip_trailing_punct_str(base)
     display_key = normalize_acronym_key(
         key_base,
         cfg.allow_chars,
-        dotted_mode=cfg.dotted_display,
+        dotted_mode=cfg.dotted_display,  # this governs INTERNAL dot handling (U.S.A vs USA)
     )
     if not display_key:
         raise OccurrenceBuildError("empty_display_key")
@@ -149,7 +202,7 @@ def _score_chunk_worker(cfg: DetectorConfig, text: str, cands: list[tuple[str, i
             if getattr(cfg, "debug_anomalies", False):
                 message_logger(
                     "detector.bad_occurrence",
-                    level=LogLevel.ERROR,
+                    level=LogLevel.DEBUG,
                     logger_type="nlp",
                     details={"reason": str(err), "surface": surface, "s": s, "e": e},
                     db_sink=sink,
@@ -356,7 +409,7 @@ class Detector:
 
         futures = []
         for i in range(0, len(cands), chunk_size):
-            futures.append(self._pool.submit(_score_chunk_worker, cfg, text, cands[i : i + chunk_size]))
+            futures.append(self._pool.submit(_score_chunk_worker, cfg, text, cands[i: i + chunk_size]))
 
         occurrences: list[Occurrence] = []
         for idx, f in enumerate(futures):
@@ -393,6 +446,26 @@ class Detector:
                 )
 
         return DetectorResult(unique_acronyms=firsts, occurrences=occurrences)
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc, tb):
+        self.shutdown(wait=False, cancel_futures=True)
+        return False
+
+    def shutdown(self, *, wait: bool = False, cancel_futures: bool = True) -> None:
+        """
+        Shut down the internal ProcessPoolExecutor (if created).
+
+        Call this from your application shutdown hook to avoid leaking processes.
+        """
+        pool = self._pool
+        if pool is None:
+            return
+
+        pool.shutdown(wait=wait, cancel_futures=cancel_futures)
+        self._pool = None
 
     async def detect_async(self, text: str) -> DetectorResult:
         """

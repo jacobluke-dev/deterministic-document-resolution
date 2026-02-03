@@ -1,5 +1,6 @@
 import re
 from dataclasses import dataclass, field
+from types import MappingProxyType
 from typing import Any, FrozenSet, Literal, Mapping, Optional, TypeAlias
 
 from plainera_unacronym.nlp.common.constants_regex import ALLOW_CHARS, DottedMode
@@ -103,12 +104,14 @@ class OccurrenceResolution:
 class DetectorConfig:
     min_len: int = 2
     min_confidence_default: float = 0.50
-    min_confidence_by_len: dict[int, float] = field(default_factory=lambda: {2: 0.72, 3: 0.60, 4: 0.55})
+    min_confidence_by_len: Mapping[int, float] = field(
+        default_factory=lambda: MappingProxyType({2: 0.72, 3: 0.60, 4: 0.55})
+    )
 
     non_acronym_upper: frozenset[str] = frozenset(
         {"OK", "PM", "MR", "MRS", "MS", "DR", "JR", "SR", "LTD", "PLC", "LLP", "LLC", "INC", "YES", "NO", "ON", "OFF"}
     )
-    whitelist_two_letter = frozenset({"US", "UK", "EU", "UN"})
+    whitelist_two_letter: frozenset[str] = frozenset({"US", "UK", "EU", "UN"})
 
     max_len: int = 10
     # Allowed internal punctuation in acronyms (normalized for keying).

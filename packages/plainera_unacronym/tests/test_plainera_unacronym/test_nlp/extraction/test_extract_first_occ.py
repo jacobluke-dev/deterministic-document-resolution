@@ -407,7 +407,7 @@ class TestExtractNearFirstsIntegration:
         cfg_strict = ExtractionConfig(
             inline_cues=(r"short\s+for", r"stands?\s+for", r"is\s+(?:an\s+)?acronym\s+for"),
             max_phrase_chars=20,
-            enabled_parenthetical=True,
+            # enabled_parenthetical=True,
             enabled_inline=True,
             conf_parenthetical=0.95,
             conf_inline=0.80,
@@ -420,7 +420,7 @@ class TestExtractNearFirstsIntegration:
         cfg_relaxed = ExtractionConfig(
             inline_cues=(r"short\s+for", r"stands?\s+for", r"is\s+(?:an\s+)?acronym\s+for"),
             max_phrase_chars=160,
-            enabled_parenthetical=True,
+            # enabled_parenthetical=True,
             enabled_inline=True,
             conf_parenthetical=0.95,
             conf_inline=0.80,
