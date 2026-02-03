@@ -101,3 +101,14 @@ def has_letters(s: str) -> bool:
       bool: True if any character in ``s`` satisfies ``str.isalpha()``; else False.
     """
     return any(ch.isalpha() for ch in s)
+
+def has_digit(s: str) -> bool:
+    """True if the string contains any number.
+
+    Args:
+      s (str): String to check.
+
+    Returns:
+      bool: True if any character in ``s`` satisfies ``str.isalpha()``; else False.
+    """
+    return any(ch.isdigit() for ch in s)

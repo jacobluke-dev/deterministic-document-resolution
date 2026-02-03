@@ -2,6 +2,7 @@ import re
 from typing import Optional
 
 from plainera_unacronym.nlp.common.constants_regex import PUNCT_TRIM
+from plainera_unacronym.nlp.extraction.core.normalise import has_letters, has_digit
 
 _ASCII_CAMEL_RE = re.compile(
     r"[A-Z]+(?=[A-Z][a-z0-9])"  # e.g., 'XML' in 'XMLHttp'
@@ -69,9 +70,7 @@ def should_preserve_alnum_token(token: str) -> bool:
     if not token or not token.isalnum():
         return False
 
-    has_alpha = any(ch.isalpha() for ch in token)
-    has_digit = any(ch.isdigit() for ch in token)
-    if not (has_alpha and has_digit):
+    if not (has_letters(token) and has_digit(token)):
         return False
 
     if token[0].isdigit() or token[-1].isdigit():

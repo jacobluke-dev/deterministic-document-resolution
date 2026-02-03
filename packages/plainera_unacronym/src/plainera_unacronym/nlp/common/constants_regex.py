@@ -129,7 +129,7 @@ STANDS_FOR_RE: Final[re.Pattern[str]] = re.compile(r"\bstands\s+for\b", re.IGNOR
 
 TIME_RE: Final[re.Pattern[str]] = re.compile(r"^(?:[01]?\d|2[0-3])(?::[0-5]\d)?$")  # 7, 10:30, 23:59
 
-POST_SPAN_TOKEN_RE: Final[re.Pattern[str]] = re.compile(
+POST_SPAN_TOKEN_ASCII_RE: Final[re.Pattern[str]] = re.compile(
     r"\s+|[A-Za-z]+|!|\S", re.ASCII
 )  # tokens after `e`: whitespace, alpha word, '!', or any other single char
 
