@@ -44,9 +44,6 @@ LEXICAL_SPLITS = {
     "hypertext": ("Hyper", "text"),
 }
 
-_LEAD_DIGIT_RE = re.compile(r"^\d+[A-Za-z]+$")
-_SINGLE_LETTER_TRAIL_DIGIT_RE = re.compile(r"^[A-Za-z]\d+$")
-
 
 def should_preserve_alnum_token(token: str) -> bool:
     """Return True if an ASCII alphanumeric token should be kept intact.

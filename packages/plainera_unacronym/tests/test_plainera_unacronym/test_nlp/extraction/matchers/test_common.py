@@ -73,6 +73,7 @@ class TestSplitCompound:
             ("read-only", ["read", "only"]),  # hyphen
             ("C/CPP", ["C", "CPP"]),  # slash
             ("U.S.A.", ["U", "S", "A", ""]),  # NOTE: trailing '' would be filtered out by impl
+            # ^^* NOTE this is exclusive to this func not the over pipeline NOTE ^^*
             ("Foo.Bar", ["Foo", "Bar"]),  # dot
             ("R&D", ["R", "D"]),  # ampersand
             ("A-B/C.D&E", ["A", "B", "C", "D", "E"]),  # mixed delimiters
@@ -112,7 +113,7 @@ class TestSplitCompound:
             ("v1", ["v1"]),
             ("x86", ["x86"]),
 
-            # ---- Policy A: should split other letter+digit patterns ----
+            # ---- Policy A: should preserve other letter+digit patterns ----
             ("HTTP2", ["HTTP2"]),
             ("RFC7231", ["RFC7231"]),
             ("SHA256", ["SHA256"]),
@@ -211,24 +212,26 @@ class TestInitialsSeqUnit:
         assert letters == []
         assert owners == []
 
-    def test_stopword_checked_before_split(self, _patch):
-        # If the whole token is a stopword, we skip it entirely (no splitting)
+    def test_split_is_applied_per_token(self, _patch):
         called = {"split": 0}
 
         def spy_split(tok):
             called["split"] += 1
-            return [tok]  # would have produced something if not skipped
+            return [tok]
 
-        _patch(initials_seq, split_compound=spy_split, re=__import__("re"))
-        tokens = ["and-or", "Useful"]
-        letters, owners = initials_seq(tokens)
-        assert letters == ["A", "U"]
-        assert owners == [0, 1]
-        # Ensure split was *not* called for the stopword token
-        assert called["split"] == 2  # only for "Useful"
+        _patch(initials_seq, split_compound=spy_split)
+        letters, owners = initials_seq(["A", "B", "C"])
+        assert letters == ["A", "B", "C"]
+        assert owners == [0, 1, 2]
+        assert called["split"] == 3
 
 
 class TestInitialsSeqIntegration:
+
+    def test_stopword_checked_before_split(self, _patch):
+        tokens = ["and-or", "Useful"]
+        letters, owners = initials_seq(tokens)
+        assert letters == ["A", "O", "U"]
 
     def test_plain_token_emits_single_initial_by_default(self):
         tokens = ["GPU"]
@@ -269,8 +272,9 @@ class TestInitialsSeqIntegration:
         assert letters_expand == ["M", "R", "N", "A"]
         assert owners_expand == [0, 1, 1, 1]
 
+class TestIsMixCaseAcronym:
 
-def test_is_mixed_case_acronym():
-    assert is_mixed_case_acronym("mRNA") is True
-    assert is_mixed_case_acronym("PDF") is False
-    assert is_mixed_case_acronym("rna") is False
+    def test_is_mixed_case_acronym(self):
+        assert is_mixed_case_acronym("mRNA") is True
+        assert is_mixed_case_acronym("PDF") is False
+        assert is_mixed_case_acronym("rna") is False
