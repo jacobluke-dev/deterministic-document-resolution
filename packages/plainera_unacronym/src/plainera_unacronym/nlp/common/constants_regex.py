@@ -138,7 +138,7 @@ POST_SPAN_TOKEN_RE: Final[re.Pattern[str]] = re.compile(
 # Acronym key / token parsing
 # -----------------------------
 
-ALLOW_CHARS: Final[str] = "&/’'--–"
+ALLOW_CHARS: Final[str] = "&/’'-–"
 TOKEN_SEPARATORS: Final[str] = "-&/._"
 
 DottedMode = Literal["strip", "preserve"]
