@@ -1,6 +1,6 @@
 import pytest
 from plainera_unacronym.nlp import DetectorConfig
-from plainera_unacronym.nlp.common.types import TextSpan
+from plainera_unacronym.nlp.common.types import TextSpanTuple
 from plainera_unacronym.nlp.detection.heuristics.general import (
     _alpha_len,
     _comma_near_left,
@@ -20,7 +20,7 @@ def _extract(text_with_caret: str) -> tuple[str, int]:
     return text_with_caret.replace("^", ""), pos
 
 
-def _extract_span(s: str) -> TextSpan:
+def _extract_span(s: str) -> TextSpanTuple:
     """
     Use [ ... ] to mark (start, end) in the sample.
     Returns: (clean_text, start, end)

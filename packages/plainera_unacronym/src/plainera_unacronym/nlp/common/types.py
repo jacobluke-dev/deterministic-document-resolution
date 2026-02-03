@@ -11,7 +11,7 @@ SCHEMA_VERSION = "1.1.0"
 # -------------------------- SPANS ------------------------------------
 
 Span: TypeAlias = tuple[int, int]
-TextSpan: TypeAlias = tuple[str, int, int]
+TextSpanTuple: TypeAlias = tuple[str, int, int]
 
 
 @dataclass(frozen=True, slots=True)

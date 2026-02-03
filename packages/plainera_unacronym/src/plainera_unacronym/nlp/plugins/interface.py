@@ -1,6 +1,6 @@
 from typing import Iterator, Protocol, runtime_checkable
 
-from plainera_unacronym.nlp.common.types import TextSpan
+from plainera_unacronym.nlp.common.types import TextSpanTuple
 
 # TODO move this somewhere globally
 """A candidate acronym span.
@@ -60,7 +60,7 @@ class DomainPlugin(Protocol):
 
     name: str
 
-    def extra_candidates(self, text: str, cfg) -> Iterator[TextSpan]: ...
+    def extra_candidates(self, text: str, cfg) -> Iterator[TextSpanTuple]: ...
 
     def keep_guard(self, surface: str, text: str, s: int, e: int, cfg) -> bool: ...
 

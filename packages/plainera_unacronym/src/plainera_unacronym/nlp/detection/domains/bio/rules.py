@@ -1,12 +1,12 @@
 import re
 from typing import Iterator
 
-from plainera_unacronym.nlp.common.types import TextSpan, Span
+from plainera_unacronym.nlp.common.types import TextSpanTuple, Span
 from .config import _STATS_CI_RE, _STATS_OR_HR_RR_RE, BioConfig
 from .patterns import bio_pattern
 
 
-def extra_candidates(text: str, cfg: BioConfig) -> Iterator[TextSpan]:
+def extra_candidates(text: str, cfg: BioConfig) -> Iterator[TextSpanTuple]:
     """Yield biomedical candidate spans found by the bio regex.
 
     Scans ``text`` with the precompiled bio pattern (see ``bio_pattern()``) to

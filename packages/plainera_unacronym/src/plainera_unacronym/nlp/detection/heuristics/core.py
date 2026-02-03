@@ -10,7 +10,7 @@ from plainera_unacronym.nlp.common.constants_regex import (
     TRAILING_PUNCT_CHARS,
 )
 from plainera_unacronym.nlp.common.shared import has_paren_definition, normalize_acronym_key
-from plainera_unacronym.nlp.common.types import DetectorConfig, pattern_cache, TextSpan, Span
+from plainera_unacronym.nlp.common.types import DetectorConfig, pattern_cache, TextSpanTuple, Span
 from plainera_unacronym.nlp.plugins.registry import DOMAIN_PLUGINS
 
 
@@ -239,7 +239,7 @@ def _has_lower_and_upper(tok: str) -> bool:
     return any(c.islower() for c in tok if c.isalpha()) and any(c.isupper() for c in tok if c.isalpha())
 
 
-def _accept_candidate(text: str, cfg: DetectorConfig, s: int, e: int) -> TextSpan | None:
+def _accept_candidate(text: str, cfg: DetectorConfig, s: int, e: int) -> TextSpanTuple | None:
     """Apply the standard gating to a raw (s, e) span and return a normalized Span or None.
 
     Gates (identical to legacy path):
@@ -307,10 +307,9 @@ def _accept_candidate(text: str, cfg: DetectorConfig, s: int, e: int) -> TextSpa
 
     return surface, s, e
 
-
-def _collect_core_hits(text: str, cfg: DetectorConfig, pat: re.Pattern[str]) -> list[TextSpan]:
+def _collect_core_hits(text: str, cfg: DetectorConfig, pat: re.Pattern[str]) -> list[TextSpanTuple]:
     """Collect accepted core-regex hits in text order."""
-    out: list[TextSpan] = []
+    out: list[TextSpanTuple] = []
     for m in pat.finditer(text):
         s, e = m.span("tok")  # our pattern's named group
         hit = _accept_candidate(text, cfg, s, e)
@@ -319,12 +318,12 @@ def _collect_core_hits(text: str, cfg: DetectorConfig, pat: re.Pattern[str]) -> 
     return out
 
 
-def _collect_domain_hits(text: str, cfg: DetectorConfig) -> list[TextSpan]:
+def _collect_domain_hits(text: str, cfg: DetectorConfig) -> list[TextSpanTuple]:
     """Collect accepted domain-plugin hits and sort for containment checks.
 
     Sorted by (start asc, length desc) so longer domain spans come first.
     """
-    hits: list[TextSpan] = []
+    hits: list[TextSpanTuple] = []
     for name in cfg.enabled_domains or ():
         plug = DOMAIN_PLUGINS.get(name)
         if not plug:
@@ -338,7 +337,7 @@ def _collect_domain_hits(text: str, cfg: DetectorConfig) -> list[TextSpan]:
     return hits
 
 
-def _contained_in_any(s: int, e: int, containers: list[TextSpan]) -> bool:
+def _contained_in_any(s: int, e: int, containers: list[TextSpanTuple]) -> bool:
     """True if (s,e) is fully contained in any (ds,de) span in containers."""
     for _, ds, de in containers:
         if ds <= s and e <= de:
@@ -348,13 +347,13 @@ def _contained_in_any(s: int, e: int, containers: list[TextSpan]) -> bool:
     return False
 
 
-def iter_candidates_with(text: str, cfg: DetectorConfig, pat: re.Pattern[str]) -> Iterator[TextSpan]:
+def iter_candidates_with(text: str, cfg: DetectorConfig, pat: re.Pattern[str]) -> Iterator[TextSpanTuple]:
     """Yield core candidates, suppressing only those fully contained by domain spans; then yield domain spans.
 
     This preserves normal heuristics while avoiding obvious fragments (e.g., drop 'IFN' if 'IFN-γ' exists).
     """
-    core_hits: list[TextSpan] = _collect_core_hits(text, cfg, pat)
-    dom_hits: list[TextSpan] = _collect_domain_hits(text, cfg)
+    core_hits: list[TextSpanTuple] = _collect_core_hits(text, cfg, pat)
+    dom_hits: list[TextSpanTuple] = _collect_domain_hits(text, cfg)
 
     seen: set[Span] = set()
 
