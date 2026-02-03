@@ -4,7 +4,18 @@ from plainera_unacronym.nlp.common.constants_regex import INLINE_CUE_FRAGMENTS
 
 
 def _compile_inline_cues_pattern(cues: tuple[str, ...]) -> re.Pattern[str]:
-    # single regex, detector-friendly
+    """
+    Compile a single, detector-friendly regex for inline definition cues.
+
+    Builds an alternation over cue fragments and anchors it as a whole-word match,
+    requiring right-side punctuation/whitespace via a lookahead.
+
+    Args:
+        cues: Tuple of regex fragments representing cue phrases (no flags, no \b wrappers).
+
+    Returns:
+        Compiled, case-insensitive regex pattern that matches any cue phrase.
+    """
     joined = "|".join(cues)
     return re.compile(
         rf"\b(?:{joined})\b(?=[\s,;:—–-])",
@@ -13,7 +24,21 @@ def _compile_inline_cues_pattern(cues: tuple[str, ...]) -> re.Pattern[str]:
 
 
 def boost_confidence_if_inline_cue(surface: str, text: str, e: int, conf: float) -> float:
-    # Only bother for short acronyms
+    """
+    Boost confidence for short acronyms if an inline cue appears immediately to the right.
+
+    Intended for shapes like "AM, short for ..." / "NLP stands for ...". Only applies to
+    short surfaces (<=3 chars) and scans a small rightward window to stay cheap.
+
+    Args:
+        surface: Matched acronym surface (e.g. "NLP").
+        text: Full source text containing the match.
+        e: End offset (exclusive) of the acronym in `text`.
+        conf: Current confidence score.
+
+    Returns:
+        Updated confidence (adds +0.20 up to a max of 0.99) when a cue is present; else `conf`.
+    """
     if len(surface) > 3:
         return conf
 
