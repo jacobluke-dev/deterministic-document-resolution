@@ -131,6 +131,12 @@ class TestStripTerminalPlural:
         surface = "O’BRIEN"
         assert strip_terminal_plural(surface) == surface
 
+    def test_trailing_space_prevents_strip(self):
+        assert strip_terminal_plural("GPUs ") == "GPUs "
+
+    def test_dotted_initialism_plural_is_not_stripped(self):
+        assert strip_terminal_plural("U.S.A.s") == "U.S.A.s"
+
 
 class TestIsAllCapsWord:
     @pytest.mark.parametrize("surface,allow,expected", [
