@@ -1,8 +1,10 @@
 import pytest
 
 from plainera_unacronym.nlp.extraction.core.collect import initials_match
-from test_plainera_unacronym.test_nlp.extraction.test_helper_patterns import _msg
 
+
+def _msg(acr, phrase):
+    return f"acr={acr!r}, phrase={phrase!r}"
 
 class TestRequireInitialsMatchOk:
     @pytest.mark.parametrize(
