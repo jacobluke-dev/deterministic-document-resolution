@@ -16,11 +16,7 @@ class _TestCfg(DetectorConfig):
 
 
 class TestBuildOccurrenceFromMatch:
-    def test_strip_mode_does_not_include_trailing_dot(self, monkeypatch):
-        """
-        When dotted_display='strip' and the next char is '.', we should NOT extend the end,
-        and the displayed surface/acronym should NOT include the dot.
-        """
+    def test_strip_mode_does_not_include_trailing_dot(self, _patch):
         calls = {}
 
         def fake_normalize_acronym_key(base, allow_chars, dotted_mode):
@@ -29,19 +25,18 @@ class TestBuildOccurrenceFromMatch:
 
         def fake_context_window(text, s, e, win):
             calls["context_window"] = (text, s, e, win)
-            return 111, 222
+            return (111, 222)
 
-        monkeypatch.setattr(
-            "plainera_unacronym.nlp.detection.detector.normalize_acronym_key", fake_normalize_acronym_key, raising=True
-        )
-        monkeypatch.setattr(
-            "plainera_unacronym.nlp.detection.detector.context_window", fake_context_window, raising=True
+        _patch(
+            _build_occurrence_from_match,
+            normalize_acronym_key=fake_normalize_acronym_key,
+            context_window=fake_context_window,
         )
 
         cfg = _TestCfg(dotted_display="strip")
         text = "NASA."
         surface = "NASA"
-        s, e = 0, 4  # 'NASA' ends at 4, '.' is at index 4
+        s, e = 0, 4  # '.' is at index 4
 
         occ, display_key = _build_occurrence_from_match(cfg, text, surface, s, e, conf=0.87)
 
@@ -50,19 +45,18 @@ class TestBuildOccurrenceFromMatch:
 
         # Occurrence fields
         assert isinstance(occ, Occurrence)
-        assert occ.acronym == "NASA"  # dot NOT included
+        assert occ.acronym == "NASA"
         assert occ.start_offset == 0
-        assert occ.end_offset == 4  # NOT advanced
+        assert occ.end_offset == 4
         assert occ.confidence == 0.87
         assert occ.context_window == (111, 222)
         assert occ.normalized_key == display_key
         assert occ.reasons is None
 
-        # Assert helper call args
         assert calls["normalize_acronym_key"] == ("NASA", cfg.allow_chars, "strip")
         assert calls["context_window"] == (text, s, 4, cfg.window_chars)
 
-    def test_preserve_mode_includes_trailing_dot(self, monkeypatch):
+    def test_preserve_mode_includes_trailing_dot(self, _patch):
         """
         When dotted_display='preserve' and the next char is '.',
         we must include it in the displayed surface and advance the end offset by 1.
@@ -77,11 +71,10 @@ class TestBuildOccurrenceFromMatch:
             calls["context_window"] = (text, s, e, win)
             return 5, 10
 
-        monkeypatch.setattr(
-            "plainera_unacronym.nlp.detection.detector.normalize_acronym_key", fake_normalize_acronym_key, raising=True
-        )
-        monkeypatch.setattr(
-            "plainera_unacronym.nlp.detection.detector.context_window", fake_context_window, raising=True
+        _patch(
+            _build_occurrence_from_match,
+            normalize_acronym_key=fake_normalize_acronym_key,
+            context_window=fake_context_window,
         )
 
         cfg = _TestCfg(dotted_display="preserve")
@@ -100,12 +93,11 @@ class TestBuildOccurrenceFromMatch:
         assert calls["normalize_acronym_key"] == ("N.A.S.A", cfg.allow_chars, "preserve")
         assert calls["context_window"] == (text, s, 4, cfg.window_chars)
 
-    def test_debug_reasons_attached_when_enabled(self, monkeypatch):
+    def test_debug_reasons_attached_when_enabled(self, _patch):
         """
         When cfg.debug_reasons=True, reasons should be attached as a tuple from reason_tags(...).
         Also verify preserve mode advances end to include the trailing '.'.
         """
-        import plainera_unacronym.nlp.detection.detector as det
 
         def fake_normalize_acronym_key(base, allow_chars, dotted_mode):
             return "NK"
@@ -118,9 +110,12 @@ class TestBuildOccurrenceFromMatch:
             assert e_passed == e + 1
             return ["EDGE", "PUNCT"]
 
-        monkeypatch.setattr(det, "normalize_acronym_key", fake_normalize_acronym_key, raising=True)
-        monkeypatch.setattr(det, "context_window", fake_context_window, raising=True)
-        monkeypatch.setattr(det, "reason_tags", fake_reason_tags, raising=True)
+        _patch(
+            _build_occurrence_from_match,
+            normalize_acronym_key=fake_normalize_acronym_key,
+            context_window=fake_context_window,
+            reason_tags=fake_reason_tags,
+        )
 
         cfg = _TestCfg(dotted_display="preserve", debug_reasons=True)
         text = "N.A.S.A."
@@ -137,25 +132,17 @@ class TestBuildOccurrenceFromMatch:
         assert occ.acronym == "N.A.S.A"
         assert occ.end_offset == e + 1  # == 8
 
-    def test_returns_occurrence_and_display_key_tuple(self, monkeypatch):
-        # Patch where the function looks up the names (the detector module)
-        monkeypatch.setattr(
-            det,
-            "normalize_acronym_key",
-            lambda base, allow_chars, dotted_mode=None: f"{base.lower()}::{dotted_mode}",
-            raising=True,
-        )
-        monkeypatch.setattr(
-            det,
-            "context_window",
-            lambda text, s, e, w: (1, 2),
-            raising=True,
-        )
+    def test_returns_occurrence_and_display_key_tuple(self, _patch):
 
         cfg = _TestCfg(dotted_display="strip")
         text = "API."
         surface = "API"
         s, e = 0, 3
+        _patch(
+            _build_occurrence_from_match,
+            normalize_acronym_key=lambda base, allow_chars, dotted_mode=None: f"{base.lower()}::{dotted_mode}",
+            context_window=lambda text, s, e, w: (1, 2)
+        )
 
         occ, key = _build_occurrence_from_match(cfg, text, surface, s, e, conf=0.5)
 
@@ -183,12 +170,12 @@ class TestBuildOccurrenceFromMatch:
         # normalize_acronym_key in strip mode removes dots; no dots present anyway, key equals base
         assert key_s == "GPU"
 
-        # preserve mode → include trailing dot in surface & end_offset
+        # preserve mode → removes trailing dot in surface & end_offset
         cfg_pres = DetectorConfig(dotted_display="preserve")
         occ_p, key_p = _build_occurrence_from_match(
             cfg_pres, text, text[s_gpu:e_gpu], s_gpu, e_gpu, conf=0.91
         )
-        assert occ_p.acronym == "GPUs"  # dot not included
+        assert occ_p.acronym == "GPU"  # dot not included
         assert occ_p.end_offset == e_gpu + 1
         assert occ_p.normalized_key == key_p
         # In preserve mode, key keeps the dot
@@ -247,7 +234,7 @@ class TestBuildOccurrenceFromMatch:
 
 
 class TestScoreChunkWorkerUnit:
-    def test_drops_blacklisted_candidates(self, monkeypatch):
+    def test_drops_blacklisted_candidates(self,  _patch):
         """
         If blacklist_context_drop(...) returns True, the candidate must be skipped.
         """
@@ -283,18 +270,18 @@ class TestScoreChunkWorkerUnit:
             )
             calls["build"].append(surface)
             return occ, surface
-
-        monkeypatch.setattr(det, "blacklist_context_drop", fake_blacklist, raising=True)
-        monkeypatch.setattr(det, "score", fake_score, raising=True)
-        monkeypatch.setattr(det, "threshold_len", fake_threshold_len, raising=True)
-        monkeypatch.setattr(det, "_build_occurrence_from_match", fake_build, raising=True)
+        _patch(_score_chunk_worker,
+               blacklist_context_drop=fake_blacklist,
+               score=fake_score,
+               threshold_len=fake_threshold_len,
+               _build_occurrence_from_match=fake_build)
 
         out = _score_chunk_worker(cfg, text="GPU and API", cands=cands)
         # Only "API" should pass through
         assert [o.acronym for o in out] == ["API"]
         assert calls["build"] == ["API"]
 
-    def test_threshold_gate_by_effective_length(self, monkeypatch):
+    def test_threshold_gate_by_effective_length(self, _patch):
         """
         Conf < threshold → drop; conf == threshold → keep.
         Ensure the threshold chosen comes from threshold_len(surface,...).
@@ -318,17 +305,18 @@ class TestScoreChunkWorkerUnit:
         def fake_build(cfg_, text, surface, s, e, conf):
             return Occurrence(surface, s, e, conf, (0, 0), surface, None), surface
 
-        monkeypatch.setattr(det, "blacklist_context_drop", fake_blacklist, raising=True)
-        monkeypatch.setattr(det, "score", fake_score, raising=True)
-        monkeypatch.setattr(det, "threshold_len", fake_threshold_len, raising=True)
-        monkeypatch.setattr(det, "_build_occurrence_from_match", fake_build, raising=True)
+        _patch(_score_chunk_worker,
+               blacklist_context_drop=fake_blacklist,
+               score=fake_score,
+               threshold_len=fake_threshold_len,
+               _build_occurrence_from_match=fake_build)
 
         out = _score_chunk_worker(cfg, text="AI & R&D", cands=cands)
         # Only "R&D" should survive at equality
         assert [o.acronym for o in out] == ["R&D"]
         assert out[0].confidence == pytest.approx(0.60)
 
-    def test_order_preserved_and_confidence_propagated(self, monkeypatch):
+    def test_order_preserved_and_confidence_propagated(self, _patch):
         """
         Accepted occurrences are appended in input order, and their confidence equals score(...).
         """
@@ -348,10 +336,11 @@ class TestScoreChunkWorkerUnit:
         def fake_build(cfg_, text, surface, s, e, conf):
             return Occurrence(surface, s, e, conf, (0, 0), surface, None), surface
 
-        monkeypatch.setattr(det, "blacklist_context_drop", fake_blacklist, raising=True)
-        monkeypatch.setattr(det, "score", fake_score, raising=True)
-        monkeypatch.setattr(det, "threshold_len", fake_threshold_len, raising=True)
-        monkeypatch.setattr(det, "_build_occurrence_from_match", fake_build, raising=True)
+        _patch(_score_chunk_worker,
+               blacklist_context_drop=fake_blacklist,
+               score=fake_score,
+               threshold_len=fake_threshold_len,
+               _build_occurrence_from_match=fake_build)
 
         out = _score_chunk_worker(cfg, text="A B C", cands=cands)
         assert [o.acronym for o in out] == ["A", "C"]
@@ -413,91 +402,95 @@ class TestScoreChunkWorkerUnit:
             assert 0 <= left < right <= n
             assert left <= o.start_offset < o.end_offset <= right
 
-    def test_builder_exception_skips_when_not_strict_and_logs(self, monkeypatch):
-        cfg = _TestCfg(debug_anomalies=True)
+    def test_builder_exception_skips_when_not_strict_and_logs(self, _patch):
+        calls = {"events": []}  # define before fake_logger closes over it
 
-        cands = [("GPU", 0, 3), ("API", 5, 8)]
-
-        # blacklist: let both through to builder
-        monkeypatch.setattr(det, "blacklist_context_drop", lambda *a, **k: False, raising=True)
-        # scores high enough to pass threshold
-        monkeypatch.setattr(det, "score", lambda *a, **k: 0.99, raising=True)
-        # fixed effective length
-        monkeypatch.setattr(det, "threshold_len", lambda *a, **k: 3, raising=True)
-
-        # raise for "GPU", succeed for "API"
         def fake_build(cfg_, text, surface, s, e, conf):
             if surface == "GPU":
                 raise det.OccurrenceBuildError("synthetic build error")
             return det.Occurrence(surface, s, e, conf, (0, 0), surface, None), surface
 
-        monkeypatch.setattr(det, "_build_occurrence_from_match", fake_build, raising=True)
-
-        # capture logs
-        calls = {"events": []}
-
         def fake_logger(event, **kw):
             calls["events"].append((event, kw))
 
-        monkeypatch.setattr(det, "message_logger", fake_logger, raising=True)
+        cfg = _TestCfg(debug_anomalies=True)
+        cands = [("GPU", 0, 3), ("API", 5, 8)]
+
+        _patch(
+            _score_chunk_worker,
+            blacklist_context_drop=lambda *a, **k: False,
+            score=lambda *a, **k: 0.99,
+            threshold_len=lambda *a, **k: 3,
+            _build_occurrence_from_match=fake_build,
+            message_logger=fake_logger,
+        )
 
         out = _score_chunk_worker(cfg, text="GPU and API", cands=cands)
 
-        # GPU skipped due to builder exception; API survives
         assert [o.acronym for o in out] == ["API"]
-        # one anomaly log
         assert any(evt == "detector.bad_occurrence" for (evt, _kw) in calls["events"])
 
-    def test_builder_exception_is_skipped(self, monkeypatch):
-        cfg = _TestCfg()
+    def test_builder_exception_is_skipped(self, _patch):
+        cfg = _TestCfg()  # debug_anomalies=False
         cands = [("GPU", 0, 3), ("API", 5, 8)]
-
-        monkeypatch.setattr(det, "blacklist_context_drop", lambda *a, **k: False, raising=True)
-        monkeypatch.setattr(det, "score", lambda *a, **k: 0.99, raising=True)
-        monkeypatch.setattr(det, "threshold_len", lambda *a, **k: 3, raising=True)
 
         def fake_build(cfg_, text, surface, s, e, conf):
             if surface == "GPU":
                 raise det.OccurrenceBuildError("boom")
             return det.Occurrence(surface, s, e, conf, (0, 0), surface, None), surface
 
-        monkeypatch.setattr(det, "_build_occurrence_from_match", fake_build, raising=True)
+        _patch(
+            _score_chunk_worker,
+            blacklist_context_drop=lambda *a, **k: False,
+            score=lambda *a, **k: 0.99,
+            threshold_len=lambda *a, **k: 3,
+            _build_occurrence_from_match=fake_build,
+        )
 
         out = _score_chunk_worker(cfg, text="GPU and API", cands=cands)
         assert [o.acronym for o in out] == ["API"]
 
-    def test_builder_exception_logs_when_debug_anomalies_on(self, monkeypatch):
+    def test_builder_exception_logs_when_debug_anomalies_on(self, _patch):
         cfg = _TestCfg(debug_anomalies=True)
-
         cands = [("GPU", 0, 3), ("API", 5, 8)]
-        monkeypatch.setattr(det, "blacklist_context_drop", lambda *a, **k: False, raising=True)
-        monkeypatch.setattr(det, "score", lambda *a, **k: 0.99, raising=True)
-        monkeypatch.setattr(det, "threshold_len", lambda *a, **k: 3, raising=True)
-        monkeypatch.setattr(det, "_build_occurrence_from_match",
-                            lambda *a, **k: (_ for _ in ()).throw(det.OccurrenceBuildError("boom"))
-                            if a[2] == "GPU" else (det.Occurrence("API", 5, 8, 0.99, (0, 0), "API", None), "API"),
-                            raising=True)
+        events: list[str] = []
 
-        events = []
-        monkeypatch.setattr(det, "message_logger", lambda event, **kw: events.append(event), raising=True)
+        def fake_build(cfg_, text, surface, s, e, conf):
+            if surface == "GPU":
+                raise det.OccurrenceBuildError("boom")
+            return det.Occurrence("API", 5, 8, conf, (0, 0), "API", None), "API"
+
+        _patch(
+            _score_chunk_worker,
+            blacklist_context_drop=lambda *a, **k: False,
+            score=lambda *a, **k: 0.99,
+            threshold_len=lambda *a, **k: 3,
+            _build_occurrence_from_match=fake_build,
+            message_logger=lambda event, **kw: events.append(event),
+        )
 
         out = _score_chunk_worker(cfg, text="GPU and API", cands=cands)
         assert [o.acronym for o in out] == ["API"]
         assert "detector.bad_occurrence" in events
 
-    def test_builder_exception_does_not_log_when_flag_off(self, monkeypatch):
-        cfg = _TestCfg()  # debug_anomalies defaults False
+    def test_builder_exception_does_not_log_when_flag_off(self, _patch):
+        cfg = _TestCfg()  # debug_anomalies False
         cands = [("GPU", 0, 3)]
-        monkeypatch.setattr(det, "blacklist_context_drop", lambda *a, **k: False, raising=True)
-        monkeypatch.setattr(det, "score", lambda *a, **k: 0.99, raising=True)
-        monkeypatch.setattr(det, "threshold_len", lambda *a, **k: 3, raising=True)
-        monkeypatch.setattr(det, "_build_occurrence_from_match",
-                            lambda *a, **k: (_ for _ in ()).throw(det.OccurrenceBuildError("boom")),
-                            raising=True)
 
-        events = []
-        monkeypatch.setattr(det, "message_logger", lambda event, **kw: events.append(event), raising=True)
+        events: list[str] = []
+
+        def fake_build(*_a, **_k):
+            raise det.OccurrenceBuildError("boom")
+
+        _patch(
+            _score_chunk_worker,
+            blacklist_context_drop=lambda *a, **k: False,
+            score=lambda *a, **k: 0.99,
+            threshold_len=lambda *a, **k: 3,
+            _build_occurrence_from_match=fake_build,
+            message_logger=lambda event, **kw: events.append(event),
+        )
 
         out = _score_chunk_worker(cfg, text="GPU", cands=cands)
         assert out == []
-        assert events == []  # no log when flag off
+        assert events == []  # no log when debug_anomalies is off
