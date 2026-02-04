@@ -7,6 +7,7 @@ import plainera_unacronym.nlp.plugins.registry as domain_mod
 import pytest
 from plainera_unacronym.nlp import DetectorConfig
 from plainera_unacronym.nlp.common.constants_regex import TRAILING_PUNCT_CHARS
+from plainera_unacronym.nlp.common.shared import has_paren_definition
 from plainera_unacronym.nlp.common.types import Span
 from plainera_unacronym.nlp.detection.heuristics.core import (
     _collect_core_hits,
@@ -85,7 +86,7 @@ class TestCapsRatio:
         # Letters: rocknroll (apostrophes ignored) -> all lower => 0.0
         assert caps_ratio("rock'n'roll") == 0.0
 
-    def test_no_letters_returns_1(self):
+    def test_no_letters_returns_0(self):
         assert caps_ratio("") == 0
         assert caps_ratio("1234-._") == 0
 
@@ -520,74 +521,62 @@ class TestBoostConfidenceIfWhitelisted:
 
 
 class TestScoreUnit:
-    def test_base_score_no_signals(self, monkeypatch):
-        # in_brackets -> (False, False), no paren def, no "stands for"
-        monkeypatch.setattr(core, "in_brackets", lambda t, s, e: (False, False))
-        monkeypatch.setattr(det, "has_paren_definition", lambda t, e: False, raising=False)
-        monkeypatch.setattr(det, "has_stands_for_follow", lambda t, e: False, raising=False)
 
+    @pytest.fixture
+    def patch_score_cues(self, monkeypatch):
+        def _apply(*, in_brackets=(False, False), paren_def=False, stands_for=False):
+            monkeypatch.setattr(core, "in_brackets", lambda t, s, e: in_brackets, raising=True)
+            monkeypatch.setattr(core, "has_paren_definition", lambda t, e: paren_def, raising=True)
+            monkeypatch.setattr(core, "has_stands_for_follow", lambda t, e, max_chars=24: stands_for, raising=True)
+
+        return _apply
+
+    def test_base_score_no_signals(self, patch_score_cues):
+        patch_score_cues()
         cfg = DetectorConfig()
         text = "We use GPU daily."
         s, e = _idx(text, "GPU")
         assert core.calc_score("GPU", text, s, e, cfg) == 0.6
 
-    def test_in_brackets_inside_adds_point_25(self, monkeypatch):
-        monkeypatch.setattr(core, "in_brackets", lambda t, s, e: (True, False))
-        monkeypatch.setattr(det, "has_paren_definition", lambda t, e: False, raising=False)
-        monkeypatch.setattr(det, "has_stands_for_follow", lambda t, e: False, raising=False)
+    def test_in_brackets_inside_adds_point_25(self, patch_score_cues):
 
+        patch_score_cues(in_brackets=(True, False))
         cfg = DetectorConfig()
         text = "(GPU) is fast."
         s, e = _idx(text, "GPU")
         assert core.calc_score("GPU", text, s, e, cfg) == 0.6 + 0.25
 
-    def test_inside_takes_precedence_over_adjacent(self, monkeypatch):
-        # If both are True, only inside (+0.25) applies due to elif
-        monkeypatch.setattr(core, "in_brackets", lambda t, s, e: (True, True))
-        monkeypatch.setattr(det, "has_paren_definition", lambda t, e: False, raising=False)
-        monkeypatch.setattr(det, "has_stands_for_follow", lambda t, e: False, raising=False)
-
+    def test_inside_takes_precedence_over_adjacent(self, patch_score_cues):
+        patch_score_cues(in_brackets=(True, False))
         cfg = DetectorConfig()
         text = "GPU near brackets."
         s, e = _idx(text, "GPU")
         assert core.calc_score("GPU", text, s, e, cfg) == 0.85
 
-    def test_paren_definition_adds_point_25(self, monkeypatch):
-        monkeypatch.setattr(core, "in_brackets", lambda t, s, e: (False, False))
-        monkeypatch.setattr(det, "has_paren_definition", lambda t, e: True, raising=False)
-        monkeypatch.setattr(det, "has_stands_for_follow", lambda t, e: False, raising=False)
-
+    def test_paren_definition_adds_point_25(self, patch_score_cues):
+        patch_score_cues(in_brackets=(True, True))
         cfg = DetectorConfig()
         text = "GPU (Graphics Processing Unit)"
         s, e = _idx(text, "GPU")
         assert core.calc_score("GPU", text, s, e, cfg) == 0.6 + 0.25
 
-    def test_stands_for_follow_adds_point_15(self, monkeypatch):
-        monkeypatch.setattr(core, "in_brackets", lambda t, s, e: (False, False))
-        monkeypatch.setattr(det, "has_paren_definition", lambda t, e: False, raising=False)
-        monkeypatch.setattr(det, "has_stands_for_follow", lambda t, e: True, raising=False)
-
+    def test_stands_for_follow_adds_point_15(self, patch_score_cues):
+        patch_score_cues(in_brackets=(False, False), paren_def=False, stands_for=True)
         cfg = DetectorConfig()
         text = "GPU stands for Graphics Processing Unit."
         s, e = _idx(text, "GPU")
         assert core.calc_score("GPU", text, s, e, cfg) == 0.6 + 0.15
 
-    def test_soft_blacklist_penalises_point_2(self, monkeypatch):
-        monkeypatch.setattr(core, "in_brackets", lambda t, s, e: (False, False))
-        monkeypatch.setattr(det, "has_paren_definition", lambda t, e: False, raising=False)
-        monkeypatch.setattr(det, "has_stands_for_follow", lambda t, e: False, raising=False)
-
+    def test_soft_blacklist_penalises_point_2(self, patch_score_cues):
+        patch_score_cues()
         cfg = DetectorConfig()
         text = "We saw AS today."
         s, e = _idx(text, "AS")
         # AS is in cfg.soft_blacklist → -0.2
         assert core.calc_score("AS", text, s, e, cfg) == 0.6 - 0.2
 
-    def test_upper_bound_clamped_to_one(self, monkeypatch):
-        # Base 0.6 + inside .25 + paren .25 + stands_for .15 = 1.25 → clamp to 1.0
-        monkeypatch.setattr(core, "in_brackets", lambda t, s, e: (True, False))
-        monkeypatch.setattr(det, "has_paren_definition", lambda t, e: True, raising=False)
-        monkeypatch.setattr(det, "has_stands_for_follow", lambda t, e: True, raising=False)
+    def test_upper_bound_clamped_to_one(self, patch_score_cues):
+        patch_score_cues(in_brackets=(True, False), paren_def=True, stands_for=True)
 
         cfg = DetectorConfig()
         text = "GPU (Graphics Processing Unit). GPU stands for Graphics Processing Unit."
@@ -743,7 +732,7 @@ class TestAcceptCandidate:
         cfg = DummyCfg(min_len=3, max_len=10, require_caps_ratio=0.8)
 
         # strip trailing '!' -> (0,3)
-        monkeypatch.setattr(core, "strip_trailing_punct_str", lambda t, s, e: (s, e - 1), raising=False)
+        monkeypatch.setattr(core, "strip_trailing_punct_span", lambda t, s, e: (s, e - 1), raising=False)
         monkeypatch.setattr(core, "has_letter", lambda s: True, raising=False)
         monkeypatch.setattr(core, "core_len_for_bounds", lambda s: len(s), raising=False)
         monkeypatch.setattr(core, "caps_ratio", lambda s: 1.0, raising=False)
@@ -756,7 +745,7 @@ class TestAcceptCandidate:
         text = "123-456"
         cfg = DummyCfg(min_len=2)
 
-        monkeypatch.setattr(core, "strip_trailing_punct_str", lambda t, s, e: (s, e), raising=False)
+        monkeypatch.setattr(core, "strip_trailing_punct_span", lambda t, s, e: (s, e), raising=False)
         monkeypatch.setattr(core, "has_letter", lambda s: False, raising=False)
 
         # The rest shouldn't matter if has_letter is False, but provide safe defaults
@@ -781,7 +770,7 @@ class TestAcceptCandidate:
         s, e = 0, 10  # e - s = 10 >= min_len usually
         cfg = DummyCfg(min_len=min_len, max_len=max_len)
 
-        monkeypatch.setattr(core, "strip_trailing_punct_str", lambda t, _s, _e: (s, e), raising=False)
+        monkeypatch.setattr(core, "strip_trailing_punct_span", lambda t, _s, _e: (s, e), raising=False)
         monkeypatch.setattr(core, "has_letter", lambda srf: True, raising=False)
         monkeypatch.setattr(core, "core_len_for_bounds", lambda srf: core_len, raising=False)
         monkeypatch.setattr(core, "caps_ratio", lambda srf: 1.0, raising=False)
@@ -803,7 +792,7 @@ class TestAcceptCandidate:
         s, e = 0, len(text)
         cfg = DummyCfg(min_len=2, max_len=10, require_caps_ratio=threshold, enable_mixed_case=False)
 
-        monkeypatch.setattr(core, "strip_trailing_punct_str", lambda t, _s, _e: (s, e), raising=False)
+        monkeypatch.setattr(core, "strip_trailing_punct_span", lambda t, _s, _e: (s, e), raising=False)
         monkeypatch.setattr(core, "has_letter", lambda srf: True, raising=False)
         monkeypatch.setattr(core, "core_len_for_bounds", lambda srf: 4, raising=False)
         monkeypatch.setattr(core, "caps_ratio", lambda srf: ratio, raising=False)
@@ -823,7 +812,7 @@ class TestAcceptCandidate:
             require_caps_ratio_mixed=0.5,
         )
 
-        monkeypatch.setattr(core, "strip_trailing_punct_str", lambda t, _s, _e: (s, e), raising=False)
+        monkeypatch.setattr(core, "strip_trailing_punct_span", lambda t, _s, _e: (s, e), raising=False)
         monkeypatch.setattr(core, "has_letter", lambda srf: True, raising=False)
         monkeypatch.setattr(core, "core_len_for_bounds", lambda srf: 3, raising=False)
         # Raw ratio is too low for 0.9 but above the mixed threshold 0.5
@@ -842,7 +831,7 @@ class TestAcceptCandidate:
         cfg_disabled = DummyCfg(
             min_len=2, max_len=10, require_caps_ratio=0.9, enable_mixed_case=False, require_caps_ratio_mixed=0.5
         )
-        monkeypatch.setattr(core, "strip_trailing_punct_str", lambda t, _s, _e: (s, e), raising=False)
+        monkeypatch.setattr(core, "strip_trailing_punct_span", lambda t, _s, _e: (s, e), raising=False)
         monkeypatch.setattr(core, "has_letter", lambda srf: True, raising=False)
         monkeypatch.setattr(core, "core_len_for_bounds", lambda srf: 2, raising=False)
         monkeypatch.setattr(core, "caps_ratio", lambda srf: 0.6, raising=False)

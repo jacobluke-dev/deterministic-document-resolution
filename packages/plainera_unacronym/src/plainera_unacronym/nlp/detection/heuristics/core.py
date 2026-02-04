@@ -9,22 +9,25 @@ from plainera_unacronym.nlp.common.constants_regex import (
     TIME_RE,
     TRAILING_PUNCT_CHARS,
 )
-from plainera_unacronym.nlp.common.shared import has_paren_definition, normalize_acronym_key
+from plainera_unacronym.nlp.common.shared import has_paren_definition, normalize_acronym_key, has_letter
 from plainera_unacronym.nlp.common.types import DetectorConfig, pattern_cache, TextSpanTuple, Span
 from plainera_unacronym.nlp.plugins.registry import DOMAIN_PLUGINS
 
+_DOTTED_INITIALISM_RE = re.compile(r"^(?:[A-Z]\.)+[A-Z]$")
 
 def compile_pattern(cfg: DetectorConfig) -> re.Pattern[str]:
     """
-    Build a linear, low-backtracking pattern that matches:
-      1) Chunks with internal separators:    R&D, USB-C, O’RAN, I/O  (spaces around seps allowed)
-      2) Dotted initialisms (opt-in):        U.S., U.S.A.
-      3) Compact ALL-CAPS/alnum runs:        NHS, GPU, H2O
-      4) CamelCaps (opt-in, upper-first):    TfL, eBPF  (requires ≥2 uppercase letters)
+    Compile a linear, low-backtracking token pattern for acronym-like candidates.
 
-    We wrap the whole token in word boundaries (\b … \b) to avoid matching inside longer words.
-    Note: \b is Unicode-aware in Python. Hyphens/quotes/dots are *inside* the token branches; the
-    boundaries apply only to the token edges, so adjacency like NHS) or "NHS" still matches.
+    The pattern is assembled from multiple branches (separators, dotted forms, compact caps,
+    digit-prefixed, and optional mixed-case) and wrapped in word boundaries to avoid
+    matching inside longer identifiers.
+
+    Args:
+        cfg (DetectorConfig): Detector configuration controlling bounds and enabled branches.
+
+    Returns:
+        re.Pattern[str]: Compiled regex with a named group "tok" for candidate spans.
     """
     # Cache key must include all switches that change the pattern’s shape.
     # NOTE: if our config field is named `enable_mixed_case` (no underscore),
@@ -51,11 +54,17 @@ def compile_pattern(cfg: DetectorConfig) -> re.Pattern[str]:
     #    - First char must be A–Z; remaining are A–Z or 0–9.
     #    - Length bounds derive from cfg.{min,max}_len (inclusive) and apply to
     #      the whole run (the first char counts toward the total).
-    compact = rf"(?:[A-Z][A-Z0-9]{{{max(cfg.min_len - 1, 1)},{max(cfg.max_len - 1, 1)}}})"
+    tail_min = max(cfg.min_len - 1, 0)
+    tail_max = max(cfg.max_len - 1, 0)
+    tail_max = max(tail_max, tail_min)
+    compact = rf"(?:[A-Z][A-Z0-9]{{{tail_min},{tail_max}}})"
 
     # 4) digit-prefixed compact, e.g. 3GPP, 2FA, 5G, 80211AX (if you allow those)
     # Ensure there's at least one letter after the digit run: [0-9]+[A-Z]
-    digit_compact = rf"(?:[0-9]+[A-Z][A-Z0-9]{{{max(cfg.min_len - 2, 0)},{max(cfg.max_len - 2, 0)}}})"
+    dmin = max(cfg.min_len - 2, 0)
+    dmax = max(cfg.max_len - 2, 0)
+    dmax = max(dmax, dmin)
+    digit_compact = rf"(?:[0-9]+[A-Z][A-Z0-9]{{{dmin},{dmax}}})"
 
     # 5) CamelCaps (opt-in, upper-first) for brand-style abbreviations.
     #    - Simple, linear pattern that captures tokens like "TfL", "eBPF" (upper-first only here).
@@ -68,8 +77,14 @@ def compile_pattern(cfg: DetectorConfig) -> re.Pattern[str]:
     # - allow trailing digits (optional)
     lower_prefix_mixed = r"(?:[a-z]{1,2}[A-Z]{2,}[A-Za-z0-9]*)"
 
+    # 7)
+    # ALL-CAPS (or alnum) with an optional short lowercase suffix (e.g. PDFs, GPUs, NHSs).
+    # Keep suffix short to avoid normal words; 1–3 is usually enough.
+    caps_with_suffix = r"(?:[A-Z]{2,}[a-z]{1,3})"
+
     # Order matters: keep more specific branches (with_seps/dotted) before the generic compact.
-    branches = [with_seps, compact, digit_compact]
+    branches = [with_seps, caps_with_suffix, compact, digit_compact]
+
     if cfg.enable_dotted:
         branches.insert(1, dotted)  # give dotted precedence over compact
     if cfg.enable_mixed_case:
@@ -86,26 +101,65 @@ def compile_pattern(cfg: DetectorConfig) -> re.Pattern[str]:
 
 
 def letters(token: str) -> str:
+    """
+    Extract alphabetic characters from a token surface.
+
+    This is used for casing calculations where punctuation and digits should not
+    affect ratios. The relative order of letters is preserved.
+
+    Args:
+        token (str): Token surface to filter.
+
+    Returns:
+        str: Letters-only version of the token.
+    """
     return "".join(ch for ch in token if ch.isalpha())
 
 
 def caps_ratio(token: str) -> float:
     ls = letters(token)
     if not ls:
-        return 1.0
+        return 0
     upp = sum(1 for ch in ls if ch.isupper())
     return upp / len(ls)
 
 
 def strip_trailing_punct_span(text: str, start: int, end: int) -> Span:
-    # Exclude common trailing punctuation from offsets.
+    """
+    Trim common trailing punctuation from a candidate span.
+
+    This adjusts offsets without allocating substrings and helps avoid matching
+    tokens like 'NHS,' or 'U.S.A.)' with punctuation included.
+
+    Args:
+        text (str): Source text.
+        start (int): Start offset (inclusive).
+        end (int): End offset (exclusive).
+
+    Returns:
+        Span: Adjusted (start, end) with trailing punctuation removed.
+    """
     while end > start and text[end - 1] in TRAILING_PUNCT_CHARS:
         end -= 1
     return start, end
 
 
 def in_brackets(text: str, start: int, end: int) -> tuple[bool, bool]:
-    # (inside, adjacent)
+    """
+    Determine whether a span is bracketed or bracket-adjacent.
+
+    The 'inside' flag requires both an opening bracket immediately before and a
+    closing bracket immediately after. The 'adjacent' flag triggers if either side
+    touches any configured bracket character.
+
+    Args:
+        text (str): Source text.
+        start (int): Start offset (inclusive).
+        end (int): End offset (exclusive).
+
+    Returns:
+        tuple[bool, bool]: (inside, adjacent) flags.
+    """
     s = start
     e = end
     inside = (s > 0 and text[s - 1] in "([") and (e < len(text) and text[e] in ")]")
@@ -114,7 +168,20 @@ def in_brackets(text: str, start: int, end: int) -> tuple[bool, bool]:
 
 
 def has_stands_for_follow(text: str, end: int, max_chars: int = 24) -> bool:
-    # Look only to the right, stop at sentence end or max_chars
+    """
+    Detect a right-hand "stands for" cue near a candidate.
+
+    Scans forward from `end`, skipping whitespace and stopping at sentence-ending
+    punctuation or `max_chars`, then applies STANDS_FOR_RE to that slice.
+
+    Args:
+        text (str): Source text.
+        end (int): End offset (exclusive) of the candidate span.
+        max_chars (int): Maximum lookahead length. Defaults to 24.
+
+    Returns:
+        bool: True if a "stands for" cue is detected to the right; else False.
+    """
     i, n = end, len(text)
     while i < n and text[i].isspace():
         i += 1
@@ -126,7 +193,19 @@ def has_stands_for_follow(text: str, end: int, max_chars: int = 24) -> bool:
 
 
 def next_word_lowercase(text: str, end: int) -> bool:
-    # Peek the immediate next word; if it's all-lowercase, return True.
+    """
+    Check whether the next lexical word after a span is all lowercase.
+
+    This is a cheap heuristic to detect patterns like "NHS is ..." where the token
+    behaves like a normal noun phrase boundary. Quotes/brackets are skipped.
+
+    Args:
+        text (str): Source text.
+        end (int): End offset (exclusive) of the candidate span.
+
+    Returns:
+        bool: True if the next word exists and is lowercase; else False.
+    """
     i = end
     n = len(text)
     while i < n and text[i].isspace():
@@ -142,6 +221,19 @@ def next_word_lowercase(text: str, end: int) -> bool:
 
 
 def prev_token(text: str, start: int) -> str:
+    """
+    Extract the immediately preceding token to the left of a span.
+
+    Scans backwards over whitespace then collects a simple alnum/":." token.
+    Used for lightweight context checks (e.g., time markers).
+
+    Args:
+        text (str): Source text.
+        start (int): Start offset (inclusive) of the candidate span.
+
+    Returns:
+        str: Previous token surface (may be empty).
+    """
     i = start - 1
     while i >= 0 and text[i].isspace():
         i -= 1
@@ -152,21 +244,36 @@ def prev_token(text: str, start: int) -> str:
 
 
 def core_len_for_bounds(token: str) -> int:
-    # count alnum only for min/max length checks
+    """
+    Compute alphanumeric length for min/max gating.
+
+    This ignores punctuation/separators so tokens like "R&D" are evaluated on their
+    alnum content, consistent with other acceptance heuristics.
+
+    Args:
+        token (str): Token surface.
+
+    Returns:
+        int: Count of .isalnum() characters in the token.
+    """
     return sum(1 for ch in token if ch.isalnum())
 
-
-def has_letter(s: str) -> bool:
-    return any(ch.isalpha() for ch in s)
 
 
 def threshold_len(surface: str, allow_chars: str) -> int:
     """
-    Effective length used for confidence thresholds.
-    - Base is alnum length.
-    - If the token contains any allowed internal separator (e.g. &, /, -),
-      we treat it as at least length 3 so items like 'R&D' don't get penalised
-      as two-letter tokens.
+    Compute effective length used for confidence/threshold heuristics.
+
+    Base length is the alnum count. If any allowed separator (or a dot) exists, the
+    effective length is boosted to at least 3 so forms like "R&D" are not treated as
+    low-signal two-character tokens.
+
+    Args:
+        surface (str): Matched surface text.
+        allow_chars (str): Allowed internal separators (e.g., "&/-").
+
+    Returns:
+        int: Effective length used in threshold-based logic.
     """
     clen = core_len_for_bounds(surface)
     if any(ch in allow_chars for ch in surface) or "." in surface:
@@ -176,14 +283,18 @@ def threshold_len(surface: str, allow_chars: str) -> int:
 
 def boost_confidence_if_whitelisted(surface: str, confidence_score: float, cfg: DetectorConfig) -> float:
     """
-    Checking if surface is in 2 letter whitelist, if so increase confidence_score
-    is returned.
+    Boost confidence for whitelisted two-letter keys.
+
+    Normalizes the surface to a key and, if the key is exactly two letters and
+    present in cfg.whitelist_two_letter, applies a bounded additive boost.
+
     Args:
-        surface (str): surface to check
-        confidence_score (float): confidence score
-        cfg (DetectorConfig): detector configuration
+        surface (str): Candidate surface text.
+        confidence_score (float): Current confidence score.
+        cfg (DetectorConfig): Detector configuration (whitelist and boost settings).
+
     Returns:
-        float: confidence score
+        float: Updated confidence score (capped at 0.99).
     """
     key = normalize_acronym_key(surface,
                                 allow_chars=cfg.allow_chars,
@@ -196,7 +307,23 @@ def boost_confidence_if_whitelisted(surface: str, confidence_score: float, cfg: 
     return confidence_score
 
 
-def score(surface: str, text: str, start: int, end: int, cfg: DetectorConfig) -> float:
+def calc_score(surface: str, text: str, start: int, end: int, cfg: DetectorConfig) -> float:
+    """
+        Compute a confidence score for an accepted candidate using local cues.
+
+        The score starts from a baseline and is adjusted by bracket placement, nearby
+        definition cues, "stands for" cues, and blacklist membership.
+
+        Args:
+            surface (str): Candidate surface text.
+            text (str): Source text.
+            start (int): Start offset (inclusive).
+            end (int): End offset (exclusive).
+            cfg (DetectorConfig): Detector configuration (blacklists, etc.).
+
+        Returns:
+            float: Confidence score clamped to [0.0, 1.0].
+    """
     score = 0.6
     inside, adjacent = in_brackets(text, start, end)
     if inside:
@@ -213,6 +340,21 @@ def score(surface: str, text: str, start: int, end: int, cfg: DetectorConfig) ->
 
 
 def context_window(text: str, start: int, end: int, window_chars: int) -> Span:
+    """
+        Build a bounded sentence-like context window around a span.
+
+        Expands left/right until a terminator (., !, ?, newline) or `window_chars` is reached,
+        then trims leading whitespace on the left and includes the terminator on the right.
+
+        Args:
+            text (str): Source text.
+            start (int): Span start offset (inclusive).
+            end (int): Span end offset (exclusive).
+            window_chars (int): Maximum expansion distance on each side.
+
+        Returns:
+            Span: (left, right) offsets delimiting the context window.
+    """
     # Left: back to previous terminator (or start), then skip spaces
     left = start
     while left > 0 and text[left - 1] not in ".!?\n\r":
@@ -236,20 +378,37 @@ def context_window(text: str, start: int, end: int, window_chars: int) -> Span:
 
 
 def _has_lower_and_upper(tok: str) -> bool:
+    """
+        Check whether a token contains both lowercase and uppercase letters.
+
+        Used to relax caps-ratio requirements for mixed-case forms (e.g., mRNA, eBPF)
+        when cfg.enable_mixed_case is enabled.
+
+        Args:
+            tok (str): Token surface.
+
+        Returns:
+            bool: True if both cases occur among alphabetic characters; else False.
+    """
     return any(c.islower() for c in tok if c.isalpha()) and any(c.isupper() for c in tok if c.isalpha())
 
 
 def _accept_candidate(text: str, cfg: DetectorConfig, s: int, e: int) -> TextSpanTuple | None:
-    """Apply the standard gating to a raw (s, e) span and return a normalized Span or None.
-
-    Gates (identical to legacy path):
-      - strip trailing punctuation
-      - min/max length (and explicit 1 / >=15 guard)
-      - must contain at least one letter
-      - caps ratio (with mixed-case relaxation)
     """
+    Apply standard gating to a raw (s, e) match and return an accepted span.
 
-    _DOTTED_INITIALISM_RE = re.compile(r"^(?:[A-Z]\.)+[A-Z]$")
+    Performs trailing punctuation stripping, letter presence checks, length bounds,
+    dotted-initialism validation, and caps-ratio gating (with mixed-case relaxation).
+
+    Args:
+        text (str): Source text.
+        cfg (DetectorConfig): Detector configuration (bounds, allowlists, ratios).
+        s (int): Start offset (inclusive).
+        e (int): End offset (exclusive).
+
+    Returns:
+        TextSpanTuple | None: (surface, s, e) if accepted; otherwise None.
+    """
     s, e = strip_trailing_punct_span(text, s, e)
     if e - s < cfg.min_len:
         return None
@@ -298,7 +457,7 @@ def _accept_candidate(text: str, cfg: DetectorConfig, s: int, e: int) -> TextSpa
 
     req = cfg.require_caps_ratio
     if cfg.enable_mixed_case and _has_lower_and_upper(surface):
-        upp = sum(1 for ch in surface if ch.isupper())
+        upp = sum(1 for ch in surface if ch.isalpha() and ch.isupper())
         if upp >= 2:
             req = min(req, cfg.require_caps_ratio_mixed)
 
@@ -308,7 +467,20 @@ def _accept_candidate(text: str, cfg: DetectorConfig, s: int, e: int) -> TextSpa
     return surface, s, e
 
 def _collect_core_hits(text: str, cfg: DetectorConfig, pat: re.Pattern[str]) -> list[TextSpanTuple]:
-    """Collect accepted core-regex hits in text order."""
+    """
+        Collect accepted core-regex hits in text order.
+
+        Iterates over `pat.finditer` using the named group "tok" and applies the same
+        acceptance gating as the legacy candidate path.
+
+        Args:
+            text (str): Source text.
+            cfg (DetectorConfig): Detector configuration.
+            pat (re.Pattern[str]): Compiled pattern containing group "tok".
+
+        Returns:
+            list[TextSpanTuple]: Accepted hits as (surface, start, end) tuples.
+    """
     out: list[TextSpanTuple] = []
     for m in pat.finditer(text):
         s, e = m.span("tok")  # our pattern's named group
@@ -338,7 +510,20 @@ def _collect_domain_hits(text: str, cfg: DetectorConfig) -> list[TextSpanTuple]:
 
 
 def _contained_in_any(s: int, e: int, containers: list[TextSpanTuple]) -> bool:
-    """True if (s,e) is fully contained in any (ds,de) span in containers."""
+    """
+    Check whether a span is fully contained within any container span.
+
+    Containers are expected to be sorted by start offset; the function uses an
+    early-exit when container starts surpass the target end.
+
+    Args:
+        s (int): Start offset (inclusive) of the target span.
+        e (int): End offset (exclusive) of the target span.
+        containers (list[TextSpanTuple]): Candidate container spans.
+
+    Returns:
+        bool: True if (s, e) is contained in any container; else False.
+    """
     for _, ds, de in containers:
         if ds <= s and e <= de:
             return True
@@ -348,9 +533,19 @@ def _contained_in_any(s: int, e: int, containers: list[TextSpanTuple]) -> bool:
 
 
 def iter_candidates_with(text: str, cfg: DetectorConfig, pat: re.Pattern[str]) -> Iterator[TextSpanTuple]:
-    """Yield core candidates, suppressing only those fully contained by domain spans; then yield domain spans.
+    """
+    Yield accepted candidates while suppressing obvious fragments.
 
-    This preserves normal heuristics while avoiding obvious fragments (e.g., drop 'IFN' if 'IFN-γ' exists).
+    Core regex hits are emitted first unless fully contained by any domain span.
+    Domain plugin hits are then emitted, with duplicates removed by (start, end).
+
+    Args:
+        text (str): Source text.
+        cfg (DetectorConfig): Detector configuration.
+        pat (re.Pattern[str]): Compiled core token pattern.
+
+    Yields:
+        TextSpanTuple: Accepted candidates in output order (core-first, then domain).
     """
     core_hits: list[TextSpanTuple] = _collect_core_hits(text, cfg, pat)
     dom_hits: list[TextSpanTuple] = _collect_domain_hits(text, cfg)
