@@ -117,6 +117,21 @@ def _drop_all_caps_heading(surface: str, text: str, s: int, e: int, cfg: Heurist
     return is_all_caps_word(surface, cfg.allow_chars) and is_all_caps_heading(text, s, e)
 
 
+def effective_blacklist(cfg: DetectorConfig) -> frozenset[str]:
+    """
+        Returns the complete black list system and user / organisational
+        defined list.
+
+        Args:
+            cfg (DetectorConfig): Config implementing the HeuristicCfg subset.
+
+        returns:
+            frozenset[str]: A complete black list system and user / organisational defined list
+
+    """
+    return cfg.blacklist | cfg.user_org_blacklist
+
+
 def _is_sentence_start_i_am(text: str, start: int) -> bool:
     """
         Detect the sentence-start pattern “I AM …” where AM is not an acronym.
