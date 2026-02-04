@@ -32,13 +32,15 @@ class HeuristicCfg(Protocol):
         enable_dotted (bool): Whether dotted initialisms (e.g. U.S.A) are enabled.
     """
 
-
     @property
     def allow_chars(self) -> FrozenSet[str]: ...
+
     @property
     def non_acronym_upper(self) -> FrozenSet[str]: ...
+
     @property
     def soft_blacklist(self) -> FrozenSet[str]: ...
+
     @property
     def enable_dotted(self) -> bool: ...
 
@@ -47,6 +49,7 @@ if TYPE_CHECKING:
     from plainera_unacronym.nlp.types import DetectorConfig
 
     CfgLike = HeuristicCfg | DetectorConfig
+
 
     def _assert_subset(x: DetectorConfig) -> DetectorConfig:
         return x
@@ -207,6 +210,8 @@ def _non_acronym_punct_or_lowercase_follow(text: str, end: int) -> bool:
 
 @overload
 def blacklist_context_drop(surface: str, text: str, start: int, end: int, cfg: HeuristicCfg) -> bool: ...
+
+
 @overload
 def blacklist_context_drop(surface: str, text: str, start: int, end: int, cfg: "DetectorConfig") -> bool: ...
 
