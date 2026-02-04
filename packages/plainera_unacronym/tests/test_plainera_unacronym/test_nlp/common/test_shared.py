@@ -2,7 +2,7 @@ import pytest
 from plainera_unacronym.nlp.common.constants_regex import APOSTROPHE_VARIANTS
 from plainera_unacronym.nlp.common.shared import (has_paren_definition,
                                                   normalize_acronym_key,
-                                                  strip_trailing_punct_str)
+                                                  strip_trailing_punct_str, has_letter)
 from plainera_unacronym.nlp.extraction.anchored.normalise import tighten_definition_span
 
 
@@ -198,3 +198,36 @@ class TestStripTrailingPunctStr:
     def test_strip_trailing_punct_variants_agree_on_terminal_dot(self):
         s = "U.S.A.)"
         assert strip_trailing_punct_str(s) == "U.S.A"
+
+class TestHasLetters:
+
+    @pytest.mark.parametrize(
+        "s,expected",
+        [
+            ("-_/.,;:!?()", False),
+            ("12345", False),
+            ("SSO", True),
+            ("single sign-on", True),
+            ("O'Neil", True),
+            ("", False),  # empty
+            ("   \t", False),  # whitespace only
+            ("123456", False),  # digits
+            ("--._", False),  # punctuation/symbols
+            ("\u0301", False),  # combining acute accent (not a letter)
+            ("🧠💡", False),  # emoji
+            ("A", True),  # ASCII letter
+            ("abc123", True),  # mixed alnum
+            ("42 is the answer", True),  # sentence with letters
+            ("Straße", True),  # Latin letter ß
+            ("Ångström", True),  # Latin with diacritics
+            ("中文", True),  # CJK
+            ("Ж9", True),  # Cyrillic + digit
+            ("β-blocker", True),  # Greek + hyphen
+        ],
+    )
+    def test_various_inputs(self, s, expected):
+        assert has_letter(s) is expected
+
+    def test_long_string_performance_smoke(self):
+        s = "1234567" * 1000 + "X" + "!" * 1000
+        assert has_letter(s) is True
