@@ -15,13 +15,27 @@ def mk_cfg(**overrides) -> DetectorConfig:
     cfg = DetectorConfig()
 
     object.__setattr__(cfg, "non_acronym_upper", base["non_acronym_upper"])
-    object.__setattr__(cfg, "soft_blacklist", frozenset({"IT", "AM"}))
+    object.__setattr__(cfg, "blacklist", frozenset({"IT", "AM"}))
     for k, v in overrides.items():
         object.__setattr__(cfg, k, v)
     return cfg
 
 
 class TestBlacklistContextDrop:
+
+    def test_all_caps_heading_drops(self, span, monkeypatch):
+        import plainera_unacronym.nlp.detection.heuristics.context as ctx
+
+        monkeypatch.setattr(ctx, "_drop_all_caps_heading", lambda *args, **kwargs: True)
+        text = "INTRODUCTION\nWe begin here."
+        s, e = span(text, "INTRODUCTION")
+        assert blacklist_context_drop("INTRODUCTION", text, s, e, mk_cfg()) is True
+
+    def test_ok_followed_by_capitalised_kept(self, span):
+        text = "OK This is fine."
+        s, e = span(text, "OK")
+        assert blacklist_context_drop("OK", text, s, e, mk_cfg()) is False
+
     # 0) Definition contexts should NOT drop
     def test_paren_definition_right(self, span):
         text = "IT (Information Technology) leads the team."

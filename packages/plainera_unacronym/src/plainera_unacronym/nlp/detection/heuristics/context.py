@@ -19,10 +19,19 @@ from plainera_unacronym.nlp.detection.heuristics.general import (
 
 
 class HeuristicCfg(Protocol):
-    """Structural subset of DetectorConfig used by context.py.
-
-    Read-only properties so it matches a frozen/dataclass or @property-based config.
     """
+    Structural subset of DetectorConfig required by context-based heuristics.
+
+    This protocol lets context heuristics accept either the full DetectorConfig or a
+    lightweight config implementation, while remaining type-safe and read-only.
+
+    Attributes:
+        allow_chars (FrozenSet[str]): Allowed internal separator characters.
+        non_acronym_upper (FrozenSet[str]): Uppercase tokens treated as non-acronyms (e.g. OK, PM).
+        soft_blacklist (FrozenSet[str]): Short, locale-aware blacklist of common words in caps.
+        enable_dotted (bool): Whether dotted initialisms (e.g. U.S.A) are enabled.
+    """
+
 
     @property
     def allow_chars(self) -> FrozenSet[str]: ...
@@ -46,13 +55,42 @@ else:
 
 
 def _in_definition_context(text: str, start: int, end: int) -> bool:
+    """
+        Detect “definition context” signals around a candidate span.
+
+        Treats a token as definition-backed if it is inside brackets, followed by a
+        parenthetical definition, or followed by a “stands for …” cue.
+
+        Args:
+            text (str): Full source text.
+            start (int): Start offset (inclusive) of the candidate span.
+            end (int): End offset (exclusive) of the candidate span.
+
+        Returns:
+            bool: True if the span is likely part of an explicit definition/expansion.
+    """
     inside, _ = in_brackets(text, start, end)
     return inside or has_paren_definition(text, end) or has_stands_for_follow(text, end)
 
 
 def _drop_interjection(surface: str, text: str, s: int, e: int, cfg: CfgLike) -> bool:
-    # general.py expects HeuristicCfg; cast once here
+    """
+        Drop candidates that appear in ALL-CAPS interjection contexts.
 
+        Delegates to general heuristics that detect “shouty” tokens used as discourse markers
+        (e.g., OK!, NO!, YES!) either at the current span or immediately before it.
+
+        Args:
+            surface (str): Candidate surface text.
+            text (str): Full source text.
+            s (int): Start offset (inclusive) of the candidate span.
+            e (int): End offset (exclusive) of the candidate span.
+            cfg (CfgLike): Config implementing the HeuristicCfg subset.
+
+        Returns:
+            bool: True if the token should be dropped as an interjection; else False.
+    """
+    # general.py expects HeuristicCfg; cast once here
     hcfg = cast(HeuristicCfg, cfg)
     return is_in_caps_interjection_context(surface, text, s, e, hcfg) or is_in_caps_interjection_context_prev(
         surface, text, s, e, hcfg
@@ -60,10 +98,39 @@ def _drop_interjection(surface: str, text: str, s: int, e: int, cfg: CfgLike) ->
 
 
 def _drop_all_caps_heading(surface: str, text: str, s: int, e: int, cfg: HeuristicCfg) -> bool:
+    """
+        Drop candidates that are part of an ALL-CAPS heading.
+
+        Uses a strict ALL-CAPS token predicate plus a heading-context predicate to suppress
+        section headings that tend to produce noisy uppercase “matches”.
+
+        Args:
+            surface (str): Candidate surface text.
+            text (str): Full source text.
+            s (int): Start offset (inclusive) of the candidate span.
+            e (int): End offset (exclusive) of the candidate span.
+            cfg (HeuristicCfg): Config subset (uses allow_chars for ALL-CAPS checks).
+
+        Returns:
+            bool: True if the token should be dropped as a heading artifact; else False.
+    """
     return is_all_caps_word(surface, cfg.allow_chars) and is_all_caps_heading(text, s, e)
 
 
 def _is_sentence_start_i_am(text: str, start: int) -> bool:
+    """
+        Detect the sentence-start pattern “I AM …” where AM is not an acronym.
+
+        Walks left from `start` across whitespace and checks whether the previous non-space
+        character is 'I' and that it is at document start or preceded by a boundary char.
+
+        Args:
+            text (str): Full source text.
+            start (int): Start offset (inclusive) of the candidate span.
+
+        Returns:
+            bool: True if the token is an “AM” in the phrase “I AM” at a sentence start.
+    """
     # … "I AM" at sentence start (allows leading spaces)
     i = start - 1
     while i >= 0 and text[i].isspace():
@@ -77,6 +144,22 @@ def _is_sentence_start_i_am(text: str, start: int) -> bool:
 
 
 def _token_specific_drop(tok: str, text: str, start: int, end: int) -> bool | None:
+    """
+        Apply token-specific disambiguation rules for high-frequency polysemes.
+
+        Currently special-cases tokens that often appear in normal prose:
+          - "IT" at sentence boundary followed by lowercase word.
+          - "AM" following a time token (e.g. “9 AM”) or in sentence-start “I AM …”.
+
+        Args:
+            tok (str): Candidate token (surface).
+            text (str): Full source text.
+            start (int): Start offset (inclusive).
+            end (int): End offset (exclusive).
+
+        Returns:
+            bool | None: True to drop, False to keep, or None if no special-case applies.
+    """
     if tok == "IT":
         return at_sentence_boundary(text, start) and next_word_lowercase(text, end)
     if tok == "AM":
@@ -86,7 +169,19 @@ def _token_specific_drop(tok: str, text: str, start: int, end: int) -> bool | No
 
 
 def _non_acronym_punct_or_lowercase_follow(text: str, end: int) -> bool:
-    # After spaces, punctuation ,.!?;: → drop; or next word is lowercase → drop
+    """
+        Determine whether a non-acronym token is followed by punctuation or lowercase flow.
+
+        Skips whitespace then checks for immediate clause punctuation (",.!?;:") or whether
+        the next lexical word begins lowercase, both of which suggest discourse usage.
+
+        Args:
+            text (str): Full source text.
+            end (int): End offset (exclusive) of the candidate span.
+
+        Returns:
+            bool: True if the follow-on context suggests “not an acronym”.
+    """
     i, n = end, len(text)
     while i < n and text[i].isspace():
         i += 1
@@ -103,45 +198,32 @@ def blacklist_context_drop(surface: str, text: str, start: int, end: int, cfg: "
 
 def blacklist_context_drop(surface: str, text: str, start: int, end: int, cfg: CfgLike) -> bool:
     """
-    Decide whether to **drop** a candidate acronym based on local context.
+    Decide whether to drop a candidate acronym based on local context and config lists.
 
-    This applies a series of short-circuit heuristics to reject spans that are
-    likely not acronyms (e.g., shouty interjections, headings, time tokens, or
-    known non-acronym uppers followed by punctuation/lowercase). The checks are
-    ordered from strongest “keep” signals to more general drop rules.
-
-    The function returns **True** to drop/reject the candidate, **False** to keep it.
+    This is the context “driver” that combines several fast, short-circuit heuristics:
+    definition-context immunity, interjection and heading suppression, token-specific
+    polyseme rules, explicit blacklist/non-acronym lists, and a final sentence-boundary
+    fallback. It returns True to drop and False to keep.
 
     Args:
-        surface (str): The matched surface text (typically `text[start:end]`), e.g. "OK", "R&D", "IT".
+        surface (str): Candidate surface text (typically `text[start:end]`).
         text (str): Full source text.
-        start (int): Start offset (inclusive) of `surface` in `text`.
-        end (int): End offset (exclusive) of `surface` in `text`.
-        cfg (HeuristicCfg): Detection config. Uses:
-            - `allow_chars` (for separator checks via other helpers),
-            - `non_acronym_upper` (known uppercase tokens like "OK", "PM"),
-            - optional `blacklist` (extra tokens to always consider for dropping).
+        start (int): Start offset (inclusive) of the candidate in `text`.
+        end (int): End offset (exclusive) of the candidate in `text`.
+        cfg (CfgLike): Config implementing the HeuristicCfg subset; may also include:
+            - `blacklist` (optional FrozenSet[str]): tokens treated as context-droppable.
 
     Returns:
-        bool: `True` if the candidate should be dropped; `False` to keep.
+        bool: True if the candidate should be dropped; False if it should be kept.
 
     Decision order:
-        0. **Never drop** when near explicit definitions:
-           - Inside brackets/parentheses (`in_brackets`), or
-           - Followed by parenthetical definition (`has_paren_definition`), or
-           - “stands for …” pattern to the right (`has_stands_for_follow`).
-        1. **Drop** shouty ALL-CAPS interjections:
-           - `is_in_caps_interjection_context` (or the previous-token variant).
-        1b. **Drop** ALL-CAPS headings:
-           - If `is_all_caps_word(surface, cfg.allow_chars)` and `is_all_caps_heading(...)`.
-        2. Token-specific polysemes:
-           - `"IT"` → drop when at a sentence boundary **and** the next word is lowercase.
-           - `"AM"` → drop when preceded by a time token (e.g., `"9 AM"`), or sentence-start `"I AM …"`.
-        3. If `surface` is **not** in `cfg.blacklist` **and** not in `cfg.non_acronym_upper` → keep (`False`).
-        4. Known non-acronym uppers:
-           - **Drop** if followed by punctuation `, . ! ? ; :` (after spaces), or if the next word is lowercase.
-        5. Generic fallback:
-           - **Drop** when at a sentence boundary **and** the next word is lowercase.
+        0) Keep if in explicit definition context (brackets/paren def/“stands for”).
+        1) Drop ALL-CAPS interjections (current or previous token context).
+        2) Drop ALL-CAPS headings.
+        3) Apply token-specific rules ("IT", "AM") and return if applicable.
+        4) If not in cfg.blacklist and not in cfg.non_acronym_upper → keep.
+        5) If in cfg.non_acronym_upper and followed by punct/lowercase → drop.
+        6) Fallback: drop at sentence boundary when next word is lowercase.
 
     Notes:
         - Offsets are `[start, end)` (end-exclusive).

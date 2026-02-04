@@ -30,7 +30,7 @@ class TestCfgFingerprint:
             enable_mixed_case=False,  # ignored
             locale="en_US",  # ignored
             non_acronym_upper=frozenset({"OK", "PM", "ETC"}),  # ignored
-            soft_blacklist=frozenset({"OF", "IN"}),  # ignored
+            blacklist=frozenset({"OF", "IN"}),  # ignored
             domain_cfg={"x": 1},  # ignored
         )
         assert _cfg_fingerprint(base) == _cfg_fingerprint(changed)

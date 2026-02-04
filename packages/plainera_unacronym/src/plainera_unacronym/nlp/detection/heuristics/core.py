@@ -334,7 +334,7 @@ def calc_score(surface: str, text: str, start: int, end: int, cfg: DetectorConfi
         score += 0.25
     if has_stands_for_follow(text, end):
         score += 0.15
-    if surface in cfg.soft_blacklist:
+    if surface in cfg.blacklist:
         score -= 0.2
     return max(0.0, min(1.0, score))
 
@@ -617,7 +617,7 @@ def reason_tags(surface: str, text: str, start: int, end: int, cfg: DetectorConf
     is_adjacent_parens = (not inside) and adjacent
     has_paren_def_right = has_paren_definition(text, end)
     has_stands_for = has_stands_for_follow(text, end)
-    is_soft_blacklisted = surface in cfg.soft_blacklist
+    is_blacklisted = surface in cfg.blacklist
     is_non_acronym_upper = surface in cfg.non_acronym_upper
     next_word_is_lower = next_word_lowercase(text, end)
     prev_is_time = bool(TIME_RE.match(prev))
@@ -629,7 +629,7 @@ def reason_tags(surface: str, text: str, start: int, end: int, cfg: DetectorConf
         ("adjacent_parens", is_adjacent_parens),
         ("paren_definition_right", has_paren_def_right),
         ("stands_for_right", has_stands_for),
-        ("soft_blacklist_penalty", is_soft_blacklisted),
+        ("blacklist_penalty", is_blacklisted),
         ("non_acronym_upper", is_non_acronym_upper),
         ("next_word_lowercase", next_word_is_lower),
         ("prev_time_token", prev_is_time),

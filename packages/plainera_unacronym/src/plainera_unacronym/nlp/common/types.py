@@ -1,5 +1,6 @@
 import re
 from dataclasses import dataclass, field
+from functools import cached_property
 from types import MappingProxyType
 from typing import Any, FrozenSet, Literal, Mapping, Optional, TypeAlias
 
@@ -117,9 +118,10 @@ class DetectorConfig:
     # Allowed internal punctuation in acronyms (normalized for keying).
     allow_chars: str = ALLOW_CHARS
     # Very small, locale-aware blacklist. Configurable/overrideable.
-    soft_blacklist: frozenset[str] = frozenset(
+    blacklist: frozenset[str] = frozenset(
         {"AS", "AT", "BE", "BY", "DO", "GO", "IF", "IN", "IS", "OF", "ON", "OR", "SO", "TO", "AN"}
     )
+    user_org_blacklist: frozenset[str] = frozenset()
 
     locale: str = "en_GB"
     window_chars: int = 140
@@ -133,6 +135,10 @@ class DetectorConfig:
     enabled_domains: FrozenSet[str] = frozenset()
     domain_cfg: Mapping[str, Any] = field(default_factory=dict)
     debug_anomalies: bool = False  # set to true if we want to run  message logger in dev / live envs
+
+    @cached_property
+    def allow_chars_set(self) -> frozenset[str]:
+        return frozenset(self.allow_chars)
 
 
 @dataclass(frozen=True, slots=True)
