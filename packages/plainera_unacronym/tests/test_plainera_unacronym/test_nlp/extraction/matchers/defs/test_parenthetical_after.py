@@ -8,7 +8,7 @@ class TestFindParentheticalLongformAfterAcrUnit:
         # Patching anyway to prove independence; they won't be called
         _patch(
             find_parenthetical_longform_after_acr,
-            has_letters=lambda s: True,
+            has_letter=lambda s: True,
             tighten_definition_span=lambda s: s,
             normalize_definition=lambda s: s,
             _initials_match=lambda acr, phrase: True,
@@ -19,13 +19,13 @@ class TestFindParentheticalLongformAfterAcrUnit:
     def test_requires_letters_gate(self, _patch, dummy_cfg):
         calls = {}
 
-        def spy_has_letters(s):
+        def spy_has_letter(s):
             calls["raw"] = s
             return False  # force gate fail
 
         _patch(
             find_parenthetical_longform_after_acr,
-            has_letters=spy_has_letters,
+            has_letter=spy_has_letter,
             tighten_definition_span=lambda s: "IGNORED",
             normalize_definition=lambda s: "IGNORED",
             _initials_match=lambda acr, phrase: True,
@@ -33,7 +33,7 @@ class TestFindParentheticalLongformAfterAcrUnit:
         cfg = dummy_cfg()
         snip = "   (1234) tail"
         assert find_parenthetical_longform_after_acr(snip, cfg, acr="X") == []
-        # ensure we passed the raw inner text to _has_letters
+        # ensure we passed the raw inner text to _has_letter
         assert calls["raw"] == "1234"
 
     def test_normalize_pipeline_and_span_preserved(self, _patch, dummy_cfg):
@@ -49,7 +49,7 @@ class TestFindParentheticalLongformAfterAcrUnit:
 
         _patch(
             find_parenthetical_longform_after_acr,
-            has_letters=lambda s: True,
+            has_letter=lambda s: True,
             tighten_definition_span=fake_tighten,
             normalize_definition=fake_normalize,
             _initials_match=lambda acr, phrase: True,
@@ -85,7 +85,7 @@ class TestFindParentheticalLongformAfterAcrUnit:
 
         _patch(
             find_parenthetical_longform_after_acr,
-            has_letters=lambda s: True,
+            has_letter=lambda s: True,
             tighten_definition_span=fake_tighten,
             normalize_definition=fake_normalize,
         )
@@ -103,7 +103,7 @@ class TestFindParentheticalLongformAfterAcrUnit:
     def test_require_initials_match_guard_false_blocks(self, _patch, dummy_cfg):
         _patch(
             find_parenthetical_longform_after_acr,
-            has_letters=lambda s: True,
+            has_letter=lambda s: True,
             tighten_definition_span=lambda s: s,
             normalize_definition=lambda s: s
         )
@@ -126,7 +126,7 @@ class TestFindParentheticalLongformAfterAcrUnitInitialsPath:
 
         _patch(
             find_parenthetical_longform_after_acr,
-            has_letters=lambda s: True,
+            has_letter=lambda s: True,
             build_initials_stream=build_stream_fn,
             align_acronym_to_initials=fake_align,
             expand_numeric_leading_window=lambda tokens, i, j: (i, j),
@@ -160,7 +160,7 @@ class TestFindParentheticalLongformAfterAcrUnitInitialsPath:
 
         _patch(
             find_parenthetical_longform_after_acr,
-            has_letters=lambda s: True,
+            has_letter=lambda s: True,
             build_initials_stream=build_stream_fn,
             align_acronym_to_initials=fake_align,
             expand_numeric_leading_window=lambda tokens, i, j: (i, j),
@@ -188,7 +188,7 @@ class TestFindParentheticalLongformAfterAcrUnitInitialsPath:
 
         _patch(
             find_parenthetical_longform_after_acr,
-            has_letters=lambda s: True,
+            has_letter=lambda s: True,
             is_mixed_case_acronym=lambda acr: True,
             build_initials_stream=build_stream_fn,
             align_acronym_to_initials=fake_align,
@@ -215,7 +215,7 @@ class TestFindParentheticalLongformAfterAcrUnitKeptTokens:
 
         _patch(
             find_parenthetical_longform_after_acr,
-            has_letters=lambda s: True,
+            has_letter=lambda s: True,
             build_initials_stream=build_stream_fn,
             align_acronym_to_initials=fake_align,
             expand_numeric_leading_window=lambda tokens, i, j: (i, j),
@@ -244,7 +244,7 @@ class TestFindParentheticalLongformAfterAcrUnitKeptTokens:
 
         _patch(
             find_parenthetical_longform_after_acr,
-            has_letters=lambda s: True,
+            has_letter=lambda s: True,
             build_initials_stream=build_stream_fn,
             align_acronym_to_initials=fake_align,
             expand_numeric_leading_window=fake_expand,
@@ -275,7 +275,7 @@ class TestFindParentheticalLongformAfterAcrUnitSpans:
 
         _patch(
             find_parenthetical_longform_after_acr,
-            has_letters=lambda s: True,
+            has_letter=lambda s: True,
             build_initials_stream=build_stream_fn,
             align_acronym_to_initials=fake_align,
             expand_numeric_leading_window=lambda tokens, i, j: (i, j),
@@ -427,7 +427,7 @@ class TestFindParentheticalLongformAfterAcrIntegrationEdgesCases:
     def test_returns_empty_if_normalize_definition_fails_in_bypass_path(self, _patch, dummy_cfg):
         _patch(
             find_parenthetical_longform_after_acr,
-            has_letters=lambda s: True,
+            has_letter=lambda s: True,
             tighten_definition_span=lambda s: s,
             normalize_definition=lambda s: "",  # force failure
         )
@@ -444,7 +444,7 @@ class TestFindParentheticalLongformAfterAcrIntegrationEdgesCases:
 
         _patch(
             find_parenthetical_longform_after_acr,
-            has_letters=lambda s: True,
+            has_letter=lambda s: True,
             build_initials_stream=build_stream_fn,
             align_acronym_to_initials=fake_align,
             expand_numeric_leading_window=lambda tokens, i, j: (i, j),

@@ -2,8 +2,8 @@ import re
 from typing import Optional
 
 from plainera_unacronym.nlp.common.constants_regex import BRIDGES_DEFAULT, DEFAULT_STOPWORDS
-from plainera_unacronym.nlp.extraction.core.normalise import has_letters, normalize_definition
-from plainera_unacronym.nlp.common.shared import strip_trailing_punct_str, collapse_ws
+from plainera_unacronym.nlp.extraction.core.normalise import normalize_definition
+from plainera_unacronym.nlp.common.shared import strip_trailing_punct_str, collapse_ws, has_letter
 from plainera_unacronym.nlp.extraction.anchored.normalise import tighten_definition_span
 from plainera_unacronym.nlp.extraction.matchers.common import is_mixed_case_acronym
 from plainera_unacronym.nlp.extraction.matchers.defs.common import (LocalDefMatch,
@@ -73,7 +73,7 @@ def find_parenthetical_longform_after_acr(
 
     raw = m.group("def")
     raw_trim = raw.strip()
-    if not has_letters(raw_trim):
+    if not has_letter(raw_trim):
         return []
     if len(raw_trim) > max_chars:
         return []

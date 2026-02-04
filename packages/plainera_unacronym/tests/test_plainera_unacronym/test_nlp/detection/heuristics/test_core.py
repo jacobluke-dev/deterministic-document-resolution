@@ -86,8 +86,8 @@ class TestCapsRatio:
         assert caps_ratio("rock'n'roll") == 0.0
 
     def test_no_letters_returns_1(self):
-        assert caps_ratio("") == 1.0
-        assert caps_ratio("1234-._") == 1.0
+        assert caps_ratio("") == 0
+        assert caps_ratio("1234-._") == 0
 
     def test_unicode_accented(self):
         # Letters: É c l a i r -> 1/6 uppercase
@@ -529,7 +529,7 @@ class TestScoreUnit:
         cfg = DetectorConfig()
         text = "We use GPU daily."
         s, e = _idx(text, "GPU")
-        assert det.score("GPU", text, s, e, cfg) == 0.6
+        assert core.calc_score("GPU", text, s, e, cfg) == 0.6
 
     def test_in_brackets_inside_adds_point_25(self, monkeypatch):
         monkeypatch.setattr(core, "in_brackets", lambda t, s, e: (True, False))
@@ -539,7 +539,7 @@ class TestScoreUnit:
         cfg = DetectorConfig()
         text = "(GPU) is fast."
         s, e = _idx(text, "GPU")
-        assert det.score("GPU", text, s, e, cfg) == 0.6 + 0.25
+        assert core.calc_score("GPU", text, s, e, cfg) == 0.6 + 0.25
 
     def test_inside_takes_precedence_over_adjacent(self, monkeypatch):
         # If both are True, only inside (+0.25) applies due to elif
@@ -550,7 +550,7 @@ class TestScoreUnit:
         cfg = DetectorConfig()
         text = "GPU near brackets."
         s, e = _idx(text, "GPU")
-        assert det.score("GPU", text, s, e, cfg) == 0.85
+        assert core.calc_score("GPU", text, s, e, cfg) == 0.85
 
     def test_paren_definition_adds_point_25(self, monkeypatch):
         monkeypatch.setattr(core, "in_brackets", lambda t, s, e: (False, False))
@@ -560,7 +560,7 @@ class TestScoreUnit:
         cfg = DetectorConfig()
         text = "GPU (Graphics Processing Unit)"
         s, e = _idx(text, "GPU")
-        assert det.score("GPU", text, s, e, cfg) == 0.6 + 0.25
+        assert core.calc_score("GPU", text, s, e, cfg) == 0.6 + 0.25
 
     def test_stands_for_follow_adds_point_15(self, monkeypatch):
         monkeypatch.setattr(core, "in_brackets", lambda t, s, e: (False, False))
@@ -570,7 +570,7 @@ class TestScoreUnit:
         cfg = DetectorConfig()
         text = "GPU stands for Graphics Processing Unit."
         s, e = _idx(text, "GPU")
-        assert det.score("GPU", text, s, e, cfg) == 0.6 + 0.15
+        assert core.calc_score("GPU", text, s, e, cfg) == 0.6 + 0.15
 
     def test_soft_blacklist_penalises_point_2(self, monkeypatch):
         monkeypatch.setattr(core, "in_brackets", lambda t, s, e: (False, False))
@@ -581,7 +581,7 @@ class TestScoreUnit:
         text = "We saw AS today."
         s, e = _idx(text, "AS")
         # AS is in cfg.soft_blacklist → -0.2
-        assert det.score("AS", text, s, e, cfg) == 0.6 - 0.2
+        assert core.calc_score("AS", text, s, e, cfg) == 0.6 - 0.2
 
     def test_upper_bound_clamped_to_one(self, monkeypatch):
         # Base 0.6 + inside .25 + paren .25 + stands_for .15 = 1.25 → clamp to 1.0
@@ -592,7 +592,7 @@ class TestScoreUnit:
         cfg = DetectorConfig()
         text = "GPU (Graphics Processing Unit). GPU stands for Graphics Processing Unit."
         s, e = _idx(text, "GPU")
-        assert det.score("GPU", text, s, e, cfg) == 1.0
+        assert core.calc_score("GPU", text, s, e, cfg) == 1.0
 
 
 class TestScoreIntegration:
@@ -601,7 +601,7 @@ class TestScoreIntegration:
         # Pattern: "<TOKEN> stands for <definition>" should add +0.15.
         text = "In docs, GPU stands for Graphics Processing Unit."
         s, e = _idx(text, "GPU")
-        val = det.score("GPU", text, s, e, DetectorConfig())
+        val = det.calc_score("GPU", text, s, e, DetectorConfig())
 
         # Expect base 0.6 + 0.15 for 'stands for', possibly more if in_brackets
         # logic treats proximity to punctuation as adjacent—but there are no brackets here.

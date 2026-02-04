@@ -57,7 +57,7 @@ class TestFindParentheticalLongformBeforeAcrUnitAlignmentAndFallback:
 
         _patch(
             find_parenthetical_longform_before_acr,
-            has_letters=lambda s: True,
+            has_letter=lambda s: True,
             build_initials_stream=build_stream_fn,
             align_acronym_to_initials=fake_align,
             expand_numeric_leading_window=lambda tokens, i, j: (i, j),
@@ -86,7 +86,7 @@ class TestFindParentheticalLongformBeforeAcrUnitAlignmentAndFallback:
 
         _patch(
             find_parenthetical_longform_before_acr,
-            has_letters=lambda s: True,
+            has_letter=lambda s: True,
             build_initials_stream=build_stream_seen,
             align_acronym_to_initials=fake_align,
             expand_numeric_leading_window=lambda tokens, i, j: (i, j),
@@ -120,7 +120,7 @@ class TestFindParentheticalLongformBeforeAcrUnitAlignmentAndFallback:
 
         _patch(
             find_parenthetical_longform_before_acr,
-            has_letters=lambda s: True,
+            has_letter=lambda s: True,
             build_initials_stream=build_stream_fn,
             align_acronym_to_initials=fake_align,
             expand_numeric_leading_window=lambda tokens, i, j: (i, j),
@@ -156,7 +156,7 @@ class TestFindParentheticalLongformBeforeAcrUnitNumericDesignatorsAndWindowing:
 
         _patch(
             find_parenthetical_longform_before_acr,
-            has_letters=lambda s: True,
+            has_letter=lambda s: True,
             build_initials_stream=build_stream_fn,
             align_acronym_to_initials=fake_align,
             consume_left_numeric_designator=fake_consume,
@@ -191,7 +191,7 @@ class TestFindParentheticalLongformBeforeAcrUnitNumericDesignatorsAndWindowing:
 
         _patch(
             find_parenthetical_longform_before_acr,
-            has_letters=lambda s: True,
+            has_letter=lambda s: True,
             build_initials_stream=build_stream_fn,
             align_acronym_to_initials=fake_align,
             consume_left_numeric_designator=lambda **kw: kw["tok_left"],
@@ -223,7 +223,7 @@ class TestFindParentheticalLongformBeforeAcrUnitNumericDesignatorsAndWindowing:
 
         _patch(
             find_parenthetical_longform_before_acr,
-            has_letters=lambda s: True,
+            has_letter=lambda s: True,
             build_initials_stream=build_stream_fn,
             align_acronym_to_initials=fake_align,
             consume_left_numeric_designator=lambda **kw: kw["tok_left"],
@@ -254,7 +254,7 @@ class TestFindParentheticalLongformBeforeAcrUnitNormalizeFailures:
 
         _patch(
             find_parenthetical_longform_before_acr,
-            has_letters=lambda s: True,
+            has_letter=lambda s: True,
             build_initials_stream=build_stream_fn,
             align_acronym_to_initials=fake_align,
             consume_left_numeric_designator=lambda **kw: kw["tok_left"],

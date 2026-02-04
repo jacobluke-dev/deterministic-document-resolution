@@ -77,7 +77,7 @@ class TestCleanDefinitionUnit:
             _strip_leading_determiner=fake_strip_det,
             tighten_label_by_acronym=fake_tighten_label,
             normalize_definition=fake_norm,
-            has_letters=lambda s: True,
+            has_letter=lambda s: True,
         )
 
         cfg = ExtractionConfig(require_two_words=False)
@@ -97,7 +97,7 @@ class TestCleanDefinitionUnit:
             _strip_leading_determiner=lambda s: (calls.__setitem__("strip_det", calls["strip_det"] + 1) or f"S[{s}]"),
             tighten_label_by_acronym=lambda base, acr: base,   # passthrough
             normalize_definition=lambda s: s,                  # passthrough
-            has_letters=lambda s: True,
+            has_letter=lambda s: True,
         )
 
         out = clean_definition("the Portable Document Format", acr_norm="PDF", cfg=cfg, kind="inline_before")
@@ -120,7 +120,7 @@ class TestCleanDefinitionUnit:
             _strip_leading_determiner=lambda s: (_ for _ in ()).throw(AssertionError("nope")),
             tighten_label_by_acronym=fake_tighten_label,
             normalize_definition=lambda s: s,
-            has_letters=lambda s: True,
+            has_letter=lambda s: True,
         )
 
         out = clean_definition("ORIG", acr_norm="X", cfg=cfg, kind="parenthetical")
@@ -136,7 +136,7 @@ class TestCleanDefinitionUnit:
             tighten_definition_span=lambda s: (_ for _ in ()).throw(AssertionError("should not be called")),
             tighten_label_by_acronym=lambda *_: (_ for _ in ()).throw(AssertionError("should not be called")),
             normalize_definition=lambda *_: (_ for _ in ()).throw(AssertionError("should not be called")),
-            has_letters=lambda *_: True,
+            has_letter=lambda *_: True,
         )
 
         orig = "a" * 50
@@ -152,7 +152,7 @@ class TestCleanDefinitionUnit:
             tighten_definition_span=lambda s: s,
             tighten_label_by_acronym=lambda base, acr: base,
             normalize_definition=lambda s: "",
-            has_letters=lambda s: True,
+            has_letter=lambda s: True,
         )
         assert clean_definition("X", acr_norm="A", cfg=cfg, kind=INLINE) is None
 
@@ -160,7 +160,7 @@ class TestCleanDefinitionUnit:
         _patch(
             clean_definition,
             normalize_definition=lambda s: "123-456",
-            has_letters=lambda s: False,
+            has_letter=lambda s: False,
         )
         assert clean_definition("X", acr_norm="A", cfg=cfg, kind="inline") is None
 
@@ -168,7 +168,7 @@ class TestCleanDefinitionUnit:
         _patch(
             clean_definition,
             normalize_definition=lambda s: "X" * 100,
-            has_letters=lambda s: True,
+            has_letter=lambda s: True,
         )
         assert clean_definition("X", acr_norm="A", cfg=cfg, kind=INLINE) is None
 
@@ -180,7 +180,7 @@ class TestCleanDefinitionUnit:
             tighten_definition_span=lambda s: s,
             tighten_label_by_acronym=lambda base, acr: base,
             normalize_definition=lambda s: s,
-            has_letters=lambda s: True,
+            has_letter=lambda s: True,
         )
 
         # Patch TOKEN_RE in the function's globals to simulate 1 token vs 2 tokens

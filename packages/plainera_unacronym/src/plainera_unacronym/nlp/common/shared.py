@@ -94,3 +94,15 @@ def normalize_acronym_key(surface: str, allow_chars: str, dotted_mode: str) -> s
 
 def collapse_ws(s: str) -> str:
     return re.sub(r"\s+", " ", s).strip()
+
+
+def has_letter(s: str) -> bool:
+    """True if the string contains any Unicode letter.
+
+    Args:
+      s (str): String to check.
+
+    Returns:
+      bool: True if any character in ``s`` satisfies ``str.isalpha()``; else False.
+    """
+    return any(ch.isalpha() for ch in s)

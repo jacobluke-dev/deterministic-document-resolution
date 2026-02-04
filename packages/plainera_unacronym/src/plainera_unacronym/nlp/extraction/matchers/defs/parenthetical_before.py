@@ -1,8 +1,8 @@
 import re
 
 from plainera_unacronym.nlp.common.constants_regex import DEFAULT_STOPWORDS, BRIDGES_DEFAULT, QUOTE
-from plainera_unacronym.nlp.extraction.core.normalise import has_letters, normalize_definition
-from plainera_unacronym.nlp.common.shared import collapse_ws
+from plainera_unacronym.nlp.extraction.core.normalise import normalize_definition
+from plainera_unacronym.nlp.common.shared import collapse_ws, has_letter
 from plainera_unacronym.nlp.extraction.matchers.common import is_mixed_case_acronym
 from plainera_unacronym.nlp.extraction.matchers.defs.common import (LocalDefMatch,
                                                                     build_initials_stream,
@@ -76,7 +76,7 @@ def find_parenthetical_longform_before_acr(snippet: str, acr: str, cfg) -> list[
         return []
 
     pre = m.group("pre").rstrip()
-    if not pre or not has_letters(pre):
+    if not pre or not has_letter(pre):
         return []
 
     # Raw length guard (before any tightening): enforce the configured limit strictly.

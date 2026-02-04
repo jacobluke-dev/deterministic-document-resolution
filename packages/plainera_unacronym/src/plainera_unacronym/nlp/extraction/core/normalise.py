@@ -91,17 +91,6 @@ def tighten_label(def_str: str) -> str:
     return def_str
 
 
-def has_letters(s: str) -> bool:
-    """True if the string contains any Unicode letter.
-
-    Args:
-      s (str): String to check.
-
-    Returns:
-      bool: True if any character in ``s`` satisfies ``str.isalpha()``; else False.
-    """
-    return any(ch.isalpha() for ch in s)
-
 def has_digit(s: str) -> bool:
     """True if the string contains any number.
 

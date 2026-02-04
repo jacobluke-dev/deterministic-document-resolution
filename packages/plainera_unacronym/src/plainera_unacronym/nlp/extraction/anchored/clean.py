@@ -2,10 +2,11 @@ import re
 from typing import Optional
 
 from plainera_unacronym.nlp.common.constants_regex import TOKEN_RE
+from plainera_unacronym.nlp.common.shared import has_letter
 from plainera_unacronym.nlp.common.types import INLINE_KINDS, INLINE, INLINE_BEFORE
 from plainera_unacronym.nlp.extraction import ExtractionConfig
 from plainera_unacronym.nlp.extraction.anchored.normalise import tighten_definition_span
-from plainera_unacronym.nlp.extraction.core.normalise import normalize_definition, has_letters
+from plainera_unacronym.nlp.extraction.core.normalise import normalize_definition
 from plainera_unacronym.nlp.extraction.matchers.tighten import tighten_label_by_acronym
 
 _DET_PREFIX_RE = re.compile(r"^\s*(?:the|a|an)\b\s+", re.IGNORECASE)
@@ -63,7 +64,7 @@ def clean_definition(orig: str, *, acr_norm: str, cfg: ExtractionConfig, kind: s
         base = orig
 
     clean = normalize_definition(tighten_label_by_acronym(base, acr_norm))
-    if not clean or not has_letters(clean) or len(clean) > cfg.max_phrase_chars:
+    if not clean or not has_letter(clean) or len(clean) > cfg.max_phrase_chars:
         return None
 
     if cfg.require_two_words and kind in INLINE_KINDS:
