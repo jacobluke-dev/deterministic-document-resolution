@@ -8,21 +8,9 @@ from plainera_unacronym.nlp.detection.heuristics.gate import (
     STATS,
     UNITS,
     VIRUS,
-    _slice,
     bio_signal_score,
     should_enable_bio,
 )
-
-
-class TestSlice:
-    def test_slice_truncates_when_over_max(self):
-        text = "x" * 100
-        assert _slice(text, max_chars=10) == "x" * 10
-
-    def test_slice_noop_when_shorter_or_equal(self):
-        text = "hello"
-        assert _slice(text, max_chars=10) == "hello"
-        assert _slice(text, max_chars=5) == "hello"
 
 
 class TestRegexesMinimalMatches:
@@ -82,23 +70,22 @@ class TestBioSignalScore:
         text = "mRNA present. Abstract mentioned. OD600=0.7"
         score, reasons, is_strong = bio_signal_score(text)
         assert is_strong is True
-        assert score == 5 + 1 + 1
+        assert score == 7  # 5 + 1 + 1
         assert set(reasons) == {"rna", "sections", "units"}
 
     def test_support_only_does_not_set_is_strong(self):
         text = "PCR performed. Abstract provided."
         score, reasons, is_strong = bio_signal_score(text)
         assert is_strong is False
-        assert score == 2 + 1
+        assert score == 3  # 2 + 1
         assert set(reasons) == {"pcr", "sections"}
 
     def test_cytokine_with_greek_counts_both(self):
-            text = "TNF-α levels rose."
-            score, reasons, is_strong = bio_signal_score(text)
-            # cytokine (5) + greek (1)
-            assert score == 6
-            assert set(reasons) == {"cytokine", "greek"}
-            assert is_strong is True
+        text = "TNF-α levels rose."
+        score, reasons, is_strong = bio_signal_score(text)
+        assert score == 6  # cytokine(5) + greek(1)
+        assert set(reasons) == {"cytokine", "greek"}
+        assert is_strong is True
 
     def test_combined_signals(self):
         text = (
@@ -106,30 +93,31 @@ class TestBioSignalScore:
             "H7N9 was monitored."
         )
         score, reasons, is_strong = bio_signal_score(text)
-        # sections(1) + rna(5) + pcr(2) + units(1) + stats(2) + virus(5) = 12
+        # sections(1) + rna(5) + pcr(2) + units(1) + stats(2) + virus(5) = 16
         assert score == 16
         assert set(reasons) == {"sections", "rna", "pcr", "units", "stats", "virus"}
         assert is_strong is True
 
 
 class TestShouldEnableBio:
-    def test_threshold_default_false_when_low_signal(self):
+
+    def test_default_false_when_low_signal(self):
         ok, reasons = should_enable_bio("PCR only.")  # score=2
         assert ok is False
         assert set(reasons) == {"pcr"}
 
-    def test_threshold_default_true_when_score_meets_or_exceeds(self):
+    def test_strong_signal_enables_regardless_of_threshold_math(self):
         ok, reasons = should_enable_bio("IL-10")  # score=3
         assert ok is True
         assert set(reasons) == {"cytokine"}
 
-    def test_combination_does_not_reach_threshold(self):
+    def test_support_combination_still_false_under_default_threshold(self):
         text = "PCR performed. Abstract provided."  # pcr(2) + sections(1) = 3
-        ok, reasons = should_enable_bio(text)  # default threshold=5 → needs ≥8 if no strong
+        ok, reasons = should_enable_bio(text)  # default threshold=5 → needs ≥8 when no strong
         assert ok is False
         assert set(reasons) == {"pcr", "sections"}
 
-    def test_custom_threshold(self):
+    def test_custom_threshold_does_not_override_strong_requirement(self):
         ok, reasons = should_enable_bio("α only", threshold=1)
         assert ok is False
         assert set(reasons) == {"greek"}
