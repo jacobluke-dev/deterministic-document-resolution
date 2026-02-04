@@ -65,7 +65,7 @@ class TestDetectorUnit:
         monkeypatch.setattr(det, "iter_candidates_with", lambda text, cfg, pat: cands, raising=True)
         monkeypatch.setattr(det, "blacklist_context_drop", lambda surf, *_: (surf == "OK"), raising=True)
         scores = {"GPU": 0.91, "API": 0.90, "OK": 0.99}
-        monkeypatch.setattr(det, "score", lambda surf, *_: scores[surf], raising=True)
+        monkeypatch.setattr(det, "calc_score", lambda surf, *_: scores[surf], raising=True)
         monkeypatch.setattr(det, "threshold_len", lambda surf, ac: 3, raising=True)  # -> threshold = 0.60
         # Build occurrences; normalized key = surface (simple)
         monkeypatch.setattr(
@@ -105,7 +105,7 @@ class TestDetectorUnit:
         monkeypatch.setattr(det, "blacklist_context_drop", lambda *_: False, raising=True)
         # AI below 2-letter threshold (0.72); R&D at 3-letter threshold (0.60)
         sc = {"AI": 0.71, "R&D": 0.60}
-        monkeypatch.setattr(det, "score", lambda surf, *_: sc[surf], raising=True)
+        monkeypatch.setattr(det, "calc_score", lambda surf, *_: sc[surf], raising=True)
         monkeypatch.setattr(det, "threshold_len", lambda surf, ac: 2 if surf == "AI" else 3, raising=True)
         monkeypatch.setattr(
             det, "_build_occurrence_from_match", lambda *_: (_occ("R&D", 5, 8, 0.60, "R&D"), "R&D"), raising=True
