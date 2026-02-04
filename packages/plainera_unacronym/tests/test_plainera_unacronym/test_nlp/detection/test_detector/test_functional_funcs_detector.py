@@ -407,7 +407,7 @@ class TestScoreChunkWorkerUnit:
 
         _patch(_score_chunk_worker,
                blacklist_context_drop=fake_blacklist,
-               score=fake_score,
+               calc_score=fake_score,
                threshold_len=fake_threshold_len,
                _build_occurrence_from_match=fake_build)
 

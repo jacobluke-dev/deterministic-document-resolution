@@ -20,14 +20,14 @@ from plainera_unacronym.nlp.plugins.activation import autodetect_domains
 from plainera_unacronym.wiring.composition import sink
 
 from .heuristics.context import blacklist_context_drop
+
 from .heuristics.core import (
     boost_confidence_if_whitelisted,
     compile_pattern,
     context_window,
     iter_candidates_with,
     reason_tags,
-    score,
-    threshold_len,
+    threshold_len, calc_score,
 )
 from .heuristics.general import strip_terminal_plural
 from .heuristics.inline_cues import boost_confidence_if_inline_cue
@@ -191,7 +191,7 @@ def _score_chunk_worker(cfg: DetectorConfig, text: str, cands: list[tuple[str, i
     for surface, s, e in cands:
         if blacklist_context_drop(surface, text, s, e, cfg):
             continue
-        conf = score(surface, text, s, e, cfg)
+        conf = calc_score(surface, text, s, e, cfg)
         eff = threshold_len(surface, cfg.allow_chars)
         th = cfg.min_confidence_by_len.get(eff, cfg.min_confidence_default)
         if conf < th:
@@ -295,6 +295,7 @@ class Detector:
         )
 
         for surface, s, e in iter_candidates_with(text, cfg, self._pat):
+
             total += 1
 
             if blacklist_context_drop(surface, text, s, e, cfg):
@@ -302,7 +303,7 @@ class Detector:
                 continue
 
             # 1) raw score
-            conf = score(surface, text, s, e, cfg)
+            conf = calc_score(surface, text, s, e, cfg)
 
             # 2) compute length bucket / threshold (using our existing helper)
             eff = threshold_len(surface, cfg.allow_chars)
