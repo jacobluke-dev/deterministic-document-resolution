@@ -7,28 +7,19 @@ from .patterns import bio_pattern
 
 
 def extra_candidates(text: str, cfg: BioConfig) -> Iterator[TextSpanTuple]:
-    """Yield biomedical candidate spans found by the bio regex.
+    """Yield bio-domain candidate spans found by bio-specific patterns.
 
-    Scans ``text`` with the precompiled bio pattern (see ``bio_pattern()``) to
-    identify domain-specific tokens such as cytokines (e.g., ``IL-6``,
-    ``TNF-α``, ``IFN-γ``, ``TGF-β1``), viral names (e.g., ``SARS-CoV-2``,
-    ``MERS-CoV``, ``H1N1``), UTR markers (``5′-UTR`` / ``3′-UTR``), and
-    gene/protein-like camel-case forms (e.g., ``BRCA1``). This function only
-    proposes raw spans; downstream guards should decide whether to keep them.
+    Runs the domain regex to capture biomedical tokens that the generic detector
+    may miss (e.g. cytokines/viruses/UTRs), then optionally adds explicit RNA-like
+    terms from `cfg.rna_like`. This yields raw spans only; downstream gates decide
+    acceptance.
 
     Args:
-      text: Source text to scan.
-      cfg: Bio domain configuration. Accepted for interface symmetry and
-        potential future tuning; not currently read by this function.
+        text (str): Source text to scan.
+        cfg (BioConfig): Bio configuration (uses `rna_like` to add explicit tokens).
 
     Yields:
-      Span: Tuples of ``(surface: str, start: int, end: int)`` for each match,
-      where ``start`` (inclusive) and ``end`` (exclusive) are character offsets
-      into ``text``.
-
-    Example:
-      >>> list(extra_candidates("Measured IL-6 and IFN-γ in SARS-CoV-2 samples.", BioConfig()))
-      [('IL-6', 9, 13), ('IFN-γ', 18, 22), ('SARS-CoV-2', 26, 36)]
+        TextSpanTuple: (surface, start, end) matches with end-exclusive offsets.
     """
     pat = bio_pattern()
     for m in pat.finditer(text):
@@ -43,6 +34,20 @@ def extra_candidates(text: str, cfg: BioConfig) -> Iterator[TextSpanTuple]:
 
 
 def _sentence_slice(text: str, s: int, e: int, max_chars: int) -> Span:
+    """Return a bounded sentence-like slice around a target span.
+
+    Expands to nearest sentence terminators around (s, e) and then clamps the
+    slice to `max_chars` around the midpoint to avoid pathological long sentences.
+
+    Args:
+        text (str): Source text.
+        s (int): Start offset (inclusive) of the target span.
+        e (int): End offset (exclusive) of the target span.
+        max_chars (int): Maximum slice width after clamping.
+
+    Returns:
+        Span: (start, end) offsets delimiting the slice (end-exclusive).
+    """
     left = max(text.rfind(".", 0, s), text.rfind("?", 0, s), text.rfind("!", 0, s))
     right_candidates = [text.find(".", e), text.find("?", e), text.find("!", e)]
     right = min([p for p in right_candidates if p != -1] or [len(text)])
@@ -56,11 +61,29 @@ def _sentence_slice(text: str, s: int, e: int, max_chars: int) -> Span:
     return a, b
 
 
-def keep_guard(surface, text, s, e, cfg: BioConfig) -> bool:
+def bio_keep_guard(surface: str, text: str, s: int, e: int, cfg: BioConfig) -> bool:
+    """Domain-specific rescue/keep rule for borderline biomedical candidates.
+
+    Keeps known RNA-like tokens unconditionally, and conditionally keeps certain
+    ambiguous two-letter tokens (e.g. OR/HR/RR) only when local sentence context
+    contains statistical markers such as CI/OR/HR/RR patterns.
+
+    Args:
+        surface (str): Candidate surface text (`text[s:e]`).
+        text (str): Full source text.
+        s (int): Start offset (inclusive).
+        e (int): End offset (exclusive).
+        cfg (BioConfig): Bio configuration (uses `rna_like`, `two_letter_keep`, and `stats_window_chars`).
+
+    Returns:
+        bool: True if the token should be kept by the bio domain; otherwise False.
+    """
     if surface in cfg.rna_like:
         return True
+
     if len(surface) == 2 and surface in cfg.two_letter_keep and surface.isupper():
         a, b = _sentence_slice(text, s, e, cfg.stats_window_chars or 60)
         r = text[a:b]
         return bool(_STATS_CI_RE.search(r) or _STATS_OR_HR_RR_RE.search(r))
+
     return False

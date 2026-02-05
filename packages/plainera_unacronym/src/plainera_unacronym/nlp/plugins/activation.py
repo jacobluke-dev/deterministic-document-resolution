@@ -6,7 +6,7 @@ from .interface import SupportsSniff
 from .registry import DOMAIN_PLUGINS
 
 
-def autodetect_domains(text: str, cfg: DetectorConfig, *, cap: int = 80_000) -> FrozenSet[str]:
+def autodetect_domains(text: str, _cfg: DetectorConfig, *, cap: int = 80_000) -> FrozenSet[str]:
     """Return the set of domain plugin names auto-detected for a given text.
 
     This scans a capped prefix of ``text`` (default: first 80,000 characters)
@@ -20,7 +20,7 @@ def autodetect_domains(text: str, cfg: DetectorConfig, *, cap: int = 80_000) -> 
 
     Args:
       text: Source document to inspect.
-      cfg: Current detector configuration. Accepted for interface symmetry and
+      _cfg: Current detector configuration. Accepted for interface symmetry and
         possible future use; not read by this implementation.
       cap: Maximum number of leading characters of ``text`` to inspect for
         speed and safety on very large inputs.

@@ -3,38 +3,71 @@ import re
 from plainera_unacronym.nlp import DetectorConfig
 from plainera_unacronym.nlp.detection.domains.bio.config import BioConfig
 from plainera_unacronym.nlp.detection.domains.bio.patterns import bio_pattern
-from plainera_unacronym.nlp.detection.domains.bio.rules import keep_guard as bio_keep_guard
+from plainera_unacronym.nlp.detection.domains.bio.rules import bio_keep_guard
 from plainera_unacronym.nlp.detection.heuristics.gate import should_enable_bio
 from plainera_unacronym.nlp.plugins.interface import DomainPlugin
 from plainera_unacronym.nlp.plugins.registry import register_plugin
 
 _BIO_SNIFF_RE = re.compile(r"\b(?:mRNA|miRNA|sgRNA|SARS-CoV-2|MERS-CoV|H\d{1,2}N\d{1,2}|IL-\d{1,3}|[35][′'\"]-?UTR)\b")
 
-# TODO
-# One more architectural heads-up (so future Jacob doesn’t swear at past Jacob)
-#
-# Your registry.py currently holds DomainPlugin used by detection (bio sniffing etc.).
-# build_plan() is an extraction concern (inline cues, parenthetical allow hooks).
-#
-# So either:
-#
-# you’re intentionally reusing one registry for both (fine, but then DomainPlugin should expose extraction hooks too), or
-#
-# you should split registries: domain_registry.py vs extraction_registry.py.
-#
-# Right now, you’ve wired extraction planning to a registry that (so far) only supports detection plugins.
-# That mismatch is exactly how “it compiles but does nothing” bugs are born. (The classic.)
-#
-# If you want, paste DomainPlugin (interface) and your intended extraction plugin hook shape, and I’ll tell you whether to split or extend cleanly.
+# TODO: If/when domain-specific *extraction* hooks are added (e.g. inline cue tweaks),
+# decide whether to extend DomainPlugin or introduce a separate ExtractionPlugin + registry.
+
 
 class BioPlugin(DomainPlugin):
+    """Domain plugin providing biology-specific detection hooks.
+
+    Adds a fast domain sniff for auto-enabling, plus a dedicated candidate regex and
+    a keep-guard to rescue borderline spans in bio-heavy text. Intended to be
+    side-effect free and cheap per-document.
+    """
+
     name = "bio"
 
+    @staticmethod
+    def domain_cfg(cfg: DetectorConfig, name: str, default):
+        """Fetch a per-domain config object from `cfg.domain_cfg` with a fallback.
+
+        Centralises the “get or default” lookup so plugins can pull their config
+        without repeating boilerplate. Returns `default` when unset or falsy.
+
+        Args:
+            cfg (DetectorConfig): Active detector configuration holding `domain_cfg`.
+            name (str): Domain key used for lookup (typically plugin `name`).
+            default: Default config object to return when no entry exists.
+
+        Returns:
+            The configured domain object if present; otherwise `default`.
+        """
+        return cfg.domain_cfg.get(name) or default
+
     def _cfg(self, cfg: DetectorConfig) -> BioConfig:
-        return cfg.domain_cfg.get(self.name, BioConfig())
+        """Return the active `BioConfig` for this plugin.
+
+        Looks up `cfg.domain_cfg["bio"]` and falls back to a default `BioConfig()`.
+        This isolates callers from the storage details of per-domain configuration.
+
+        Args:
+            cfg (DetectorConfig): Active detector configuration.
+
+        Returns:
+            BioConfig: Per-document biology configuration for this plugin.
+        """
+        return cfg.domain_cfg.get(self.name) or BioConfig()
 
     @staticmethod
-    def sniff(self, text: str) -> bool:
+    def sniff(text: str) -> bool:
+        """Heuristically detect whether a document is likely biology/biomed.
+
+        Scans a capped prefix for strong bio cues (RNA types, viruses, cytokines,
+        UTR patterns) and falls back to a weighted bio-signal scorer.
+
+        Args:
+            text (str): Source document text (caller may pass a truncated prefix).
+
+        Returns:
+            bool: True if biology signals are present; otherwise False.
+        """
         t = text[:80_000]  # cap scanning for speed
         if _BIO_SNIFF_RE.search(t):
             return True
@@ -42,6 +75,18 @@ class BioPlugin(DomainPlugin):
         return ok
 
     def extra_candidates(self, text: str, cfg: DetectorConfig):
+        """Yield additional biology-specific candidate spans.
+
+        When the bio domain is enabled, runs the domain regex and yields each match
+        as a `(surface, start, end)` tuple using end-exclusive offsets.
+
+        Args:
+            text (str): Source document text.
+            cfg (DetectorConfig): Active detector configuration.
+
+        Yields:
+            TextSpanTuple: (surface, start, end) for each domain match.
+        """
         if self.name not in cfg.enabled_domains:
             return
         pat = bio_pattern()
@@ -50,9 +95,23 @@ class BioPlugin(DomainPlugin):
             yield text[s:e], s, e
 
     def keep_guard(self, surface: str, text: str, s: int, e: int, cfg: DetectorConfig) -> bool:
+        """Decide whether to keep a generic candidate based on biology context.
+
+        Used to rescue tokens that the generic pipeline might drop (e.g., short or
+        ambiguous forms) when bio context suggests they are meaningful.
+
+        Args:
+            surface (str): Candidate surface text (`text[s:e]`).
+            text (str): Full source document text.
+            s (int): Start offset (inclusive) of the candidate.
+            e (int): End offset (exclusive) of the candidate.
+            cfg (DetectorConfig): Active detector configuration (may contain BioConfig).
+
+        Returns:
+            bool: True to keep the candidate; False to let generic logic decide.
+        """
         if self.name not in cfg.enabled_domains:
             return False
         return bio_keep_guard(surface, text, s, e, self._cfg(cfg))
-
 
 register_plugin(BioPlugin())

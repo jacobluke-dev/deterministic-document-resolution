@@ -2,16 +2,6 @@ from typing import Iterator, Protocol, runtime_checkable
 
 from plainera_unacronym.nlp.common.types import TextSpanTuple
 
-# TODO move this somewhere globally
-"""A candidate acronym span.
-
-Elements:
-    0 (str): Surface text as it appears in `text` (not normalized).
-    1 (int): Start offset (inclusive) in `text`.
-    2 (int): End offset (exclusive) in `text`.
-"""
-
-
 class DomainPlugin(Protocol):
     """Interface for domain-specific detection hooks.
 
