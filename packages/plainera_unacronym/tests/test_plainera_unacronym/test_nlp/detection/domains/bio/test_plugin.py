@@ -2,6 +2,7 @@ import plainera_unacronym.nlp.detection.detector as det
 import plainera_unacronym.nlp.plugins.activation as act
 import pytest
 from plainera_unacronym.nlp.detection.detector import Detector, DetectorConfig, autodetect_domains
+from plainera_unacronym.nlp.detection.domains.bio.config import BioConfig
 from plainera_unacronym.nlp.detection.domains.bio.plugin import BioPlugin
 
 
@@ -23,7 +24,6 @@ def patch_sink_and_logger(monkeypatch):
     return logs
 
 
-@pytest.mark.integration
 class TestBioAutodetect:
     def test_autodetect_domains_flags_bio_from_rna_and_cytokines(self, monkeypatch):
         """
@@ -34,7 +34,7 @@ class TestBioAutodetect:
         # Make sure the registered BioPlugin gets queried in this test:
         monkeypatch.setattr(act, "SupportsSniff", object, raising=True)  # all objects pass isinstance
         # Some versions implement a sandbox wrapper; route to plugin.sniff in a safe way.
-        monkeypatch.setattr(act, "_safe_sniff", lambda plug, t: plug.sniff(None, t), raising=True)
+        monkeypatch.setattr(act, "_safe_sniff", lambda plug, t: plug.sniff(t), raising=True)
 
         text = (
             "We quantified mRNA for IL-6 after SARS-CoV-2 infection. "
@@ -114,3 +114,66 @@ class TestBioAutodetect:
         s2 = text2.index("Or")
         e2 = s2 + 2
         assert plug.keep_guard("OR", text2, s2, e2, cfg) is False
+
+    def test_keep_guard_returns_false_when_domain_disabled(self):
+        plug = BioPlugin()
+        cfg = DetectorConfig(enabled_domains=frozenset())
+        text = "Differential expression of miRNA was observed."
+        s = text.index("miRNA")
+        e = s + len("miRNA")
+        assert plug.keep_guard("miRNA", text, s, e, cfg) is False
+
+    def test_keep_guard_uses_domain_cfg_override(self):
+        plug = BioPlugin()
+        cfg = DetectorConfig(enabled_domains=frozenset({"bio"}))
+        # Override to make stats window tiny so context is missed.
+        object.__setattr__(cfg, "domain_cfg",
+                           {"bio": BioConfig(stats_window_chars=5, two_letter_keep=frozenset({"OR"}))})
+
+        text = "OR = 1.8 (95% CI 1.2–2.3)"
+        s = text.index("OR")
+        e = s + 2
+        assert plug.keep_guard("OR", text, s, e, cfg) is False
+
+
+class TestExtraCandidates:
+
+    def test_extra_candidates_respects_enabled_domains(self):
+        plug = BioPlugin()
+        text = "Measured IL-6 and IFN-γ in SARS-CoV-2 samples."
+        cfg_off = DetectorConfig(enabled_domains=frozenset())
+        assert list(plug.extra_candidates(text, cfg_off) or []) == []
+
+        cfg_on = DetectorConfig(enabled_domains=frozenset({"bio"}))
+        hits = list(plug.extra_candidates(text, cfg_on) or [])
+        assert any(s == "IL-6" for s, _, _ in hits)
+        assert all(text[s:e] == surf for surf, s, e in hits)
+
+
+class TestAutoDetectedDomains:
+
+    def test_autodetect_domains_swallows_plugin_exceptions(self, monkeypatch):
+        class BadPlug(BioPlugin):
+            name = "bio"
+
+            @staticmethod
+            def sniff(text: str) -> bool:
+                raise RuntimeError("boom")
+
+        monkeypatch.setattr(act, "DOMAIN_PLUGINS", {"bio": BadPlug()}, raising=True)
+        cfg = DetectorConfig()
+        assert act.autodetect_domains("mRNA IL-6", cfg) == frozenset()
+
+    def test_autodetect_domains_returns_plugin_name_on_true(self, monkeypatch):
+        class GoodPlug:
+            name = "bio"
+
+            @staticmethod
+            def sniff(text: str) -> bool:
+                return "IL-6" in text
+
+        monkeypatch.setattr(act, "DOMAIN_PLUGINS", {"bio": GoodPlug()}, raising=True)
+
+        cfg = DetectorConfig()
+        assert act.autodetect_domains("x IL-6 y", cfg) == frozenset({"bio"})
+        assert act.autodetect_domains("no signals", cfg) == frozenset()

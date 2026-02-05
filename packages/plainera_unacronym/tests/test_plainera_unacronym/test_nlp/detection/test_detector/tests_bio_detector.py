@@ -6,7 +6,6 @@ def _keys(result) -> set[str]:
     return set(result.unique_acronyms.keys())
 
 
-@pytest.mark.e2e
 class TestBioE2E:
     def test_bio_end_to_end_default_config(self, patch_sink_and_logger):
         """
@@ -61,7 +60,6 @@ class TestBioE2E:
         assert counts(serial) == counts(parallel), f"counts differ: {counts(serial)} vs {counts(parallel)}"
 
 
-@pytest.mark.e2e
 class TestBioAndGeneralIntegration:
     def test_mixed_bio_and_general_tokens(self):
         """
