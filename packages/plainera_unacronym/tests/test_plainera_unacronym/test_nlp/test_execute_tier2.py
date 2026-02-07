@@ -1,5 +1,4 @@
 from plainera_unacronym.nlp.execute import detect_and_extract
-from test_plainera_unacronym.test_nlp.common import picked_def
 
 
 class TestDetectAndExtractE2ETier2MixedCaseAcronyms:
