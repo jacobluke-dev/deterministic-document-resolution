@@ -3,10 +3,37 @@ from plainera_unacronym.nlp.common.types import DetectorConfig, Occurrence, Firs
 
 
 def recompute_firsts(
-    text: str,
     occurrences: list[Occurrence],
     cfg: DetectorConfig,
 ) -> dict[str, FirstOccurrence]:
+    """Recomputes first-occurrence metadata from a list of kept occurrences.
+
+    Produces a mapping of `normalized_key -> FirstOccurrence`, selecting the earliest
+    occurrence (lowest `start_offset`) per normalized key. This is used after cleanup
+    so that `DetectorResult.unique_acronyms` is derived from the authoritative
+    occurrence list rather than the pre-cleanup detector output.
+
+    Normalization:
+      - Prefer `Occurrence.normalized_key` when present.
+      - Otherwise compute a key via `normalize_acronym_key()` using `cfg.allow_chars`
+        and `cfg.dotted_display`.
+      - If a key cannot be computed, the occurrence is ignored.
+
+    Args:
+        occurrences: Occurrences to derive first occurrences from (typically the
+            post-cleanup kept list). Input ordering is not assumed.
+        cfg: Detector configuration used for key normalization.
+
+    Returns:
+        A dict mapping normalized keys to `FirstOccurrence` entries, where each entry
+        corresponds to the earliest occurrence for that key.
+
+    Notes:
+        - Deterministic: ties on start offset are resolved by first-seen iteration
+          order (stable for a fixed input list).
+        - Does not mutate the input occurrences.
+    """
+
     firsts: dict[str, FirstOccurrence] = {}
 
     for o in occurrences:
