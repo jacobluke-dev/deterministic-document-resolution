@@ -1,8 +1,7 @@
-import logging
+import pytest
 from typing import Callable
 
 import plainera_unacronym.nlp.detection.detector as det
-import pytest
 
 from plainera_unacronym.nlp.common.types import Span
 
@@ -12,12 +11,15 @@ def span() -> Callable[[str, str], Span]:
     def _span(text: str, token: str) -> Span:
         s = text.index(token)
         return s, s + len(token)
+
     return _span
 
 
 class NullSink:
     def __call__(self, *a, **k): pass
+
     def __getattr__(self, _): return lambda *a, **k: None
+
 
 @pytest.fixture(autouse=True)
 def patch_sink(monkeypatch):
@@ -33,7 +35,9 @@ def _patch(monkeypatch):
         for name, impl in replacements.items():
             monkeypatch.setitem(g, name, impl)
         return func
+
     return _apply
+
 
 class DummyCfgCls:
     def __init__(self, max_phrase_chars=80):
@@ -69,3 +73,15 @@ def build_stream_seen():
         return "STREAM"
 
     return _impl, seen
+
+
+@pytest.fixture
+def picked_def():
+    def _picked_def(extr, key: str):
+        """Return extracted definition for acronym key if present, else None."""
+        pick = extr.picks.get(key)
+        if pick is None:
+            return None
+        return pick.definition
+
+    return _picked_def
