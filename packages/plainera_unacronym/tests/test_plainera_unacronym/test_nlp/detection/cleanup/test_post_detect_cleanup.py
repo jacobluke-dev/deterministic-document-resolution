@@ -1,6 +1,6 @@
 from plainera_unacronym.nlp.common.types import DetectorResult, DetectorConfig, Occurrence, FirstOccurrence
 from plainera_unacronym.nlp.common.shared import normalize_acronym_key
-from plainera_unacronym.nlp.detection.cleanup.post_detect_cleanup import post_detect_cleanup
+from plainera_unacronym.nlp.detection.cleanup.post import post_detect_cleanup
 
 
 def _fo(cfg: DetectorConfig, acr: str, s: int, e: int, conf: float = 0.9) -> FirstOccurrence:

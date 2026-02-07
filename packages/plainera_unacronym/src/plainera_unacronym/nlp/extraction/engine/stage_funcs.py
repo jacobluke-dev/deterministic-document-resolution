@@ -1,5 +1,5 @@
 from plainera_unacronym.nlp import Detector
-from plainera_unacronym.nlp.detection.cleanup.post_detect_cleanup import post_detect_cleanup
+from plainera_unacronym.nlp.detection.cleanup.post import post_detect_cleanup
 from plainera_unacronym.nlp.extraction.anchored.extract import extract_near_firsts
 from plainera_unacronym.nlp.extraction.backref.extract import extract_sentence_backrefs
 from plainera_unacronym.nlp.extraction.core.defs import defs_from_picks, dedupe_defs

@@ -1,10 +1,10 @@
 from dataclasses import dataclass, field
 from typing import Optional
 
-from plainera_unacronym.nlp.detection.cleanup.post_detect_cleanup import DroppedOccurrence
 from plainera_unacronym.nlp.common.types import (
     DetectorConfig, InTextPick, ExtractedDefinition, ExtractionResult, DetectorResult, Extraction_strategy
 )
+from plainera_unacronym.nlp.detection.cleanup import DroppedOccurrence
 from plainera_unacronym.nlp.extraction.config import ExtractionConfig
 
 @dataclass
