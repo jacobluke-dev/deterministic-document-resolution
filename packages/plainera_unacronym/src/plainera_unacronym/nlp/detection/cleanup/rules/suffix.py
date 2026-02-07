@@ -1,6 +1,3 @@
-# cleanup/rules/suffix.py
-from __future__ import annotations
-
 from plainera_unacronym.nlp.common.constants_regex import PUNCT_TRIM
 from plainera_unacronym.nlp.common.types import Occurrence
 
@@ -8,6 +5,26 @@ from ..post import DroppedOccurrence
 
 
 def _is_strict_suffix(shorter: str, longer: str) -> bool:
+    """Returns True if `shorter` is a strict suffix of `longer` (case-insensitive).
+
+    “Strict” means `shorter` must be strictly shorter than `longer`. Matching is
+    performed using a simple case-insensitive `.endswith()` comparison; no other
+    normalisation is applied (e.g., punctuation trimming is the caller’s responsibility).
+
+    Args:
+        shorter: Candidate suffix string.
+        longer: Candidate superstring that may end with `shorter`.
+
+    Returns:
+        True if `longer` ends with `shorter` ignoring case and `len(shorter) < len(longer)`;
+        otherwise False.
+
+    Examples:
+        _is_strict_suffix("RNA", "mRNA") -> True
+        _is_strict_suffix("rna", "mRNA") -> True
+        _is_strict_suffix("mRNA", "mRNA") -> False
+        _is_strict_suffix("", "mRNA") -> True  # empty string is a strict suffix by definition
+    """
     if len(shorter) >= len(longer):
         return False
     return longer.upper().endswith(shorter.upper())
@@ -17,7 +34,29 @@ def rule_contained_suffix(
     text: str,
     occs: list[Occurrence],
 ) -> tuple[list[Occurrence], list[DroppedOccurrence]]:
-    # Deterministic ordering helps stable drops/reports
+    """Drops occurrences strictly contained within a longer occurrence when they are a strict suffix.
+
+    This rule removes fragment hits created by tokenisation/overlap where an acronym is
+    fully contained inside a longer acronym span and is a strict suffix of the longer
+    acronym (case-insensitive).
+
+    Example:
+        "mRNA" at (15, 19) and "RNA" at (16, 19) -> drop "RNA"
+        because "RNA" is strictly contained and "mRNA".endswith("RNA") == True.
+
+    Ordering:
+        Input ordering is not assumed. Occurrences are sorted deterministically so that
+        drop decisions and reports are stable across runs.
+
+    Args:
+        text: Source text (unused by this rule; included for the RuleFn contract).
+        occs: Current occurrence list from the cleanup pipeline.
+
+    Returns:
+        A tuple of:
+          - kept: Occurrences with contained strict-suffix fragments removed.
+          - dropped: Drop records for each removed occurrence, with rule="contained_suffix".
+    """
     ordered = sorted(occs, key=lambda o: (o.start_offset, -(o.end_offset - o.start_offset), o.acronym))
     n = len(ordered)
 
@@ -60,6 +99,33 @@ def rule_end_suffix_micro(
     text: str,
     occs: list[Occurrence],
 ) -> tuple[list[Occurrence], list[DroppedOccurrence]]:
+    """Drops shorter occurrences that share an end offset and are strict suffixes of longer ones.
+
+        This rule handles “micro-overlap” cases where two different occurrences end at the same
+        character offset, but are not necessarily strictly contained due to tokenisation quirks.
+        Within each `end_offset` group, if a shorter acronym is a strict suffix of a longer acronym
+        (case-insensitive), the shorter occurrence is dropped.
+
+        Example:
+            Occurrences ending at 19:
+              - "mRNA" (15, 19)
+              - "RNA"  (16, 19)
+            -> drop "RNA" because "mRNA" endswith "RNA".
+
+        Ordering:
+            - Input ordering is not assumed.
+            - Occurrences are grouped by `end_offset`.
+            - Within each group, longer occurrences are preferred as the “container” candidate.
+
+        Args:
+            text: Source text (unused by this rule; included for the RuleFn contract).
+            occs: Current occurrence list from the cleanup pipeline.
+
+        Returns:
+            A tuple of:
+              - kept: Occurrences with end-aligned strict-suffix fragments removed.
+              - dropped: Drop records for each removed occurrence, with rule="end_suffix_micro".
+    """
     ordered = sorted(occs, key=lambda o: (o.end_offset, o.start_offset, -(o.end_offset - o.start_offset), o.acronym))
 
     drop_idx: set[int] = set()
@@ -105,6 +171,33 @@ def rule_inside_paren_suffix_of_left_acronym(
     text: str,
     occs: list[Occurrence],
 ) -> tuple[list[Occurrence], list[DroppedOccurrence]]:
+    """Drops ALLCAPS acronyms inside parentheses when they are strict suffixes of the left acronym.
+
+    This rule targets a common “alias clarification” pattern where an acronym is followed
+    by a parenthetical containing a shorter ALLCAPS fragment that is merely a suffix of
+    the left acronym.
+
+    Example:
+        "mRNA (RNA)" -> drop "RNA" because it is inside the parentheses and is a strict
+        suffix of "mRNA".
+
+    Constraints (intentional narrowness):
+        - The left occurrence must be immediately followed by '(' allowing whitespace.
+        - The inner occurrence must be fully inside the next ')' after that '('.
+        - The inner token must be an ALLCAPS alphabetic acronym (len > 1) after
+          punctuation trimming via `PUNCT_TRIM`.
+        - Matching uses strict, case-insensitive suffix logic.
+
+    Args:
+        text: Source text used to locate parentheses boundaries.
+        occs: Current occurrence list from the cleanup pipeline.
+
+    Returns:
+        A tuple of:
+          - kept: Occurrences with qualifying parenthetical suffix fragments removed.
+          - dropped: Drop records for each removed occurrence, with rule="inside_paren_suffix_of_left".
+    """
+
     ordered = sorted(occs, key=lambda o: (o.start_offset, o.end_offset, o.acronym))
     drop_ids: set[int] = set()
     dropped: list[DroppedOccurrence] = []
@@ -153,11 +246,33 @@ def rule_token_before_paren_suffix(
     *,
     max_ws: int = 2,
 ) -> tuple[list[Occurrence], list[DroppedOccurrence]]:
-    """
-    Drop ALLCAPS token A immediately before '(' when an acronym B inside the parentheses
-    is a strict suffix-superstring match (B endswith A, case-insensitive).
+    """Drops an ALLCAPS token immediately before '(' when the parenthetical acronym ends with it.
 
-    Example: "messenger RNA (mRNA)" -> drop "RNA" because "mRNA" endswith "RNA".
+    This rule removes “tail-word” fragment occurrences where an ALLCAPS token (A) directly
+    precedes a parenthetical acronym (B), and B is a strict suffix-superstring match of A
+    (case-insensitive). This commonly occurs when a long-form includes an ALLCAPS component
+    right before introducing the acronym in parentheses.
+
+    Example:
+        "messenger RNA (mRNA)" -> drop "RNA" because "mRNA" endswith "RNA".
+
+    Constraints (intentional narrowness):
+        - A must be ALLCAPS (`a.acronym.isupper()`).
+        - A must be followed by '(' allowing up to `max_ws` whitespace characters.
+        - B must start immediately after '(' (allowing whitespace) and be a detected occurrence.
+        - B must be immediately followed by ')' (allowing whitespace).
+        - If multiple occurrences start at B's start offset, the longest/highest-confidence
+          candidate is selected.
+
+    Args:
+        text: Source text used to validate parentheses boundaries and whitespace adjacency.
+        occs: Current occurrence list from the cleanup pipeline.
+        max_ws: Maximum number of whitespace characters allowed between A and '('.
+
+    Returns:
+        A tuple of:
+          - kept: Occurrences with qualifying pre-parenthesis ALLCAPS tokens removed.
+          - dropped: Drop records for each removed occurrence, with rule="token_before_paren_suffix".
     """
     ordered = sorted(occs, key=lambda o: (o.start_offset, o.end_offset, o.acronym))
 
