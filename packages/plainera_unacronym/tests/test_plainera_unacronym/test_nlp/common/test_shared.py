@@ -1,8 +1,11 @@
+import unicodedata
+
 import pytest
 from plainera_unacronym.nlp.common.constants_regex import APOSTROPHE_VARIANTS
 from plainera_unacronym.nlp.common.shared import (has_paren_definition,
                                                   normalize_acronym_key,
-                                                  strip_trailing_punct_str, has_letter)
+                                                  strip_trailing_punct_str, has_letter, canonicalize,
+                                                  _swallow_spaces_around_allowed, collapse_ws)
 from plainera_unacronym.nlp.extraction.anchored.normalise import tighten_definition_span
 
 
@@ -64,8 +67,115 @@ class TestHasParenDefinition:
         end = _end_of(text, "ID")
         assert has_paren_definition(text, end) is False
 
+class TestCanonicalize:
+    def test_apostrophe_variants_fold_to_ascii_quote(self):
+        assert canonicalize("don’t") == "don't"      # U+2019
+        assert canonicalize("don‘ t") == "don' t"    # U+2018
+        assert canonicalize("rockʼnʼroll") == "rock'n'roll"  # U+02BC
 
-class TestNormalizeKey:
+    def test_dash_variants_fold_to_ascii_hyphen(self):
+        assert canonicalize("A–B") == "A-B"          # en dash
+        assert canonicalize("A—B") == "A-B"          # em dash
+
+    def test_nfkc_collapses_fullwidth_apostrophe_then_translates(self):
+        # Fullwidth apostrophe U+FF07 maps to ASCII via NFKC + translation.
+        assert canonicalize("＇quote＇") == "'quote'"
+
+    def test_preserves_plain_ascii(self):
+        s = "simple - 'ascii' text"
+        assert canonicalize(s) == s
+
+    def test_nfkc_is_applied(self):
+        # This asserts behaviour without relying on your specific mapping table.
+        # Ligature 'ﬁ' (U+FB01) typically NFKC-normalises to "fi".
+        assert canonicalize("ﬁ") == unicodedata.normalize("NFKC", "ﬁ")
+
+
+class TestStripTrailingPunctStr:
+    def test_strips_single_trailing_punctuation(self):
+        assert strip_trailing_punct_str("RNA,") == "RNA"
+        assert strip_trailing_punct_str("word.") == "word"
+        assert strip_trailing_punct_str("ok!") == "ok"
+
+    def test_strips_multiple_trailing_punctuation(self):
+        assert strip_trailing_punct_str("hello!!!") == "hello"
+        assert strip_trailing_punct_str("what?!") == "what"
+        assert strip_trailing_punct_str("end»”") == "end"
+
+    def test_strips_trailing_whitespace(self):
+        assert strip_trailing_punct_str("RNA   ") == "RNA"
+        assert strip_trailing_punct_str("RNA,\n\t ") == "RNA"
+
+    def test_does_not_strip_leading_or_internal_punctuation(self):
+        assert strip_trailing_punct_str("(RNA") == "(RNA"
+        assert strip_trailing_punct_str("co-op") == "co-op"
+        assert strip_trailing_punct_str("a,b") == "a,b"
+
+    def test_strips_closing_brackets_and_braces(self):
+        assert strip_trailing_punct_str("Unit)") == "Unit"
+        assert strip_trailing_punct_str("Thing]}") == "Thing"
+
+
+class TestSwallowSpacesAroundAllowed:
+    def test_returns_input_unchanged_when_allow_chars_empty(self):
+        assert _swallow_spaces_around_allowed("R & D", "") == "R & D"
+        assert _swallow_spaces_around_allowed("  R  ", "") == "  R  "
+
+    def test_collapses_spaces_around_ampersand(self):
+        assert _swallow_spaces_around_allowed("R & D", "&") == "R&D"
+        assert _swallow_spaces_around_allowed("R  &   D", "&") == "R&D"
+
+    def test_swallow_spaces_on_left_of_allowed_char(self):
+        assert _swallow_spaces_around_allowed("R &D", "&") == "R&D"
+        assert _swallow_spaces_around_allowed("R  &D", "&") == "R&D"
+
+    def test_swallow_spaces_on_right_of_allowed_char(self):
+        assert _swallow_spaces_around_allowed("R& D", "&") == "R&D"
+        assert _swallow_spaces_around_allowed("R&   D", "&") == "R&D"
+
+    def test_multiple_allowed_chars_are_supported(self):
+        assert _swallow_spaces_around_allowed("A / B", "/&") == "A/B"
+        assert _swallow_spaces_around_allowed("A & B", "/&") == "A&B"
+
+    def test_does_not_modify_spaces_unrelated_to_allowed_chars(self):
+        assert _swallow_spaces_around_allowed("hello world", "&") == "hello world"
+        assert _swallow_spaces_around_allowed("A - B", "&") == "A - B"
+
+    def test_allow_chars_are_treated_literally(self):
+        # Ensure regex escaping works for special characters like '+'.
+        assert _swallow_spaces_around_allowed("mRNA + seq", "+") == "mRNA+seq"
+
+
+class TestNormalizeAcronymKeyIntegration:
+    def test_nfkc_and_quote_dash_folding(self):
+        # fullwidth apostrophe -> ASCII apostrophe (via NFKC + translate)
+        assert normalize_acronym_key("＇ABC＇", allow_chars="", dotted_mode="preserve") == "'ABC'"
+        # em dash -> hyphen
+        assert normalize_acronym_key("A—B", allow_chars="-", dotted_mode="preserve") == "A-B"
+
+    def test_dotted_strip_removes_periods(self):
+        assert normalize_acronym_key("U.S.A.", allow_chars=".", dotted_mode="strip") == "USA"
+        assert normalize_acronym_key("R.N.A", allow_chars=".", dotted_mode="strip") == "RNA"
+
+    def test_dotted_preserve_keeps_periods(self):
+        assert normalize_acronym_key("U.S.A.", allow_chars=".", dotted_mode="preserve") == "U.S.A."
+        assert normalize_acronym_key("R.N.A", allow_chars=".", dotted_mode="preserve") == "R.N.A"
+
+    def test_swallow_spaces_around_allowed_connectors_only(self):
+        assert normalize_acronym_key("R & D", allow_chars="&", dotted_mode="preserve") == "R&D"
+        assert normalize_acronym_key("A / B", allow_chars="/", dotted_mode="preserve") == "A/B"
+
+        # Not allowed -> must remain unchanged (spaces preserved)
+        assert normalize_acronym_key("R & D", allow_chars="", dotted_mode="preserve") == "R & D"
+
+    def test_preserves_case(self):
+        assert normalize_acronym_key("mRNA", allow_chars="", dotted_mode="preserve") == "mRNA"
+        assert normalize_acronym_key("RNA", allow_chars="", dotted_mode="preserve") == "RNA"
+
+    def test_combined_behaviour_dots_and_connectors(self):
+        # Dots stripped first, then connector whitespace collapse.
+        assert normalize_acronym_key("R. &  D.", allow_chars="&.", dotted_mode="strip") == "R&D"
+
     def test_dotted_mode_strip(self):
         assert normalize_acronym_key("U.S.A.", allow_chars="&-/", dotted_mode="strip") == "USA"
 
@@ -137,6 +247,16 @@ class TestNormalizeKey:
         assert normalize_acronym_key("R & D", "&-./", "strip") == "R&D"
         assert normalize_acronym_key("R – D", "&-./", "strip") == "R-D"  # dash folded
 
+
+class TestCollapseWs:
+    def test_collapses_internal_whitespace(self):
+        assert collapse_ws("a   b\t\tc") == "a b c"
+
+    def test_trims_leading_and_trailing_whitespace(self):
+        assert collapse_ws("   hello world  ") == "hello world"
+
+    def test_handles_newlines(self):
+        assert collapse_ws("a\nb\r\nc") == "a b c"
 
 class TestTightenDefinitionSpan:
     def test_keeps_titlecase_with_per(self):
@@ -231,3 +351,25 @@ class TestHasLetters:
     def test_long_string_performance_smoke(self):
         s = "1234567" * 1000 + "X" + "!" * 1000
         assert has_letter(s) is True
+
+
+    @pytest.mark.parametrize(
+        "s,expected",
+        [
+            ("abc", True),
+            ("ABC", True),
+            ("a1!", True),  # mixed, has a letter
+            ("", False),
+            ("123", False),  # digits only
+            ("!!!", False),  # punctuation only
+            (" \t\n", False),  # whitespace only
+            ("   A   ", True),  # letters among spaces
+            ("é", True),  # accented letter
+            ("ß", True),  # Unicode letter
+            ("Δ", True),  # Greek letter
+            ("中", True),  # CJK letter
+            ("🙂", False),  # emoji is not alpha
+        ],
+    )
+    def test_various_strings(self, s, expected):
+        assert has_letter(s) is expected

@@ -7,7 +7,6 @@ import plainera_unacronym.nlp.plugins.registry as domain_mod
 import pytest
 from plainera_unacronym.nlp import DetectorConfig
 from plainera_unacronym.nlp.common.constants_regex import TRAILING_PUNCT_CHARS
-from plainera_unacronym.nlp.common.shared import has_paren_definition
 from plainera_unacronym.nlp.common.types import Span
 from plainera_unacronym.nlp.detection.heuristics.core import (
     _collect_core_hits,
@@ -17,7 +16,6 @@ from plainera_unacronym.nlp.detection.heuristics.core import (
     caps_ratio,
     context_window,
     core_len_for_bounds,
-    has_letter,
     has_stands_for_follow,
     in_brackets,
     iter_candidates_with,
@@ -358,29 +356,6 @@ class TestPrevToken:
     def test_unicode_letters(self):
         text = "αλφα beta"
         assert prev_token(text, _start_of(text, "beta")) == "αλφα"
-
-
-class TestHasLetter:
-    @pytest.mark.parametrize(
-        "s,expected",
-        [
-            ("abc", True),
-            ("ABC", True),
-            ("a1!", True),  # mixed, has a letter
-            ("", False),
-            ("123", False),  # digits only
-            ("!!!", False),  # punctuation only
-            (" \t\n", False),  # whitespace only
-            ("   A   ", True),  # letters among spaces
-            ("é", True),  # accented letter
-            ("ß", True),  # Unicode letter
-            ("Δ", True),  # Greek letter
-            ("中", True),  # CJK letter
-            ("🙂", False),  # emoji is not alpha
-        ],
-    )
-    def test_various_strings(self, s, expected):
-        assert has_letter(s) is expected
 
 
 class TestCoreLenForBounds:
