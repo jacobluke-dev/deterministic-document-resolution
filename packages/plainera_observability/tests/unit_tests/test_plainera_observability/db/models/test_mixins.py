@@ -1,4 +1,3 @@
-# tests/test_logger_mixin_shape.py
 from observability.db.mixins import LoggerCommonMixin
 from sqlalchemy import Integer
 from sqlalchemy import inspect as sai
@@ -18,7 +17,7 @@ def test_logger_mixin_columns_shape():
     assert cols["level_code"].nullable is False
     assert cols["level_name"].type.length == 16
     assert cols["event"].type.length == 128
-    assert cols["logger_type"].type.length == 32
+    assert cols["logger_type"].type.length == 64
 
     # optional fields are nullable
     for name in ("function_name", "request_id", "duration_ms", "info", "arguments", "keyword_arguments"):

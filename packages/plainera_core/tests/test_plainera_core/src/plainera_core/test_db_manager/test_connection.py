@@ -12,12 +12,17 @@ class TestSessionAndDDL:
     def _mk_dbm(self):
         # minimal fakes
         fake_engine = SimpleNamespace(begin=lambda: nullcontext(), connect=lambda: nullcontext())
+
         # session_factory() returns an object with commit/rollback/close
         class _S:
             def __init__(self): self.committed = self.rolled = self.closed = False
+
             def commit(self): self.committed = True
+
             def rollback(self): self.rolled = True
+
             def close(self): self.closed = True
+
         sf = mock.Mock()
         sf.return_value = _S()
         return DBManager(fake_engine, sf)
@@ -35,7 +40,7 @@ class TestSessionAndDDL:
     def test_session_rollback_on_exception(self):
         dbm = self._mk_dbm()
         with pytest.raises(RuntimeError), dbm.session() as _:
-                raise RuntimeError("boom")
+            raise RuntimeError("boom")
         sess = dbm.session_factory.return_value
         assert sess.rolled is True
         assert sess.closed is True
@@ -78,7 +83,6 @@ class TestSelectRowsColumns:
         assert rows == [("QWE", "cols_test")]
 
 
-
 class TestInsertAndSelect:
     @pytest.fixture(autouse=True)
     def seed(self, dbm):
@@ -110,7 +114,6 @@ class TestInsertAndSelect:
         )
         rows = dbm.select_rows("glossary_entries", columns=None, where='"acronym" = :a', params={"a": "ZZZ"})
         assert len(rows) == 1  # sanity check: star returns one row
-
 
 
 class TestSelectOneDict:
@@ -158,7 +161,6 @@ class TestSelectOneDict:
         assert out is None
 
 
-
 class TestUpdateTouchUpdatedAt:
     @pytest.fixture(autouse=True)
     def seed(self, dbm):
@@ -200,7 +202,6 @@ class TestUpdateTouchUpdatedAt:
         assert after["definition"] == "Text-to-Speech"
 
 
-
 class TestRequireAllowedTable:
     def test_disallowed_table_raises_value_error(self, dbm, monkeypatch):
         # Narrow the allowed set so we can assert the decorator blocks others.
@@ -225,7 +226,6 @@ class TestRequireAllowedTable:
             )
 
 
-
 class TestExecuteSqlFile:
     @pytest.fixture(autouse=True)
     def clean(self, dbm):
@@ -236,13 +236,13 @@ class TestExecuteSqlFile:
     def test_execute_sql_file_runs_statements_from_disk(self, tmp_path: Path, dbm):
         # Arrange: write a small DML script
         sql = """
-        INSERT INTO glossary_entries (acronym, definition, source)
-        VALUES ('SQLF','From file','file_seed');
+              INSERT INTO glossary_entries (acronym, definition, source)
+              VALUES ('SQLF', 'From file', 'file_seed');
 
-        UPDATE glossary_entries
-        SET source = 'file_update'
-        WHERE acronym = 'SQLF';
-        """
+              UPDATE glossary_entries
+              SET source = 'file_update'
+              WHERE acronym = 'SQLF'; \
+              """
         p = tmp_path / "seed.sql"
         p.write_text(sql, encoding="utf-8")
 
@@ -256,7 +256,6 @@ class TestExecuteSqlFile:
             criteria=[("acronym", "", "SQLF")],
         )
         assert row == {"acronym": "SQLF", "definition": "From file", "source": "file_update"}
-
 
 
 class TestUpdateRow:
@@ -329,8 +328,8 @@ class TestUpdateRow:
         assert row["source"] == "init"
 
     def test_noop_updates_is_valid_sql(self, dbm):
-        # Some callers may end up with an empty dict; you can assert it raises
-        # or treat it as a no-op. If you want to enforce non-empty, change the
+        # Some callers may end up with an empty dict; can assert it raises
+        # or treat it as a no-op. If we want to enforce non-empty, change the
         # code and assert raises here. For now, we simulate a tiny update.
         dbm.update_row(
             "glossary_entries",

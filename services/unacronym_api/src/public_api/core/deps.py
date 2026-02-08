@@ -24,7 +24,7 @@ class AppContainer:
             `create_resolver()`.
         semaphore (Semaphore | None): An asyncio semaphore
             that limits the number of concurrent in-flight
-            requests. Set only if `MAX_INFLIGHT` is greater
+            requests. set only if `MAX_INFLIGHT` is greater
             than zero in app settings.
     """
 

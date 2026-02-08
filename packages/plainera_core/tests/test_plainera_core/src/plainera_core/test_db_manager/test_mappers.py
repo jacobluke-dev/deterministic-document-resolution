@@ -11,7 +11,6 @@ from plainera_core.db_manager.mappers import (
 )
 
 
-@pytest.mark.unit
 class TestLevelName:
     @pytest.mark.parametrize(
         "code,name",

@@ -55,7 +55,7 @@ class DatabaseSettings(BaseSettings):
             return str(self.DATABASE_URL)  # cast for SQLAlchemy
         raise RuntimeError(
             f"DATABASE_URL missing. Expected in {ENV_PATH}. "
-            "Set AUTH_DISABLED=true only if no DB is used."
+            "set AUTH_DISABLED=true only if no DB is used."
         )
 
 db_settings = DatabaseSettings()

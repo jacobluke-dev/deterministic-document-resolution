@@ -12,7 +12,12 @@ COPY packages ./packages
 
 # export runtime (non-dev) requirements to a file *at /app*
 WORKDIR /app/services/unacronym_api
-RUN poetry export -f requirements.txt --without dev --without-hashes -o /app/requirements.txt
+RUN poetry export -f requirements.txt --without dev --without-hashes -o /app/requirements.txt \
+ && grep -vE 'file:///app/packages/plainera_(core|observability|unacronym)' /app/requirements.txt > /app/requirements.runtime.txt \
+ && mv /app/requirements.runtime.txt /app/requirements.txt \
+ && (echo "=== requirements after filtering ===" && head -n 20 /app/requirements.txt)
+
+
 # ------------------------------------------------------
 
 FROM python:3.13.3-slim AS runtime
@@ -29,8 +34,11 @@ COPY --from=builder /app/requirements.txt ./
 # 2) copy packages to **/app/packages** to match file:///app/packages/... in requirements.txt
 COPY packages /app/packages
 
-# 3) install (you can drop the explicit installs; the exported reqs will cover them)
-RUN pip install --no-cache-dir -r requirements.txt
+# 3) install requirements (3rd party)
+RUN pip install --no-cache-dir -r requirements.txt \
+    && pip install --no-cache-dir --no-deps -e /app/packages/plainera_core \
+    && pip install --no-cache-dir --no-deps -e /app/packages/plainera_observability \
+    && pip install --no-cache-dir --no-deps -e /app/packages/plainera_unacronym
 
 # 4) app code
 COPY services/unacronym_api/src ./src

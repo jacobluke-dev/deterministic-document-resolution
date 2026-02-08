@@ -73,7 +73,7 @@ def _svc_unavailable(reason: str) -> JSONResponse:
         ).model_dump()
     )
 
-# keep your helper but compute once, module-level (no per-request cost)
+# keep the helper but compute once, module-level (no per-request cost)
 def _extract_max_len(model: type[ResolveRequest], field: str) -> Any:
     info = model.model_fields[field]
     # pydantic v2: constraints live in metadata (list of constraint objs)
@@ -157,7 +157,7 @@ async def resolve_acronyms( # noqa: C901
         coro = _call_resolver(ac)
 
         if opts.include_glossary_enrichment:
-            # assumes you whitelisted these tables when constructing DBManager
+            # assumes the whitelisted these tables when constructing DBManager
             table = "glossary_entries"
             row = dbm.select_one_dict(
                 table_fqn=table,

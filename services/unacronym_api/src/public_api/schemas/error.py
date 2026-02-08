@@ -1,5 +1,5 @@
 from enum import Enum
-from typing import Any, Dict, Optional
+from typing import Any, Optional
 
 from pydantic import Field
 
@@ -18,7 +18,7 @@ class ErrorCode(str, Enum):
 class ErrorBody(BaseSchema):
     code: ErrorCode = Field(..., description="Stable machine-readable enum.")
     message: str = Field(..., description="Human-readable error.")
-    details: Optional[Dict[str, Any]] = Field(
+    details: Optional[dict[str, Any]] = Field(
         None, description="Structured diagnostics (limit, actual, etc.)."
     )
 

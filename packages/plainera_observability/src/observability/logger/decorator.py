@@ -34,28 +34,29 @@ def _preview(value: Any, limit: int = 1024) -> str:
     return s if len(s) <= limit else s[:limit] + f"...(+{len(s)-limit} chars)"
 
 
-def _resolve_sink(db_sink, args):
+def _resolve_sink(db_sink, *args):
     # db_sink can be:
     #  - an actual sink object
     #  - a string: name of an attribute on self/cls
     #  - a callable: lambda self_or_cls: sink  (or lambda: sink for free functions)
+    if len(args) == 1 and isinstance(args[0], tuple):
+        args = args[0]
+
     if isinstance(db_sink, str):
         if not args:
             raise RuntimeError(f"db_sink='{db_sink}' expects a bound method (needs self/cls)")
-        owner = args[0]  # self for instance methods, cls for classmethods
+        owner = args[0]
         try:
             return getattr(owner, db_sink)
         except AttributeError as e:
             raise RuntimeError(f"Attribute '{db_sink}' not found on {owner!r}") from e
 
     if callable(db_sink):
-        # Try passing self/cls if present; fall back to no-arg callable.
         try:
             return db_sink(args[0]) if args else db_sink()
         except TypeError:
             return db_sink()
 
-    # Already a sink object
     return db_sink
 
 
@@ -106,7 +107,7 @@ def logger(  # noqa: C901
 
     Logged fields:
         - ``function``: The wrapped function's ``__name__``.
-        - ``args``: Dict of selected arguments (from ``arg_names``; redacted as configured).
+        - ``args``: dict of selected arguments (from ``arg_names``; redacted as configured).
         - ``duration_ms``: Included when ``log_duration`` is True.
         - ``result``: Included when ``log_result`` is True.
         - ``error``: Included on exceptions (stringified).
@@ -146,7 +147,7 @@ def logger(  # noqa: C901
             message or func.__name__,
             level=_level_norm(level),
             logger_type=logger_type,
-            db_sink=_resolve_sink(db_sink, args),
+            db_sink=_resolve_sink(db_sink, *args),
             **fields,
         )
 
@@ -168,7 +169,7 @@ def logger(  # noqa: C901
             message or func.__name__,
             level=_level_norm(level),
             logger_type=logger_type,
-            db_sink=_resolve_sink(db_sink, args),
+            db_sink=_resolve_sink(db_sink, *args),
             **fields,
         )
 

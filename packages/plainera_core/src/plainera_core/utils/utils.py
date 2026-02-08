@@ -111,8 +111,8 @@ def get_project_path(
 def get_project_path(
     relative_path: str, *, raise_error: Literal[False], return_path: Literal[True]
 ) -> str: ...
-    # this says: if you call with raise_error=False and return_path=True,
-    # you also always get a str.
+    # this says: if call with raise_error=False and return_path=True,
+    # also always get a str.
 
 @overload
 def get_project_path(

@@ -2,8 +2,15 @@ import pytest
 from plainera_core.core.domain import DefinitionCandidate
 from plainera_core.core.services.resolver import AcronymResolver
 
-pytest_plugins = (
-    "test_kit.fixtures",
+# NOTE: Keep this import as `test_kit.*` (not `packages.*` / `plainera_testkit.*`).
+# It’s a shared fixture module and must be loaded locally because pytest rootdir changes under `make -C`.
+from test_kit.fixtures import (  # noqa: F401
+    TEST_DB_URL,
+    apply_migrations_once,
+    db_ready,
+    dbm,
+    engine_factory,
+    session_factory,
 )
 
 
