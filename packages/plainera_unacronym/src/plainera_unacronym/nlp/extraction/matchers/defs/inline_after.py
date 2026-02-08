@@ -114,8 +114,8 @@ def find_inline_longform_after_acr(  # noqa: C901
 
     if len(collapse_ws(tail)) > max_phrase_chars:
         return []
-    bridges, stop, max_chars = get_cfg_consts(cfg, 200)
-    search_cap = max_chars or max_phrase_chars * 2
+    bridges, stop, cfg_max_chars = get_cfg_consts(cfg, 200)
+    search_cap = max_chars if max_chars is not None else cfg_max_chars * 2
     s = snippet[:search_cap]
 
     tail, _tail_end = inline_clause_tail(s)

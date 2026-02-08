@@ -101,7 +101,7 @@ class TestDetectAndExtractUnit:
 
         det_res, extr = detect_and_extract(text, det_cfg=det_cfg, ext_cfg=ext_cfg)
 
-        assert extr.extraction_strategy == "anchored"
+        assert extr.extraction_strategy == "anchored+harvest"
         assert extr.missing_keys == ()
         assert 0 < extr.coverage <= 1.0
         assert "PDF" in extr.senses_by_acronym
