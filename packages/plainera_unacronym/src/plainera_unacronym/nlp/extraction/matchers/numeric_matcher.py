@@ -14,7 +14,6 @@ Typical usage:
 import re
 from typing import Mapping, Sequence
 
-
 # -----------------------------
 # Common word→digit mappings
 # -----------------------------
@@ -80,7 +79,6 @@ WORD_TO_DIGITS: dict[str, str] = {
 _LEADING_DIGITS_RE = re.compile(r"^(?P<n>\d+)")
 _ORDINAL_NUM_RE = re.compile(r"^(?P<n>\d+)(?:st|nd|rd|th)$", re.IGNORECASE)
 _EDGE_PUNCT_RE = re.compile(r"^[^\w]+|[^\w]+$")
-
 
 
 def consume_left_numeric_designator(

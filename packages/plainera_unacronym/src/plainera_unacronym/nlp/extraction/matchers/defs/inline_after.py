@@ -1,19 +1,42 @@
 import re
 
-from plainera_unacronym.nlp.common.constants_regex import DEFAULT_STOPWORDS, BRIDGES_DEFAULT
-from plainera_unacronym.nlp.extraction.core.normalise import normalize_definition
+from plainera_unacronym.nlp.common.constants_regex import BRIDGES_DEFAULT, DEFAULT_STOPWORDS
 from plainera_unacronym.nlp.common.shared import collapse_ws, strip_trailing_punct_str
 from plainera_unacronym.nlp.extraction.anchored.normalise import tighten_definition_span
+from plainera_unacronym.nlp.extraction.core.normalise import normalize_definition
 from plainera_unacronym.nlp.extraction.matchers.common import is_mixed_case_acronym
-from plainera_unacronym.nlp.extraction.matchers.defs.common import (LocalDefMatch,
-                                                                    inline_clause_tail,
-                                                                    strip_inline_cue_prefix,
-                                                                    kept_token_indices,
-                                                                    build_initials_stream,
-                                                                    align_acronym_to_initials,
-                                                                    phrase_from_indices)
+from plainera_unacronym.nlp.extraction.matchers.defs.common import (
+    LocalDefMatch,
+    align_acronym_to_initials,
+    build_initials_stream,
+    inline_clause_tail,
+    kept_token_indices,
+    phrase_from_indices,
+    strip_inline_cue_prefix,
+)
 
-def find_inline_longform_after_acr(
+
+def scan_tokens(text: str, *, offset: int = 0) -> tuple[list[str], list[int], list[int]]:
+    """Scan whitespace-delimited tokens and their start/end offsets.
+
+    Args:
+        text: Text to scan.
+        offset: Value added to start/end offsets (to map back into an outer slice).
+
+    Returns:
+        (tokens, starts, ends)
+    """
+    tokens: list[str] = []
+    starts: list[int] = []
+    ends: list[int] = []
+    for m in re.finditer(r"\S+", text):
+        tokens.append(m.group(0))
+        starts.append(m.start() + offset)
+        ends.append(m.end() + offset)
+    return tokens, starts, ends
+
+
+def find_inline_longform_after_acr(  # noqa: C901
     snippet: str,
     cfg,
     acr: str,
@@ -139,11 +162,7 @@ def find_inline_longform_after_acr(
         # If we cannot see a cue at the start, this isn't the pattern we're targeting.
         return []
 
-    tokens, starts, ends = [], [], []
-    for m in re.finditer(r"\S+", tail2):
-        tokens.append(m.group(0))
-        starts.append(m.start() + off)  # shift spans back into `s`
-        ends.append(m.end() + off)
+    tokens, starts, ends = scan_tokens(tail2, offset=off)
 
     if not tokens:
         return []
@@ -185,12 +204,7 @@ def find_inline_longform_after_acr(
     hit_tokens = hit.hit_tokens
 
     kept_idx = kept_token_indices(
-        tokens,
-        tok_left=i,
-        tok_right=j,
-        hit_tokens=hit_tokens,
-        bridges=bridges,
-        include_numeric_leading=True
+        tokens, tok_left=i, tok_right=j, hit_tokens=hit_tokens, bridges=bridges, include_numeric_leading=True
     )
 
     if not kept_idx:

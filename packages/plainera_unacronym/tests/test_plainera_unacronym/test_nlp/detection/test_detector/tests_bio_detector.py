@@ -1,4 +1,3 @@
-import pytest
 from plainera_unacronym.nlp.detection.detector import Detector, DetectorConfig
 
 

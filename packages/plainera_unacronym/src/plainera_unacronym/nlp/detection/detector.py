@@ -20,14 +20,14 @@ from plainera_unacronym.nlp.plugins.activation import autodetect_domains
 from plainera_unacronym.wiring.composition import sink
 
 from .heuristics.context import blacklist_context_drop
-
 from .heuristics.core import (
     boost_confidence_if_whitelisted,
+    calc_score,
     compile_pattern,
     context_window,
     iter_candidates_with,
     reason_tags,
-    threshold_len, calc_score,
+    threshold_len,
 )
 from .heuristics.general import strip_terminal_plural
 from .heuristics.inline_cues import boost_confidence_if_inline_cue
@@ -76,24 +76,24 @@ def _adjust_end_for_trailing_dot(cfg: DetectorConfig, text: str, s: int, e: int)
 
 def _normalize_surface_for_key(surface: str) -> str:
     """
-        Normalise a matched surface into (base_surface, key_base) for occurrence/key construction.
+    Normalise a matched surface into (base_surface, key_base) for occurrence/key construction.
 
-        The `base_surface` is produced by stripping terminal plural suffixes from fully-uppercase
-        acronym tokens (e.g. "GPUs" -> "GPU", "CPU's" -> "CPU"). The `key_base` is then derived
-        from `base_surface` by removing trailing punctuation via `strip_trailing_punct_str()`,
-        ensuring acronym/key strings do not end with punctuation.
+    The `base_surface` is produced by stripping terminal plural suffixes from fully-uppercase
+    acronym tokens (e.g. "GPUs" -> "GPU", "CPU's" -> "CPU"). The `key_base` is then derived
+    from `base_surface` by removing trailing punctuation via `strip_trailing_punct_str()`,
+    ensuring acronym/key strings do not end with punctuation.
 
-        Note:
-            This does not canonicalize internal punctuation (e.g. dotted initialisms) — that is
-            handled later by `normalize_acronym_key(..., dotted_mode=cfg.dotted_display)`.
+    Note:
+        This does not canonicalize internal punctuation (e.g. dotted initialisms) — that is
+        handled later by `normalize_acronym_key(..., dotted_mode=cfg.dotted_display)`.
 
-        Args:
-            surface: Raw matched surface form, typically `text[s:e]`.
+    Args:
+        surface: Raw matched surface form, typically `text[s:e]`.
 
-        Returns:
-            str:
-                - key_base: `base_surface` with trailing punctuation stripped, suitable for
-                  key normalization and for storing as the occurrence acronym.
+    Returns:
+        str:
+            - key_base: `base_surface` with trailing punctuation stripped, suitable for
+              key normalization and for storing as the occurrence acronym.
     """
 
     # IMPORTANT: strip trailing punct from base so acronym/key never has terminal dot
@@ -295,7 +295,6 @@ class Detector:
         )
 
         for surface, s, e in iter_candidates_with(text, cfg, self._pat):
-
             total += 1
 
             if blacklist_context_drop(surface, text, s, e, cfg):
@@ -410,7 +409,7 @@ class Detector:
 
         futures = []
         for i in range(0, len(cands), chunk_size):
-            futures.append(self._pool.submit(_score_chunk_worker, cfg, text, cands[i: i + chunk_size]))
+            futures.append(self._pool.submit(_score_chunk_worker, cfg, text, cands[i : i + chunk_size]))
 
         occurrences: list[Occurrence] = []
         for idx, f in enumerate(futures):

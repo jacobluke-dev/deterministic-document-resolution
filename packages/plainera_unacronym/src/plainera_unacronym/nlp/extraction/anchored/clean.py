@@ -3,13 +3,14 @@ from typing import Optional
 
 from plainera_unacronym.nlp.common.constants_regex import TOKEN_RE
 from plainera_unacronym.nlp.common.shared import has_letter
-from plainera_unacronym.nlp.common.types import INLINE_KINDS, INLINE, INLINE_BEFORE
+from plainera_unacronym.nlp.common.types import INLINE, INLINE_BEFORE, INLINE_KINDS
 from plainera_unacronym.nlp.extraction import ExtractionConfig
 from plainera_unacronym.nlp.extraction.anchored.normalise import tighten_definition_span
 from plainera_unacronym.nlp.extraction.core.normalise import normalize_definition
 from plainera_unacronym.nlp.extraction.matchers.tighten import tighten_label_by_acronym
 
 _DET_PREFIX_RE = re.compile(r"^\s*(?:the|a|an)\b\s+", re.IGNORECASE)
+
 
 def _strip_leading_determiner(s: str) -> str:
     """Strip a single leading English determiner from a string.
@@ -26,7 +27,6 @@ def _strip_leading_determiner(s: str) -> str:
         str: String with one leading determiner removed, if present.
     """
     return _DET_PREFIX_RE.sub("", s, count=1)
-
 
 
 def clean_definition(orig: str, *, acr_norm: str, cfg: ExtractionConfig, kind: str) -> Optional[str]:
@@ -67,8 +67,6 @@ def clean_definition(orig: str, *, acr_norm: str, cfg: ExtractionConfig, kind: s
     if not clean or not has_letter(clean) or len(clean) > cfg.max_phrase_chars:
         return None
 
-    if cfg.require_two_words and kind in INLINE_KINDS:
-        if len(TOKEN_RE.findall(clean)) < 2:
-            return None
-
+    if cfg.require_two_words and kind in INLINE_KINDS and len(TOKEN_RE.findall(clean)) < 2:
+        return None
     return clean

@@ -5,7 +5,8 @@ from typing import Any, Awaitable, Callable, Coroutine, Optional
 from starlette.requests import Request
 from starlette.responses import Response
 
-from ..config import REQ_ID_HEADER
+from observability.config import REQ_ID_HEADER
+
 from .context import set_request_context
 from .emit import emit
 from .levels import LogLevel

@@ -1,5 +1,4 @@
 import pytest
-
 from plainera_unacronym.nlp.extraction.anchored.normalise import tighten_definition_span
 
 

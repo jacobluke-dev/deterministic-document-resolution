@@ -1,5 +1,7 @@
 from plainera_unacronym.nlp.common.types import Occurrence
-from ..common import DroppedOccurrence
+
+# TID252 circular imports
+from ..common import DroppedOccurrence  # noqa: TID252
 
 
 def _is_alternating_case(acr: str) -> bool:
@@ -64,7 +66,7 @@ def _is_mixed_case_typo(acr: str) -> bool:
         True if `acr` is likely a mixed-case typo/OCR artefact; otherwise False.
     """
     letters = [c for c in acr if c.isalpha()]
-    if len(letters) < 4:          # key: do NOT touch TfL (len 3) etc.
+    if len(letters) < 4:  # key: do NOT touch TfL (len 3) etc.
         return False
 
     # Common OCR/typo: mostly uppercase with a single lowercase blip (not mRNA/iOS, etc.)
@@ -86,7 +88,7 @@ def _is_mixed_case_typo(acr: str) -> bool:
         return False
 
     # If there is an uppercase after that lowercase, it's an internal-case blip
-    return any(c.isupper() for c in letters[first_low + 1:])
+    return any(c.isupper() for c in letters[first_low + 1 :])
 
 
 def rule_drop_mixed_case_typos(

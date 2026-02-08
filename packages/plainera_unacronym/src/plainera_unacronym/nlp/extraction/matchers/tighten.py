@@ -2,8 +2,8 @@ import re
 from typing import Optional
 
 from plainera_unacronym.nlp.common.constants_regex import BRIDGES_DEFAULT
-from plainera_unacronym.nlp.common.shared import canonicalize, strip_trailing_punct_str, collapse_ws
-from plainera_unacronym.nlp.extraction.matchers.common import match_from, initials_seq, is_mixed_case_acronym
+from plainera_unacronym.nlp.common.shared import canonicalize, collapse_ws, strip_trailing_punct_str
+from plainera_unacronym.nlp.extraction.matchers.common import initials_seq, is_mixed_case_acronym, match_from
 
 _word_re = re.compile(r"[A-Za-z0-9'’\-\/&\.]+", flags=re.UNICODE)
 
@@ -11,36 +11,34 @@ _word_re = re.compile(r"[A-Za-z0-9'’\-\/&\.]+", flags=re.UNICODE)
 def _tokenize_preserve(text: str) -> list[str]:
     """Tokenise `text` into “word-ish” tokens while preserving certain punctuation.
 
-        This tokenizer is intentionally conservative and ASCII-centric: it extracts runs
-        of characters matching `[A-Za-z0-9'’\\-\\/&\\.]+` and returns them as tokens.
-        It preserves internal punctuation that commonly appears in acronyms, names, and
-        technical identifiers (e.g. hyphens, slashes, ampersands, dots, apostrophes).
+    This tokenizer is intentionally conservative and ASCII-centric: it extracts runs
+    of characters matching `[A-Za-z0-9'’\\-\\/&\\.]+` and returns them as tokens.
+    It preserves internal punctuation that commonly appears in acronyms, names, and
+    technical identifiers (e.g. hyphens, slashes, ampersands, dots, apostrophes).
 
-        Examples:
-            - "Foo-Bar"      -> ["Foo-Bar"]
-            - "Foo/Bar"      -> ["Foo/Bar"]
-            - "R&D"          -> ["R&D"]
-            - "U.S.A."       -> ["U.S.A."]
-            - "can't / don’t"-> ["can't", "don’t"]
+    Examples:
+        - "Foo-Bar"      -> ["Foo-Bar"]
+        - "Foo/Bar"      -> ["Foo/Bar"]
+        - "R&D"          -> ["R&D"]
+        - "U.S.A."       -> ["U.S.A."]
+        - "can't / don’t"-> ["can't", "don’t"]
 
-        Notes:
-            - Non-ASCII letters act as boundaries; ASCII runs around them can still
-              be emitted as separate tokens.
-            - Whitespace and other punctuation (e.g. commas, parentheses) act as
-              boundaries and are not included.
+    Notes:
+        - Non-ASCII letters act as boundaries; ASCII runs around them can still
+          be emitted as separate tokens.
+        - Whitespace and other punctuation (e.g. commas, parentheses) act as
+          boundaries and are not included.
 
-        Args:
-            text (str): Input string to tokenise.
+    Args:
+        text (str): Input string to tokenise.
 
-        Returns:
-            list[str]: List of matched tokens (possibly empty).
-        """
+    Returns:
+        list[str]: List of matched tokens (possibly empty).
+    """
     return _word_re.findall(text)
 
 
-def _best_window_for_acronym(
-    tokens: list[str], acronym: str
-) -> Optional[tuple[int, int, set[int]]]:
+def _best_window_for_acronym(tokens: list[str], acronym: str) -> Optional[tuple[int, int, set[int]]]:
     """Select the shortest contiguous token window whose initials match an acronym.
 
     Builds a compound-aware initials stream from `tokens` (via `initials_seq`) and
@@ -147,14 +145,53 @@ def _try_split_acronym_initials_window(
     Returns:
         str | None: The tightened phrase if a match is found, otherwise ``None``.
     """
+    letters = _split_acr_letters(acronym)
+    if letters is None:
+        return None
+
+    seq_idxs = _match_initials_subsequence(tokens, letters)
+    if seq_idxs is None:
+        return None
+
+    low, high = _expand_numeric_neighbours(tokens, min(seq_idxs), max(seq_idxs))
+
+    kept = _collect_kept_tokens(tokens, seq_idxs, low, high, bridges)
+    phrase = strip_trailing_punct_str(collapse_ws(" ".join(kept)))
+    return phrase if keep_case else phrase.lower()
+
+
+def _split_acr_letters(acronym: str) -> list[str] | None:
+    """Return cleaned acronym letters for split-marker acronyms.
+
+    Only applies to acronyms containing explicit split markers (e.g. '/', '&', '.', '-').
+    Produces an uppercase list of alphanumeric characters, and requires at least 2 letters.
+
+    Args:
+        acronym (str): Acronym surface form.
+
+    Returns:
+        list[str] | None: Uppercased alphanumeric characters, or None if not applicable.
+    """
     if not _SPLIT_ACR_MARKER_RE.search(acronym):
         return None
 
     letters = [c for c in re.sub(r"[^A-Za-z0-9]+", "", acronym).upper()]
-    if len(letters) < 2:
-        return None
+    return letters if len(letters) >= 2 else None
 
-    # find first matching subsequence by token initial
+
+def _match_initials_subsequence(tokens: list[str], letters: list[str]) -> list[int] | None:
+    """Find the first token-index subsequence whose initials match `letters` in order.
+
+    Uses the first character of each token as its initial (uppercased). Returns the first
+    full match found scanning left-to-right.
+
+    Args:
+        tokens (list[str]): Tokenised phrase.
+        letters (list[str]): Target initials sequence to match.
+
+    Returns:
+        list[int] | None: Token indices participating in the match, or None if no full match.
+    """
     seq_idxs: list[int] = []
     li = 0
     for idx, tok in enumerate(tokens):
@@ -163,19 +200,54 @@ def _try_split_acronym_initials_window(
             seq_idxs.append(idx)
             li += 1
             if li == len(letters):
-                break
+                return seq_idxs
+    return None
 
-    if len(seq_idxs) != len(letters):
-        return None
 
-    low, high = min(seq_idxs), max(seq_idxs)
+def _expand_numeric_neighbours(tokens: list[str], low: int, high: int) -> tuple[int, int]:
+    """Expand [low, high] to include numeric-leading neighbours immediately adjacent.
 
-    # expand around numeric-leading neighbours (3M / 5th / etc.)
+    Args:
+        tokens (list[str]): Tokenised phrase.
+        low (int): Initial low bound (inclusive).
+        high (int): Initial high bound (inclusive).
+
+    Returns:
+        tuple[int, int]: Expanded (low, high) bounds (inclusive).
+    """
     while low > 0 and _numeric_leading(tokens[low - 1]):
         low -= 1
     while high + 1 < len(tokens) and _numeric_leading(tokens[high + 1]):
         high += 1
+    return low, high
 
+
+def _collect_kept_tokens(
+    tokens: list[str],
+    seq_idxs: list[int],
+    low: int,
+    high: int,
+    bridges: set[str],
+) -> list[str]:
+    """Collect tokens to keep from a matched window.
+
+    Keeps:
+      - tokens whose indices are in `seq_idxs`,
+      - bridge tokens (by lowercased value) within the window,
+      - numeric-leading tokens within the window.
+
+    Falls back to returning the full window if the keep-set is empty.
+
+    Args:
+        tokens (list[str]): Tokenised phrase.
+        seq_idxs (list[int]): Matched token indices.
+        low (int): Window low bound (inclusive).
+        high (int): Window high bound (inclusive).
+        bridges (set[str]): Lowercased bridge tokens to retain.
+
+    Returns:
+        list[str]: Tokens to join into the phrase.
+    """
     hit_set = set(seq_idxs)
     kept: list[str] = []
     for idx in range(low, high + 1):
@@ -183,11 +255,7 @@ def _try_split_acronym_initials_window(
         if idx in hit_set or tok.lower() in bridges or _numeric_leading(tok):
             kept.append(tok)
 
-    if not kept:
-        kept = tokens[low: high + 1]
-
-    phrase = strip_trailing_punct_str(collapse_ws(" ".join(kept)))
-    return phrase if keep_case else phrase.lower()
+    return kept if kept else tokens[low : high + 1]
 
 
 def _phrase_from_best_window(
@@ -242,7 +310,7 @@ def _phrase_from_best_window(
             kept.append(tok)
 
     if not kept:
-        kept = tokens[i: j + 1]
+        kept = tokens[i : j + 1]
 
     phrase = strip_trailing_punct_str(collapse_ws(" ".join(kept)))
     return phrase if keep_case else phrase.lower()

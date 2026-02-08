@@ -1,5 +1,5 @@
 from plainera_unacronym.nlp.common.shared import normalize_acronym_key
-from plainera_unacronym.nlp.common.types import DetectorConfig, Occurrence, FirstOccurrence
+from plainera_unacronym.nlp.common.types import DetectorConfig, FirstOccurrence, Occurrence
 
 
 def recompute_firsts(

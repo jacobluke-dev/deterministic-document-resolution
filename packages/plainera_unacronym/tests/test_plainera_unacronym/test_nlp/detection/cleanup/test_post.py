@@ -1,8 +1,6 @@
-import py
 
 from plainera_unacronym.nlp.common.types import DetectorResult
 from plainera_unacronym.nlp.detection.cleanup.post import post_detect_cleanup
-
 
 
 class TestPostCleanup:

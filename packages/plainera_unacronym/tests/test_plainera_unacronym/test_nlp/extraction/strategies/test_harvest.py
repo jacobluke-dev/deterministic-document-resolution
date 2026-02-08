@@ -108,7 +108,8 @@ class TestExtractDefsAllOccurrencesUnit:
         cfg = Cfg(window_chars=len(text))  # big window: include both phrases
 
         def fake_before(snippet, acr, cfg):
-            if acr != "PDF": return []
+            if acr != "PDF":
+                return []
             phrase = "Portable Document Format"
             if phrase in snippet:
                 s = snippet.index(phrase)
@@ -215,7 +216,7 @@ class TestExtractDefsAllOccurrencesUnit:
         L = max(0, acr0 - win)
         R = min(len(text), acr1 + win)
         snippet = text[L:R]
-        rel_a1 = acr1 - L
+        _rel_a1 = acr1 - L
 
         # `pre` is snippet up to rel_a1+1, and BEFORE matcher spans are relative to snippet start (L).
         phrase = "Portable Document Format"

@@ -1,12 +1,14 @@
 import re
 
-from plainera_unacronym.nlp.common.constants_regex import (TITLECASE_RUN_RE,
-                                                           BOUNDARY_RE,
-                                                           _TITLELIKE,
-                                                           _LINKERS_RE,
-                                                           _DASH, _TITLE)
-from plainera_unacronym.nlp.common.shared import strip_trailing_punct_str, collapse_ws
-
+from plainera_unacronym.nlp.common.constants_regex import (
+    _DASH,
+    _LINKERS_RE,
+    _TITLE,
+    _TITLELIKE,
+    BOUNDARY_RE,
+    TITLECASE_RUN_RE,
+)
+from plainera_unacronym.nlp.common.shared import collapse_ws, strip_trailing_punct_str
 
 _TITLE_TOKEN_RE = re.compile(rf"(?:^|\s){_TITLE}(?:$|\s)", flags=re.UNICODE)
 
@@ -14,17 +16,17 @@ _TITLE_TOKEN_RE = re.compile(rf"(?:^|\s){_TITLE}(?:$|\s)", flags=re.UNICODE)
 def tighten_definition_span(s: str) -> str:
     """Tighten a noisy definition string down to its most plausible “definition-ish” span.
 
-        The function prefers the rightmost TitleCase/ALLCAPS run found by TITLECASE_RUN_RE,
-        but avoids selecting a pure lowercase-hyphen tail (e.g., "sign-on") as the result.
-        If no acceptable run is found, it falls back to analysing the last clause and then
-        finally returns a whitespace-collapsed, trailing-punctuation-trimmed tail.
+    The function prefers the rightmost TitleCase/ALLCAPS run found by TITLECASE_RUN_RE,
+    but avoids selecting a pure lowercase-hyphen tail (e.g., "sign-on") as the result.
+    If no acceptable run is found, it falls back to analysing the last clause and then
+    finally returns a whitespace-collapsed, trailing-punctuation-trimmed tail.
 
-        Args:
-            s: Raw definition string (may include punctuation, multiple clauses, etc.).
+    Args:
+        s: Raw definition string (may include punctuation, multiple clauses, etc.).
 
-        Returns:
-            A tightened string with collapsed whitespace and trailing punctuation removed.
-            Returns "" if input is blank/whitespace.
+    Returns:
+        A tightened string with collapsed whitespace and trailing punctuation removed.
+        Returns "" if input is blank/whitespace.
     """
     s = s.strip()
     if not s:

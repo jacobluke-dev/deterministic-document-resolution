@@ -1,7 +1,8 @@
 from typing import Optional
-from plainera_unacronym.nlp.extraction.core.normalise import tighten_label
+
 from plainera_unacronym.nlp.common.shared import strip_trailing_punct_str
 from plainera_unacronym.nlp.common.types import ExtractedDefinition, InTextPick
+from plainera_unacronym.nlp.extraction.core.normalise import tighten_label
 from plainera_unacronym.nlp.extraction.matchers.tighten import tighten_label_by_acronym
 
 
@@ -97,21 +98,21 @@ def _sense_key(acr: str, label: str) -> tuple[str, str]:
 def dedupe_defs(defs: list[ExtractedDefinition]) -> list[ExtractedDefinition]:
     """Deduplicate extracted definitions by stable sense key.
 
-        Definitions are considered duplicates when they resolve to the same sense key,
-        computed via `_sense_key(d.acronym, d.definition)`. The first occurrence is
-        kept and subsequent duplicates are dropped. The `definition` field is preserved
-        exactly as provided (it is assumed to have been tightened/normalised upstream).
+    Definitions are considered duplicates when they resolve to the same sense key,
+    computed via `_sense_key(d.acronym, d.definition)`. The first occurrence is
+    kept and subsequent duplicates are dropped. The `definition` field is preserved
+    exactly as provided (it is assumed to have been tightened/normalised upstream).
 
-        Args:
-            defs (list[ExtractedDefinition]): Candidate definitions to deduplicate.
+    Args:
+        defs (list[ExtractedDefinition]): Candidate definitions to deduplicate.
 
-        Returns:
-            list[ExtractedDefinition]: A filtered list containing only the first instance
-            of each unique `(acronym, definition)` sense key, preserving original order.
+    Returns:
+        list[ExtractedDefinition]: A filtered list containing only the first instance
+        of each unique `(acronym, definition)` sense key, preserving original order.
 
-        Notes:
-            - Deduplication is based on `_sense_key/tighten_label`, not spans or confidence.
-            - Output ordering follows the input ordering (stable dedupe).
+    Notes:
+        - Deduplication is based on `_sense_key/tighten_label`, not spans or confidence.
+        - Output ordering follows the input ordering (stable dedupe).
     """
     seen: set[tuple[str, str]] = set()
     out: list[ExtractedDefinition] = []

@@ -1,8 +1,7 @@
-import pytest
 from typing import Callable
 
 import plainera_unacronym.nlp.detection.detector as det
-
+import pytest
 from plainera_unacronym.nlp.common.types import Span
 
 

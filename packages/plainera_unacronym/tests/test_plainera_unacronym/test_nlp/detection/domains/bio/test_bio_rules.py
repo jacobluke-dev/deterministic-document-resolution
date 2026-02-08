@@ -4,7 +4,6 @@ import re
 from dataclasses import replace
 
 import pytest
-
 from plainera_unacronym.nlp.detection.domains.bio import rules
 
 

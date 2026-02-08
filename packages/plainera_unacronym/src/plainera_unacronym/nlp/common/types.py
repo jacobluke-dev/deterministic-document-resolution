@@ -30,7 +30,6 @@ class TextSpan:
         return self.end - self.start
 
 
-
 # -------------------------- STRATEGIES ------------------------------------
 
 # TODO these will be adjusted to tier 1 tier 2 or some other consideration right now these will do

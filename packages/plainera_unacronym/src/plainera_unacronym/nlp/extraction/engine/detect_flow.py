@@ -1,37 +1,39 @@
 from plainera_unacronym.nlp.common.types import DetectorConfig, DetectorResult, ExtractionResult
 from plainera_unacronym.nlp.extraction.config import ExtractionConfig
-from .stages import Stage, Chain, StageReport, Tracer
-from .state import FlowState
+
 from . import stage_funcs as f
+from .stages import Chain, Stage, StageReport, Tracer
+from .state import FlowState
 
 
 class ExtractionFlow:
     """Run the end-to-end acronym detection and extraction pipeline.
 
-        This orchestrates a staged workflow over a single input text:
-          1) Detect acronym occurrences and first occurrences.
-          2) Apply post-detection cleanup to remove/adjust problematic occurrences.
-          3) Extract local (anchored) definitions near first occurrences.
-          4) Harvest additional definition candidates across the document.
-          5) Extract sentence back-references (definition appears earlier, acronym appears later).
-          6) Merge and de-duplicate extracted definitions.
-          7) Gap-fill missing picks using extracted definitions.
-          8) Build senses and disambiguate occurrences.
+    This orchestrates a staged workflow over a single input text:
+      1) Detect acronym occurrences and first occurrences.
+      2) Apply post-detection cleanup to remove/adjust problematic occurrences.
+      3) Extract local (anchored) definitions near first occurrences.
+      4) Harvest additional definition candidates across the document.
+      5) Extract sentence back-references (definition appears earlier, acronym appears later).
+      6) Merge and de-duplicate extracted definitions.
+      7) Gap-fill missing picks using extracted definitions.
+      8) Build senses and disambiguate occurrences.
 
-        The pipeline is executed via a `Chain` of `Stage`s, producing stage reports and
-        optionally trace events for debugging.
+    The pipeline is executed via a `Chain` of `Stage`s, producing stage reports and
+    optionally trace events for debugging.
 
-        Attributes:
-            det_cfg (DetectorConfig): Configuration used by the acronym detector.
-            ext_cfg (ExtractionConfig): Configuration used by extraction strategies.
-            window_left (int): Characters to include to the left of a first occurrence
-                when building the local anchored extraction window.
-            window_right (int): Characters to include to the right of a first occurrence
-                when building the local anchored extraction window.
-            trace_events (list[TraceEvent] | None): Trace events captured during the last run
-                when tracing is enabled; otherwise None.
+    Attributes:
+        det_cfg (DetectorConfig): Configuration used by the acronym detector.
+        ext_cfg (ExtractionConfig): Configuration used by extraction strategies.
+        window_left (int): Characters to include to the left of a first occurrence
+            when building the local anchored extraction window.
+        window_right (int): Characters to include to the right of a first occurrence
+            when building the local anchored extraction window.
+        trace_events (list[TraceEvent] | None): Trace events captured during the last run
+            when tracing is enabled; otherwise None.
 
     """
+
     def __init__(
         self,
         det_cfg: DetectorConfig | None = None,
@@ -82,52 +84,69 @@ class ExtractionFlow:
 
         # compute disambig knobs once here (engine concern)
         def _win(s: FlowState) -> int:
-            return self._ovr_win if self._ovr_win is not None else getattr(getattr(s.ext_cfg, "disambig", s.det_cfg),
-                                                                           "window_chars", 320)
+            return (
+                self._ovr_win
+                if self._ovr_win is not None
+                else getattr(getattr(s.ext_cfg, "disambig", s.det_cfg), "window_chars", 320)
+            )
 
         def _margin(s: FlowState) -> float:
-            return self._ovr_margin if self._ovr_margin is not None else getattr(getattr(s.ext_cfg, "disambig", None),
-                                                                                 "margin_threshold", 0.20)
+            return (
+                self._ovr_margin
+                if self._ovr_margin is not None
+                else getattr(getattr(s.ext_cfg, "disambig", None), "margin_threshold", 0.20)
+            )
 
-        return Chain([
-            Stage("detect",
-                  f.st_detect,
-                  lambda s: f"firsts={len(s.det_res.unique_acronyms)}"),
-            Stage("post_detect_cleanup",
-                  f.st_post_detect_cleanup,
-                  lambda s: f"firsts={len(s.det_res.unique_acronyms)} dropped={len(s.cleanup_dropped)}",
-                  trace_fields=("cleanup_dropped",)),
-            Stage("picks_first_occurrence_anchored",
-                  lambda s: f.st_picks_first_occurrence_anchored(s, window_left=wl, window_right=wr),
-                  lambda s: f"{sum(1 for v in s.picks.values() if v)}/{len(s.picks)}",
-                  trace_fields=("picks",)),
-            Stage("defs_from_first_occurrence_picks",
-                  f.st_defs_from_first_occurrence_picks,
-                  lambda s: f"{len(s.anchored_defs)}",
-                  trace_fields=("anchored_defs",)),
-            # IMPORTANT: required for multi-sense acronyms when later occurrences introduce new definitions.
-            Stage("defs_scan_all_occurrences",
-                  f.st_defs_scan_all_occurrences,
-                  lambda s: f"{len(s.harvested_defs)}",
-                  trace_fields=("harvested_defs",)),
-            Stage("sentence_backref",
-                  f.st_sentence_backref,
-                  lambda s: f"{len(s.backref_defs)}",
-                  trace_fields=("sentence_backref",)),
-            Stage("merge_dedupe",
-                  f.st_merge,
-                  lambda s: f"{len(s.all_defs)}",
-                  trace_fields=("all_defs",)),
-            Stage("gap_fill_picks",
-                  f.st_gapfill,
-                  lambda s: f"cov={s.coverage:.0%} miss={len(s.missing_keys)}",
-                  trace_fields=("picks",)),
-            Stage("senses_disambiguate",
-                  lambda s: f.st_senses_and_assemble(s, disambig_window_chars=_win(s),
-                                                        disambig_margin_threshold=_margin(s)
-                                                     ),
-                  lambda s: "ready"),
-        ])
+        return Chain(
+            [
+                Stage("detect", f.st_detect, lambda s: f"firsts={len(s.det_res.unique_acronyms)}"),
+                Stage(
+                    "post_detect_cleanup",
+                    f.st_post_detect_cleanup,
+                    lambda s: f"firsts={len(s.det_res.unique_acronyms)} dropped={len(s.cleanup_dropped)}",
+                    trace_fields=("cleanup_dropped",),
+                ),
+                Stage(
+                    "picks_first_occurrence_anchored",
+                    lambda s: f.st_picks_first_occurrence_anchored(s, window_left=wl, window_right=wr),
+                    lambda s: f"{sum(1 for v in s.picks.values() if v)}/{len(s.picks)}",
+                    trace_fields=("picks",),
+                ),
+                Stage(
+                    "defs_from_first_occurrence_picks",
+                    f.st_defs_from_first_occurrence_picks,
+                    lambda s: f"{len(s.anchored_defs)}",
+                    trace_fields=("anchored_defs",),
+                ),
+                # IMPORTANT: required for multi-sense acronyms when later occurrences introduce new definitions.
+                Stage(
+                    "defs_scan_all_occurrences",
+                    f.st_defs_scan_all_occurrences,
+                    lambda s: f"{len(s.harvested_defs)}",
+                    trace_fields=("harvested_defs",),
+                ),
+                Stage(
+                    "sentence_backref",
+                    f.st_sentence_backref,
+                    lambda s: f"{len(s.backref_defs)}",
+                    trace_fields=("sentence_backref",),
+                ),
+                Stage("merge_dedupe", f.st_merge, lambda s: f"{len(s.all_defs)}", trace_fields=("all_defs",)),
+                Stage(
+                    "gap_fill_picks",
+                    f.st_gapfill,
+                    lambda s: f"cov={s.coverage:.0%} miss={len(s.missing_keys)}",
+                    trace_fields=("picks",),
+                ),
+                Stage(
+                    "senses_disambiguate",
+                    lambda s: f.st_senses_and_assemble(
+                        s, disambig_window_chars=_win(s), disambig_margin_threshold=_margin(s)
+                    ),
+                    lambda s: "ready",
+                ),
+            ]
+        )
 
     def run(self, text: str) -> tuple[DetectorResult, ExtractionResult, list[StageReport]]:
         """Run the pipeline over `text`.

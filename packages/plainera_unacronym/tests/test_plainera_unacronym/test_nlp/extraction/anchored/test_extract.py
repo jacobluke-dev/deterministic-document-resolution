@@ -1,9 +1,8 @@
 import re
 from types import SimpleNamespace
 
-import pytest
-
 import plainera_unacronym.nlp.extraction.anchored.extract as mod
+import pytest
 from plainera_unacronym.nlp.common.types import ExtractedDefinition, FirstOccurrence
 from plainera_unacronym.nlp.extraction import ExtractionConfig
 
@@ -138,7 +137,11 @@ class TestDistanceFromFoUnit:
         assert mod._distance_from_fo(a0_local=5, left=10, fo_start_offset=12) == 3
 
 
-def _fo_extract_near_firsts_only(acr: str, text: str, *, norm: str | None = None, end_extra: int = 0) -> FirstOccurrence:
+def _fo_extract_near_firsts_only(acr: str,
+                                 text: str,
+                                 *,
+                                 norm: str | None = None,
+                                 end_extra: int = 0) -> FirstOccurrence:
     a0 = text.index(acr)
     return FirstOccurrence(
         acronym=acr,
@@ -227,7 +230,11 @@ class TestExtractNearFirstsUnit:
         # FO spans "U.S." including the trailing dot (end_extra=1 because acr string below is "U.S")
         fo = _fo_extract_near_firsts_only("U.S", text, end_extra=1)
         firsts = {"U.S.": FirstOccurrence(
-            acronym="U.S.", start_offset=fo.start_offset, end_offset=fo.end_offset, confidence=0.9, normalized_key="U.S."
+            acronym="U.S.",
+            start_offset=fo.start_offset,
+            end_offset=fo.end_offset,
+            confidence=0.9,
+            normalized_key="U.S."
         )}
 
         pat = re.compile(r"(?P<acr>U\.S)\.")  # captures without the trailing dot

@@ -1,12 +1,11 @@
 from typing import Mapping, Optional
 
 from plainera_unacronym.nlp import FirstOccurrence
-from plainera_unacronym.nlp.common.types import InTextPick, ExtractedDefinition, Span
+from plainera_unacronym.nlp.common.types import ExtractedDefinition, InTextPick, Span
 from plainera_unacronym.nlp.extraction import ExtractionConfig
 from plainera_unacronym.nlp.extraction.anchored.clean import clean_definition
 from plainera_unacronym.nlp.extraction.anchored.patterns import compile_anchored_exact
 from plainera_unacronym.nlp.extraction.anchored.spans import resolve_def_span
-
 
 
 def _build_local_window(
@@ -56,58 +55,62 @@ def _fo_occurrence_position(fo: FirstOccurrence, left: int) -> Span:
     """
     return fo.start_offset - left, fo.end_offset - left
 
+
 def _pick_better(best: Optional[ExtractedDefinition], cand: ExtractedDefinition) -> ExtractedDefinition:
     """Choose the better of two definition candidates.
 
-        Selection rules:
-            1) If `best` is None, return `cand`.
-            2) Prefer higher `confidence`.
-            3) If confidence ties, prefer the shorter definition span
-               (`def_end - def_start`).
+    Selection rules:
+        1) If `best` is None, return `cand`.
+        2) Prefer higher `confidence`.
+        3) If confidence ties, prefer the shorter definition span
+           (`def_end - def_start`).
 
-        Args:
-            best (ExtractedDefinition | None): Current best candidate.
-            cand (ExtractedDefinition): New candidate to compare.
+    Args:
+        best (ExtractedDefinition | None): Current best candidate.
+        cand (ExtractedDefinition): New candidate to compare.
 
-        Returns:
-            ExtractedDefinition: The chosen candidate.
-        """
+    Returns:
+        ExtractedDefinition: The chosen candidate.
+    """
     if best is None:
         return cand
-    return cand if cand.confidence > best.confidence else min((best, cand),
-                                                              key=lambda x: (-x.confidence, (x.def_end - x.def_start)))
+    return (
+        cand
+        if cand.confidence > best.confidence
+        else min((best, cand), key=lambda x: (-x.confidence, (x.def_end - x.def_start)))
+    )
 
 
 def _anchored_confidence(*, base_conf: float, dist: float) -> float:
     """Compute anchored confidence with a small distance penalty.
 
-        Applies a linear penalty of 0.0005 per character of distance, capped at
-        200 characters, and caps the final confidence at 0.99.
+    Applies a linear penalty of 0.0005 per character of distance, capped at
+    200 characters, and caps the final confidence at 0.99.
 
-        Args:
-            base_conf (float): Base confidence for the matched pattern.
-            dist (float): Character distance from the first occurrence.
+    Args:
+        base_conf (float): Base confidence for the matched pattern.
+        dist (float): Character distance from the first occurrence.
 
-        Returns:
-            float: Confidence score in the range `(-inf, 0.99]`.
-        """
+    Returns:
+        float: Confidence score in the range `(-inf, 0.99]`.
+    """
     return min(base_conf - min(dist, 200) * 0.0005, 0.99)
 
 
 def _distance_from_fo(*, a0_local: int, left: int, fo_start_offset: int) -> int:
     """Return absolute character distance from the first occurrence start.
 
-        Converts a local segment offset back to an absolute offset by adding `left`,
-        then returns the absolute difference from `fo_start_offset`.
+    Converts a local segment offset back to an absolute offset by adding `left`,
+    then returns the absolute difference from `fo_start_offset`.
 
-        Args:
-            a0_local (int): Acronym start offset within the local segment.
-            left (int): Absolute start index of the local segment in the full text.
-            fo_start_offset (int): Absolute start offset of the first occurrence.
+    Args:
+        a0_local (int): Acronym start offset within the local segment.
+        left (int): Absolute start index of the local segment in the full text.
+        fo_start_offset (int): Absolute start offset of the first occurrence.
 
-        Returns:
-            int: Absolute distance in characters.
-        """
+    Returns:
+        int: Absolute distance in characters.
+    """
     return abs((a0_local + left) - fo_start_offset)
 
 
@@ -117,8 +120,11 @@ def extract_near_firsts(
     *,
     window_left: int,
     window_right: int,
-    cfg: ExtractionConfig = ExtractionConfig(),
+    cfg: ExtractionConfig | None = None,
 ) -> dict[str, Optional[InTextPick]]:
+    if cfg is None:
+        cfg = ExtractionConfig()
+
     picks: dict[str, Optional[InTextPick]] = {}
 
     for key, fo in firsts.items():
@@ -196,7 +202,7 @@ def extract_near_firsts(
                 def_span=(best.def_start, best.def_end),
                 confidence=best.confidence,
                 original_definition=best.original_definition,
-                kind=best.kind or "unknown"
+                kind=best.kind or "unknown",
             )
         )
     return picks

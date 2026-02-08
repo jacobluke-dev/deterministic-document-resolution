@@ -4,10 +4,11 @@ from typing import Optional
 from plainera_unacronym.nlp.common.types import Span
 from plainera_unacronym.nlp.extraction import ExtractionConfig
 from plainera_unacronym.nlp.extraction.core.collect import initials_match
-from plainera_unacronym.nlp.extraction.matchers.defs import (find_inline_longform_after_acr,
-                                                             find_parenthetical_longform_before_acr,
-                                                             find_parenthetical_longform_after_acr)
-
+from plainera_unacronym.nlp.extraction.matchers.defs import (
+    find_inline_longform_after_acr,
+    find_parenthetical_longform_after_acr,
+    find_parenthetical_longform_before_acr,
+)
 
 OptSpan = Optional[Span]
 
@@ -37,7 +38,6 @@ def _trim_span(seg: str, d0: int, d1: int) -> Span:
     while d1 > d0 and seg[d1 - 1].isspace():
         d1 -= 1
     return d0, d1
-
 
 
 def _calc_def_span_def_before(
@@ -77,18 +77,17 @@ def _calc_def_span_def_before(
     # 1) quotes around acronym inside wrapper: ("PDF") / ('PDF') / (“PDF”)
     q_before = m.start("acr") - 1
     q_after = m.end("acr")
-    has_quotes = (
-        (0 <= q_before < len(seg) and seg[q_before] in _QUOTE_CHARS) or
-        (0 <= q_after < len(seg) and seg[q_after] in _QUOTE_CHARS)
+    has_quotes = (0 <= q_before < len(seg) and seg[q_before] in _QUOTE_CHARS) or (
+        0 <= q_after < len(seg) and seg[q_after] in _QUOTE_CHARS
     )
 
     # 2) explicit tail punctuation after acronym: (PPE - ...), (PPE, ...), etc.
-    tail_slice = seg[m.end("acr"): m.end()]
+    tail_slice = seg[m.end("acr") : m.end()]
     has_tail = any(ch in _TAIL_PUNCT for ch in tail_slice)
 
     # 3) dotted acronym with terminal dot inside wrapper: (U.S.A.)
     post = m.end("acr")
-    has_wrapper_dot = (post < len(seg) and seg[post] == ".")
+    has_wrapper_dot = post < len(seg) and seg[post] == "."
 
     # Complex wrapper: bypass helper, but require initials alignment (SLA safety)
     if has_quotes or has_tail or has_wrapper_dot:
@@ -161,27 +160,27 @@ def _calc_def_span_def_after(
 ) -> OptSpan:
     """Resolve the definition span for an acronym-first parenthetical/bracket form.
 
-        Handles shapes like:
+    Handles shapes like:
 
-            "ACR (Long Form)"
-            "ACR’s (Long Form)"
-            "ACR, (Long Form)"
-            "ACR - (Long Form)"
+        "ACR (Long Form)"
+        "ACR’s (Long Form)"
+        "ACR, (Long Form)"
+        "ACR - (Long Form)"
 
-        It slices `seg` at `acr_end_local`, optionally consumes a possessive/joiner
-        (e.g. `'s`, commas, dashes) via `_POSSESSIVE_JOIN_RE`, then runs the
-        acronym-after matcher on the remaining snippet. If a match is found, the
-        matcher’s local definition span is re-based back into `seg` coordinates.
+    It slices `seg` at `acr_end_local`, optionally consumes a possessive/joiner
+    (e.g. `'s`, commas, dashes) via `_POSSESSIVE_JOIN_RE`, then runs the
+    acronym-after matcher on the remaining snippet. If a match is found, the
+    matcher’s local definition span is re-based back into `seg` coordinates.
 
-        Args:
-            acr_norm (str): Normalised acronym (typically uppercased) to match.
-            seg (str): Local text segment being scanned.
-            acr_end_local (int): End offset of the acronym within `seg` (exclusive).
-            cfg (ExtractionConfig): Extraction configuration passed to the matcher.
+    Args:
+        acr_norm (str): Normalised acronym (typically uppercased) to match.
+        seg (str): Local text segment being scanned.
+        acr_end_local (int): End offset of the acronym within `seg` (exclusive).
+        cfg (ExtractionConfig): Extraction configuration passed to the matcher.
 
-        Returns:
-            Span | None: `(def_start, def_end)` offsets into `seg` if a definition is
-            found; otherwise `None`.
+    Returns:
+        Span | None: `(def_start, def_end)` offsets into `seg` if a definition is
+        found; otherwise `None`.
     """
     snippet = seg[acr_end_local:]
 
@@ -228,8 +227,9 @@ def _calc_def_span(
     return _calc_def_span_inline_after(acr_norm=acr_norm, seg=seg, acr_end_local=acr_end_local, cfg=cfg)
 
 
-def resolve_def_span(strategy: str, *, seg: str, m: re.Match[str], acr_key: str, a1_local: int,
-                     cfg: ExtractionConfig) -> OptSpan:
+def resolve_def_span(
+    strategy: str, *, seg: str, m: re.Match[str], acr_key: str, a1_local: int, cfg: ExtractionConfig
+) -> OptSpan:
     if strategy == "direct_def":
         d0, d1 = m.span("def")
         return None if d0 >= d1 else (d0, d1)

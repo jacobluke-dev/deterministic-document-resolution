@@ -1,4 +1,3 @@
-import pytest
 from plainera_unacronym.nlp.extraction.matchers.defs import find_parenthetical_longform_before_acr
 
 

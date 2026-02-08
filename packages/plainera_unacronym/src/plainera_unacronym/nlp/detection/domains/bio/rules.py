@@ -1,7 +1,8 @@
 import re
 from typing import Iterator
 
-from plainera_unacronym.nlp.common.types import TextSpanTuple, Span
+from plainera_unacronym.nlp.common.types import Span, TextSpanTuple
+
 from .config import _STATS_CI_RE, _STATS_OR_HR_RR_RE, BioConfig
 from .patterns import bio_pattern
 

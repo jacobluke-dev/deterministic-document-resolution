@@ -1,4 +1,3 @@
-import pytest
 
 from plainera_unacronym.nlp.extraction.matchers.defs import find_inline_longform_after_acr
 

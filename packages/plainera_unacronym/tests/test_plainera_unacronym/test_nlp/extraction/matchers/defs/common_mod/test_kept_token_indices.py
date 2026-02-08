@@ -1,4 +1,7 @@
 
+from plainera_unacronym.nlp.extraction.matchers.defs.common import kept_token_indices
+
+
 class TestKeptTokenIndices:
     def test_keeps_hit_tokens_inside_window(self):
         tokens = ["Portable", "Document", "Format"]
@@ -29,7 +32,7 @@ class TestKeptTokenIndices:
         out = kept_token_indices(
             tokens,
             tok_left=0,
-            tok_right=3,          # window doesn't include "PDF"
+            tok_right=3,  # window doesn't include "PDF"
             hit_tokens={1, 2},
             bridges=set(),
             include_numeric_leading=True,
@@ -75,9 +78,6 @@ class TestKeptTokenIndices:
         assert out == [2]
 
 
-from plainera_unacronym.nlp.extraction.matchers.defs.common import kept_token_indices
-
-
 class TestKeptTokenIndicesIntegration:
     def test_realistic_bridge_and_numeric_kept_for_readability(self):
         tokens = ["3M", "Ministry", "of", "Magic"]
@@ -85,7 +85,7 @@ class TestKeptTokenIndicesIntegration:
             tokens,
             tok_left=0,
             tok_right=3,
-            hit_tokens={1, 3},   # "Ministry", "Magic"
+            hit_tokens={1, 3},  # "Ministry", "Magic"
             bridges={"of"},
             include_numeric_leading=True,
         )

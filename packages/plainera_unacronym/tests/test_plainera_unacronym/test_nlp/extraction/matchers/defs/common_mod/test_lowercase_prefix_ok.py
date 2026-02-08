@@ -1,4 +1,3 @@
-import pytest
 
 from plainera_unacronym.nlp.extraction.matchers.defs.common import _lowercase_prefix_ok
 

@@ -1,15 +1,15 @@
+import re
 from dataclasses import dataclass
 from typing import (
     Any,
     Callable,
     Generic,
+    List,
     Optional,
     Sequence,
     Tuple,
     TypeVar,
-    List,
 )
-import re
 
 S = TypeVar("S")
 
@@ -25,6 +25,7 @@ class StageResult(Generic[S]):
         value (S): The resulting state after the stage has executed.
         note (str): A short descriptive note (e.g., counts, coverage).
     """
+
     value: S
     note: str = ""
 
@@ -39,6 +40,7 @@ class StageReport:
         info (str): Free-form informational message (typically the stage note).
         preview (str | None): Optional preview string summarising the stage output.
     """
+
     name: str
     ok: bool
     info: str
@@ -54,6 +56,7 @@ class TraceEvent:
         before (dict): Snapshot of selected fields before the stage ran.
         after (dict): Snapshot of selected fields after the stage ran.
     """
+
     stage: str
     before: dict
     after: dict

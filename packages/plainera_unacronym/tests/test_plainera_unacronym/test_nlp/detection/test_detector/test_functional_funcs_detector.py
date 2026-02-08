@@ -4,9 +4,11 @@ import plainera_unacronym.nlp.detection.detector as det
 import pytest
 from plainera_unacronym.nlp import DetectorConfig, Occurrence
 from plainera_unacronym.nlp.common.types import OccurrenceBuildError
-from plainera_unacronym.nlp.detection.detector import (_build_occurrence_from_match,
-                                                       _score_chunk_worker,
-                                                       _adjust_end_for_trailing_dot)
+from plainera_unacronym.nlp.detection.detector import (
+    _adjust_end_for_trailing_dot,
+    _build_occurrence_from_match,
+    _score_chunk_worker,
+)
 
 
 @dataclass(frozen=True, slots=True)

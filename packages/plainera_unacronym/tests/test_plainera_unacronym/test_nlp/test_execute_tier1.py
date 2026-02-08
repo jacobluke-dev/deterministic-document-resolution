@@ -1,12 +1,9 @@
 import pprint
-
-import pytest
 from types import SimpleNamespace as NS
 
-import plainera_unacronym.nlp.extraction.engine.state as state
 import plainera_unacronym.nlp.extraction.engine.stage_funcs as stage_fxn
-
-from plainera_unacronym.nlp.common.types import DetectorResult, Occurrence, DetectorConfig, FirstOccurrence, InTextPick
+import plainera_unacronym.nlp.extraction.engine.state as state
+from plainera_unacronym.nlp.common.types import DetectorConfig, DetectorResult, FirstOccurrence, InTextPick, Occurrence
 from plainera_unacronym.nlp.execute import detect_and_extract
 from plainera_unacronym.nlp.extraction import ExtractionConfig
 
@@ -82,7 +79,8 @@ class TestDetectAndExtractUnit:
         monkeypatch.setattr(stage_fxn, "extract_near_firsts", lambda *a, **k: {"PDF": anchored_pick})
 
         # defs_from_picks returns one ED
-        monkeypatch.setattr(stage_fxn, "defs_from_picks", lambda _text, picks: [_ed("PDF", "Portable Document Format")])
+        monkeypatch.setattr(stage_fxn, "defs_from_picks",
+                            lambda _text, picks: [_ed("PDF", "Portable Document Format")])
 
         # harvest returns nothing extra
         monkeypatch.setattr(stage_fxn, "extract_defs_all_occurrences", lambda *_: [])
@@ -91,10 +89,10 @@ class TestDetectAndExtractUnit:
         monkeypatch.setattr(stage_fxn, "dedupe_defs", lambda defs: defs)
 
         # build_senses: single sense per acronym
-        monkeypatch.setattr(stage_fxn, "build_senses", lambda defs: {"PDF": [NS(sense_id="PDF::Portable Document Format")]})
+        monkeypatch.setattr(stage_fxn, "build_senses",
+                            lambda defs: {"PDF": [NS(sense_id="PDF::Portable Document Format")]})
 
         # disambiguate_occurrences: one resolution using that sense
-        Res = NS  # simple container
         monkeypatch.setattr(
             stage_fxn,
             "disambiguate_occurrences",
@@ -192,7 +190,6 @@ class TestDetectAndExtractIntegrationEdgeCases:
             base, det_cfg=det_cfg, ext_cfg=ext_cfg_strict,
             return_reports=True, trace=True, trace_filter=r"^(PTO|PF)$"
         )
-
 
         assert not any(d.acronym == "PTO" for d in extr.definitions)
         assert any(d.acronym == "PDF" for d in extr.definitions)
@@ -293,7 +290,6 @@ class TestDetectAndExtractIntegrationEdgeCases:
         det, extr = detect_and_extract("Personal protective equipment (PPE - required on site) matters.")
         assert picked_def(extr, "PPE") == "Personal protective equipment"
 
-
     def test_tier_one_digit_prefixed_acronym_parenthetical(self, picked_def):
         det, extr = detect_and_extract("Third Generation Partnership Project (3GPP) publishes specs.")
         assert picked_def(extr, "3GPP") == "Third Generation Partnership Project"
@@ -354,7 +350,7 @@ class TestDetectAndExtractE2E:
             "The Chief Executive Officer (CEO) approved the new security policy and requested weekly reporting."
         )
         assert picked_def(extr, "CEO") in {"Chief Executive Officer",
-                                                 "The Chief Executive Officer"}, extr.picks.get("CEO")
+                                           "The Chief Executive Officer"}, extr.picks.get("CEO")
 
     def test_tier_one_sla_inline_abbreviated_as(self, picked_def):
         det, extr = detect_and_extract(
@@ -389,7 +385,7 @@ class TestDetectAndExtractE2E:
         )
         assert picked_def(extr, "NLP") in {"Natural language processing"}, extr.picks.get("NLP")
         assert picked_def(extr, "PPE") in {"personal protective equipment",
-                                                 "Personal protective equipment"}, extr.picks.get("PPE")
+                                           "Personal protective equipment"}, extr.picks.get("PPE")
 
     def test_tier_one_reverse_parenthetical_longform_before_acronym_if_supported(self, picked_def):
         det, extr = detect_and_extract("(Portable Document Format) PDF is common.")
@@ -410,7 +406,7 @@ class TestDetectAndExtractE2E:
     def test_tier_one_en_dash_in_definition_preserved(self, picked_def):
         det, extr = detect_and_extract("Director-General’s Office (DGO) issued guidance.")
         assert picked_def(extr, "DGO") in {"Director-General’s Office",
-                                                 "Director-General's Office"}, extr.picks.get("DGO")
+                                           "Director-General's Office"}, extr.picks.get("DGO")
 
     def test_tier_one_all_caps_definition_preserved(self, picked_def):
         det, extr = detect_and_extract("COST PER ACQUISITION (CPA) is a metric.")
@@ -438,24 +434,26 @@ class TestDetectAndExtractE2EConfigAdjustment:
 
     def test_tier_one_dotted_acronym_key_strips_to_plain_preserves_dots_and_detects(self, picked_def):
         det, extr = detect_and_extract("The United States of America (U.S.A.) is referenced.",
-                                          det_cfg=DetectorConfig(enable_dotted=True, dotted_display="preserve"))
+                                       det_cfg=DetectorConfig(enable_dotted=True, dotted_display="preserve"))
         assert picked_def(extr, "U.S.A") in {"United States of America"}, extr.picks.get("U.S.A")
 
     def test_tier_one_dotted_acronym_key_strips_to_plain_removes_dots_and_detects(self, picked_def):
         det, extr = detect_and_extract("The United States of America (U.S.A.) is referenced.",
-                                          det_cfg=DetectorConfig(enable_dotted=True, dotted_display="strip"))
+                                       det_cfg=DetectorConfig(enable_dotted=True, dotted_display="strip"))
         assert picked_def(extr, "USA") in {"United States of America"}, extr.picks.get("USA")
 
-    def test_tier_one_dotted_acronym_key_strips_to_plain_removes_dots_and_detects_but_not_name_initials(self, picked_def):
+    def test_tier_one_dotted_acronym_key_strips_to_plain_removes_dots_and_detects_but_not_name_initials(self,
+                                                                                                        picked_def):
         det, extr = detect_and_extract("The United States of America (U.S.A.) is referenced, written by A.B.",
-                                          det_cfg=DetectorConfig(enable_dotted=True, dotted_display="strip"))
+                                       det_cfg=DetectorConfig(enable_dotted=True, dotted_display="strip"))
         assert picked_def(extr, "USA") in {"United States of America"}, extr.picks.get("USA")
         assert picked_def(extr, "AB") is None
         assert picked_def(extr, "A.B.") is None
 
-    def test_tier_one_dotted_acronym_key_strips_to_plain_preserves_dots_and_detects_but_not_name_initials(self, picked_def):
+    def test_tier_one_dotted_acronym_key_strips_to_plain_preserves_dots_and_detects_but_not_name_initials(self,
+                                                                                                          picked_def):
         det, extr = detect_and_extract("The United States of America (U.S.A.) is referenced, written by A.B.",
-                                          det_cfg=DetectorConfig(enable_dotted=True, dotted_display="preserve"))
+                                       det_cfg=DetectorConfig(enable_dotted=True, dotted_display="preserve"))
         assert picked_def(extr, "U.S.A") in {"United States of America"}, extr.picks.get("U.S.A")
         assert picked_def(extr, "AB") is None
         assert picked_def(extr, "A.B.") is None
@@ -471,7 +469,6 @@ class TestDetectAndExtractE2EConfigAdjustment:
         assert fo.normalized_key == "USA"  # key is stripped
 
         assert any(o.normalized_key == "USA" for o in det.occurrences)
-
 
     def test_tier_one_dotted_initialism_outside_parentheses_followed_by_closing_paren_detects(self, picked_def):
         det, extr = detect_and_extract(
@@ -490,7 +487,6 @@ class TestDetectAndExtractE2EConfigAdjustment:
         assert "UK" in det.unique_acronyms, det.unique_acronyms
         assert det.unique_acronyms["UK"].acronym == "U.K"
         assert det.unique_acronyms["UK"].normalized_key == "UK"
-
 
     def test_tier_one_two_letter_dotted_not_whitelisted_rejects_name_initials(self, picked_def):
         det, extr = detect_and_extract(
@@ -524,7 +520,6 @@ class TestDetectAndExtractE2EMixedCaseAcronyms:
     def test_mixed_case_tfl_parenthetical(self, picked_def):
         det, extr = detect_and_extract("The system Transport for London (TfL) is based in London.")
         assert picked_def(extr, "TfL") in {"Transport for London"}, extr.picks.get("TfL")
-
 
     def test_mixed_case_mrna_parenthetical(self, picked_def):
         det, extr = detect_and_extract("messenger RNA (mRNA) has been developed,")
@@ -579,6 +574,7 @@ class TestDetectAndExtractE2EInlineCues:
     def test_inline_before_tfl(self, picked_def):
         det, extr = detect_and_extract("Transport for London stands for TfL.")
         assert picked_def(extr, "TfL") in {"Transport for London"}, extr.picks.get("TfL")
+
 
 class TestDisambiguationE2E:
 

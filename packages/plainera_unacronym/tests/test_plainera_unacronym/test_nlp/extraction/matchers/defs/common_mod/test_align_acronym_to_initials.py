@@ -1,8 +1,11 @@
-import pytest
 
 from plainera_unacronym.nlp.common.constants_regex import DEFAULT_STOPWORDS
-from plainera_unacronym.nlp.extraction.matchers.defs.common import AlignmentHit, align_acronym_to_initials, \
-    InitialsStream, build_initials_stream
+from plainera_unacronym.nlp.extraction.matchers.defs.common import (
+    AlignmentHit,
+    InitialsStream,
+    align_acronym_to_initials,
+    build_initials_stream,
+)
 
 
 class TestAlignAcronymToInitials:

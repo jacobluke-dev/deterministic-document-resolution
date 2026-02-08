@@ -2,6 +2,7 @@ from typing import Iterator, Protocol, runtime_checkable
 
 from plainera_unacronym.nlp.common.types import TextSpanTuple
 
+
 class DomainPlugin(Protocol):
     """Interface for domain-specific detection hooks.
 

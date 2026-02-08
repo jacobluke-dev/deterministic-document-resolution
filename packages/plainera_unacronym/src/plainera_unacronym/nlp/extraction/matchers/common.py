@@ -18,26 +18,21 @@ LEXICAL_SPLITS = {
     "firmware": ("Firm", "Ware"),  # FW
     "hardware": ("Hard", "Ware"),  # HW
     "software": ("Soft", "Ware"),  # SW (can collide with "switch", but as a split it's fine)
-
     # Identity / auth / accounts
     "hostname": ("Host", "Name"),  # HN
     "password": ("Pass", "Word"),  # PW (super common in docs)
-
     # Storage / data
     "database": ("Data", "Base"),  # DB (historically ugly, but extremely common)
     # Languages
     "typescript": ("Type", "Script"),  # TS (collides with timestamp)
     "powershell": ("Power", "Shell"),  # PS (collides heavily)
-
     # Platforms / tools
     "bitbucket": ("Bit", "Bucket"),  # BB
     "gitlab": ("Git", "Lab"),  # GL
     "github": ("Git", "Hub"),  # GH
-
     "postgresql": ("Postgres", "SQL"),  # PG/PSQL alignment
     "mysql": ("My", "SQL"),  # MySQL is already Camel-ish, but tokenisers often keep as one
     "mssql": ("MS", "SQL"),  # MS SQL / MSSQL
-
     "newline": ("New", "Line"),  # NL
     "filepath": ("File", "Path"),  # FP
     "filename": ("File", "Name"),  # FN
@@ -130,16 +125,16 @@ def match_from(letters: list[str], acronym_list: list[str], start: int) -> Optio
 def is_mixed_case_acronym(acr: str) -> bool:
     """Return True if `acr` contains both uppercase and lowercase letters.
 
-        Non-letter characters (digits, punctuation, symbols) are ignored for the
-        purposes of the check.
+    Non-letter characters (digits, punctuation, symbols) are ignored for the
+    purposes of the check.
 
-        Args:
-            acr (str): Acronym candidate to inspect.
+    Args:
+        acr (str): Acronym candidate to inspect.
 
-        Returns:
-            bool: True if the alphabetic characters in `acr` include at least one
-            lowercase and at least one uppercase letter; otherwise False.
-        """
+    Returns:
+        bool: True if the alphabetic characters in `acr` include at least one
+        lowercase and at least one uppercase letter; otherwise False.
+    """
     letters = [c for c in acr if c.isalpha()]
     return any(c.islower() for c in letters) and any(c.isupper() for c in letters)
 

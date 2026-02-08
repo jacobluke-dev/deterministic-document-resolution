@@ -1,5 +1,10 @@
-from plainera_unacronym.nlp.detection.cleanup.rules.suffix import _is_strict_suffix, rule_contained_suffix, \
-    rule_end_suffix_micro, rule_inside_paren_suffix_of_left_acronym, rule_token_before_paren_suffix
+from plainera_unacronym.nlp.detection.cleanup.rules.suffix import (
+    _is_strict_suffix,
+    rule_contained_suffix,
+    rule_end_suffix_micro,
+    rule_inside_paren_suffix_of_left_acronym,
+    rule_token_before_paren_suffix,
+)
 
 
 class TestIsStrictSuffix:

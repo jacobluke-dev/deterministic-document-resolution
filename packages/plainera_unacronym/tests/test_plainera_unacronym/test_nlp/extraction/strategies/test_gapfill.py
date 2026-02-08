@@ -1,9 +1,7 @@
 from types import SimpleNamespace as NS
 
 import pytest
-
 from plainera_unacronym.nlp.extraction.strategies.gapfill import fill_missing_from_defs
-
 
 # ----------------------------
 # helpers

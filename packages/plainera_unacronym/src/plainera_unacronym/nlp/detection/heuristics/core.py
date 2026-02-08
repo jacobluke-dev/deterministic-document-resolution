@@ -9,11 +9,12 @@ from plainera_unacronym.nlp.common.constants_regex import (
     TIME_RE,
     TRAILING_PUNCT_CHARS,
 )
-from plainera_unacronym.nlp.common.shared import has_paren_definition, normalize_acronym_key, has_letter
-from plainera_unacronym.nlp.common.types import DetectorConfig, pattern_cache, TextSpanTuple, Span
+from plainera_unacronym.nlp.common.shared import has_letter, has_paren_definition, normalize_acronym_key
+from plainera_unacronym.nlp.common.types import DetectorConfig, Span, TextSpanTuple, pattern_cache
 from plainera_unacronym.nlp.plugins.registry import DOMAIN_PLUGINS
 
 _DOTTED_INITIALISM_RE = re.compile(r"^(?:[A-Z]\.)+[A-Z]$")
+
 
 def compile_pattern(cfg: DetectorConfig) -> re.Pattern[str]:
     """
@@ -259,7 +260,6 @@ def core_len_for_bounds(token: str) -> int:
     return sum(1 for ch in token if ch.isalnum())
 
 
-
 def threshold_len(surface: str, allow_chars: str) -> int:
     """
     Compute effective length used for confidence/threshold heuristics.
@@ -296,10 +296,11 @@ def boost_confidence_if_whitelisted(surface: str, confidence_score: float, cfg: 
     Returns:
         float: Updated confidence score (capped at 0.99).
     """
-    key = normalize_acronym_key(surface,
-                                allow_chars=cfg.allow_chars,
-                                dotted_mode=cfg.dotted_display,
-                                )
+    key = normalize_acronym_key(
+        surface,
+        allow_chars=cfg.allow_chars,
+        dotted_mode=cfg.dotted_display,
+    )
 
     if len(key) == 2 and key in cfg.whitelist_two_letter:
         boost = getattr(cfg, "two_letter_boost", DEFAULT_TWO_LETTER_BOOST)
@@ -309,20 +310,20 @@ def boost_confidence_if_whitelisted(surface: str, confidence_score: float, cfg: 
 
 def calc_score(surface: str, text: str, start: int, end: int, cfg: DetectorConfig) -> float:
     """
-        Compute a confidence score for an accepted candidate using local cues.
+    Compute a confidence score for an accepted candidate using local cues.
 
-        The score starts from a baseline and is adjusted by bracket placement, nearby
-        definition cues, "stands for" cues, and blacklist membership.
+    The score starts from a baseline and is adjusted by bracket placement, nearby
+    definition cues, "stands for" cues, and blacklist membership.
 
-        Args:
-            surface (str): Candidate surface text.
-            text (str): Source text.
-            start (int): Start offset (inclusive).
-            end (int): End offset (exclusive).
-            cfg (DetectorConfig): Detector configuration (blacklists, etc.).
+    Args:
+        surface (str): Candidate surface text.
+        text (str): Source text.
+        start (int): Start offset (inclusive).
+        end (int): End offset (exclusive).
+        cfg (DetectorConfig): Detector configuration (blacklists, etc.).
 
-        Returns:
-            float: Confidence score clamped to [0.0, 1.0].
+    Returns:
+        float: Confidence score clamped to [0.0, 1.0].
     """
     score = 0.6
     inside, adjacent = in_brackets(text, start, end)
@@ -341,19 +342,19 @@ def calc_score(surface: str, text: str, start: int, end: int, cfg: DetectorConfi
 
 def context_window(text: str, start: int, end: int, window_chars: int) -> Span:
     """
-        Build a bounded sentence-like context window around a span.
+    Build a bounded sentence-like context window around a span.
 
-        Expands left/right until a terminator (., !, ?, newline) or `window_chars` is reached,
-        then trims leading whitespace on the left and includes the terminator on the right.
+    Expands left/right until a terminator (., !, ?, newline) or `window_chars` is reached,
+    then trims leading whitespace on the left and includes the terminator on the right.
 
-        Args:
-            text (str): Source text.
-            start (int): Span start offset (inclusive).
-            end (int): Span end offset (exclusive).
-            window_chars (int): Maximum expansion distance on each side.
+    Args:
+        text (str): Source text.
+        start (int): Span start offset (inclusive).
+        end (int): Span end offset (exclusive).
+        window_chars (int): Maximum expansion distance on each side.
 
-        Returns:
-            Span: (left, right) offsets delimiting the context window.
+    Returns:
+        Span: (left, right) offsets delimiting the context window.
     """
     # Left: back to previous terminator (or start), then skip spaces
     left = start
@@ -379,16 +380,16 @@ def context_window(text: str, start: int, end: int, window_chars: int) -> Span:
 
 def _has_lower_and_upper(tok: str) -> bool:
     """
-        Check whether a token contains both lowercase and uppercase letters.
+    Check whether a token contains both lowercase and uppercase letters.
 
-        Used to relax caps-ratio requirements for mixed-case forms (e.g., mRNA, eBPF)
-        when cfg.enable_mixed_case is enabled.
+    Used to relax caps-ratio requirements for mixed-case forms (e.g., mRNA, eBPF)
+    when cfg.enable_mixed_case is enabled.
 
-        Args:
-            tok (str): Token surface.
+    Args:
+        tok (str): Token surface.
 
-        Returns:
-            bool: True if both cases occur among alphabetic characters; else False.
+    Returns:
+        bool: True if both cases occur among alphabetic characters; else False.
     """
     return any(c.islower() for c in tok if c.isalpha()) and any(c.isupper() for c in tok if c.isalpha())
 
@@ -417,43 +418,86 @@ def _accept_candidate(text: str, cfg: DetectorConfig, s: int, e: int) -> TextSpa
     if not has_letter(surface):
         return None
 
-    # ---- dotted gating (validate, don't mutate surface) ----
-    if "." in surface:
-        # must be a clean dotted initialism like U.S or U.S.A (trailing '.' already stripped above)
-        if not _DOTTED_INITIALISM_RE.fullmatch(surface):
-            return None
+    if not _passes_dotted_gates(text, cfg, surface, s, e):
+        return None
 
-        letters_only = surface.replace(".", "")
-        # length checks should use letters_only (same as core_len_for_bounds, but explicit here)
-        if len(letters_only) < cfg.min_len or len(letters_only) > cfg.max_len:
-            return None
+    if not _passes_generic_gates(cfg, surface):
+        return None
 
-        # 2-letter dotted is too noisy unless whitelisted (US/UK/EU/UN etc.)
-        if len(letters_only) == 2 and letters_only not in cfg.whitelist_two_letter:
-            return None
+    return surface, s, e
 
-        # context guards: avoid picking up section numbers / weird dotted chains
-        if s > 0 and text[s - 1].isdigit():
-            return None
-        if e < len(text) and text[e].isdigit():
-            return None
-        if s > 0 and text[s - 1] == ".":
-            return None
 
-        # If immediately followed by '.' that's OK when it's the common "U.S.A.)" / "U.S.A.," pattern.
-        if e < len(text) and text[e] == ".":
-            nxt = text[e + 1] if e + 1 < len(text) else ""
-            if nxt and nxt not in ")]}»”'\" \n\r\t,;:!?…":
-                # e.g. "U.S.A.X" should be rejected
-                return None
+def _passes_dotted_gates(text: str, cfg: DetectorConfig, surface: str, s: int, e: int) -> bool:
+    """
+    Validate dotted-initialism constraints when '.' appears in the surface.
 
-        # caps ratio / mixed-case gates are redundant here (it's all [A-Z].),
-        # but leaving them below doesn't hurt.
+    This performs validation only (does not mutate surface). It ensures dotted tokens
+    are clean initialisms (e.g., "U.S", "U.S.A") and applies additional context guards
+    to avoid common false positives (section numbers, dotted chains, etc.).
 
-    # ---- existing generic gates ----
+    Args:
+        text (str): Source text for boundary/context checks.
+        cfg (DetectorConfig): Detector configuration (length bounds, allowlists).
+        surface (str): Candidate surface text (already punctuation-stripped).
+        s (int): Start offset (inclusive) of the candidate in `text`.
+        e (int): End offset (exclusive) of the candidate in `text`.
+
+    Returns:
+        bool: True if dotted gates pass (or not applicable); False otherwise.
+    """
+    if "." not in surface:
+        return True
+
+    # Must be a clean dotted initialism like U.S or U.S.A (trailing '.' already stripped).
+    if not _DOTTED_INITIALISM_RE.fullmatch(surface):
+        return False
+
+    letters_only = surface.replace(".", "")
+
+    # Length checks should use letters_only (same as core_len_for_bounds, but explicit here).
+    if len(letters_only) < cfg.min_len or len(letters_only) > cfg.max_len:
+        return False
+
+    # 2-letter dotted is too noisy unless whitelisted (US/UK/EU/UN etc.).
+    if len(letters_only) == 2 and letters_only not in cfg.whitelist_two_letter:
+        return False
+
+    # Context guards: avoid picking up section numbers / weird dotted chains.
+    if s > 0 and text[s - 1].isdigit():
+        return False
+    if e < len(text) and text[e].isdigit():
+        return False
+    if s > 0 and text[s - 1] == ".":
+        return False
+
+    # If immediately followed by '.' that's OK only for common "U.S.A.)" / "U.S.A.," patterns.
+    if e < len(text) and text[e] == ".":
+        nxt = text[e + 1] if e + 1 < len(text) else ""
+        if nxt and nxt not in ")]}»”'\" \n\r\t,;:!?…":
+            # e.g. "U.S.A.X" should be rejected
+            return False
+
+    return True
+
+
+def _passes_generic_gates(cfg: DetectorConfig, surface: str) -> bool:
+    """
+    Apply generic (non-dotted-specific) gating to a candidate surface.
+
+    This includes core-length bounds, hard caps (e.g. >=15, ==1), and caps-ratio gating.
+    For mixed-case surfaces, caps-ratio requirement may be relaxed when there are at
+    least two uppercase letters.
+
+    Args:
+        cfg (DetectorConfig): Detector configuration (length bounds and ratio thresholds).
+        surface (str): Candidate surface text (already punctuation-stripped).
+
+    Returns:
+        bool: True if the generic gates pass; False otherwise.
+    """
     clen = core_len_for_bounds(surface)
     if clen < cfg.min_len or clen > cfg.max_len or clen >= 15 or clen == 1:
-        return None
+        return False
 
     req = cfg.require_caps_ratio
     if cfg.enable_mixed_case and _has_lower_and_upper(surface):
@@ -461,25 +505,23 @@ def _accept_candidate(text: str, cfg: DetectorConfig, s: int, e: int) -> TextSpa
         if upp >= 2:
             req = min(req, cfg.require_caps_ratio_mixed)
 
-    if caps_ratio(surface) < req:
-        return None
+    return caps_ratio(surface) >= req
 
-    return surface, s, e
 
 def _collect_core_hits(text: str, cfg: DetectorConfig, pat: re.Pattern[str]) -> list[TextSpanTuple]:
     """
-        Collect accepted core-regex hits in text order.
+    Collect accepted core-regex hits in text order.
 
-        Iterates over `pat.finditer` using the named group "tok" and applies the same
-        acceptance gating as the legacy candidate path.
+    Iterates over `pat.finditer` using the named group "tok" and applies the same
+    acceptance gating as the legacy candidate path.
 
-        Args:
-            text (str): Source text.
-            cfg (DetectorConfig): Detector configuration.
-            pat (re.Pattern[str]): Compiled pattern containing group "tok".
+    Args:
+        text (str): Source text.
+        cfg (DetectorConfig): Detector configuration.
+        pat (re.Pattern[str]): Compiled pattern containing group "tok".
 
-        Returns:
-            list[TextSpanTuple]: Accepted hits as (surface, start, end) tuples.
+    Returns:
+        list[TextSpanTuple]: Accepted hits as (surface, start, end) tuples.
     """
     out: list[TextSpanTuple] = []
     for m in pat.finditer(text):

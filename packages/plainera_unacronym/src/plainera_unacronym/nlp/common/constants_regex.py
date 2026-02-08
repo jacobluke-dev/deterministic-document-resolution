@@ -1,7 +1,6 @@
 import re
 from typing import Final, Literal
 
-
 # -----------------------------
 # Canonical normalisation maps
 # -----------------------------
@@ -20,9 +19,7 @@ APOSTROPHE_VARIANTS: Final[dict[str, str]] = {
 DASH_MAP: Final[dict[str, str]] = {"–": "-", "—": "-", "-": "-"}
 
 # Translation table for fast canonicalisation
-CANON_TABLE_DEFAULT: Final[dict[int, int]] = {
-    ord(k): ord(v) for k, v in {**APOSTROPHE_VARIANTS, **DASH_MAP}.items()
-}
+CANON_TABLE_DEFAULT: Final[dict[int, int]] = {ord(k): ord(v) for k, v in {**APOSTROPHE_VARIANTS, **DASH_MAP}.items()}
 
 
 # -----------------------------
@@ -104,7 +101,7 @@ _LINKERS_RE: Final[str] = "(?:" + "|".join(sorted(re.escape(w) for w in WORDS_FU
 _DASH: Final[str] = r"[–—-—–-]"
 
 # punctuation / clause boundaries used for splitting
-BOUNDARY_RE: Final[re.Pattern[str]] = re.compile(rf"[\.!?;:,—–-]\s+")
+BOUNDARY_RE: Final[re.Pattern[str]] = re.compile(r"[\.!?;:,—–-]\s+")
 
 BOUNDARY_TERMINATORS: Final[str] = ".!?…"  # includes unicode ellipsis
 CLOSING_QUOTES_BRACKETS: Final[str] = '")]}»”’'

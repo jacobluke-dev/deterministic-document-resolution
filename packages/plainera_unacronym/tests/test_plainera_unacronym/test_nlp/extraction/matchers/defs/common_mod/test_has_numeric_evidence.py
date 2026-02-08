@@ -1,5 +1,4 @@
 import pytest
-
 from plainera_unacronym.nlp.extraction.matchers.defs.common import has_numeric_evidence
 
 

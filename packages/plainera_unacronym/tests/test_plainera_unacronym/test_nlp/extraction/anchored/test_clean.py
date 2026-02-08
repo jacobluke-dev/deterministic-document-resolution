@@ -1,7 +1,7 @@
 import pytest
-
 from plainera_unacronym.nlp.common.types import INLINE
-from plainera_unacronym.nlp.extraction.anchored.clean import _strip_leading_determiner
+from plainera_unacronym.nlp.extraction import ExtractionConfig
+from plainera_unacronym.nlp.extraction.anchored.clean import _strip_leading_determiner, clean_definition
 
 
 class TestStripLeadingDeterminer:
@@ -12,8 +12,8 @@ class TestStripLeadingDeterminer:
             ("a Portable Document Format", "Portable Document Format"),
             ("an Umbrella Term", "Umbrella Term"),
             ("  the Portable Document Format", "Portable Document Format"),  # leading whitespace ignored
-            ("THE Portable Document Format", "Portable Document Format"),     # case-insensitive
-            ("An Umbrella Term", "Umbrella Term"),                            # case-insensitive
+            ("THE Portable Document Format", "Portable Document Format"),  # case-insensitive
+            ("An Umbrella Term", "Umbrella Term"),  # case-insensitive
             # Only strips one determiner
             ("the the Portable Document Format", "the Portable Document Format"),
             ("a an Umbrella Term", "an Umbrella Term"),
@@ -34,12 +34,6 @@ class TestStripLeadingDeterminer:
     def test_empty_string(self):
         assert _strip_leading_determiner("") == ""
         assert _strip_leading_determiner("   ") == "   "
-
-import pytest
-import re
-
-from plainera_unacronym.nlp.extraction.config import ExtractionConfig
-from plainera_unacronym.nlp.extraction.anchored.clean import clean_definition  # <- adjust module path
 
 
 class _FakeTokenRe:
@@ -95,8 +89,8 @@ class TestCleanDefinitionUnit:
             clean_definition,
             tighten_definition_span=lambda s: (_ for _ in ()).throw(AssertionError("should not be called")),
             _strip_leading_determiner=lambda s: (calls.__setitem__("strip_det", calls["strip_det"] + 1) or f"S[{s}]"),
-            tighten_label_by_acronym=lambda base, acr: base,   # passthrough
-            normalize_definition=lambda s: s,                  # passthrough
+            tighten_label_by_acronym=lambda base, acr: base,  # passthrough
+            normalize_definition=lambda s: s,  # passthrough
             has_letter=lambda s: True,
         )
 

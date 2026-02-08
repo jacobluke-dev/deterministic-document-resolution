@@ -1,7 +1,8 @@
 from plainera_unacronym.nlp.common.constants_regex import PUNCT_TRIM
 from plainera_unacronym.nlp.common.types import Occurrence
 
-from ..post import DroppedOccurrence
+# TID252 circular imports
+from ..post import DroppedOccurrence  # noqa: TID252
 
 
 def _is_strict_suffix(shorter: str, longer: str) -> bool:
@@ -101,30 +102,30 @@ def rule_end_suffix_micro(
 ) -> tuple[list[Occurrence], list[DroppedOccurrence]]:
     """Drops shorter occurrences that share an end offset and are strict suffixes of longer ones.
 
-        This rule handles “micro-overlap” cases where two different occurrences end at the same
-        character offset, but are not necessarily strictly contained due to tokenisation quirks.
-        Within each `end_offset` group, if a shorter acronym is a strict suffix of a longer acronym
-        (case-insensitive), the shorter occurrence is dropped.
+    This rule handles “micro-overlap” cases where two different occurrences end at the same
+    character offset, but are not necessarily strictly contained due to tokenisation quirks.
+    Within each `end_offset` group, if a shorter acronym is a strict suffix of a longer acronym
+    (case-insensitive), the shorter occurrence is dropped.
 
-        Example:
-            Occurrences ending at 19:
-              - "mRNA" (15, 19)
-              - "RNA"  (16, 19)
-            -> drop "RNA" because "mRNA" endswith "RNA".
+    Example:
+        Occurrences ending at 19:
+          - "mRNA" (15, 19)
+          - "RNA"  (16, 19)
+        -> drop "RNA" because "mRNA" endswith "RNA".
 
-        Ordering:
-            - Input ordering is not assumed.
-            - Occurrences are grouped by `end_offset`.
-            - Within each group, longer occurrences are preferred as the “container” candidate.
+    Ordering:
+        - Input ordering is not assumed.
+        - Occurrences are grouped by `end_offset`.
+        - Within each group, longer occurrences are preferred as the “container” candidate.
 
-        Args:
-            text: Source text (unused by this rule; included for the RuleFn contract).
-            occs: Current occurrence list from the cleanup pipeline.
+    Args:
+        text: Source text (unused by this rule; included for the RuleFn contract).
+        occs: Current occurrence list from the cleanup pipeline.
 
-        Returns:
-            A tuple of:
-              - kept: Occurrences with end-aligned strict-suffix fragments removed.
-              - dropped: Drop records for each removed occurrence, with rule="end_suffix_micro".
+    Returns:
+        A tuple of:
+          - kept: Occurrences with end-aligned strict-suffix fragments removed.
+          - dropped: Drop records for each removed occurrence, with rule="end_suffix_micro".
     """
     ordered = sorted(occs, key=lambda o: (o.end_offset, o.start_offset, -(o.end_offset - o.start_offset), o.acronym))
 
@@ -240,12 +241,102 @@ def rule_inside_paren_suffix_of_left_acronym(
     return kept, dropped
 
 
+def _skip_ws(text: str, i: int, *, max_ws: int | None = None) -> int:
+    """Advance an index over whitespace characters.
+
+    If `max_ws` is provided, advances at most `max_ws` whitespace characters.
+    Otherwise, consumes all consecutive whitespace.
+
+    Args:
+        text: Source text being scanned.
+        i: Starting index.
+        max_ws: Optional cap on how many whitespace characters may be consumed.
+
+    Returns:
+        The first index at or after `i` that is not whitespace (or where `max_ws`
+        whitespace characters have been consumed).
+    """
+    n = len(text)
+    ws = 0
+    while i < n and text[i].isspace() and (max_ws is None or ws < max_ws):
+        i += 1
+        ws += 1
+    return i
+
+
+def _best_occ_at_start(by_start: dict[int, list["Occurrence"]], start: int) -> "Occurrence | None":
+    """Pick the best occurrence among those that start at a given offset.
+
+    Selection policy:
+      1) Prefer the longest span (end-start).
+      2) Break ties by higher confidence.
+
+    Args:
+        by_start: Mapping from start_offset -> occurrences starting there.
+        start: Start offset to select from.
+
+    Returns:
+        The selected best occurrence, or None if no occurrences start at `start`.
+    """
+    bs = by_start.get(start)
+    if not bs:
+        return None
+    return max(bs, key=lambda o: (o.end_offset - o.start_offset, o.confidence))
+
+
+def _find_paren_occurrence_after(
+    text: str,
+    a: "Occurrence",
+    by_start: dict[int, list["Occurrence"]],
+    *,
+    max_ws: int,
+) -> "Occurrence | None":
+    """Find a parenthetical occurrence B immediately following occurrence A.
+
+    Validates the narrow pattern:
+
+        A [ws<=max_ws] '(' [ws*] B [ws*] ')'
+
+    Where:
+      - A is a prior occurrence.
+      - '(' must appear after A with up to `max_ws` whitespace characters.
+      - B must start immediately after '(' allowing any whitespace.
+      - ')' must occur immediately after B allowing any whitespace.
+      - If multiple occurrences start where B begins, selects the "best" one
+        using `_best_occ_at_start`.
+
+    Args:
+        text: Source text used to validate parentheses boundaries/whitespace.
+        a: The candidate pre-parenthesis occurrence (A).
+        by_start: Mapping from start_offset -> occurrences starting there.
+        max_ws: Maximum whitespace allowed between A and '('.
+
+    Returns:
+        The selected parenthetical occurrence B if the pattern is satisfied,
+        otherwise None.
+    """
+    j = _skip_ws(text, a.end_offset, max_ws=max_ws)
+    if j >= len(text) or text[j] != "(":
+        return None
+
+    k = _skip_ws(text, j + 1, max_ws=None)
+    b = _best_occ_at_start(by_start, k)
+    if not b:
+        return None
+
+    m = _skip_ws(text, b.end_offset, max_ws=None)
+    if m >= len(text) or text[m] != ")":
+        return None
+
+    return b
+
+
 def rule_token_before_paren_suffix(
     text: str,
-    occs: list[Occurrence],
+    occs: list["Occurrence"],
     *,
     max_ws: int = 2,
-) -> tuple[list[Occurrence], list[DroppedOccurrence]]:
+) -> tuple[list["Occurrence"], list["DroppedOccurrence"]]:
     """Drops an ALLCAPS token immediately before '(' when the parenthetical acronym ends with it.
 
     This rule removes “tail-word” fragment occurrences where an ALLCAPS token (A) directly
@@ -284,47 +375,26 @@ def rule_token_before_paren_suffix(
     dropped: list[DroppedOccurrence] = []
 
     for idx, a in enumerate(ordered):
-        if idx in drop_ids:
+        if idx in drop_ids or not a.acronym.isupper():
             continue
 
-        if not a.acronym.isupper():
+        b = _find_paren_occurrence_after(text, a, by_start, max_ws=max_ws)
+        if not b:
             continue
 
-        j = a.end_offset
-        ws = 0
-        while j < len(text) and text[j].isspace() and ws < max_ws:
-            j += 1
-            ws += 1
-        if j >= len(text) or text[j] != "(":
+        if not _is_strict_suffix(a.acronym, b.acronym):
             continue
 
-        k = j + 1
-        while k < len(text) and text[k].isspace():
-            k += 1
-
-        bs = by_start.get(k, [])
-        if not bs:
-            continue
-
-        b = max(bs, key=lambda o: (o.end_offset - o.start_offset, o.confidence))
-
-        m = b.end_offset
-        while m < len(text) and text[m].isspace():
-            m += 1
-        if m >= len(text) or text[m] != ")":
-            continue
-
-        if _is_strict_suffix(a.acronym, b.acronym):
-            drop_ids.add(idx)
-            dropped.append(
-                DroppedOccurrence(
-                    acronym=a.acronym,
-                    start=a.start_offset,
-                    end=a.end_offset,
-                    rule="token_before_paren_suffix",
-                    detail=f"paren={b.acronym}@({b.start_offset},{b.end_offset})",
-                )
+        drop_ids.add(idx)
+        dropped.append(
+            DroppedOccurrence(
+                acronym=a.acronym,
+                start=a.start_offset,
+                end=a.end_offset,
+                rule="token_before_paren_suffix",
+                detail=f"paren={b.acronym}@({b.start_offset},{b.end_offset})",
             )
+        )
 
     kept = [o for i, o in enumerate(ordered) if i not in drop_ids]
     return kept, dropped

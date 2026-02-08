@@ -3,7 +3,6 @@ import re
 from plainera_unacronym.nlp.common.shared import collapse_ws
 from plainera_unacronym.nlp.common.types import Span
 
-
 # Sentence boundary: keep it simple and predictable.
 _SENT_BOUNDARY_RE = re.compile(r"(?<=[.!?…])\s+|\n+")
 # Split on ASCII hyphen, unicode hyphen/dashes, and slash.
@@ -64,39 +63,81 @@ def best_span_by_initials(acr: str, sent: str, *, max_chars: int) -> str | None:
     tok_inits = [token_initials(t) for t in tokens]  # may be multi-letter, e.g. "SO"
 
     best: Span | None = None  # (i, j) inclusive
+    best_len = 10**9
+    best_chars = 10**9
 
     for i in range(len(tokens)):
-        ai = 0  # index into A
-        for j in range(i, len(tokens)):
-            init = tok_inits[j]
-            if not init:
-                continue
+        j = _best_window_end_for_initials(A, tok_inits, i)
+        if j is None:
+            continue
 
-            # consume as many letters of `init` as match the acronym tail
-            k = 0
-            while ai < len(A) and k < len(init) and init[k] == A[ai]:
-                ai += 1
-                k += 1
+        cand, cand_chars = _candidate_span(tokens, i, j)
+        if not cand or cand_chars > max_chars:
+            continue
 
-            if ai == len(A):
-                cand = collapse_ws(" ".join(tokens[i: j + 1]).strip())
-                if cand and len(cand) <= max_chars:
-                    if best is None:
-                        best = (i, j)
-                    else:
-                        bi, bj = best
-                        if (j - i) < (bj - bi) or (
-                            (j - i) == (bj - bi) and len(cand) < len(" ".join(tokens[bi: bj + 1]))
-                        ):
-                            best = (i, j)
-                break  # for this i, smallest j wins
+        win_len = j - i
+        if win_len < best_len or (win_len == best_len and cand_chars < best_chars):
+            best = (i, j)
+            best_len = win_len
+            best_chars = cand_chars
 
     if best is None:
         return None
 
     i, j = best
-    out = collapse_ws(" ".join(tokens[i: j + 1]).strip())
+    out = collapse_ws(" ".join(tokens[i : j + 1]).strip())
     return out if out else None
+
+
+def _best_window_end_for_initials(
+    A: list[str],
+    tok_inits: list[str],
+    i: int,
+) -> int | None:
+    """Return the smallest end index j >= i such that initials from i..j match A.
+
+    Scans token initials from `i` forward and consumes letters from acronym `A` in order.
+    Token initials may be multi-letter (e.g., "SO"), and each matching letter advances
+    the acronym index.
+
+    Args:
+        A (list[str]): Acronym letters (uppercase), letters-only.
+        tok_inits (list[str]): Per-token initials strings (uppercase), may be empty.
+        i (int): Start token index (inclusive).
+
+    Returns:
+        int | None: The minimal end index `j` achieving a full match, else None.
+    """
+    ai = 0
+    for j in range(i, len(tok_inits)):
+        init = tok_inits[j]
+        if not init:
+            continue
+
+        k = 0
+        while ai < len(A) and k < len(init) and init[k] == A[ai]:
+            ai += 1
+            k += 1
+
+        if ai == len(A):
+            return j
+
+    return None
+
+
+def _candidate_span(tokens: list[str], i: int, j: int) -> tuple[str, int]:
+    """Build a collapsed candidate span string and return it with its character length.
+
+    Args:
+        tokens (list[str]): Sentence tokens.
+        i (int): Start token index (inclusive).
+        j (int): End token index (inclusive).
+
+    Returns:
+        tuple[str, int]: (collapsed_span, len(collapsed_span)).
+    """
+    cand = collapse_ws(" ".join(tokens[i : j + 1]).strip())
+    return cand, len(cand) if cand else 0
 
 
 def sent_spans(text: str) -> list[Span]:

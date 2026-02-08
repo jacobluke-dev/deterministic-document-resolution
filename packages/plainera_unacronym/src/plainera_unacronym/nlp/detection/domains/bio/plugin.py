@@ -114,4 +114,5 @@ class BioPlugin(DomainPlugin):
             return False
         return bio_keep_guard(surface, text, s, e, self._cfg(cfg))
 
+
 register_plugin(BioPlugin())

@@ -1,13 +1,9 @@
-from types import SimpleNamespace
 
-import pytest
 import re
-
-from plainera_unacronym.nlp.extraction.anchored.patterns import compile_anchored_exact
-from plainera_unacronym.nlp.extraction.anchored.spans import _trim_span
 
 import plainera_unacronym.nlp.extraction.anchored.spans as mod
 from plainera_unacronym.nlp.extraction import ExtractionConfig
+from plainera_unacronym.nlp.extraction.anchored.spans import _trim_span
 from plainera_unacronym.nlp.extraction.matchers.defs.common import LocalDefMatch
 
 
@@ -201,7 +197,12 @@ class TestCalcDefSpanInlineAfterUnit:
 
         _patch(
             mod._calc_def_span_inline_after,
-            find_inline_longform_after_acr=lambda snippet_arg, cfg_arg, acr, *, max_chars, require_initials_match: [loc],
+            find_inline_longform_after_acr=lambda snippet_arg,
+                                                  cfg_arg,
+                                                  acr,
+                                                  *,
+                                                  max_chars,
+                                                  require_initials_match: [loc],
         )
 
         out = mod._calc_def_span_inline_after(

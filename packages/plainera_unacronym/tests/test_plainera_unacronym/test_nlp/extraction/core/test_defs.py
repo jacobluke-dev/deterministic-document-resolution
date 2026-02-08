@@ -1,7 +1,10 @@
-from plainera_unacronym.nlp.common.types import ExtractedDefinition, Span
 import plainera_unacronym.nlp.extraction.core.defs as mod
 import pytest
-from plainera_unacronym.nlp.common.types import InTextPick  # noqa: E402
+from plainera_unacronym.nlp.common.types import (
+    ExtractedDefinition,
+    InTextPick,  # noqa: E402
+    Span,
+)
 from plainera_unacronym.nlp.extraction.core.defs import _sense_key, dedupe_defs, defs_from_picks
 
 

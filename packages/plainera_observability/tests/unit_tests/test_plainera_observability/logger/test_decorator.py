@@ -1,8 +1,6 @@
 import json
 import logging
 
-import pytest
-
 from observability.logger.context import request_id_var
 from observability.logger.decorator import logger
 from observability.logger.levels import STD_LEVEL, LogLevel
@@ -31,18 +29,6 @@ def test_sync_decorator_emits_payload(capture_sink):
     assert p["request_id"] == "rid-123"
     assert p["args"] == {"x": 2, "y": 3}
     assert isinstance(p["duration_ms"], int)
-
-
-def test_sync_decorator_emits_json(caplog):
-    caplog.set_level(logging.INFO, logger="plainera")
-    lg = logging.getLogger("plainera")
-    lg.info("caplog-probe-plainera")
-    logging.getLogger().info("caplog-probe-root")
-    print("caplog len after probes =", len(caplog.records))
-
-    print("logging.root.manager.disable =", logging.root.manager.disable)
-    lg = logging.getLogger("plainera")
-    print("plainera.disabled =", lg.disabled, "level =", lg.level, "effective =", lg.getEffectiveLevel(), "propagate =", lg.propagate)
 
 
 def test_redaction(capture_sink):

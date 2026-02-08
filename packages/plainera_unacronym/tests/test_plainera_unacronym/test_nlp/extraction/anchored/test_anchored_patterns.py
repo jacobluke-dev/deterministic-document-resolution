@@ -1,4 +1,3 @@
-import pytest
 
 from plainera_unacronym.nlp.extraction import ExtractionConfig
 from plainera_unacronym.nlp.extraction.anchored.patterns import compile_anchored_exact

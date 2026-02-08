@@ -1,8 +1,7 @@
 from types import SimpleNamespace
 
 import pytest
-
-from plainera_unacronym.nlp.extraction.engine.stages import Tracer, TraceEvent
+from plainera_unacronym.nlp.extraction.engine.stages import TraceEvent, Tracer
 
 
 class DummyState:

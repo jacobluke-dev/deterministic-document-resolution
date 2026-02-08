@@ -9,7 +9,7 @@ def detect_and_extract(
     window_left: int = 320,
     window_right: int = 280,
     return_reports: bool = False,
-    trace:bool=False,
+    trace: bool = False,
     trace_filter=None,
 ):
     flow = ExtractionFlow(

@@ -1,7 +1,7 @@
 from typing import Optional
 
 from plainera_unacronym.nlp.common.shared import normalize_acronym_key
-from plainera_unacronym.nlp.common.types import ExtractedDefinition, InTextPick, FirstOccurrence, DetectorConfig
+from plainera_unacronym.nlp.common.types import DetectorConfig, ExtractedDefinition, FirstOccurrence, InTextPick
 
 
 def fill_missing_from_defs(
@@ -45,11 +45,10 @@ def fill_missing_from_defs(
         Returns:
             A mapping from normalized acronym key to an ``InTextPick`` if a suitable
             definition is found, otherwise ``None``.
-        """
+    """
     index: dict[str, list[ExtractedDefinition]] = {}
     for d in defs:
-        k = normalize_acronym_key(d.acronym, det_cfg.allow_chars,
-                                  dotted_mode=det_cfg.dotted_display)
+        k = normalize_acronym_key(d.acronym, det_cfg.allow_chars, dotted_mode=det_cfg.dotted_display)
         if k:
             index.setdefault(k, []).append(d)
 

@@ -1,7 +1,10 @@
-import pytest
 
-from plainera_unacronym.nlp.extraction.matchers.defs.common import _align_rtl_scan_wrapper, InitialsStream, \
-    AlignmentHit, align_rtl_scan
+from plainera_unacronym.nlp.extraction.matchers.defs.common import (
+    AlignmentHit,
+    InitialsStream,
+    _align_rtl_scan_wrapper,
+    align_rtl_scan,
+)
 
 
 class TestAlignRtlScanWrapper:

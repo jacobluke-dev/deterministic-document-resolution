@@ -8,8 +8,7 @@ If scores are close, the near-tie tiebreak chooses the sense ≥3 chars closer; 
 """
 
 import pytest
-
-from plainera_unacronym.nlp.common.types import OccurrenceLite, AcronymSense, Span
+from plainera_unacronym.nlp.common.types import AcronymSense, OccurrenceLite, Span
 from plainera_unacronym.nlp.extraction.senses.disambiguate import choose_with_tiebreak, disambiguate_occurrences
 
 
@@ -212,8 +211,18 @@ class TestDisambiguateOccurrences:
         occs = [OccurrenceLite("ABC", i1, i1 + 3), OccurrenceLite("ABC", i2, i2 + 3), OccurrenceLite("ABC", i3, i3 + 3)]
         senses_A_first = {
             "ABC": [
-                AcronymSense("ABC", "Alpha Beta Council", "abc|alpha_beta_council", [(text.index("Org A"), text.index("Org A") + 5)], 1),
-                AcronymSense("ABC", "Applied Business Consortium", "abc|applied_business_consortium", [(text.index("Org B"), text.index("Org B") + 5)], 1),
+                AcronymSense("ABC",
+                             "Alpha Beta Council",
+                             "abc|alpha_beta_council",
+                             [(text.index("Org A"),
+                               text.index("Org A") + 5)],
+                             1),
+                AcronymSense("ABC",
+                             "Applied Business Consortium",
+                             "abc|applied_business_consortium",
+                             [(text.index("Org B"),
+                               text.index("Org B") + 5)],
+                             1),
             ]
         }
         senses_B_first = {"ABC": list(reversed(senses_A_first["ABC"]))}
@@ -255,8 +264,11 @@ class TestDisambiguateOccurrences:
     #     ]
     #     senses = {
     #         "ZC": [
-    #             AcronymSense("ZC", "Zeta Corporation", "zc|zeta_corporation", [(text.index("Zeta"), text.index("Zeta") + 4)], 1),
-    #             AcronymSense("ZC", "Zero Cool", "zc|zero_cool", [(text.index("globally") + 2, text.index("globally") - 2)], 1),  # reversed endpoints on purpose
+    #             AcronymSense("ZC", "Zeta Corporation",
+    #             "zc|zeta_corporation", [(text.index("Zeta"), text.index("Zeta") + 4)], 1),
+    #             AcronymSense("ZC", "Zero Cool",
+    #             "zc|zero_cool",
+    #             [(text.index("globally") + 2, text.index("globally") - 2)], 1),  # reversed endpoints on purpose
     #         ]
     #     }
     #     out = disambiguate_occurrences(text, occs, senses, dist_weight=1.0, overlap_weight=0.0)

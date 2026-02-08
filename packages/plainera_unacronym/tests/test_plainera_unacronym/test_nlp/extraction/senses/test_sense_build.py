@@ -1,8 +1,7 @@
 from dataclasses import dataclass
 
 import pytest
-
-from plainera_unacronym.nlp.extraction.senses.sense_build import build_senses, _slug
+from plainera_unacronym.nlp.extraction.senses.sense_build import _slug, build_senses
 
 
 @dataclass(frozen=True)

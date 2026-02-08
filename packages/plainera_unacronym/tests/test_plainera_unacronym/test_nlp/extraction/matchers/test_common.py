@@ -1,7 +1,10 @@
 import pytest
-
-from plainera_unacronym.nlp.extraction.matchers.common import split_compound, initials_seq, is_mixed_case_acronym, \
-    match_from
+from plainera_unacronym.nlp.extraction.matchers.common import (
+    initials_seq,
+    is_mixed_case_acronym,
+    match_from,
+    split_compound,
+)
 
 
 class TestMatchFrom:

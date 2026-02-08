@@ -1,7 +1,5 @@
 from types import SimpleNamespace
 
-import pytest
-
 from plainera_unacronym.nlp.extraction.engine.stages import (
     Chain,
     Stage,

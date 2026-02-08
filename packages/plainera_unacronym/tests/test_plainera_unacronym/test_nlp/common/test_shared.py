@@ -2,10 +2,15 @@ import unicodedata
 
 import pytest
 from plainera_unacronym.nlp.common.constants_regex import APOSTROPHE_VARIANTS
-from plainera_unacronym.nlp.common.shared import (has_paren_definition,
-                                                  normalize_acronym_key,
-                                                  strip_trailing_punct_str, has_letter, canonicalize,
-                                                  _swallow_spaces_around_allowed, collapse_ws)
+from plainera_unacronym.nlp.common.shared import (
+    _swallow_spaces_around_allowed,
+    canonicalize,
+    collapse_ws,
+    has_letter,
+    has_paren_definition,
+    normalize_acronym_key,
+    strip_trailing_punct_str,
+)
 from plainera_unacronym.nlp.extraction.anchored.normalise import tighten_definition_span
 
 
@@ -114,6 +119,10 @@ class TestStripTrailingPunctStr:
     def test_strips_closing_brackets_and_braces(self):
         assert strip_trailing_punct_str("Unit)") == "Unit"
         assert strip_trailing_punct_str("Thing]}") == "Thing"
+
+    def test_strip_trailing_punct_variants_agree_on_terminal_dot(self):
+        s = "U.S.A.)"
+        assert strip_trailing_punct_str(s) == "U.S.A"
 
 
 class TestSwallowSpacesAroundAllowed:
@@ -312,12 +321,6 @@ class TestTightenDefinitionSpan:
         out = tighten_definition_span(s)
         assert out == "Please Turn Over"
 
-
-class TestStripTrailingPunctStr:
-
-    def test_strip_trailing_punct_variants_agree_on_terminal_dot(self):
-        s = "U.S.A.)"
-        assert strip_trailing_punct_str(s) == "U.S.A"
 
 class TestHasLetters:
 

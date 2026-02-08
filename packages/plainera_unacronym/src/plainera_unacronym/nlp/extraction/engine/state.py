@@ -2,10 +2,16 @@ from dataclasses import dataclass, field
 from typing import Optional
 
 from plainera_unacronym.nlp.common.types import (
-    DetectorConfig, InTextPick, ExtractedDefinition, ExtractionResult, DetectorResult, Extraction_strategy
+    DetectorConfig,
+    DetectorResult,
+    ExtractedDefinition,
+    Extraction_strategy,
+    ExtractionResult,
+    InTextPick,
 )
 from plainera_unacronym.nlp.detection.cleanup import DroppedOccurrence
 from plainera_unacronym.nlp.extraction.config import ExtractionConfig
+
 
 @dataclass
 class FlowState:

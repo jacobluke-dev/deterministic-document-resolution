@@ -2,18 +2,20 @@ import re
 from typing import Optional
 
 from plainera_unacronym.nlp.common.constants_regex import BRIDGES_DEFAULT, DEFAULT_STOPWORDS
-from plainera_unacronym.nlp.extraction.core.normalise import normalize_definition
-from plainera_unacronym.nlp.common.shared import strip_trailing_punct_str, collapse_ws, has_letter
+from plainera_unacronym.nlp.common.shared import collapse_ws, has_letter, strip_trailing_punct_str
 from plainera_unacronym.nlp.extraction.anchored.normalise import tighten_definition_span
+from plainera_unacronym.nlp.extraction.core.normalise import normalize_definition
 from plainera_unacronym.nlp.extraction.matchers.common import is_mixed_case_acronym
-from plainera_unacronym.nlp.extraction.matchers.defs.common import (LocalDefMatch,
-                                                                    first_alnum_char_upper,
-                                                                    expand_numeric_leading_window,
-                                                                    align_acronym_to_initials,
-                                                                    build_initials_stream)
+from plainera_unacronym.nlp.extraction.matchers.defs.common import (
+    LocalDefMatch,
+    align_acronym_to_initials,
+    build_initials_stream,
+    expand_numeric_leading_window,
+    first_alnum_char_upper,
+)
 
 
-def find_parenthetical_longform_after_acr(
+def find_parenthetical_longform_after_acr(  # noqa: C901
     snippet: str,
     cfg,
     acr: Optional[str] = None,
@@ -99,10 +101,7 @@ def find_parenthetical_longform_after_acr(
 
     # ---- choose window (i, j) and hit_tokens ----
     if acr and require_initials_match:
-        needs_compound_split = any(
-            ("-" in t) or ("/" in t) or ("&" in t) or ("." in t)
-            for t in tokens
-        )
+        needs_compound_split = any(("-" in t) or ("/" in t) or ("&" in t) or ("." in t) for t in tokens)
 
         stream = build_initials_stream(
             tokens,
@@ -172,7 +171,7 @@ def find_parenthetical_longform_after_acr(
             kept.append(tok)
 
     if not kept:
-        kept = tokens[i: j + 1]
+        kept = tokens[i : j + 1]
 
     phrase = strip_trailing_punct_str(collapse_ws(" ".join(kept)))
     if not phrase:

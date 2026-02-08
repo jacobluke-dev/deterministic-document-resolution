@@ -1,9 +1,11 @@
 import pytest
-
 from plainera_unacronym.nlp.extraction.matchers.tighten import (
     _best_window_for_acronym,
+    _numeric_leading,
+    _phrase_from_best_window,
     _tokenize_preserve,
-    tighten_label_by_acronym, _numeric_leading, _try_split_acronym_initials_window, _phrase_from_best_window,
+    _try_split_acronym_initials_window,
+    tighten_label_by_acronym,
 )
 
 
@@ -638,9 +640,7 @@ class TestInitialsRuleBenefit:
         s = "cost per acquisition"
         # simulate flow: tighten_definition_span -> tighten_label_by_acronym
         # span function likely returns the whole tail (lowercase), then cleaner kicks in
-        from plainera_unacronym.nlp.extraction.anchored.normalise import (
-            tighten_definition_span
-        )
+        from plainera_unacronym.nlp.extraction.anchored.normalise import tighten_definition_span
         tail = tighten_definition_span(s)
         out = tighten_label_by_acronym(tail, "C/A", bridges={"per", "of", "and", "&"})
         assert out == "cost per acquisition"  # passes only with initials-in-order tweak

@@ -1,17 +1,21 @@
 import re
 
-from plainera_unacronym.nlp.common.constants_regex import DEFAULT_STOPWORDS, BRIDGES_DEFAULT, QUOTE
-from plainera_unacronym.nlp.extraction.core.normalise import normalize_definition
+from plainera_unacronym.nlp.common.constants_regex import BRIDGES_DEFAULT, DEFAULT_STOPWORDS, QUOTE
 from plainera_unacronym.nlp.common.shared import collapse_ws, has_letter
+from plainera_unacronym.nlp.extraction.core.normalise import normalize_definition
 from plainera_unacronym.nlp.extraction.matchers.common import is_mixed_case_acronym
-from plainera_unacronym.nlp.extraction.matchers.defs.common import (LocalDefMatch,
-                                                                    build_initials_stream,
-                                                                    align_acronym_to_initials,
-                                                                    expand_numeric_leading_window, build_kept_phrase)
+from plainera_unacronym.nlp.extraction.matchers.defs.common import (
+    LocalDefMatch,
+    align_acronym_to_initials,
+    build_initials_stream,
+    build_kept_phrase,
+    expand_numeric_leading_window,
+)
+from plainera_unacronym.nlp.extraction.matchers.defs.inline_after import scan_tokens
 from plainera_unacronym.nlp.extraction.matchers.numeric_matcher import consume_left_numeric_designator
 
 
-def find_parenthetical_longform_before_acr(snippet: str, acr: str, cfg) -> list[LocalDefMatch]:
+def find_parenthetical_longform_before_acr(snippet: str, acr: str, cfg) -> list[LocalDefMatch]:  # noqa: C901
     """Find a long-form definition immediately before a parenthesised acronym.
 
     Matches the anchored pattern:
@@ -67,8 +71,7 @@ def find_parenthetical_longform_before_acr(snippet: str, acr: str, cfg) -> list[
     tail = r"(?:\s*[,;:]\s*[^)]{0,120})?"  # cap the tail to stay sane
 
     m = re.search(
-        rf"(?P<pre>[^\(\)]{{1,{max_chars}}})\s*"
-        rf"(?=\(\s*{QUOTE}{acr_esc}{QUOTE}{tail}\s*\)\s*$)",
+        rf"(?P<pre>[^\(\)]{{1,{max_chars}}})\s*" rf"(?=\(\s*{QUOTE}{acr_esc}{QUOTE}{tail}\s*\)\s*$)",
         snippet,
     )
 
@@ -84,13 +87,7 @@ def find_parenthetical_longform_before_acr(snippet: str, acr: str, cfg) -> list[
         return []
 
     # 1) Tokenize LTR by whitespace to get stable spans
-    tokens: list[str] = []
-    starts: list[int] = []
-    ends: list[int] = []
-    for t in re.finditer(r"\S+", pre):
-        tokens.append(t.group(0))
-        starts.append(t.start())
-        ends.append(t.end())
+    tokens, starts, ends = scan_tokens(pre, offset=0)
 
     if not tokens:
         return []
@@ -151,7 +148,7 @@ def find_parenthetical_longform_before_acr(snippet: str, acr: str, cfg) -> list[
         tok_right=tok_right,
         hit_tokens=hit_tokens,
         bridges=bridges,
-        include_numeric_leading=True
+        include_numeric_leading=True,
     )
     if not phrase:
         return []

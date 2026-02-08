@@ -1,5 +1,4 @@
 import pytest
-
 from plainera_unacronym.nlp.extraction.matchers.defs.common import build_kept_phrase
 
 
@@ -35,7 +34,9 @@ class TestBuildKeptPhrase:
 
     def test_keeps_numeric_leading_tokens_when_enabled(self, _patch):
         # Treat tokens that start with a digit as numeric-leading.
-        _patch(build_kept_phrase, _numeric_leading=lambda tok, include_numeric_leading: include_numeric_leading and tok[:1].isdigit())
+        _patch(build_kept_phrase,
+               _numeric_leading=lambda tok,
+                                       include_numeric_leading: include_numeric_leading and tok[:1].isdigit())
 
         tokens = ["3M", "Portable", "format"]
         out = build_kept_phrase(
@@ -49,7 +50,9 @@ class TestBuildKeptPhrase:
         assert out == "3M Portable format"
 
     def test_does_not_keep_numeric_leading_tokens_when_disabled(self, _patch):
-        _patch(build_kept_phrase, _numeric_leading=lambda tok, include_numeric_leading: include_numeric_leading and tok[:1].isdigit())
+        _patch(build_kept_phrase,
+               _numeric_leading=lambda tok,
+                                       include_numeric_leading: include_numeric_leading and tok[:1].isdigit())
 
         tokens = ["3M", "Portable", "format"]
         out = build_kept_phrase(

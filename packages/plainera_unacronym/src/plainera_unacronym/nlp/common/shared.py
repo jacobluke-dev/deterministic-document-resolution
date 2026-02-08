@@ -1,7 +1,7 @@
 import re
 import unicodedata
 
-from plainera_unacronym.nlp.common.config import TRAILING_PUNCT, CANON_TABLE
+from plainera_unacronym.nlp.common.config import CANON_TABLE, TRAILING_PUNCT
 
 
 def has_paren_definition(text: str, end: int, max_chars: int = 80) -> bool:
@@ -146,6 +146,7 @@ def normalize_acronym_key(surface: str, allow_chars: str, dotted_mode: str) -> s
         s = s.replace(".", "")
     s = _swallow_spaces_around_allowed(s, allow_chars)
     return s
+
 
 def collapse_ws(s: str) -> str:
     """Collapses runs of whitespace into single spaces and trims ends.

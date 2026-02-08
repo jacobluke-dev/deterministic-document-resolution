@@ -1,10 +1,10 @@
 import re
-
-from plainera_unacronym.nlp.common.types import Definition_strategy
-from plainera_unacronym.nlp.extraction import ExtractionConfig
-from plainera_unacronym.nlp.common.constants_regex import QUOTE as QUOTE_RE
 from dataclasses import dataclass
 from typing import Any
+
+from plainera_unacronym.nlp.common.constants_regex import QUOTE as QUOTE_RE
+from plainera_unacronym.nlp.common.types import Definition_strategy
+from plainera_unacronym.nlp.extraction import ExtractionConfig
 
 
 @dataclass(frozen=True, slots=True)
@@ -15,35 +15,36 @@ class PatternSpec:
     kind: str
 
 
-def compile_anchored_exact(acr: str, cfg: ExtractionConfig) -> tuple[
-    PatternSpec, PatternSpec, PatternSpec, PatternSpec, PatternSpec, PatternSpec, Any, Any]:
+def compile_anchored_exact(
+    acr: str, cfg: ExtractionConfig
+) -> tuple[PatternSpec, PatternSpec, PatternSpec, PatternSpec, PatternSpec, PatternSpec, Any, Any]:
     """Compile anchored extraction patterns for a specific acronym.
 
-        Builds a set of compiled regex patterns that detect common long-form/acronym
-        structures around an exact acronym surface, including:
+    Builds a set of compiled regex patterns that detect common long-form/acronym
+    structures around an exact acronym surface, including:
 
-          - Forward wrappers:  Long Form (ACR) / Long Form [ACR]
-          - Reverse wrappers:  ACR (Long Form) / ACR [Long Form]
-          - Wrapper-before-acr: (Long Form) ACR / [Long Form] ACR
-          - Inline cues: ACR ... <cue> ... Long Form  and  Long Form ... <cue> ... ACR
+      - Forward wrappers:  Long Form (ACR) / Long Form [ACR]
+      - Reverse wrappers:  ACR (Long Form) / ACR [Long Form]
+      - Wrapper-before-acr: (Long Form) ACR / [Long Form] ACR
+      - Inline cues: ACR ... <cue> ... Long Form  and  Long Form ... <cue> ... ACR
 
-        Each pattern exposes named capture groups:
-          - ``acr``: the acronym only (excluding optional trailing dot, quotes, tails,
-            and optional possessive markers like ``PDF's`` / ``PDF’s``).
-          - ``def``: a candidate definition region (may be intentionally minimal for
-            some inline patterns; use ``resolve_def_span(spec.strategy, ...)`` to
-            compute the final span to slice).
+    Each pattern exposes named capture groups:
+      - ``acr``: the acronym only (excluding optional trailing dot, quotes, tails,
+        and optional possessive markers like ``PDF's`` / ``PDF’s``).
+      - ``def``: a candidate definition region (may be intentionally minimal for
+        some inline patterns; use ``resolve_def_span(spec.strategy, ...)`` to
+        compute the final span to slice).
 
-        Args:
-            acr: Exact acronym surface to compile patterns for (e.g., ``"PPE"``).
-            cfg: Extraction configuration controlling phrase limits, inline cue
-                phrases, and base confidence values.
+    Args:
+        acr: Exact acronym surface to compile patterns for (e.g., ``"PPE"``).
+        cfg: Extraction configuration controlling phrase limits, inline cue
+            phrases, and base confidence values.
 
-        Returns:
-            Tuple of PatternSpec instances. Order reflects intended matching priority
-            (wrapper forms first, then inline forms). Each PatternSpec includes a
-            compiled regex, base confidence, strategy identifier (for
-            ``resolve_def_span``), and a kind label used for downstream cleaning.
+    Returns:
+        Tuple of PatternSpec instances. Order reflects intended matching priority
+        (wrapper forms first, then inline forms). Each PatternSpec includes a
+        compiled regex, base confidence, strategy identifier (for
+        ``resolve_def_span``), and a kind label used for downstream cleaning.
     """
     ACR = re.escape(acr)
 
@@ -91,8 +92,7 @@ def compile_anchored_exact(acr: str, cfg: ExtractionConfig) -> tuple[
     )
 
     inlines_after = [
-        re.compile(rf"\b(?P<acr>{ACR})\b\s*,?\s*{cue}\s+{DEF}", re.IGNORECASE | re.MULTILINE)
-        for cue in cfg.inline_cues
+        re.compile(rf"\b(?P<acr>{ACR})\b\s*,?\s*{cue}\s+{DEF}", re.IGNORECASE | re.MULTILINE) for cue in cfg.inline_cues
     ]
 
     # inline before: DEF ... cue ... ACR

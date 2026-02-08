@@ -2,7 +2,6 @@
 import re
 
 import pytest
-
 from plainera_unacronym.nlp.detection.heuristics.inline_cues import (
     _compile_inline_cues_pattern,
     boost_confidence_if_inline_cue,

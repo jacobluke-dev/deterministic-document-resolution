@@ -1,7 +1,7 @@
-import pytest
 
 from types import SimpleNamespace
-from plainera_unacronym.nlp.extraction.engine.stages import Stage, StageResult, StageReport, Tracer
+
+from plainera_unacronym.nlp.extraction.engine.stages import Stage, StageReport, StageResult, Tracer
 
 
 class DummyState:

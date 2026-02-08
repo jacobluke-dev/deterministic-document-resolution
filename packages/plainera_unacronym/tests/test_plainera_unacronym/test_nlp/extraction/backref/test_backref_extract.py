@@ -1,13 +1,15 @@
-import pytest
 
 from plainera_unacronym.nlp import FirstOccurrence
 from plainera_unacronym.nlp.common.constants_regex import BRIDGES_DEFAULT
-from plainera_unacronym.nlp.extraction.core.normalise import normalize_definition
 from plainera_unacronym.nlp.common.types import ExtractedDefinition
+from plainera_unacronym.nlp.extraction.backref.extract import (
+    _candidate_from_prev_sentence,
+    _find_backref_candidate,
+    extract_sentence_backrefs,
+)
 from plainera_unacronym.nlp.extraction.backref.spans import best_span_by_initials
 from plainera_unacronym.nlp.extraction.config import ExtractionConfig
-from plainera_unacronym.nlp.extraction.backref.extract import _candidate_from_prev_sentence, extract_sentence_backrefs, \
-    _find_backref_candidate
+from plainera_unacronym.nlp.extraction.core.normalise import normalize_definition
 from plainera_unacronym.nlp.extraction.matchers.tighten import tighten_label_by_acronym
 
 

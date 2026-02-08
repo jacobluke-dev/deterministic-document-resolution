@@ -45,7 +45,9 @@ class TestDetectorUnit:
         d = Detector(cfg0, max_workers=1)
 
         # Case 1: adds new domain → returns REPLACED config
-        monkeypatch.setattr(det, "autodetect_domains", lambda text, cfg: frozenset({"finance", "bio"}), raising=True)
+        monkeypatch.setattr(det, "autodetect_domains",
+                            lambda text, cfg: frozenset({"finance", "bio"}),
+                            raising=True)
         out = d._with_auto_domains("some text mentioning markets")
         assert out is not d.cfg
         assert out.enabled_domains == frozenset({"bio", "finance"})
@@ -166,7 +168,11 @@ class TestDetectorUnit:
 
         monkeypatch.setattr(det, "_score_chunk_worker", fake_worker, raising=True)
         # normalize_key used for fallback
-        monkeypatch.setattr(det, "normalize_acronym_key", lambda acr, allow, dotted_mode=None: f"N[{acr}]", raising=True)
+        monkeypatch.setattr(det, "normalize_acronym_key",
+                            lambda acr,
+                                   allow,
+                                   dotted_mode=None: f"N[{acr}]",
+                            raising=True)
         monkeypatch.setattr(det, "message_logger", lambda *a, **k: None, raising=True)
         monkeypatch.setattr(det, "autodetect_domains", lambda *_: frozenset(), raising=True)
 

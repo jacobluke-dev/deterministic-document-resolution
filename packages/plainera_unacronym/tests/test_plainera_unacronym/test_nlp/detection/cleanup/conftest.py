@@ -1,7 +1,6 @@
 import pytest
-
-from plainera_unacronym.nlp.common.types import DetectorConfig, FirstOccurrence, Occurrence
 from plainera_unacronym.nlp.common.shared import normalize_acronym_key
+from plainera_unacronym.nlp.common.types import DetectorConfig, FirstOccurrence, Occurrence
 
 
 @pytest.fixture
