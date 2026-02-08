@@ -209,11 +209,32 @@ def _calc_def_span(
     *,
     acr_norm: str,
     seg: str,
-    acr_end_local: int = None,
-    m: re.Match[str] = None,
+    acr_end_local: int | None = None,
+    m: re.Match[str] | None = None,
     cfg: ExtractionConfig,
 ) -> OptSpan:
-    print(kind, acr_norm, seg, acr_end_local, m)
+    """
+    Compute the local definition span for an anchored extraction pattern.
+
+    Selects the appropriate span-calculation strategy based on `kind` and derives
+    a `(start, end)` character span relative to `seg`. Some strategies require
+    additional context (e.g. the acronym end offset or the regex match object),
+    which must be provided by the caller for the corresponding `kind`.
+
+    Args:
+        kind: Strategy identifier (e.g. "def_after", "def_before").
+        acr_norm: Normalised acronym surface.
+        seg: Text segment containing the match.
+        acr_end_local: Local end offset of the acronym within `seg`; required
+            when `kind == "def_after"`.
+        m: Regex match object for the anchored pattern; required when
+            `kind == "def_before"`.
+        cfg: Extraction configuration used by the span calculators.
+
+    Returns:
+        An optional `(start, end)` span into `seg` representing the extracted
+        definition region, or `None` if no valid span can be computed.
+    """
     if kind == "def_after":
         assert acr_end_local is not None
         return _calc_def_span_def_after(acr_norm=acr_norm, seg=seg, acr_end_local=acr_end_local, cfg=cfg)
@@ -230,6 +251,31 @@ def _calc_def_span(
 def resolve_def_span(
     strategy: str, *, seg: str, m: re.Match[str], acr_key: str, a1_local: int, cfg: ExtractionConfig
 ) -> OptSpan:
+    """
+    Resolve the definition span for an anchored pattern match.
+
+    Given a pattern `strategy` and its regex match `m`, this function returns a
+    `(start, end)` character span into `seg` identifying the definition region.
+    Strategies either:
+      - use the match group's span directly ("direct_def"), or
+      - delegate to helper span calculators for more contextual selection
+        (e.g. definition before/after the acronym, or inline cue forms).
+
+    Args:
+        strategy: Strategy identifier attached to a `PatternSpec` (e.g. "direct_def",
+            "helper_def_after", "helper_def_before", "helper_inline_after").
+        seg: Text segment containing the match.
+        m: Regex match object for the anchored pattern (must include a "def" group
+            for "direct_def").
+        acr_key: Normalised acronym surface used by helper strategies.
+        a1_local: Local end offset of the acronym within `seg` (used by "after"/"inline"
+            helper strategies).
+        cfg: Extraction configuration used by helper span calculators.
+
+    Returns:
+        An optional `(start, end)` span into `seg` representing the extracted
+        definition region, or `None` if no valid span can be computed.
+    """
     if strategy == "direct_def":
         d0, d1 = m.span("def")
         return None if d0 >= d1 else (d0, d1)

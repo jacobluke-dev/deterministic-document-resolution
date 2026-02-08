@@ -1,8 +1,8 @@
 from typing import TYPE_CHECKING, FrozenSet, Protocol, cast, overload
 
-from plainera_unacronym.nlp import DetectorConfig
 from plainera_unacronym.nlp.common.constants_regex import BOUNDARY, TIME_RE
 from plainera_unacronym.nlp.common.shared import has_paren_definition
+from plainera_unacronym.nlp.common.types import DetectorConfig
 from plainera_unacronym.nlp.detection.heuristics.core import (
     has_stands_for_follow,
     in_brackets,
@@ -46,7 +46,7 @@ class HeuristicCfg(Protocol):
 
 
 if TYPE_CHECKING:
-    from plainera_unacronym.nlp.types import DetectorConfig
+    from plainera_unacronym.nlp.common.types import DetectorConfig
 
     CfgLike = HeuristicCfg | DetectorConfig
 

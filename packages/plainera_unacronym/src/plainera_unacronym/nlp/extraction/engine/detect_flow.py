@@ -1,8 +1,10 @@
+from typing import Optional
+
 from plainera_unacronym.nlp.common.types import DetectorConfig, DetectorResult, ExtractionResult
 from plainera_unacronym.nlp.extraction.config import ExtractionConfig
 
 from . import stage_funcs as f
-from .stages import Chain, Stage, StageReport, Tracer
+from .stages import Chain, Stage, StageReport, TraceEvent, Tracer
 from .state import FlowState
 
 
@@ -63,7 +65,7 @@ class ExtractionFlow:
             trace (bool): If True, capture structured trace events for selected stage fields.
             trace_filter (str | None): Optional regex filter applied to acronym keys when tracing.
         """
-        self.trace_events = None
+        self.trace_events: Optional[list[TraceEvent]] = None
         self.det_cfg = det_cfg or DetectorConfig()
         self.ext_cfg = ext_cfg or ExtractionConfig()
         self.window_left = window_left
@@ -71,6 +73,10 @@ class ExtractionFlow:
         self._ovr_win = disambig_window_chars
         self._ovr_margin = disambig_margin_threshold
         self._tracer = Tracer(trace_filter) if trace else None
+
+    @staticmethod
+    def _n_firsts(s: FlowState) -> int:
+        return len(s.det_res.unique_acronyms) if s.det_res is not None else 0
 
     def build_chain(self) -> Chain[FlowState]:
         """Build the staged execution chain for the extraction pipeline.
@@ -99,11 +105,11 @@ class ExtractionFlow:
 
         return Chain(
             [
-                Stage("detect", f.st_detect, lambda s: f"firsts={len(s.det_res.unique_acronyms)}"),
+                Stage("detect", f.st_detect, lambda s: f"firsts={self._n_firsts(s)} dropped={len(s.cleanup_dropped)}"),
                 Stage(
                     "post_detect_cleanup",
                     f.st_post_detect_cleanup,
-                    lambda s: f"firsts={len(s.det_res.unique_acronyms)} dropped={len(s.cleanup_dropped)}",
+                    lambda s: f"firsts={self._n_firsts(s)} dropped={len(s.cleanup_dropped)}",
                     trace_fields=("cleanup_dropped",),
                 ),
                 Stage(
@@ -167,5 +173,5 @@ class ExtractionFlow:
         state = FlowState(text=text, det_cfg=self.det_cfg, ext_cfg=self.ext_cfg)
         state, reports = self.build_chain().run(state, tracer=self._tracer)
         assert state.det_res and state.extr
-        self.trace_events = self._tracer.events if self._tracer else []
+        self.trace_events = self._tracer.events if self._tracer else None
         return state.det_res, state.extr, reports

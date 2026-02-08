@@ -1,6 +1,5 @@
 import re
 from dataclasses import dataclass
-from typing import Any
 
 from plainera_unacronym.nlp.common.constants_regex import QUOTE as QUOTE_RE
 from plainera_unacronym.nlp.common.types import Definition_strategy
@@ -15,9 +14,7 @@ class PatternSpec:
     kind: str
 
 
-def compile_anchored_exact(
-    acr: str, cfg: ExtractionConfig
-) -> tuple[PatternSpec, PatternSpec, PatternSpec, PatternSpec, PatternSpec, PatternSpec, Any, Any]:
+def compile_anchored_exact(acr: str, cfg: ExtractionConfig) -> tuple[PatternSpec, ...]:
     """Compile anchored extraction patterns for a specific acronym.
 
     Builds a set of compiled regex patterns that detect common long-form/acronym

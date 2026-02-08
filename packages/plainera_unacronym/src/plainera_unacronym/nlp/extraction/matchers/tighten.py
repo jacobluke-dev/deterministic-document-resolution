@@ -365,7 +365,7 @@ def tighten_label_by_acronym(
         out = raw_label or ""
         return out if keep_case else out.lower()
 
-    br = bridges or BRIDGES_DEFAULT
+    br: set[str] = set(bridges) if bridges is not None else set(BRIDGES_DEFAULT)
 
     s = canonicalize(raw_label)
     tokens = _tokenize_preserve(s)

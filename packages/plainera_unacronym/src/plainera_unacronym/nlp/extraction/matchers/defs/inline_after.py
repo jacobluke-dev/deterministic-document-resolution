@@ -1,6 +1,5 @@
 import re
 
-from plainera_unacronym.nlp.common.constants_regex import BRIDGES_DEFAULT, DEFAULT_STOPWORDS
 from plainera_unacronym.nlp.common.shared import collapse_ws, strip_trailing_punct_str
 from plainera_unacronym.nlp.extraction.anchored.normalise import tighten_definition_span
 from plainera_unacronym.nlp.extraction.core.normalise import normalize_definition
@@ -9,6 +8,7 @@ from plainera_unacronym.nlp.extraction.matchers.defs.common import (
     LocalDefMatch,
     align_acronym_to_initials,
     build_initials_stream,
+    get_cfg_consts,
     inline_clause_tail,
     kept_token_indices,
     phrase_from_indices,
@@ -114,10 +114,7 @@ def find_inline_longform_after_acr(  # noqa: C901
 
     if len(collapse_ws(tail)) > max_phrase_chars:
         return []
-
-    stop = getattr(cfg, "stop", DEFAULT_STOPWORDS)
-    bridges = getattr(cfg, "bridges", BRIDGES_DEFAULT)
-    max_phrase_chars = getattr(cfg, "max_phrase_chars", 200)
+    bridges, stop, max_chars = get_cfg_consts(cfg, 200)
     search_cap = max_chars or max_phrase_chars * 2
     s = snippet[:search_cap]
 
@@ -155,9 +152,9 @@ def find_inline_longform_after_acr(  # noqa: C901
         return [LocalDefMatch(def_start=ds, def_end=de, definition=disp, raw=raw_window)]
 
     # Only align against the long-form tail, not the cue words.
-    hit = strip_inline_cue_prefix(s, cfg)
-    if hit:
-        tail2, off = hit
+    cue_hit = strip_inline_cue_prefix(s, cfg)
+    if cue_hit:
+        tail2, off = cue_hit
     else:
         # If we cannot see a cue at the start, this isn't the pattern we're targeting.
         return []
@@ -176,7 +173,7 @@ def find_inline_longform_after_acr(  # noqa: C901
         treat_acronym_tokens_as_multi_letter=False,
     )
 
-    hit = align_acronym_to_initials(
+    align_hit = align_acronym_to_initials(
         acr,
         stream,
         tokens=tokens,
@@ -186,8 +183,8 @@ def find_inline_longform_after_acr(  # noqa: C901
         allow_lower_on_non_stop=is_mixed_case_acronym(acr),
         lowercase_prefix_exception=True,
     )
-    if hit is None:
-        hit = align_acronym_to_initials(
+    if align_hit is None:
+        align_hit = align_acronym_to_initials(
             acr,
             stream,
             tokens=tokens,
@@ -197,11 +194,11 @@ def find_inline_longform_after_acr(  # noqa: C901
             allow_lower_on_non_stop=is_mixed_case_acronym(acr),
             lowercase_prefix_exception=True,
         )
-    if hit is None:
+    if align_hit is None:
         return []
 
-    i, j = hit.tok_left, hit.tok_right
-    hit_tokens = hit.hit_tokens
+    i, j = align_hit.tok_left, align_hit.tok_right
+    hit_tokens = align_hit.hit_tokens
 
     kept_idx = kept_token_indices(
         tokens, tok_left=i, tok_right=j, hit_tokens=hit_tokens, bridges=bridges, include_numeric_leading=True

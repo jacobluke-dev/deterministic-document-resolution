@@ -1,6 +1,6 @@
 import re
 
-from plainera_unacronym.nlp.common.constants_regex import BRIDGES_DEFAULT, DEFAULT_STOPWORDS, QUOTE
+from plainera_unacronym.nlp.common.constants_regex import QUOTE
 from plainera_unacronym.nlp.common.shared import collapse_ws, has_letter
 from plainera_unacronym.nlp.extraction.core.normalise import normalize_definition
 from plainera_unacronym.nlp.extraction.matchers.common import is_mixed_case_acronym
@@ -10,6 +10,7 @@ from plainera_unacronym.nlp.extraction.matchers.defs.common import (
     build_initials_stream,
     build_kept_phrase,
     expand_numeric_leading_window,
+    get_cfg_consts,
 )
 from plainera_unacronym.nlp.extraction.matchers.defs.inline_after import scan_tokens
 from plainera_unacronym.nlp.extraction.matchers.numeric_matcher import consume_left_numeric_designator
@@ -62,9 +63,7 @@ def find_parenthetical_longform_before_acr(snippet: str, acr: str, cfg) -> list[
         - Offsets are computed against the original `snippet`; normalisation does
           not alter indices.
     """
-    max_chars = getattr(cfg, "max_phrase_chars", 80)
-    stop = getattr(cfg, "stopwords", DEFAULT_STOPWORDS)
-    bridges = getattr(cfg, "bridges", BRIDGES_DEFAULT)
+    bridges, stop, max_chars = get_cfg_consts(cfg)
 
     acr_esc = re.escape(acr)
 

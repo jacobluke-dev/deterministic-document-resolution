@@ -11,6 +11,8 @@ from typing import (
     TypeVar,
 )
 
+from plainera_unacronym.nlp.common.types import JsonDict
+
 S = TypeVar("S")
 
 
@@ -58,8 +60,8 @@ class TraceEvent:
     """
 
     stage: str
-    before: dict
-    after: dict
+    before: JsonDict
+    after: JsonDict
 
 
 class Tracer:
@@ -91,7 +93,7 @@ class Tracer:
         self._re = re.compile(filter_regex) if filter_regex else None
         self.events: List[TraceEvent] = []
 
-    def snapshot(self, state: Any, fields: Sequence[str]) -> dict:
+    def snapshot(self, state: Any, fields: Sequence[str]) -> JsonDict:
         """Build a snapshot of selected attributes from `state`.
 
         Only attributes that exist on `state` are included. Each value is
@@ -105,13 +107,13 @@ class Tracer:
             dict: Mapping of field name to a normalised, serialisable snapshot
             value. Fields not found on `state` are omitted.
         """
-        snap: dict = {}
+        snap: JsonDict = {}
         for f in fields:
             if hasattr(state, f):
                 snap[f] = self._snap_value(getattr(state, f))
         return snap
 
-    def record(self, stage: str, before: Optional[dict], after: Optional[dict]) -> None:
+    def record(self, stage: str, before: Optional[JsonDict], after: Optional[JsonDict]) -> None:
         """Record a trace event if the snapshot changed.
 
         No event is recorded when:
@@ -155,13 +157,13 @@ class Tracer:
         """
         # Picks: dict[str, InTextPick|None] -> list of row dicts
         if isinstance(v, dict):
-            rows: list[dict] = []
+            picks_rows: list[JsonDict] = []
             for k, p in v.items():
                 if p is None:
                     continue
                 if self._re and not self._re.search(k):
                     continue
-                rows.append(
+                picks_rows.append(
                     {
                         "acr": k,
                         "definition": getattr(p, "definition", None),
@@ -171,16 +173,16 @@ class Tracer:
                         "conf": getattr(p, "confidence", None),
                     }
                 )
-            return rows
+            return picks_rows
 
         # Defs: list[ExtractedDefinition] -> list of row dicts
         if isinstance(v, list):
-            rows: list[dict] = []
+            defs_rows: list[JsonDict] = []
             for d in v:
                 acr = getattr(d, "acronym", None)
                 if self._re and (acr is None or not self._re.search(acr)):
                     continue
-                rows.append(
+                defs_rows.append(
                     {
                         "acr": acr,
                         "definition": getattr(d, "definition", None),
@@ -195,7 +197,7 @@ class Tracer:
                         "src": getattr(d, "source", None),
                     }
                 )
-            return rows
+            return defs_rows
 
         return None
 

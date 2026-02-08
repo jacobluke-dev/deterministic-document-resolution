@@ -597,21 +597,21 @@ def iter_candidates_with(text: str, cfg: DetectorConfig, pat: re.Pattern[str]) -
     # 1) Core first (unless contained by any domain span)
     for c in core_hits:
         _, s, e = c
-        key: Span = (s, e)
-        if key in seen:
+        core_key: Span = (s, e)
+        if core_key in seen:
             continue
         if _contained_in_any(s, e, dom_hits):
             continue
-        seen.add(key)
+        seen.add(core_key)
         yield c
 
     # 2) Then domain hits (skip duplicates by offsets)
     for h in dom_hits:
         _, s, e = h
-        key: Span = (s, e)
-        if key in seen:
+        dom_key: Span = (s, e)
+        if dom_key in seen:
             continue
-        seen.add(key)
+        seen.add(dom_key)
         yield h
 
 

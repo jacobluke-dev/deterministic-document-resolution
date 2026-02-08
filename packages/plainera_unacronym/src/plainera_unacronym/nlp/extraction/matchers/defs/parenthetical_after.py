@@ -1,8 +1,8 @@
 import re
 from typing import Optional
 
-from plainera_unacronym.nlp.common.constants_regex import BRIDGES_DEFAULT, DEFAULT_STOPWORDS
 from plainera_unacronym.nlp.common.shared import collapse_ws, has_letter, strip_trailing_punct_str
+from plainera_unacronym.nlp.extraction import ExtractionConfig
 from plainera_unacronym.nlp.extraction.anchored.normalise import tighten_definition_span
 from plainera_unacronym.nlp.extraction.core.normalise import normalize_definition
 from plainera_unacronym.nlp.extraction.matchers.common import is_mixed_case_acronym
@@ -12,12 +12,13 @@ from plainera_unacronym.nlp.extraction.matchers.defs.common import (
     build_initials_stream,
     expand_numeric_leading_window,
     first_alnum_char_upper,
+    get_cfg_consts,
 )
 
 
 def find_parenthetical_longform_after_acr(  # noqa: C901
     snippet: str,
-    cfg,
+    cfg: ExtractionConfig,
     acr: Optional[str] = None,
     require_initials_match: bool = True,  # renamed flag
 ) -> list[LocalDefMatch]:
@@ -64,9 +65,7 @@ def find_parenthetical_longform_after_acr(  # noqa: C901
         and a normalised definition string.
     """
 
-    bridges = getattr(cfg, "bridges", BRIDGES_DEFAULT)
-    stop = getattr(cfg, "stop", None) or getattr(cfg, "stopwords", DEFAULT_STOPWORDS)
-    max_chars = getattr(cfg, "max_phrase_chars", 80)
+    bridges, stop, max_chars = get_cfg_consts(cfg)
 
     # 1) Capture tight inner text "( ... )" right at the start of `snippet`
     m = re.match(rf"\A\s*\((?P<def>[^()]{{1,{max_chars}}}?)(?=\s*\))\s*\)", snippet)

@@ -1,8 +1,9 @@
 import re
+from collections.abc import Iterable
 from dataclasses import dataclass, field
 from functools import cached_property
 from types import MappingProxyType
-from typing import Any, FrozenSet, Literal, Mapping, Optional, TypeAlias
+from typing import Any, FrozenSet, Literal, Mapping, Optional, TypeAlias, cast
 
 from plainera_unacronym.nlp.common.constants_regex import ALLOW_CHARS, DottedMode
 
@@ -208,3 +209,38 @@ INLINE = "inline"
 INLINE_BEFORE = "inline_before"
 
 INLINE_KINDS = {INLINE, INLINE_BEFORE}
+
+
+JsonDict = dict[str, Any]
+
+
+# ---------------------  helpers ----------------------
+
+
+def as_str_set(x: Any, *, default: Iterable[str]) -> set[str]:
+    """Coerce a config-provided stop/bridge collection into a concrete set[str]."""
+    if x is None:
+        return set(default)
+    # If someone passes a single string, treat it as one token, not chars.
+    if isinstance(x, str):
+        return {x}
+    return set(cast(Iterable[str], x))
+
+
+ExtractionStrategy: TypeAlias = Literal[
+    "anchored+harvest",
+    "hybrid-filled",
+    "global",
+    "anchored+harvest+global",
+]
+
+
+def _compute_strategy(
+    *, has_gapfill: bool, has_global: bool, has_anchored: bool, has_harvest: bool
+) -> ExtractionStrategy:
+    if has_gapfill:
+        return "hybrid-filled"
+    if has_global:
+        # keep this strict so it matches your alias exactly
+        return "anchored+harvest+global" if (has_anchored and has_harvest) else "global"
+    return "anchored+harvest"

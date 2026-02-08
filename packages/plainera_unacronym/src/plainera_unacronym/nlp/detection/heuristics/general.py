@@ -18,7 +18,7 @@ from plainera_unacronym.nlp.common.constants_regex import (
 from plainera_unacronym.nlp.common.types import DetectorConfig
 
 if TYPE_CHECKING:
-    from plainera_unacronym.nlp.heuristics.context import HeuristicCfg
+    from plainera_unacronym.nlp.detection.heuristics.context import HeuristicCfg
 
 
 def _alpha_len(s: str) -> int:

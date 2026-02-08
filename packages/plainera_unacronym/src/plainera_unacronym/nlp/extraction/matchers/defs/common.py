@@ -2,9 +2,10 @@ import re
 from dataclasses import dataclass
 from typing import Literal, Optional
 
-from plainera_unacronym.nlp.common.constants_regex import PUNCT_TRIM
+from plainera_unacronym.nlp.common.constants_regex import BRIDGES_DEFAULT, DEFAULT_STOPWORDS, PUNCT_TRIM
 from plainera_unacronym.nlp.common.shared import collapse_ws, strip_trailing_punct_str
-from plainera_unacronym.nlp.common.types import Span
+from plainera_unacronym.nlp.common.types import Span, as_str_set
+from plainera_unacronym.nlp.extraction import ExtractionConfig
 from plainera_unacronym.nlp.extraction.matchers.common import is_mixed_case_acronym, split_compound
 
 
@@ -41,6 +42,36 @@ class AlignmentHit:
     hit_tokens: set[int]
     tok_left: int
     tok_right: int
+
+
+def get_cfg_consts(cfg: ExtractionConfig, max_char_default: int = 80) -> tuple[set[str], set[str], int]:
+    """
+    Return `(bridges, stop, max_chars)` from `cfg` with sensible defaults.
+
+    Coerces `cfg.bridges` (or `BRIDGES_DEFAULT`) and `cfg.stop`/`cfg.stopwords` (or `DEFAULT_STOPWORDS`)
+    into concrete `set[str]` to avoid `set|frozenset|Any` leakage in callers and keep mypy happy.
+
+    Args:
+        cfg (ExtractionConfig): Extraction configuration object.
+        max_char_default (int): Default maximum phrase length to use when
+            `cfg.max_phrase_chars` is not present. Defaults to 80.
+
+    Returns:
+        tuple[set[str], set[str], int]:
+            - `bridges`: Normalised set of bridge tokens.
+            - `stop`: Normalised set of stopwords.
+            - `max_chars`: Maximum phrase length.
+    """
+    bridges: set[str] = as_str_set(getattr(cfg, "bridges", None), default=BRIDGES_DEFAULT)
+
+    _stop_raw = getattr(cfg, "stop", None)
+    if _stop_raw is None:
+        _stop_raw = getattr(cfg, "stopwords", None)
+
+    stop: set[str] = as_str_set(_stop_raw, default=DEFAULT_STOPWORDS)
+
+    max_chars = getattr(cfg, "max_phrase_chars", max_char_default)
+    return bridges, stop, max_chars
 
 
 def build_initials_stream(

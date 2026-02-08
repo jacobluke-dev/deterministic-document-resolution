@@ -1,5 +1,5 @@
 from plainera_unacronym.nlp import Detector
-from plainera_unacronym.nlp.common.types import ExtractionResult, OccurrenceLite
+from plainera_unacronym.nlp.common.types import ExtractionResult, OccurrenceLite, _compute_strategy
 from plainera_unacronym.nlp.detection.cleanup.post import post_detect_cleanup
 from plainera_unacronym.nlp.extraction.anchored.extract import extract_near_firsts
 from plainera_unacronym.nlp.extraction.backref.extract import extract_sentence_backrefs
@@ -199,7 +199,18 @@ def st_gapfill(s: FlowState) -> StageResult[FlowState]:
     if missing:
         used.append("gapfill")
 
-    s.strategy = "hybrid-filled" if "gapfill" in used else "+".join(used) or "anchored"
+    has_gapfill = bool(missing)
+    has_anchored = bool(s.anchored_defs)
+    has_harvest = bool(s.harvested_defs)
+    has_global = False  # set this based on your pipeline
+    # NOTE: backref is not represented in your type, so don't put it into the strategy string.
+
+    s.strategy = _compute_strategy(
+        has_gapfill=has_gapfill,
+        has_global=has_global,
+        has_anchored=has_anchored,
+        has_harvest=has_harvest,
+    )
 
     s.coverage = (len(s.picks) - sum(1 for v in s.picks.values() if v is None)) / max(1, len(s.picks))
     s.missing_keys = tuple(sorted(k for k, v in s.picks.items() if v is None))
