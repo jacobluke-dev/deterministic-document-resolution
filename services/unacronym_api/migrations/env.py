@@ -7,7 +7,7 @@ from sqlalchemy import engine_from_config, pool
 from observability.db.models.base import  Base
 # Import models once to populate Base.metadata
 
-import plainera_unacronym.db.models  # noqa: F401
+import public_api.db.models  # noqa: F401
 
 config = context.config
 
@@ -33,7 +33,7 @@ Base.metadata.naming_convention = {
 
 url = _normalize(os.getenv("DATABASE_URL") or config.get_main_option("sqlalchemy.url"))
 if not url:
-    raise RuntimeError("No database URL. Set DATABASE_URL or sqlalchemy.url")
+    raise RuntimeError("No database URL. set DATABASE_URL or sqlalchemy.url")
 config.set_main_option("sqlalchemy.url", url)
 
 SCHEMA = "unacronym"

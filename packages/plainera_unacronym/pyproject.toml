@@ -10,10 +10,10 @@ packages = [{ include = "plainera_unacronym", from = "src" }]
 python = "^3.13"
 SQLAlchemy = ">=2.0.43,<2.1"
 python-dotenv = "^1.0"
+plainera-observability = { path = "../plainera_observability", develop = true }
 
 [tool.poetry.group.dev.dependencies]
 plainera-testkit = { path = "../plainera_testkit", develop = true }
-plainera-observability = { path = "../plainera_observability", develop = true, extras = ["fastapi"] }
 pytest = "^8.3.0"
 mypy = "^1.11.1"
 ruff = "^0.5.7"
@@ -30,5 +30,8 @@ line-length = 120
 extend-exclude = ["migrations", ".venv"]
 
 [tool.ruff.lint]
-select = ["E", "F", "I", "B", "UP", "SIM", "C90"]
+select = ["E", "F", "I", "B", "UP", "SIM", "C90", "TID"]
 fixable = ["ALL"]
+
+[tool.pytest.ini_options]
+pythonpath = ["src"]

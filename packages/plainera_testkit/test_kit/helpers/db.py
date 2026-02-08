@@ -1,7 +1,6 @@
 import os, uuid
 from sqlalchemy import create_engine, text
 from sqlalchemy.orm import sessionmaker
-from typing import Tuple
 
 from plainera_core.db_manager.connection import DBManager
 
@@ -15,7 +14,7 @@ def _default_db() -> str:
 def _make_engine(dbname: str):
     return create_engine(f"{_base_url()}/{dbname}", future=True)
 
-def create_temp_database(prefix: str = "temp") -> Tuple[str, DBManager]:
+def create_temp_database(prefix: str = "temp") -> tuple[str, DBManager]:
     name = f"{prefix}_{uuid.uuid4().hex[:12]}"
     admin = _make_engine(_default_db())
     with admin.begin() as conn:

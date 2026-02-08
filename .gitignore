@@ -21,6 +21,7 @@ build/
 
 # coverage
 .coverage
+.coverage.*
 coverage.xml
 **/coverage.xml
 htmlcov/
@@ -30,3 +31,6 @@ pytest-results.xml
 .venv
 
 .ipynb_checkpoints/
+
+# local comparison file
+output.json

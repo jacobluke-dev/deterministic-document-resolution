@@ -1,8 +1,8 @@
 # tests/test_plainera_unacronym/test_nlp/plugins/test_activation.py
 
 import plainera_unacronym.nlp.plugins.activation as activation_mod
+from plainera_unacronym.nlp.common.types import DetectorConfig
 from plainera_unacronym.nlp.plugins.activation import _safe_sniff, autodetect_domains
-from plainera_unacronym.nlp.types import DetectorConfig
 
 # --------- Test doubles (plugins) ---------------------------------------------
 

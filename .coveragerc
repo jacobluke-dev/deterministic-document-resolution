@@ -2,29 +2,30 @@
 
 [run]
 branch = True
-parallel = True
 relative_files = True
-concurrency = multiprocessing
+# parallel = True
+# concurrency = multiprocessing
 
-# IMPORTANT: include BOTH root-canonical and subdir "src/..." sources
 source =
     packages/plainera_core/src/plainera_core
     packages/plainera_observability/src/plainera_observability
+    packages/plainera_unacronym/src/plainera_unacronym
     services/unacronym_api/src/public_api
     src/plainera_core
     src/plainera_observability
+    src/plainera_unacronym
     src/public_api
+
 [paths]
-# Canonicalize the same files seen under different CWDs
 plainera_core =
     packages/plainera_core/src/plainera_core
     */packages/plainera_core/src/plainera_core
     src/plainera_core
 
-#plainera_observability =
- #   packages/plainera_observability/src/plainera_observability
- #   */packages/plainera_observability/src/plainera_observability
- #   src/plainera_observability
+plainera_unacronym =
+    packages/plainera_unacronym/src/plainera_unacronym
+    */packages/plainera_unacronym/src/plainera_unacronym
+    src/plainera_unacronym
 
 #public_api =
 #    services/unacronym_api/src/public_api
@@ -33,6 +34,7 @@ plainera_core =
 
 [report]
 show_missing = True
+skip_covered = False
 fail_under = 80
 exclude_lines =
     pragma: no cover

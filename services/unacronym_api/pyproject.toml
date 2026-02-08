@@ -8,6 +8,7 @@ packages = [{ include = "public_api", from = "src" }]
 [tool.poetry.dependencies]
 plainera-core = { path = "../../packages/plainera_core", develop = true }
 plainera-observability = { path = "../../packages/plainera_observability", develop = true, extras = ["fastapi"] }
+plainera-unacronym = { path = "../../packages/plainera_unacronym", develop=true }
 python = "^3.13"
 fastapi = "^0.116.1"
 starlette = ">=0.40.0,<0.48.0"

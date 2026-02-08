@@ -4,7 +4,8 @@ import logging
 from datetime import datetime, timezone
 from typing import Any, Optional
 
-from ..core.types import AsyncSink, SyncSink
+from observability.core.types import AsyncSink, SyncSink
+
 from .context import request_id_var
 from .levels import STD_LEVEL, LogLevel
 from .redact import scrub

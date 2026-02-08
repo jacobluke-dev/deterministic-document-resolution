@@ -24,5 +24,4 @@ class BaseWithTimestamps(Base):
         nullable=False,
         server_default=func.now(),  # initial insert default at DB
         onupdate=lambda: datetime.now(timezone.utc),  # app-driven updates
-        # If you add a DB trigger for updated_at, you can drop onupdate.
     )
