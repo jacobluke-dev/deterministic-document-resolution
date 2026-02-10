@@ -38,7 +38,7 @@ class TestDefsFromPicks:
                 definition=long,
                 acr_span=(a0, a1),
                 def_span=(d0, d1),
-                confidence=0.91,
+                definition_confidence=0.91,
                 original_definition=long,
             ),
             "skip": None,
@@ -48,13 +48,13 @@ class TestDefsFromPicks:
         assert len(out) == 1
         item = out[0]
 
-        assert item.source == "in_text"
+        assert item.source == "all_occ_scan_parenthetical"
         assert item.acronym == "PTO"  # uppercased
         assert item.definition == "TIGHT[Please turn over|PTO]"
         assert item.original_definition == long
         assert (item.acr_start, item.acr_end) == (a0, a1)
         assert (item.def_start, item.def_end) == (d0, d1)
-        assert item.confidence == pytest.approx(0.91)
+        assert item.definition_confidence == pytest.approx(0.91)
 
         # tighten called with UPPER acronym
         assert calls == [(long, "PTO")]
@@ -77,7 +77,7 @@ class TestDefsFromPicks:
             definition=long,
             acr_span=(a0, a1),
             def_span=(0, len(long)),
-            confidence=0.5,
+            definition_confidence=0.5,
             original_definition=long,
         )
 
@@ -105,7 +105,7 @@ class TestDefsFromPicks:
         out = defs_from_picks(text, picks)
 
         assert [x.acronym for x in out] == ["PTO", "POM"]
-        assert [x.confidence for x in out] == [pytest.approx(0.9), pytest.approx(0.6)]
+        assert [x.definition_confidence for x in out] == [pytest.approx(0.9), pytest.approx(0.6)]
 
 
 class TestDefsFromPicksIntegration:
@@ -123,7 +123,7 @@ class TestDefsFromPicksIntegration:
                 definition=long,
                 acr_span=(a0, a1),
                 def_span=(d0, d1),
-                confidence=0.87,
+                definition_confidence=0.87,
                 original_definition=long,
             )
         }
@@ -148,7 +148,7 @@ class TestDefsFromPicksIntegration:
                 definition=long,
                 acr_span=(a0, a1),
                 def_span=(d0, d1),
-                confidence=0.87,
+                definition_confidence=0.87,
                 original_definition=long,
             )
         }
@@ -163,8 +163,8 @@ class TestDefsFromPicksIntegration:
         assert item.original_definition == long
         assert (item.acr_start, item.acr_end) == (a0, a1)
         assert (item.def_start, item.def_end) == (d0, d1)
-        assert item.source == "in_text"
-        assert item.confidence == pytest.approx(0.87)
+        assert item.source == "all_occ_scan_parenthetical"
+        assert item.definition_confidence == pytest.approx(0.87)
 
     def test_end_to_end_gpu_mixed_case_surface(self):
         """
@@ -184,7 +184,7 @@ class TestDefsFromPicksIntegration:
                 definition=long,
                 acr_span=(a0, a1),
                 def_span=(d0, d1),
-                confidence=0.73,
+                definition_confidence=0.73,
                 original_definition=long,
             )
         }
@@ -196,7 +196,7 @@ class TestDefsFromPicksIntegration:
         assert item.acronym == "GPU"
         assert item.definition == "Graphics Processing Unit"
         assert item.original_definition == long
-        assert item.confidence == pytest.approx(0.73)
+        assert item.definition_confidence == pytest.approx(0.73)
 
     def test_multiple_picks_stable_order_pdf_then_rom(self):
         """
@@ -216,14 +216,14 @@ class TestDefsFromPicksIntegration:
                 definition=long1,
                 acr_span=(a10, a11),
                 def_span=(0, len(long1)),
-                confidence=0.95,
+                definition_confidence=0.95,
                 original_definition=long1,
             ),
             "rom": InTextPick(
                 definition=long2,
                 acr_span=(a20, a21),
                 def_span=(0, len(long2)),
-                confidence=0.66,
+                definition_confidence=0.66,
                 original_definition=long2,
             ),
         }
@@ -234,7 +234,7 @@ class TestDefsFromPicksIntegration:
             "Portable Document Format",
             "Read Only Memory",
         ]
-        assert [x.confidence for x in out] == [
+        assert [x.definition_confidence for x in out] == [
             pytest.approx(0.95),
             pytest.approx(0.66),
         ]
@@ -265,8 +265,8 @@ def _ed(acr: str, defn: str, *, a0=0, a1=3, d0=10, d1=20, conf=0.9) -> Extracted
     return ExtractedDefinition(
         acronym=acr,
         definition=defn,
-        source="in_text",
-        confidence=conf,
+        source="all_occ_scan_parenthetical",
+        definition_confidence=conf,
         acr_start=a0, acr_end=a1,
         def_start=d0, def_end=d1,
         original_definition=defn,

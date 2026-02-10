@@ -31,7 +31,7 @@ def _ed(
         acr_end=acr_end,
         def_start=def_start,
         def_end=def_end,
-        confidence=confidence,
+        definition_confidence=confidence,
         original_definition=original_definition,
     )
 
@@ -78,7 +78,7 @@ class TestFillMissingFromDefsUnit:
         assert pick is not None
         assert pick.definition == "C"
         assert pick.acr_span == (95, 98)
-        assert pick.confidence == pytest.approx(0.90)
+        assert pick.definition_confidence == pytest.approx(0.90)
 
     def test_handles_multiple_firsts_independently(self,  _patch):
         _patch(

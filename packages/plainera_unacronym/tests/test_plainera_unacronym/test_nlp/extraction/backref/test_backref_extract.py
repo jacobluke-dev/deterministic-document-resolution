@@ -276,7 +276,7 @@ def test_sentence_backref_ignores_single_letter_acronyms():
     text = "We use Authentication. A is sometimes used as shorthand."
     firsts = {
         "A": FirstOccurrence(acronym="A", start_offset=text.index("A is"), end_offset=text.index("A is") + 1,
-                             confidence=0.9, normalized_key="A")
+                             occurrence_confidence=0.9, normalized_key="A")
     }
 
     out = extract_sentence_backrefs(text=text, firsts=firsts, cfg=cfg)
@@ -291,7 +291,7 @@ def _fo(acr: str, start: int, end: int, *, norm: str | None = None):
         acronym=acr,
         start_offset=start,
         end_offset=end,
-        confidence=0.9,
+        occurrence_confidence=0.9,
         normalized_key=norm,
     )
 
@@ -385,7 +385,7 @@ class TestExtractSentenceBackrefsUnit:
                 acronym=acr_norm,
                 definition=cand,
                 source="backref",
-                confidence=0.77,
+                definition_confidence=0.77,
                 acr_start=fo.start_offset,
                 acr_end=fo.end_offset,
                 def_start=prev_span[0],
@@ -432,7 +432,7 @@ class TestExtractSentenceBackrefsUnit:
                 acronym=acr_norm,
                 definition=cand,
                 source="backref",
-                confidence=0.77,
+                definition_confidence=0.77,
                 acr_start=fo.start_offset,
                 acr_end=fo.end_offset,
                 def_start=prev_span[0],

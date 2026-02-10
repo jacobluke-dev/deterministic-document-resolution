@@ -8,17 +8,13 @@ from plainera_unacronym.nlp.execute import detect_and_extract
 from plainera_unacronym.nlp.extraction import ExtractionConfig
 
 
-def _first_occ(text: str, acr: str, start: int, confidence: float) -> FirstOccurrence:
-    return FirstOccurrence(acronym=acr, start_offset=start, end_offset=start + len(acr), confidence=confidence)
-
-
-def _ed(acr: str, d: str, a0: int = 0, a1: int = 0, d0: int = 0, d1: int = 0, conf: float = 0.95, src="in_text",
+def _ed(acr: str, d: str, a0: int = 0, a1: int = 0, d0: int = 0, d1: int = 0, conf: float = 0.95, src="all_occ_scan_parenthetical",
         orig=None):
     return state.ExtractedDefinition(
         acronym=acr,
         definition=d,
         source=src,
-        confidence=conf,
+        definition_confidence=conf,
         acr_start=a0,
         acr_end=a1,
         def_start=d0,
@@ -48,7 +44,7 @@ class TestDetectAndExtractUnit:
         s.harvested_defs = []
         return stage_fxn.StageResult(s, "harvested=0")
 
-    def test_strategy_anchored_plus_harvest_when_nothing_missing(self, monkeypatch):
+    def test_strategy_anchored_plus_harvest_when_nothing_missing(self, monkeypatch, fo):
         text = "Portable Document Format (PDF)."
 
         det_cfg, ext_cfg = _cfgs()
@@ -61,9 +57,9 @@ class TestDetectAndExtractUnit:
 
             def detect(self, t):
                 return DetectorResult(
-                    occurrences=[Occurrence(acronym="PDF", start_offset=28, end_offset=31, confidence=0.5,
+                    occurrences=[Occurrence(acronym="PDF", start_offset=28, end_offset=31, occurrence_confidence=0.5,
                                             context_window=(0, 32))],
-                    unique_acronyms={"PDF": _first_occ(text, "PDF", 28, 0.5)},
+                    unique_acronyms={"PDF": fo(text, "PDF", 28, 0.5)},
                 )
 
         monkeypatch.setattr(stage_fxn, "Detector", FakeDetector)
@@ -73,7 +69,7 @@ class TestDetectAndExtractUnit:
             definition="Portable Document Format",
             acr_span=(28, 31),
             def_span=(0, 24),
-            confidence=0.98,
+            definition_confidence=0.98,
             original_definition="Portable Document Format",
         )
         monkeypatch.setattr(stage_fxn, "extract_near_firsts", lambda *a, **k: {"PDF": anchored_pick})
@@ -204,7 +200,7 @@ class TestDetectAndExtractIntegrationEdgeCases:
 
         assert "PTO" in by_r
         assert any(e.definition.strip() for e in by_r["PTO"])
-        assert any(0 < e.confidence <= 0.99 for e in by_r["PTO"])
+        assert any(0 < e.definition_confidence <= 0.99 for e in by_r["PTO"])
 
     def test_numeric_leading_token_is_preserved_in_parenthetical_after(self, picked_def):
         # Ensure numeric-leading tokens (e.g., 3M) are kept in the definition window
@@ -371,8 +367,11 @@ class TestDetectAndExtractE2E:
         assert picked_def(extr, "JWT") == "JSON Web Tokens", extr.picks.get("JWT")
 
     def test_tier_one_sso_is_extracted_via_sentence_backref(self, picked_def):
-        det, extr = detect_and_extract(
-            "We use Single sign-on in hospitals. This method of auth is known as SSO.")
+        det, extr, r = detect_and_extract(
+            "We use Single sign-on in hospitals. This method of auth is known as SSO.", return_reports=True)
+        pprint.pprint(r)
+        pprint.pprint(extr)
+        pprint.pprint(extr)
         assert picked_def(extr, "SSO") == "Single sign-on", extr.picks.get("SSO")
 
     def test_tier_one_negative_mismatch_plausible_longform_wrong_acronym(self, picked_def):

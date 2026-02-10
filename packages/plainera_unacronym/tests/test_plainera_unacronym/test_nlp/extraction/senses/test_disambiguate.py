@@ -346,6 +346,7 @@ class TestDisambiguateOccurrencesUnit:
                     sense_id="ema|european_medicines_agency",
                     def_spans=[],  # distance score -> 0.0
                     support=1,
+                    sense_confidence=0.9,
                 ),
                 AcronymSense(
                     acronym="EMA",
@@ -353,6 +354,7 @@ class TestDisambiguateOccurrencesUnit:
                     sense_id="ema|emergency_management_australia",
                     def_spans=[],
                     support=1,
+                    sense_confidence=0.9,
                 ),
             ]
         }
@@ -385,6 +387,7 @@ class TestDisambiguateOccurrencesUnit:
                     sense_id="ema|medicines",
                     def_spans=[(6, 10)],  # center ~8
                     support=2,
+                    sense_confidence=0.9
                 ),
                 AcronymSense(
                     acronym="EMA",
@@ -392,6 +395,7 @@ class TestDisambiguateOccurrencesUnit:
                     sense_id="ema|emergency",
                     def_spans=[(100, 110)],  # far away
                     support=2,
+                    sense_confidence=0.9
                 ),
             ]
         }
@@ -411,8 +415,8 @@ class TestDisambiguateOccurrencesUnit:
         occs = [OccurrenceLite(acronym="ACR", start=0, end=3)]
         senses = {
             "ACR": [
-                AcronymSense("ACR", "Alpha Core Reader", "acr|alpha_core_reader", [(0, 2)], 1),
-                AcronymSense("ACR", "Advanced Cardiac Rehab", "acr|advanced_cardiac_rehab", [(50, 60)], 1),
+                AcronymSense("ACR", "Alpha Core Reader", "acr|alpha_core_reader", 0.9, [(0, 2)], 1),
+                AcronymSense("ACR", "Advanced Cardiac Rehab", "acr|advanced_cardiac_rehab", 0.9, [(50, 60)], 1),
             ]
         }
         # Pass senses_by_id=None to exercise the internal build
@@ -437,6 +441,7 @@ class TestDisambiguateOccurrencesUnit:
                     "UKHSA",
                     "United Kingdom Health Security Agency",
                     "ukhsa|united_kingdom_health_security_agency",
+                    0.9,
                     [],  # distance 0 → rely on overlap
                     1,
                 )

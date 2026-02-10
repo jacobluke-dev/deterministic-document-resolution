@@ -69,7 +69,7 @@ class TestRecomputeFirstsUnit:
         fo = firsts["K"]
         assert fo.start_offset == 2
         assert fo.end_offset == 6
-        assert fo.confidence == 0.95  # from the earliest occurrence chosen
+        assert fo.occurrence_confidence == 0.95  # from the earliest occurrence chosen
 
 
 class TestRecomputeFirstsIntegration:

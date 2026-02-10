@@ -10,7 +10,7 @@ from plainera_unacronym.nlp.extraction import ExtractionConfig
 def _fo(acr: str, start: int, end: int, *, norm: str | None = None):
     # Use your existing helper if you already have one
     from plainera_unacronym.nlp.common.types import FirstOccurrence
-    return FirstOccurrence(acronym=acr, start_offset=start, end_offset=end, confidence=0.9, normalized_key=norm)
+    return FirstOccurrence(acronym=acr, start_offset=start, end_offset=end, occurrence_confidence=0.9, normalized_key=norm)
 
 
 class TestBuildLocalWindowUnit:
@@ -77,8 +77,8 @@ def _ed(*, conf: float, d0: int, d1: int) -> ExtractedDefinition:
     return ExtractedDefinition(
         acronym="X",
         definition="DEF",
-        source="in_text",
-        confidence=conf,
+        source="all_occ_scan_parenthetical",
+        definition_confidence=conf,
         acr_start=0,
         acr_end=1,
         def_start=d0,
@@ -147,7 +147,7 @@ def _fo_extract_near_firsts_only(acr: str,
         acronym=acr,
         start_offset=a0,
         end_offset=a0 + len(acr) + end_extra,
-        confidence=0.9,
+        occurrence_confidence=0.9,
         normalized_key=norm,
     )
 
@@ -233,7 +233,7 @@ class TestExtractNearFirstsUnit:
             acronym="U.S.",
             start_offset=fo.start_offset,
             end_offset=fo.end_offset,
-            confidence=0.9,
+            occurrence_confidence=0.9,
             normalized_key="U.S."
         )}
 

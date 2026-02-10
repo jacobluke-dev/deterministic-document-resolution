@@ -219,7 +219,7 @@ class TestExtractNearFirstsUnit:
         assert out["PDF"] is not None
         assert out["PDF"].definition.strip() != ""
         assert out["PDF"].acr_span == (fo.start_offset, fo.end_offset)
-        assert 0 < out["PDF"].confidence <= 0.99
+        assert 0 < out["PDF"].definition_confidence <= 0.99
         assert "Portable" in out["PDF"].original_definition
 
     def test_requires_exact_alignment_other_match_is_ignored(self, monkeypatch):
@@ -273,7 +273,7 @@ class TestExtractNearFirstsUnit:
         assert out["PDF"] is not None
         assert out["PDF"].definition.strip() != ""
         assert out["PDF"].acr_span == (a0, a0 + 3)
-        assert abs(out["PDF"].confidence - 0.99) < 1e-9
+        assert abs(out["PDF"].definition_confidence - 0.99) < 1e-9
 
     def test_definition_too_long_is_dropped(self, monkeypatch):
         text = "Extremely verbose explanation that keeps going forever (PDF)"
@@ -316,7 +316,7 @@ class TestExtractNearFirstsUnit:
         assert out["C/A"].definition == "Cost per Acquisition"
         assert out["C/A"].original_definition == "Cost per Acquisition"
         assert out["C/A"].acr_span == (a0, a0 + 3)
-        assert 0 < out["C/A"].confidence <= 0.99
+        assert 0 < out["C/A"].definition_confidence <= 0.99
 
 
 def _cfg_near_firsts_integrated(**overrides):
@@ -365,26 +365,26 @@ class TestExtractNearFirstsIntegration:
         assert out["R&D"] is not None
         assert "Research" in out["R&D"].definition
         assert out["R&D"].acr_span == (r_and_d_idx, r_and_d_idx + 3)
-        assert 0 < out["R&D"].confidence <= 0.99
+        assert 0 < out["R&D"].definition_confidence <= 0.99
 
         # C/A reverse parenthetical
         assert out["C/A"] is not None
         assert out["C/A"].definition == "Cost per Acquisition"
         assert out["C/A"].original_definition == "Cost per Acquisition"
         assert out["C/A"].acr_span == (c_a_idx, c_a_idx + 3)
-        assert 0 < out["C/A"].confidence <= 0.99
+        assert 0 < out["C/A"].definition_confidence <= 0.99
 
         # PTO inline (“stands for …”)
         assert out["PTO"] is not None
         assert out["PTO"].definition.strip() != ""
         assert out["PTO"].acr_span == (pto_idx, pto_idx + 3)
-        assert 0 < out["PTO"].confidence <= 0.99
+        assert 0 < out["PTO"].definition_confidence <= 0.99
 
         # AM inline (“short for …”)
         assert out["AM"] is not None
         assert out["AM"].definition.strip() != ""
         assert out["AM"].acr_span == (am_idx, am_idx + 2)
-        assert 0 < out["AM"].confidence <= 0.99
+        assert 0 < out["AM"].definition_confidence <= 0.99
 
         # PDF (first is forward)
         assert out["PDF"] is not None
@@ -426,7 +426,7 @@ class TestExtractNearFirstsIntegration:
         assert out_relaxed["PTO"] is not None
         assert out_relaxed["PTO"].definition.strip() != ""
         assert out_relaxed["PTO"].acr_span == (pto_idx, pto_idx + 3)
-        assert 0 < out_relaxed["PTO"].confidence <= 0.99
+        assert 0 < out_relaxed["PTO"].definition_confidence <= 0.99
 
     def test_ignores_matches_not_aligned_to_first_occurrence(self):
         text = "PDF appears first. Portable Document Format (PDF) later still."

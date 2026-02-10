@@ -57,9 +57,9 @@ class TestExtractDefsAllOccurrencesUnit:
         assert text[item.def_start:item.def_end] == "Portable Document Format"
         # acr span mapped from occ
         assert (item.acr_start, item.acr_end) == (acr0, acr1)
-        assert item.source == "in_text"
+        assert item.source == "all_occ_scan_parenthetical"
         assert item.original_definition == "Portable Document Format"
-        assert item.confidence == pytest.approx(0.95)
+        assert item.definition_confidence == pytest.approx(0.95)
 
     def test_after_path_maps_relative_right_offset(self, _patch):
         text = "See GPU (Graphics Processing Unit) for details"
@@ -195,8 +195,8 @@ class TestExtractDefsAllOccurrencesUnit:
             assert text[item.def_start:item.def_end] == phrase
             assert item.original_definition == phrase
             assert item.definition == phrase
-            assert item.source == "in_text"
-            assert item.confidence == pytest.approx(0.95)
+            assert item.source == "all_occ_scan_parenthetical"
+            assert item.definition_confidence == pytest.approx(0.95)
 
     def test_window_clamp_L_nonzero_maps_before_match_relative_spans_to_absolute(self, _patch):
         # Build text with a prefix so L will be > 0 when window clamps.
@@ -270,13 +270,13 @@ class TestExtractDefsAllOccurrencesIntegration:
         by_acr = {o.acronym: o for o in out}
 
         pdf = by_acr["PDF"]
-        assert pdf.source == "in_text"
+        assert pdf.source == "all_occ_scan_parenthetical"
         assert pdf.original_definition == "Portable Document Format"
         # tightened label should still be the same canonical phrase
         assert pdf.definition == "Portable Document Format"
         assert text[pdf.def_start:pdf.def_end] == "Portable Document Format"
         assert (pdf.acr_start, pdf.acr_end) == (pdf0, pdf1)
-        assert pdf.confidence == pytest.approx(0.95)
+        assert pdf.definition_confidence == pytest.approx(0.95)
 
         gpu = by_acr["GPU"]
         assert gpu.original_definition == "Graphics Processing Unit"
@@ -318,8 +318,8 @@ class TestExtractDefsAllOccurrencesIntegration:
         item = out[0]
         # Acronym comes from the occurrence as-is
         assert item.acronym == "QAE"
-        assert item.source == "in_text"
-        assert item.confidence == pytest.approx(0.95)
+        assert item.source == "all_occ_scan_parenthetical"
+        assert item.definition_confidence == pytest.approx(0.95)
         assert (item.acr_start, item.acr_end) == (acr0, acr1)
 
         # Original definition should be the normalized parenthetical content
@@ -349,8 +349,8 @@ class TestExtractDefsAllOccurrencesIntegration:
 
         item = out[0]
         assert item.acronym == "QAE"
-        assert item.source == "in_text"
-        assert item.confidence == pytest.approx(0.95)
+        assert item.source == "all_occ_scan_parenthetical"
+        assert item.definition_confidence == pytest.approx(0.95)
         assert (item.acr_start, item.acr_end) == (acr0, acr1)
 
         expected_phrase = "Queen's Award for Enterprise"
