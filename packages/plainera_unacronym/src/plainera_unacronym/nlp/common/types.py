@@ -57,7 +57,7 @@ class Occurrence:
     acronym: str  # surface form as detected (not lowercased)
     start_offset: int
     end_offset: int  # end-exclusive
-    confidence: float
+    occurrence_confidence: float
     context_window: Span  # (left_idx, right_idx) in the original text
     normalized_key: str | None = None
     reasons: tuple[str, ...] | None = None
@@ -68,7 +68,7 @@ class FirstOccurrence:
     acronym: str
     start_offset: int
     end_offset: int
-    confidence: float
+    occurrence_confidence: float
     normalized_key: str | None = None
 
 
