@@ -386,7 +386,7 @@ class Detector:
         cfg = self._with_auto_domains(text)
         cands = list(iter_candidates_with(text, cfg, self._pat))
         if len(cands) < threshold:
-            return self.detect(self=self, text=text)
+            return self.detect(text=text)
 
         if self._pool is None:
             from os import cpu_count

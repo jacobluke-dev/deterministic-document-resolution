@@ -184,11 +184,16 @@ def st_gapfill(s: FlowState) -> StageResult[FlowState]:
     """
     assert s.det_res is not None
     missing = [k for k, v in s.picks.items() if v is None]
+
+    filled_any = False
     if missing:
         fills = fill_missing_from_defs(s.text, firsts=s.det_res.unique_acronyms, det_cfg=s.det_cfg, defs=s.all_defs)
         for k in missing:
-            s.picks[k] = s.picks[k] or fills.get(k)
-
+            if s.picks[k] is None:
+                picked = fills.get(k)
+                if picked is not None:
+                    s.picks[k] = picked
+                    filled_any = True
     used = []
     if any(s.anchored_defs):
         used.append("anchored")
@@ -196,10 +201,10 @@ def st_gapfill(s: FlowState) -> StageResult[FlowState]:
         used.append("harvest")
     if any(s.backref_defs):
         used.append("backref")
-    if missing:
+    if filled_any:
         used.append("gapfill")
 
-    has_gapfill = bool(missing)
+    has_gapfill = filled_any
     has_anchored = bool(s.anchored_defs)
     has_harvest = bool(s.harvested_defs)
     has_global = False  # set this based on your pipeline

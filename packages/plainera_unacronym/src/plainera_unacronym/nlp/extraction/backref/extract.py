@@ -202,7 +202,7 @@ def _emit_backref_def(
         acronym=acr_norm,
         definition=cand,
         source="backref",
-        confidence=0.50,
+        definition_confidence=0.50,
         acr_start=fo.start_offset,
         acr_end=fo.end_offset,
         def_start=prev_s,

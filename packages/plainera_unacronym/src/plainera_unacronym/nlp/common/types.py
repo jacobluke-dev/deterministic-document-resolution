@@ -77,6 +77,7 @@ class AcronymSense:
     acronym: str
     definition: str  # tightened, normalized label ("European Medicines Agency")
     sense_id: str  # stable key, e.g., "ema|european_medicines_agency"
+    sense_confidence: float
     def_spans: list[Span]  # locations where this sense was defined
     support: int  # number of defining mentions merged into this sense
 
@@ -154,8 +155,8 @@ class DetectorResult:
 class ExtractedDefinition:
     acronym: str
     definition: str  # normalized
-    source: str  # "in_text"
-    confidence: float
+    source: str  # "all_occ_scan_parenthetical"
+    definition_confidence: float
     acr_start: int
     acr_end: int
     def_start: int
@@ -169,7 +170,7 @@ class InTextPick:
     definition: str
     acr_span: Span
     def_span: Span
-    confidence: float
+    definition_confidence: float
     original_definition: str
     kind: str = "unknown"
 

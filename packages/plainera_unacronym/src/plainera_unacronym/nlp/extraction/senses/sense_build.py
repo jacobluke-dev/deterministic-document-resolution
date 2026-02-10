@@ -38,16 +38,29 @@ def build_senses(defs: Iterable[ExtractedDefinition]) -> dict[str, list[AcronymS
         Mapping `{ACRONYM: [AcronymSense, ...]}` where keys are uppercased acronyms.
     """
     senses_by: dict[str, dict[str, AcronymSense]] = {}
+
     for d in dedupe_defs(list(defs)):
         acr = d.acronym.upper()
         label = tighten_label(d.definition)
         sid = f"{acr.lower()}|{_slug(label)}"
         by_label = senses_by.setdefault(acr, {})
+
         sense = by_label.get(sid)
-        if not sense:
-            sense = AcronymSense(acronym=acr, definition=label, sense_id=sid, def_spans=[], support=0)
+        if sense is None:
+            sense = AcronymSense(
+                acronym=acr,
+                definition=label,
+                sense_id=sid,
+                def_spans=[],
+                support=0,
+                sense_confidence=d.definition_confidence,
+            )
             by_label[sid] = sense
+
         sense.def_spans.append((d.def_start, d.def_end))
         sense.support += 1
-    # flatten
-    return {acr: list(d.values()) for acr, d in senses_by.items()}
+        # important when multiple defs collapse to same sid across pipeline:
+        if d.definition_confidence > sense.sense_confidence:
+            sense.sense_confidence = d.definition_confidence
+
+    return {acr: list(by.values()) for acr, by in senses_by.items()}

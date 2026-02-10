@@ -76,8 +76,8 @@ def _pick_better(best: Optional[ExtractedDefinition], cand: ExtractedDefinition)
         return cand
     return (
         cand
-        if cand.confidence > best.confidence
-        else min((best, cand), key=lambda x: (-x.confidence, (x.def_end - x.def_start)))
+        if cand.definition_confidence > best.definition_confidence
+        else min((best, cand), key=lambda x: (-x.definition_confidence, (x.def_end - x.def_start)))
     )
 
 
@@ -181,8 +181,8 @@ def extract_near_firsts(
                 cand = ExtractedDefinition(
                     acronym=acr_key,
                     definition=clean,
-                    source="in_text",
-                    confidence=conf,
+                    source="all_occ_scan_parenthetical",
+                    definition_confidence=conf,
                     acr_start=a0_local + left,
                     acr_end=a1_local + left,
                     def_start=d0_local + left,
@@ -200,7 +200,7 @@ def extract_near_firsts(
                 definition=best.definition,
                 acr_span=(best.acr_start, best.acr_end),
                 def_span=(best.def_start, best.def_end),
-                confidence=best.confidence,
+                definition_confidence=best.definition_confidence,
                 original_definition=best.original_definition,
                 kind=best.kind or "unknown",
             )

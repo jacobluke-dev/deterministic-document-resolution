@@ -134,7 +134,16 @@ def choose_with_tiebreak(
           large sentinel distance, biasing toward senses with real spans.
         - The ±2 bias (≥3 units closer) avoids flapping when distances are almost equal.
     """
-    items = sorted(cand_probs.items(), key=lambda kv: kv[1], reverse=True)
+    items = sorted(
+        cand_probs.items(),
+        key=lambda kv: (
+            kv[1],
+            getattr(senses_by_id.get(kv[0]), "sense_confidence", 0.0),
+            kv[0],
+        ),
+        reverse=True,
+    )
+
     if not items:
         return None, 0.0
     (sid1, p1) = items[0]

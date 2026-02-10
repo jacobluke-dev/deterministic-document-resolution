@@ -60,13 +60,13 @@ def fill_missing_from_defs(
             continue
         best = min(
             cands,
-            key=lambda c: (abs(c.acr_start - fo.start_offset), -c.confidence, c.acr_start),
+            key=lambda c: (abs(c.acr_start - fo.start_offset), -c.definition_confidence, c.acr_start),
         )
         fills[key] = InTextPick(
             definition=best.definition,
             acr_span=(best.acr_start, best.acr_end),
             def_span=(best.def_start, best.def_end),
-            confidence=best.confidence,
+            definition_confidence=best.definition_confidence,
             original_definition=best.original_definition,
         )
     return fills

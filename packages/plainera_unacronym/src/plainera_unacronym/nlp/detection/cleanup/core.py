@@ -49,7 +49,7 @@ def recompute_firsts(
                 acronym=o.acronym,
                 start_offset=o.start_offset,
                 end_offset=o.end_offset,
-                confidence=o.confidence,
+                occurrence_confidence=o.occurrence_confidence,
                 normalized_key=k,
             )
 

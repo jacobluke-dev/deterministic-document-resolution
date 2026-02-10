@@ -50,8 +50,8 @@ def defs_from_picks(text: str, picks: dict[str, Optional[InTextPick]]) -> list[E
             ExtractedDefinition(
                 acronym=acr_key,
                 definition=tighten_label_by_acronym(pick.definition, acr_key),
-                source="in_text",
-                confidence=pick.confidence,
+                source="all_occ_scan_parenthetical",
+                definition_confidence=pick.definition_confidence,
                 acr_start=a0,
                 acr_end=a1,
                 def_start=pick.def_span[0],
@@ -114,13 +114,22 @@ def dedupe_defs(defs: list[ExtractedDefinition]) -> list[ExtractedDefinition]:
         - Deduplication is based on `_sense_key/tighten_label`, not spans or confidence.
         - Output ordering follows the input ordering (stable dedupe).
     """
-    seen: set[tuple[str, str]] = set()
-    out: list[ExtractedDefinition] = []
-    for d in defs:
+    best: dict[tuple[str, str], ExtractedDefinition] = {}
+    first_idx: dict[tuple[str, str], int] = {}
+
+    for idx, d in enumerate(defs):
         k = _sense_key(d.acronym, d.definition)
-        if k in seen:
+
+        if k not in best:
+            best[k] = d
+            first_idx[k] = idx
             continue
-        seen.add(k)
-        # keep d.definition as-is (already tightened upstream where needed)
-        out.append(d)
-    return out
+
+        cur = best[k]
+        if d.definition_confidence > cur.definition_confidence:
+            best[k] = d
+        # else tie or lower -> keep existing (first-seen)
+
+    # Emit winners in order of first appearance of each key
+    ordered_keys = sorted(first_idx.items(), key=lambda kv: kv[1])
+    return [best[k] for (k, _) in ordered_keys]
