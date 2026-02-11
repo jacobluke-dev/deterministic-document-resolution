@@ -206,7 +206,7 @@ class TestExtractNearFirstsUnit:
         def fake_compile(_acr, _cfg):
             return ((pat_fwd, 0.95, "def_before"),)
 
-        monkeypatch.setattr(mod, "compile_anchored_exact", fake_compile)
+        monkeypatch.setattr(mod, "compile_anchored_for_surface", fake_compile)
 
         out = extract_near_firsts(
             text,
@@ -242,7 +242,7 @@ class TestExtractNearFirstsUnit:
         assert m2 is not None
         assert m2.span("acr")[0] == second_idx
 
-        monkeypatch.setattr(mod, "compile_anchored_exact", fake_compile)
+        monkeypatch.setattr(mod, "compile_anchored_for_surface", fake_compile)
         out = extract_near_firsts(text, {"PDF": fo}, window_left=80, window_right=80, cfg=_cfg())
 
         assert out["PDF"] is None
@@ -267,7 +267,7 @@ class TestExtractNearFirstsUnit:
                 ),
             )
 
-        monkeypatch.setattr(ext, "compile_anchored_exact", fake_compile)
+        monkeypatch.setattr(ext, "compile_anchored_for_surface", fake_compile)
         out = extract_near_firsts(text, {"PDF": fo}, window_left=10, window_right=50, cfg=_cfg())
 
         assert out["PDF"] is not None
@@ -288,7 +288,7 @@ class TestExtractNearFirstsUnit:
         def fake_compile(_acr, _cfg):
             return ((pat_fwd, 0.95, "def_before"),)
 
-        monkeypatch.setattr(mod, "compile_anchored_exact", fake_compile)
+        monkeypatch.setattr(mod, "compile_anchored_for_surface", fake_compile)
 
         cfg = _cfg(max_phrase_chars=8)
         out = extract_near_firsts(text, {"PDF": fo}, window_left=50, window_right=50, cfg=cfg)
@@ -309,7 +309,7 @@ class TestExtractNearFirstsUnit:
         def fake_compile(_acr, _cfg):
             return ((pat_rev, 0.95, "def_after"),)
 
-        monkeypatch.setattr(mod, "compile_anchored_exact", fake_compile)
+        monkeypatch.setattr(mod, "compile_anchored_for_surface", fake_compile)
         out = extract_near_firsts(text, {"C/A": fo}, window_left=40, window_right=60, cfg=_cfg())
 
         assert out["C/A"] is not None

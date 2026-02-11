@@ -194,7 +194,7 @@ class TestExtractNearFirstsUnit:
 
         _patch(
             mod.extract_near_firsts,
-            compile_anchored_exact=lambda acr_surface, cfg: specs,
+            compile_anchored_for_surface=lambda acr_surface, cfg: specs,
             resolve_def_span=fake_resolve_def_span,
             clean_definition=lambda orig, *, acr_norm, cfg, kind: orig,  # passthrough
         )
@@ -215,7 +215,7 @@ class TestExtractNearFirstsUnit:
 
         _patch(
             mod.extract_near_firsts,
-            compile_anchored_exact=lambda *_: specs,
+            compile_anchored_for_surface=lambda *_: specs,
             _build_local_window=lambda text, fo, wl, wr: (0, len(text), "ZZ AAA Y"),  # shifts match position
             resolve_def_span=lambda *a, **k: (0, 1),
             clean_definition=lambda *a, **k: "DEF",
@@ -242,7 +242,7 @@ class TestExtractNearFirstsUnit:
 
         _patch(
             mod.extract_near_firsts,
-            compile_anchored_exact=lambda *_: specs,
+            compile_anchored_for_surface=lambda *_: specs,
             resolve_def_span=lambda *a, **k: (0, 3),
             clean_definition=lambda *a, **k: "US DEF",
         )
