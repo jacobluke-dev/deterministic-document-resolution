@@ -4,7 +4,7 @@ from plainera_unacronym.nlp import FirstOccurrence
 from plainera_unacronym.nlp.common.types import ExtractedDefinition, InTextPick, Span
 from plainera_unacronym.nlp.extraction import ExtractionConfig
 from plainera_unacronym.nlp.extraction.anchored.clean import clean_definition
-from plainera_unacronym.nlp.extraction.anchored.patterns import compile_anchored_exact
+from plainera_unacronym.nlp.extraction.anchored.patterns import compile_anchored_for_surface
 from plainera_unacronym.nlp.extraction.anchored.spans import resolve_def_span
 
 
@@ -137,7 +137,7 @@ def extract_near_firsts(
 
         best: Optional[ExtractedDefinition] = None
 
-        for spec in compile_anchored_exact(acr_surface, cfg):
+        for spec in compile_anchored_for_surface(acr_surface, cfg):
             pat = spec.pat
             base_conf = spec.base_conf
             kind = spec.kind
@@ -181,7 +181,7 @@ def extract_near_firsts(
                 cand = ExtractedDefinition(
                     acronym=acr_key,
                     definition=clean,
-                    source="all_occ_scan_parenthetical",
+                    source="parenthetical",
                     definition_confidence=conf,
                     acr_start=a0_local + left,
                     acr_end=a1_local + left,

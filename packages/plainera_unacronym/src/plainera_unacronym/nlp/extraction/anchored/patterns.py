@@ -14,7 +14,7 @@ class PatternSpec:
     kind: str
 
 
-def compile_anchored_exact(acr: str, cfg: ExtractionConfig) -> tuple[PatternSpec, ...]:
+def compile_anchored_for_surface(acr: str, cfg: ExtractionConfig) -> tuple[PatternSpec, ...]:
     """Compile anchored extraction patterns for a specific acronym.
 
     Builds a set of compiled regex patterns that detect common long-form/acronym

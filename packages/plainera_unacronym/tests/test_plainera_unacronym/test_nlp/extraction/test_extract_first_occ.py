@@ -5,7 +5,7 @@ import plainera_unacronym.nlp.extraction.anchored.extract as ext
 import plainera_unacronym.nlp.extraction.anchored.patterns as mod
 from plainera_unacronym.nlp.extraction import ExtractionConfig
 from plainera_unacronym.nlp.extraction.anchored.extract import extract_near_firsts
-from plainera_unacronym.nlp.extraction.anchored.patterns import compile_anchored_exact
+from plainera_unacronym.nlp.extraction.anchored.patterns import compile_anchored_for_surface
 
 
 def _cfg(**overrides):
@@ -26,7 +26,7 @@ def _apply_for_acr(text: str, acr: str, cfg) -> list[tuple[str, float, str, str]
     returns list of (label, conf, acr, def) for all matches across all patterns.
     """
     results = []
-    for spec in compile_anchored_exact(acr, cfg):
+    for spec in compile_anchored_for_surface(acr, cfg):
         for m in spec.pat.finditer(text):
             results.append((spec.kind, spec.base_conf, m.group("acr"), m.group("def")))
     return results
@@ -37,7 +37,7 @@ class TestCompileAnchoredExact:
 
     def test_tuple_shape_and_flags(self):
         cfg = _cfg()
-        out = compile_anchored_exact("PDF", cfg)
+        out = compile_anchored_for_surface("PDF", cfg)
 
         n_cues = len(cfg.inline_cues)
 
@@ -69,7 +69,7 @@ class TestCompileAnchoredExact:
             "Portable Document Format (PDF) is widely used.\n"
             "Also PDF (Portable Document Format) appears later."
         )
-        pats = compile_anchored_exact("PDF", cfg)
+        pats = compile_anchored_for_surface("PDF", cfg)
 
         fwd = next((p for p in pats if p.kind == "def_before"), None)
         rev = next((p for p in pats if p.kind == "def_after"), None)
@@ -93,7 +93,7 @@ class TestCompileAnchoredExact:
             "PDF, short for Portable Document Format, is common. "
             "PDF stands for Portable Document Format."
         )
-        inlines = [p for p in compile_anchored_exact("PDF", cfg) if p.kind == "inline"]
+        inlines = [p for p in compile_anchored_for_surface("PDF", cfg) if p.kind == "inline"]
         assert len(inlines) == len(cfg.inline_cues)
 
         hits = 0
@@ -110,7 +110,7 @@ class TestCompileAnchoredExact:
         # Tight limit still matches; DEF capture must be <= max_phrase_chars
         cfg = _cfg(max_phrase_chars=10)
         long_def_text = "Incredibly long descriptive name for a format (PDF)"
-        fwd = next((p for p in compile_anchored_exact("PDF", cfg) if p.kind == "def_before"), None)
+        fwd = next((p for p in compile_anchored_for_surface("PDF", cfg) if p.kind == "def_before"), None)
         assert fwd
         m = fwd.pat.search(long_def_text)
         assert m is not None
@@ -126,18 +126,18 @@ class TestCompileAnchoredExact:
         )
 
         # R&D: forward parenthetical present
-        pats = compile_anchored_exact("R&D", cfg)
+        pats = compile_anchored_for_surface("R&D", cfg)
         fwd = next((p for p in pats if p.kind == "def_before"), None)
         assert fwd and fwd.pat.search(text)
 
         # C/A: reverse parenthetical present
-        pats = compile_anchored_exact("C/A", cfg)
+        pats = compile_anchored_for_surface("C/A", cfg)
         rev = next((p for p in pats if p.kind == "def_after"), None)
         m = rev.pat.search(text)
         assert m and "Cost per Acquisition" in m.group("def")
 
         # SME: forward parenthetical present
-        pats = compile_anchored_exact("SME", cfg)
+        pats = compile_anchored_for_surface("SME", cfg)
         fwd = next((p for p in pats if p.kind == "def_before"), None)
         assert fwd and fwd.pat.search(text)
 
