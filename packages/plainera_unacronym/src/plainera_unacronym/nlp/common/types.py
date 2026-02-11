@@ -33,13 +33,6 @@ class TextSpan:
 
 # -------------------------- STRATEGIES ------------------------------------
 
-# TODO these will be adjusted to tier 1 tier 2 or some other consideration right now these will do
-Extraction_strategy: TypeAlias = Literal[
-    "anchored+harvest",
-    "hybrid-filled",
-    "global",
-    "anchored+harvest+global",
-]
 
 Definition_strategy = Literal[
     "direct_def",
@@ -174,6 +167,7 @@ class InTextPick:
     definition_confidence: float
     original_definition: str
     kind: str = "unknown"
+    route: str = "unknown"
     reasons: tuple[str, ...] = ()
 
 
@@ -184,8 +178,6 @@ class ExtractionResult:
     # all definition locations considered (anchored-window matches if no global run,
     # or full global matches if we did the fallback)
     definitions: list[ExtractedDefinition]
-    # which strategy ultimately produced 'picks' / 'definitions'
-    extraction_strategy: Extraction_strategy
     # convenience metric: fraction of acronyms with a pick
     coverage: float
     # normalized keys that had no in-text definition

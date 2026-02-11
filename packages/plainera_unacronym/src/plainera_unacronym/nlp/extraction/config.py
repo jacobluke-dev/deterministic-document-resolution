@@ -52,6 +52,8 @@ class ExtractionConfig:
     # Inline cue regex fragments (case-insensitive)
     inline_cues: tuple[str, ...] = INLINE_CUE_FRAGMENTS
 
+    sentence_backref_lookback: int = 2
+
     # Optional stricter gating
     require_two_words: bool = True
 

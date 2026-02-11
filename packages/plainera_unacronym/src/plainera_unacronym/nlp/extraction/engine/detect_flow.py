@@ -1,3 +1,4 @@
+from collections import Counter
 from typing import Optional
 
 from plainera_unacronym.nlp.common.types import DetectorConfig, DetectorResult, ExtractionResult
@@ -139,9 +140,15 @@ class ExtractionFlow:
                 ),
                 Stage("merge_dedupe", f.st_merge, lambda s: f"{len(s.all_defs)}", trace_fields=("all_defs",)),
                 Stage(
-                    "gap_fill_picks",
-                    f.st_gapfill,
-                    lambda s: f"cov={s.coverage:.0%} miss={len(s.missing_keys)}",
+                    "finalise_picks",
+                    f.st_finalise_picks,
+                    lambda s: (
+                        "cov={:.0%} miss={} by_route={}".format(
+                            s.coverage,
+                            len(s.missing_keys),
+                            dict(sorted(Counter(p.route for p in s.picks.values() if p).items()))
+                        )
+                    ),
                     trace_fields=("picks",),
                 ),
                 Stage(
