@@ -163,6 +163,7 @@ class ExtractedDefinition:
     def_end: int
     original_definition: str
     kind: str = "unknown"
+    reasons: tuple[str, ...] = ()
 
 
 @dataclass(frozen=True, slots=True)
@@ -173,6 +174,7 @@ class InTextPick:
     definition_confidence: float
     original_definition: str
     kind: str = "unknown"
+    reasons: tuple[str, ...] = ()
 
 
 @dataclass(frozen=True, slots=True)

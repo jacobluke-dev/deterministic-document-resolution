@@ -16,6 +16,18 @@ class ConfidenceConfig:
         })
     )
 
+    # --- backref shaping ---
+    backref_definitionish_boost: float = 0.10  # if we got a definition-ish span
+    backref_initials_boost: float = 0.00  # if we fell back to initials span
+    backref_lookback_penalty: float = 0.05  # per sentence beyond the nearest
+    backref_distance_penalty_per_char: float = 0.0005  # per char (same shape as anchored)
+    backref_distance_penalty_cap_chars: int = 200  # cap the distance penalty
+    backref_uppercase_acronym_boost: float = 0.05  # if FO acronym token is ALL CAPS
+
+    # Titlecase heuristic
+    backref_titlecase_ratio_threshold: float = 0.80  # ratio of tokens starting uppercase
+    backref_titlecase_boost: float = 0.05
+
     # disambiguation blend
     dist_weight: float = 0.75
     overlap_weight: float = 0.25

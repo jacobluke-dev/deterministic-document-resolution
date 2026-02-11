@@ -22,6 +22,7 @@ def _ed(
     def_end: int = 1,
     confidence: float = 0.5,
     original_definition: str = "orig",
+    reasons=""
 ) -> object:
     # fill_missing_from_defs reads these attrs
     return NS(
@@ -33,6 +34,7 @@ def _ed(
         def_end=def_end,
         definition_confidence=confidence,
         original_definition=original_definition,
+        reasons=reasons
     )
 
 

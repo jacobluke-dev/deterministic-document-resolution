@@ -71,15 +71,151 @@ list[ExtractedDefinition]
     was found in a prior sentence using initials-based span selection.
 """
 
-from typing import Mapping
+from typing import Mapping, Literal
 
 from plainera_unacronym.nlp import FirstOccurrence
-from plainera_unacronym.nlp.common.constants_regex import TOKEN_RE
+from plainera_unacronym.nlp.common.constants_regex import TOKEN_RE, HYPHEN_SPLIT_RE
 from plainera_unacronym.nlp.common.types import ExtractedDefinition, Span
 from plainera_unacronym.nlp.extraction.anchored.clean import clean_definition
 from plainera_unacronym.nlp.extraction.anchored.normalise import tighten_definition_span
 from plainera_unacronym.nlp.extraction.backref.spans import best_span_by_initials, find_span_index, sent_spans
 from plainera_unacronym.nlp.extraction.config import ExtractionConfig
+from plainera_unacronym.nlp.extraction.core.collect import initials_match
+
+BackrefEvidence = Literal["definitionish", "initials"]
+
+
+def _initials_hyphen_aware(phrase: str) -> str:
+    letters: list[str] = []
+    for tok in TOKEN_RE.findall(phrase):
+        for part in HYPHEN_SPLIT_RE.split(tok):
+            part = part.strip()
+            if not part:
+                continue
+            for ch in part:
+                if ch.isalpha() or ch.isdigit():
+                    letters.append(ch.upper())
+                    break
+    return "".join(letters)
+
+def _acr_key(acr_norm: str) -> str:
+    return "".join(ch for ch in acr_norm if ch.isalnum()).upper()
+
+def _initials_match_backref(acr_norm: str, clean: str) -> bool:
+    # keep strict matcher if you have one, but allow hyphen-aware as a fallback
+    a = _acr_key(acr_norm)
+    return _initials_hyphen_aware(clean) == a
+
+
+def _clamp01(x: float) -> float:
+    return 0.0 if x < 0.0 else (0.99 if x > 0.99 else x)
+
+
+def _titlecase_ratio(s: str) -> float:
+    toks = TOKEN_RE.findall(s)
+    if not toks:
+        return 0.0
+    good = 0
+    for t in toks:
+        # "USA" counts as good; "Sign-on" counts if 'S' etc.
+        if t and (t[0].isupper() or t.isupper()):
+            good += 1
+    return good / len(toks)
+
+
+def _valid_backref_candidate(
+    *,
+    clean: str,
+    acr_norm: str,
+    max_chars: int,
+    require_two_words: bool,
+) -> bool:
+    if not clean:
+        return False
+
+    # enforce max_chars consistently (applies to both definitionish + initials)
+    if len(clean) > max_chars:
+        return False
+
+    # reject “candidate is the acronym”
+    if clean.replace(" ", "").upper() == acr_norm.replace(" ", ""):
+        return False
+
+    if require_two_words and len(TOKEN_RE.findall(clean)) < 2:
+        return False
+
+    # critical: prevent LOL being accepted for LLO (your failing test)
+    # but allow hyphen-aware initials so "sign-on" yields S + O
+    if not (initials_match(acr_norm, clean) or _initials_match_backref(acr_norm, clean)):
+        return False
+
+    return True
+
+
+def _score_backref_confidence(
+    *,
+    cfg: ExtractionConfig,
+    fo_surface: str,
+    cand: str,
+    evidence: BackrefEvidence,
+    back: int,  # 1 = previous sentence, 2 = two sentences back, etc.
+    dist_chars: int,  # char distance from prev sentence end to FO start
+) -> tuple[float, tuple[str, ...]]:
+    conf_cfg = getattr(cfg, "confidence", None)
+
+    base = cfg.confidence.base_by_source.get("backref")
+    if conf_cfg is not None:
+        base = getattr(conf_cfg, "base_by_source", {}).get("sentence_backref", base)
+
+    # knobs (with safe fallbacks)
+    def _get(name: str, default: float) -> float:
+        return getattr(conf_cfg, name, default) if conf_cfg is not None else default
+
+    rs: list[str] = []
+
+    score = base
+    rs.append(f"base={base:.4f}")
+
+    if evidence == "definitionish":
+        boost = _get("backref_definitionish_boost", 0.10)
+        score += boost
+        rs.append(f"evidence=definitionish:+{boost:.4f}")
+    else:
+        boost = _get("backref_initials_boost", 0.00)
+        score += boost
+        rs.append(f"evidence=initials:+{boost:.4f}")
+
+    lb_pen = max(0, back - 1) * _get("backref_lookback_penalty", 0.05)
+    if lb_pen:
+        score -= lb_pen
+        rs.append(f"lookback={back}:-{lb_pen:.4f}")
+
+    cap = int(getattr(conf_cfg, "backref_distance_penalty_cap_chars", 200)) if conf_cfg is not None else 200
+    per = _get("backref_distance_penalty_per_char", 0.0005)
+    dist_eff = min(max(dist_chars, 0), cap)
+    dist_pen = dist_eff * per
+    if dist_pen:
+        score -= dist_pen
+        rs.append(f"dist_chars={dist_eff}:-{dist_pen:.4f}")
+
+    if fo_surface.isupper():
+        b = _get("backref_uppercase_acronym_boost", 0.05)
+        score += b
+        rs.append(f"acr_caps:+{b:.4f}")
+
+    ratio = _titlecase_ratio(cand)
+    thr = _get("backref_titlecase_ratio_threshold", 0.80)
+    if ratio >= thr:
+        b = _get("backref_titlecase_boost", 0.05)
+        score += b
+        rs.append(f"titlecase={ratio:.2f}:+{b:.4f}")
+    else:
+        rs.append(f"titlecase={ratio:.2f}:0")
+
+    score = _clamp01(score)
+    rs.append(f"final={score:.4f}")
+
+    return score, tuple(rs)
 
 
 def _candidate_from_prev_sentence(
@@ -89,22 +225,30 @@ def _candidate_from_prev_sentence(
     cfg: ExtractionConfig,
     max_chars: int,
     require_two_words: bool,
-) -> str | None:
-    """Build a validated candidate definition from a previous sentence.
+) -> tuple[str, BackrefEvidence] | None:
+    """Extract a defensible long-form candidate from the previous sentence.
 
-    Prefers a definition-ish span from the previous sentence using `tighten_definition_span`
-    and the shared `clean_definition` pipeline. Falls back to an initials-based shortest
-    span (`best_span_by_initials`) and cleans it the same way.
+    This helper tries to recover a “definition-ish” phrase from the prior sentence
+    and validate it using the shared `clean_definition` pipeline.
+
+    Strategy (in order):
+      1) Tighten the previous sentence down to a plausible title/definition span
+         via `tighten_definition_span`, then clean/validate it.
+      2) If that fails, fall back to an initials-based shortest span
+         (`best_span_by_initials`), then clean/validate it.
+
+    The returned `BackrefEvidence` indicates which route produced the candidate
+    (e.g., `BackrefEvidence.DEFINITIONISH` vs `BackrefEvidence.INITIALS`).
 
     Args:
-        acr_norm (str): Normalised acronym (typically uppercased) to match against.
-        prev_text (str): Raw previous-sentence slice from the document.
-        cfg (ExtractionConfig): Extraction configuration used by `clean_definition`.
-        max_chars (int): Maximum allowed candidate length (characters) for span selection.
-        require_two_words (bool): If True, require >=2 tokens (enforced post-clean).
+        acr_norm: Normalised acronym (typically uppercased) to match against.
+        prev_text: Raw previous-sentence slice from the document.
+        cfg: Extraction configuration used by `clean_definition` and related guardrails.
+        max_chars: Maximum allowed candidate length (characters) for span selection.
+        require_two_words: If True, require the cleaned candidate to contain >=2 tokens.
 
     Returns:
-        str | None: Cleaned candidate definition if found, otherwise None.
+        (candidate, evidence) if a cleaned candidate passes guardrails; otherwise None.
     """
     prev_raw = prev_text.strip()
     if not prev_raw:
@@ -112,32 +256,29 @@ def _candidate_from_prev_sentence(
 
     sent = prev_raw.rstrip(" \t\r\n.?!…;:")
 
-    # 1) Prefer a definition-ish run using the same normaliser as anchored inline.
+    # 1) definition-ish path
     base = tighten_definition_span(sent)
     clean = clean_definition(base, acr_norm=acr_norm, cfg=cfg, kind="inline")
-    if (
-        clean
-        and clean.replace(" ", "").upper() != acr_norm.replace(" ", "")
-        and (not require_two_words or len(TOKEN_RE.findall(clean)) >= 2)
-    ):
-        return clean
 
-    # 2) Fallback: initials-based shortest span, then reuse the same cleaner.
+    if clean and _valid_backref_candidate(
+        clean=clean, acr_norm=acr_norm, max_chars=max_chars, require_two_words=require_two_words
+    ):
+        return clean, "definitionish"
+    # else: fall through
+
+    # 2) initials fallback
     cand = best_span_by_initials(acr_norm, sent, max_chars=max_chars)
     if not cand:
         return None
 
     clean = clean_definition(cand, acr_norm=acr_norm, cfg=cfg, kind="inline")
-    if not clean:
-        return None
 
-    if clean.replace(" ", "").upper() == acr_norm.replace(" ", ""):
-        return None
+    if clean and _valid_backref_candidate(
+        clean=clean, acr_norm=acr_norm, max_chars=max_chars, require_two_words=require_two_words
+    ):
+        return clean, "initials"
 
-    if require_two_words and len(TOKEN_RE.findall(clean)) < 2:
-        return None
-
-    return clean
+    return None
 
 
 def _find_backref_candidate(
@@ -149,7 +290,7 @@ def _find_backref_candidate(
     cfg: ExtractionConfig,
     max_chars: int,
     require_two_words: bool,
-) -> tuple[str, Span] | None:
+) -> tuple[str, Span, int, BackrefEvidence] | None:
     """Search previous sentence spans for a back-reference definition candidate.
 
     Looks backwards from the sentence containing an acronym occurrence (sentence index `si`)
@@ -176,15 +317,16 @@ def _find_backref_candidate(
         prev_s, prev_e = spans[si - back]
         prev_slice = text[prev_s:prev_e]
 
-        cand = _candidate_from_prev_sentence(
+        hit = _candidate_from_prev_sentence(
             acr_norm=acr_norm,
             prev_text=prev_slice,
             cfg=cfg,
             max_chars=max_chars,
             require_two_words=require_two_words,
         )
-        if cand:
-            return cand, (prev_s, prev_e)
+        if hit:
+            cand, evidence = hit
+            return cand, (prev_s, prev_e), back, evidence
 
     return None
 
@@ -196,19 +338,34 @@ def _emit_backref_def(
     cand: str,
     prev_span: Span,
     text: str,
+    cfg: ExtractionConfig,
+    back: int,
+    evidence: BackrefEvidence,
 ) -> ExtractedDefinition:
     prev_s, prev_e = prev_span
+    dist_chars = max(0, fo.start_offset - prev_e)
+
+    conf, reasons = _score_backref_confidence(
+        cfg=cfg,
+        fo_surface=fo.acronym,
+        cand=cand,
+        evidence=evidence,
+        back=back,
+        dist_chars=dist_chars,
+    )
+
     return ExtractedDefinition(
         acronym=acr_norm,
         definition=cand,
-        source="backref",
-        definition_confidence=0.50,
+        source="sentence_backref",
+        definition_confidence=conf,
         acr_start=fo.start_offset,
         acr_end=fo.end_offset,
         def_start=prev_s,
         def_end=prev_e,
         original_definition=text[prev_s:prev_e].strip(),
         kind="sentence_backref",
+        reasons=reasons,
     )
 
 
@@ -278,7 +435,7 @@ def extract_sentence_backrefs(
         if not hit:
             continue
 
-        cand, prev_span = hit
+        cand, prev_span, back, evidence = hit
         out.append(
             _emit_backref_def(
                 acr_norm=acr_norm,
@@ -286,6 +443,9 @@ def extract_sentence_backrefs(
                 cand=cand,
                 prev_span=prev_span,
                 text=text,
+                cfg=cfg,
+                back=back,
+                evidence=evidence,
             )
         )
 

@@ -68,5 +68,6 @@ def fill_missing_from_defs(
             def_span=(best.def_start, best.def_end),
             definition_confidence=best.definition_confidence,
             original_definition=best.original_definition,
+            reasons=best.reasons,
         )
     return fills
