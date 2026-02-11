@@ -1,5 +1,6 @@
 from plainera_unacronym.nlp.common.types import ExtractedDefinition
 from plainera_unacronym.nlp.extraction import ExtractionConfig
+from plainera_unacronym.nlp.extraction.engine.confidence import base_conf_for
 from plainera_unacronym.nlp.extraction.matchers.defs import (
     find_parenthetical_longform_after_acr,
     find_parenthetical_longform_before_acr,
@@ -39,9 +40,8 @@ def extract_defs_all_occurrences(text: str, occs, cfg: ExtractionConfig) -> list
     """
     out: list[ExtractedDefinition] = []
     win = getattr(cfg, "window_chars", 320)
-
     SRC = "all_occ_scan_parenthetical"
-    base = getattr(getattr(cfg, "confidence", None), "base_by_source", {}).get(SRC, 0.95)
+    base = base_conf_for(cfg, source=SRC, default=0.8)
 
     for o in occs:
         a0, a1 = o.start_offset, o.end_offset

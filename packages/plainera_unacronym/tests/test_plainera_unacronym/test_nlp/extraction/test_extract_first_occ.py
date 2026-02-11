@@ -17,6 +17,12 @@ def _cfg(**overrides):
         require_two_words=True,
     )
     base.update(overrides)
+    conf = NS(base_by_source={
+        "parenthetical": base["conf_parenthetical"],
+        "inline": base["conf_inline"],
+        "first_occurrence_anchored": 0.85,
+    })
+    base["confidence"] = conf
     return NS(**base)
 
 
@@ -207,7 +213,7 @@ class TestExtractNearFirstsUnit:
             return ((pat_fwd, 0.95, "def_before"),)
 
         monkeypatch.setattr(mod, "compile_anchored_for_surface", fake_compile)
-
+        monkeypatch.setattr(ext, "base_for_kind", lambda _cfg, _kind: 0.95)
         out = extract_near_firsts(
             text,
             firsts={"PDF": fo},
@@ -268,6 +274,12 @@ class TestExtractNearFirstsUnit:
             )
 
         monkeypatch.setattr(ext, "compile_anchored_for_surface", fake_compile)
+        monkeypatch.setattr(
+            ext,
+            "base_for_kind",
+            lambda _cfg, kind: 0.995 if kind in {"inline", "inline_before"} else 0.95,
+        )
+
         out = extract_near_firsts(text, {"PDF": fo}, window_left=10, window_right=50, cfg=_cfg())
 
         assert out["PDF"] is not None
@@ -310,6 +322,7 @@ class TestExtractNearFirstsUnit:
             return ((pat_rev, 0.95, "def_after"),)
 
         monkeypatch.setattr(mod, "compile_anchored_for_surface", fake_compile)
+        monkeypatch.setattr(ext, "base_for_kind", lambda _cfg, _kind: 0.95)
         out = extract_near_firsts(text, {"C/A": fo}, window_left=40, window_right=60, cfg=_cfg())
 
         assert out["C/A"] is not None
@@ -327,11 +340,7 @@ def _cfg_near_firsts_integrated(**overrides):
             r"stands?\s+for",
             r"is\s+(?:an\s+)?acronym\s+for",
         ),
-        "max_phrase_chars": overrides.get("max_phrase_chars", 200),
-        "enabled_parenthetical": True,
-        "enabled_inline": True,
-        "conf_parenthetical": 0.95,
-        "conf_inline": 0.80,
+        "max_phrase_chars": overrides.get("max_phrase_chars", 200)
     })
 
 
@@ -404,10 +413,6 @@ class TestExtractNearFirstsIntegration:
         cfg_strict = ExtractionConfig(
             inline_cues=(r"short\s+for", r"stands?\s+for", r"is\s+(?:an\s+)?acronym\s+for"),
             max_phrase_chars=20,
-            # enabled_parenthetical=True,
-            enabled_inline=True,
-            conf_parenthetical=0.95,
-            conf_inline=0.80,
             require_two_words=False,
         )
         out_strict = extract_near_firsts(text, firsts, window_left=10, window_right=200, cfg=cfg_strict)
@@ -417,10 +422,6 @@ class TestExtractNearFirstsIntegration:
         cfg_relaxed = ExtractionConfig(
             inline_cues=(r"short\s+for", r"stands?\s+for", r"is\s+(?:an\s+)?acronym\s+for"),
             max_phrase_chars=160,
-            # enabled_parenthetical=True,
-            enabled_inline=True,
-            conf_parenthetical=0.95,
-            conf_inline=0.80,
         )
         out_relaxed = extract_near_firsts(text, firsts, window_left=10, window_right=200, cfg=cfg_relaxed)
         assert out_relaxed["PTO"] is not None

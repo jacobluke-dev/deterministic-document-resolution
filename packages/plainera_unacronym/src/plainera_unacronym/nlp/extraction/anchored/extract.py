@@ -6,6 +6,7 @@ from plainera_unacronym.nlp.extraction import ExtractionConfig
 from plainera_unacronym.nlp.extraction.anchored.clean import clean_definition
 from plainera_unacronym.nlp.extraction.anchored.patterns import compile_anchored_for_surface
 from plainera_unacronym.nlp.extraction.anchored.spans import resolve_def_span
+from plainera_unacronym.nlp.extraction.engine.confidence import base_for_kind
 
 
 def _build_local_window(
@@ -139,7 +140,6 @@ def extract_near_firsts(
 
         for spec in compile_anchored_for_surface(acr_surface, cfg):
             pat = spec.pat
-            base_conf = spec.base_conf
             kind = spec.kind
             strategy = spec.strategy
 
@@ -174,14 +174,14 @@ def extract_near_firsts(
                 if clean is None:
                     continue
 
-                # Confidence — distance is 0 at FO, but keep the formula
                 dist = _distance_from_fo(a0_local=a0_local, left=left, fo_start_offset=fo.start_offset)
-                conf = _anchored_confidence(base_conf=base_conf, dist=dist)
+                base = base_for_kind(cfg, kind)
+                conf = _anchored_confidence(base_conf=base, dist=dist)
 
                 cand = ExtractedDefinition(
                     acronym=acr_key,
                     definition=clean,
-                    source="parenthetical",
+                    source="first_occurrence_anchored",
                     definition_confidence=conf,
                     acr_start=a0_local + left,
                     acr_end=a1_local + left,

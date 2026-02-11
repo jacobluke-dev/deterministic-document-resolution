@@ -155,7 +155,7 @@ class DetectorResult:
 class ExtractedDefinition:
     acronym: str
     definition: str  # normalized
-    source: str  # "all_occ_scan_parenthetical"
+    source: str
     definition_confidence: float
     acr_start: int
     acr_end: int
@@ -228,22 +228,3 @@ def as_str_set(x: Any, *, default: Iterable[str]) -> set[str]:
     if isinstance(x, str):
         return {x}
     return set(cast(Iterable[str], x))
-
-
-ExtractionStrategy: TypeAlias = Literal[
-    "anchored+harvest",
-    "hybrid-filled",
-    "global",
-    "anchored+harvest+global",
-]
-
-
-def _compute_strategy(
-    *, has_gapfill: bool, has_global: bool, has_anchored: bool, has_harvest: bool
-) -> ExtractionStrategy:
-    if has_gapfill:
-        return "hybrid-filled"
-    if has_global:
-        # keep this strict so it matches your alias exactly
-        return "anchored+harvest+global" if (has_anchored and has_harvest) else "global"
-    return "anchored+harvest"

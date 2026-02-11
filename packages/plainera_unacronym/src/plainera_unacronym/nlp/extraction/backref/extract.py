@@ -81,11 +81,22 @@ from plainera_unacronym.nlp.extraction.anchored.normalise import tighten_definit
 from plainera_unacronym.nlp.extraction.backref.spans import best_span_by_initials, find_span_index, sent_spans
 from plainera_unacronym.nlp.extraction.config import ExtractionConfig
 from plainera_unacronym.nlp.extraction.core.collect import initials_match
+from plainera_unacronym.nlp.extraction.engine.confidence import base_conf_for
 
 BackrefEvidence = Literal["definitionish", "initials"]
 
 
 def _initials_hyphen_aware(phrase: str) -> str:
+    """
+    Build an initials string from a phrase, treating hyphenated tokens as multiple parts.
+    Useful for matching acronyms against phrases like "Single sign-on" → "SSO".
+
+    Args:
+        phrase: Input phrase.
+
+    Returns:
+        Uppercased initials string.
+    """
     letters: list[str] = []
     for tok in TOKEN_RE.findall(phrase):
         for part in HYPHEN_SPLIT_RE.split(tok):
@@ -98,17 +109,52 @@ def _initials_hyphen_aware(phrase: str) -> str:
                     break
     return "".join(letters)
 
+
 def _acr_key(acr_norm: str) -> str:
+    """
+    Canonicalise an acronym for matching by stripping non-alphanumerics and uppercasing.
+    Keeps digits and letters only to ensure stable comparisons across punctuation variants.
+
+    Args:
+        acr_norm: Acronym surface/normalised form.
+
+    Returns:
+        Uppercased alphanumeric-only acronym key.
+    """
     return "".join(ch for ch in acr_norm if ch.isalnum()).upper()
 
+
 def _initials_match_backref(acr_norm: str, clean: str) -> bool:
-    # keep strict matcher if you have one, but allow hyphen-aware as a fallback
+    """
+    Check whether a cleaned candidate’s initials match the acronym key.
+    Uses a hyphen-aware initials builder to handle cases like "Single sign-on" → "SSO".
+
+    Args:
+        acr_norm: Acronym to match (may include punctuation/casing).
+        clean: Cleaned candidate definition text.
+
+    Returns:
+        True if initials(clean) == canonical(acr_norm), else False.
+    """
     a = _acr_key(acr_norm)
     return _initials_hyphen_aware(clean) == a
 
 
-def _clamp01(x: float) -> float:
-    return 0.0 if x < 0.0 else (0.99 if x > 0.99 else x)
+CONF_MAX = 0.99
+
+
+def clamp_confidence(x: float, *, cap: float = CONF_MAX) -> float:
+    """
+    Clamp a confidence score into [0.0, cap] to avoid returning a hard 1.0.
+
+    Args:
+        x: Candidate confidence score.
+        cap: Upper bound to clamp to (default 0.99).
+
+    Returns:
+        Clamped confidence value.
+    """
+    return 0.0 if x < 0.0 else (cap if x > cap else x)
 
 
 def _titlecase_ratio(s: str) -> float:
@@ -163,9 +209,7 @@ def _score_backref_confidence(
 ) -> tuple[float, tuple[str, ...]]:
     conf_cfg = getattr(cfg, "confidence", None)
 
-    base = cfg.confidence.base_by_source.get("backref")
-    if conf_cfg is not None:
-        base = getattr(conf_cfg, "base_by_source", {}).get("sentence_backref", base)
+    base = base_conf_for(cfg, source="sentence_backref")
 
     # knobs (with safe fallbacks)
     def _get(name: str, default: float) -> float:
@@ -212,7 +256,7 @@ def _score_backref_confidence(
     else:
         rs.append(f"titlecase={ratio:.2f}:0")
 
-    score = _clamp01(score)
+    score = clamp_confidence(score)
     rs.append(f"final={score:.4f}")
 
     return score, tuple(rs)

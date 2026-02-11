@@ -29,10 +29,6 @@ def _cfgs():
         ExtractionConfig(
             inline_cues=(r"short\s+for", r"stands?\s+for"),
             max_phrase_chars=200,
-            enabled_parenthetical=True,
-            enabled_inline=True,
-            conf_parenthetical=0.95,
-            conf_inline=0.80,
         ),
     )
 
@@ -112,10 +108,6 @@ def _cfg_integrated(require_two_words=True, max_chars=200):
         ExtractionConfig(
             inline_cues=(r"short\s+for", r"stands?\s+for", r"is\s+(?:an\s+)?acronym\s+for"),
             max_phrase_chars=max_chars,
-            enabled_parenthetical=True,
-            enabled_inline=True,
-            conf_parenthetical=0.95,
-            conf_inline=0.80,
             require_two_words=require_two_words,
         ),
     )
