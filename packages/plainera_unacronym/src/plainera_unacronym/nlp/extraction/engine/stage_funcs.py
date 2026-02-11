@@ -6,11 +6,11 @@ from plainera_unacronym.nlp.extraction.backref.extract import extract_sentence_b
 from plainera_unacronym.nlp.extraction.core.defs import dedupe_defs, defs_from_picks
 from plainera_unacronym.nlp.extraction.senses.disambiguate import disambiguate_occurrences
 from plainera_unacronym.nlp.extraction.senses.sense_build import build_senses
-from plainera_unacronym.nlp.extraction.strategies.gapfill import fill_missing_from_defs
 from plainera_unacronym.nlp.extraction.strategies.harvest import extract_defs_all_occurrences
 
 from .stages import StageResult
 from .state import FlowState
+from ..strategies.pick_resolution import build_defs_index, backfill_missing_picks_from_defs, patch_pick_provenance
 
 
 def st_detect(s: FlowState) -> StageResult[FlowState]:
@@ -165,49 +165,38 @@ def st_merge(s: FlowState) -> StageResult[FlowState]:
     return StageResult(s, s.last_info)
 
 
-def st_gapfill(s: FlowState) -> StageResult[FlowState]:
-    """Fill missing picks using definitions extracted by other strategies.
+def st_finalise_picks(s: FlowState) -> StageResult[FlowState]:
+    """
+    Finalise `s.picks` by filling any missing acronyms from `s.all_defs`.
 
-    For acronym keys where `s.picks[key]` is None, selects the best matching
-    definition from `s.all_defs` (typically based on proximity/confidence via
-    `fill_missing_from_defs`) and fills `s.picks`. Updates coverage metrics and
-    `s.missing_keys`, and records a summary in `s.last_info`.
+    Keeps any existing picks intact, only backfilling `None` entries. Populates
+    pick provenance (`kind`, `route`, `reasons`) from the winning definition.
 
     Args:
-        s (FlowState): Mutable flow state. Must already contain `s.det_res` and `s.all_defs`.
+        s: FlowState for the pipeline stage. Requires `s.det_res` to be present.
 
     Returns:
-        StageResult[FlowState]: Updated flow state plus a human-readable note.
-
-    Raises:
-        AssertionError: If `s.det_res` is None (detect stage not run).
+        StageResult containing the mutated FlowState and a short info string.
     """
     assert s.det_res is not None
-    missing = [k for k, v in s.picks.items() if v is None]
 
-    filled_any = False
-    if missing:
-        fills = fill_missing_from_defs(s.text, firsts=s.det_res.unique_acronyms, det_cfg=s.det_cfg, defs=s.all_defs)
-        for k in missing:
-            if s.picks[k] is None:
-                picked = fills.get(k)
-                if picked is not None:
-                    s.picks[k] = picked
-                    filled_any = True
-    used = []
-    if any(s.anchored_defs):
-        used.append("anchored")
-    if any(s.harvested_defs):
-        used.append("harvest")
-    if any(s.backref_defs):
-        used.append("backref")
-    if filled_any:
-        used.append("gapfill")
+    defs_index = build_defs_index(
+        s.all_defs,
+        allow_chars=s.det_cfg.allow_chars,
+        dotted_mode=s.det_cfg.dotted_display,
+    )
+
+    backfill_missing_picks_from_defs(
+        s.picks,
+        defs_index=defs_index,
+        unique_acronyms=s.det_res.unique_acronyms,
+    )
+
+    patch_pick_provenance(s.picks, default_route="first_occurrence_anchored")
 
     s.coverage = (len(s.picks) - sum(1 for v in s.picks.values() if v is None)) / max(1, len(s.picks))
     s.missing_keys = tuple(sorted(k for k, v in s.picks.items() if v is None))
-    s.last_info = f"{s.strategy} coverage={s.coverage:.2%} missing={len(s.missing_keys)}"
-    #TODO remove s.strategy??
+    s.last_info = f"coverage={s.coverage:.2%} missing={len(s.missing_keys)}"
     return StageResult(s, s.last_info)
 
 
@@ -251,7 +240,6 @@ def st_senses_and_assemble(
     s.extr = ExtractionResult(
         picks=s.picks,
         definitions=s.all_defs,
-        extraction_strategy=s.strategy,
         coverage=s.coverage,
         missing_keys=s.missing_keys,
         senses_by_acronym=senses_by_acr,
