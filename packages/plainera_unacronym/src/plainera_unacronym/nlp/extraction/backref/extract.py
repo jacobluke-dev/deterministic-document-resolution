@@ -70,7 +70,7 @@ list[ExtractedDefinition]
     Zero or more extracted definitions; each corresponds to an acronym whose definition
     was found in a prior sentence using initials-based span selection.
 """
-
+from dataclasses import dataclass
 from typing import Mapping, Literal
 
 from plainera_unacronym.nlp import FirstOccurrence
@@ -176,27 +176,129 @@ def _valid_backref_candidate(
     max_chars: int,
     require_two_words: bool,
 ) -> bool:
+    """
+    Validate a cleaned back-reference candidate definition against hard guardrails.
+    Enforces length, non-identity with the acronym, optional token-count minimum,
+    and an initials match check (strict or hyphen-aware fallback).
+    Returns True only when the candidate is structurally defensible.
+
+    Args:
+        clean: Candidate definition after cleaning/normalisation.
+        acr_norm: Normalised acronym key used for comparison/matching.
+        max_chars: Maximum permitted character length for the candidate.
+        require_two_words: Whether the candidate must contain at least two tokens.
+
+    Returns:
+        True if the candidate passes all guardrails, otherwise False.
+    """
     if not clean:
         return False
 
-    # enforce max_chars consistently (applies to both definitionish + initials)
     if len(clean) > max_chars:
         return False
 
-    # reject “candidate is the acronym”
     if clean.replace(" ", "").upper() == acr_norm.replace(" ", ""):
         return False
 
     if require_two_words and len(TOKEN_RE.findall(clean)) < 2:
         return False
 
-    # critical: prevent LOL being accepted for LLO (your failing test)
-    # but allow hyphen-aware initials so "sign-on" yields S + O
     if not (initials_match(acr_norm, clean) or _initials_match_backref(acr_norm, clean)):
         return False
 
     return True
 
+
+@dataclass(frozen=True, slots=True)
+class _ScoreCtx:
+    cfg: ExtractionConfig
+    conf_cfg: object | None
+    fo_surface: str
+    cand: str
+    evidence: BackrefEvidence
+    back: int
+    dist_chars: int
+
+
+def _get_knob(conf_cfg: object | None, name: str, default: float) -> float:
+    """Get a numeric knob from ConfidenceConfig (or default).
+
+    Args:
+        conf_cfg: cfg.confidence or None.
+        name: Attribute name on the config.
+        default: Value if missing.
+
+    Returns:
+        The knob value.
+    """
+    return getattr(conf_cfg, name, default) if conf_cfg is not None else default
+
+
+def _add_term(
+    score: float,
+    rs: list[str],
+    *,
+    label: str,
+    delta: float,
+) -> float:
+    """Apply a delta and record a reason line.
+
+    Args:
+        score: Current score.
+        rs: Reasons list (mutated).
+        label: Reason prefix.
+        delta: Signed delta applied to score.
+
+    Returns:
+        Updated score.
+    """
+    if delta:
+        sign = "+" if delta > 0 else "-"
+        rs.append(f"{label}:{sign}{abs(delta):.4f}")
+        return score + delta
+    rs.append(f"{label}:0")
+    return score
+
+
+def _evidence_delta(ctx: _ScoreCtx) -> tuple[float, str]:
+    if ctx.evidence == "definitionish":
+        v = _get_knob(ctx.conf_cfg, "backref_definitionish_boost", 0.10)
+        return v, "evidence=definitionish"
+    v = _get_knob(ctx.conf_cfg, "backref_initials_boost", 0.00)
+    return v, "evidence=initials"
+
+
+def _lookback_delta(ctx: _ScoreCtx) -> tuple[float, str]:
+    pen_per = _get_knob(ctx.conf_cfg, "backref_lookback_penalty", 0.05)
+    pen = max(0, ctx.back - 1) * pen_per
+    return -pen, f"lookback={ctx.back}"
+
+
+def _distance_delta(ctx: _ScoreCtx) -> tuple[float, str]:
+    cap = int(getattr(ctx.conf_cfg, "backref_distance_penalty_cap_chars", 200)) if ctx.conf_cfg is not None else 200
+    per = _get_knob(ctx.conf_cfg, "backref_distance_penalty_per_char", 0.0005)
+    dist_eff = min(max(ctx.dist_chars, 0), cap)
+    pen = dist_eff * per
+    return -pen, f"dist_chars={dist_eff}"
+
+
+def _acronym_caps_delta(ctx: _ScoreCtx) -> tuple[float, str]:
+    if not ctx.fo_surface.isupper():
+        return 0.0, "acr_caps"
+    b = _get_knob(ctx.conf_cfg, "backref_uppercase_acronym_boost", 0.05)
+    return b, "acr_caps"
+
+
+def _titlecase_delta(ctx: _ScoreCtx) -> tuple[float, str]:
+    ratio = _titlecase_ratio(ctx.cand)
+    thr = _get_knob(ctx.conf_cfg, "backref_titlecase_ratio_threshold", 0.80)
+    if ratio < thr:
+        return 0.0, f"titlecase={ratio:.2f}"
+    b = _get_knob(ctx.conf_cfg, "backref_titlecase_boost", 0.05)
+    return b, f"titlecase={ratio:.2f}"
+
+
+# --- main ------------------------------------------------------------------
 
 def _score_backref_confidence(
     *,
@@ -204,57 +306,41 @@ def _score_backref_confidence(
     fo_surface: str,
     cand: str,
     evidence: BackrefEvidence,
-    back: int,  # 1 = previous sentence, 2 = two sentences back, etc.
-    dist_chars: int,  # char distance from prev sentence end to FO start
+    back: int,
+    dist_chars: int,
 ) -> tuple[float, tuple[str, ...]]:
-    conf_cfg = getattr(cfg, "confidence", None)
+    """Score backref confidence using deterministic additive terms.
 
+    Args:
+        cfg: Extraction config (reads cfg.confidence knobs).
+        fo_surface: Acronym as it appears at FO (used for caps heuristic).
+        cand: Cleaned candidate definition.
+        evidence: Candidate source route (definitionish vs initials).
+        back: Sentence lookback count (1 = nearest previous).
+        dist_chars: Char distance from prev sentence end to FO start.
+
+    Returns:
+        (score, reasons) where score is clamped to [0.0, 0.99].
+    """
+    conf_cfg = getattr(cfg, "confidence", None)
     base = base_conf_for(cfg, source="sentence_backref")
 
-    # knobs (with safe fallbacks)
-    def _get(name: str, default: float) -> float:
-        return getattr(conf_cfg, name, default) if conf_cfg is not None else default
+    ctx = _ScoreCtx(
+        cfg=cfg,
+        conf_cfg=conf_cfg,
+        fo_surface=fo_surface,
+        cand=cand,
+        evidence=evidence,
+        back=back,
+        dist_chars=dist_chars,
+    )
 
-    rs: list[str] = []
-
+    rs: list[str] = [f"base={base:.4f}"]
     score = base
-    rs.append(f"base={base:.4f}")
 
-    if evidence == "definitionish":
-        boost = _get("backref_definitionish_boost", 0.10)
-        score += boost
-        rs.append(f"evidence=definitionish:+{boost:.4f}")
-    else:
-        boost = _get("backref_initials_boost", 0.00)
-        score += boost
-        rs.append(f"evidence=initials:+{boost:.4f}")
-
-    lb_pen = max(0, back - 1) * _get("backref_lookback_penalty", 0.05)
-    if lb_pen:
-        score -= lb_pen
-        rs.append(f"lookback={back}:-{lb_pen:.4f}")
-
-    cap = int(getattr(conf_cfg, "backref_distance_penalty_cap_chars", 200)) if conf_cfg is not None else 200
-    per = _get("backref_distance_penalty_per_char", 0.0005)
-    dist_eff = min(max(dist_chars, 0), cap)
-    dist_pen = dist_eff * per
-    if dist_pen:
-        score -= dist_pen
-        rs.append(f"dist_chars={dist_eff}:-{dist_pen:.4f}")
-
-    if fo_surface.isupper():
-        b = _get("backref_uppercase_acronym_boost", 0.05)
-        score += b
-        rs.append(f"acr_caps:+{b:.4f}")
-
-    ratio = _titlecase_ratio(cand)
-    thr = _get("backref_titlecase_ratio_threshold", 0.80)
-    if ratio >= thr:
-        b = _get("backref_titlecase_boost", 0.05)
-        score += b
-        rs.append(f"titlecase={ratio:.2f}:+{b:.4f}")
-    else:
-        rs.append(f"titlecase={ratio:.2f}:0")
+    for fn in (_evidence_delta, _lookback_delta, _distance_delta, _acronym_caps_delta, _titlecase_delta):
+        delta, label = fn(ctx)
+        score = _add_term(score, rs, label=label, delta=delta)
 
     score = clamp_confidence(score)
     rs.append(f"final={score:.4f}")
@@ -386,6 +472,25 @@ def _emit_backref_def(
     back: int,
     evidence: BackrefEvidence,
 ) -> ExtractedDefinition:
+    """
+    Build an `ExtractedDefinition` for a sentence back-reference hit.
+    Computes char-distance from the previous sentence end to the FO start and
+    scores confidence/reasons via `_score_backref_confidence`, then maps spans
+    back to absolute offsets and stores the raw prior-sentence slice.
+
+    Args:
+        acr_norm: Normalised acronym key to store on the definition.
+        fo: First-occurrence metadata for the acronym (absolute offsets).
+        cand: Cleaned candidate long-form definition.
+        prev_span: Absolute (start, end) span of the previous sentence in `text`.
+        text: Full document text.
+        cfg: Extraction configuration (confidence knobs, limits).
+        back: Lookback distance in sentences (1 = nearest previous sentence).
+        evidence: Which extraction route produced `cand` ("definitionish" vs "initials").
+
+    Returns:
+        ExtractedDefinition: A fully-populated backref definition record.
+    """
     prev_s, prev_e = prev_span
     dist_chars = max(0, fo.start_offset - prev_e)
 
