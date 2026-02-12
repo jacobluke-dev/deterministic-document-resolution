@@ -146,6 +146,25 @@ class DetectorResult:
 
 @dataclass(frozen=True, slots=True)
 class ExtractedDefinition:
+    """
+    Normalised definition evidence produced by an extraction strategy.
+    Carries absolute spans into the source text plus provenance and confidence.
+    This is the “ledger” of all candidates considered, not necessarily the final pick.
+    Used for dedupe/merge, sense building, debugging, and traceability.
+
+    Args:
+        acronym: Acronym key/surface for this definition evidence.
+        definition: Normalised/tightened definition text.
+        source: Provenance label for where this evidence came from.
+        definition_confidence: Relative strength score for ranking/selection.
+        acr_start: Absolute start offset of the acronym span in the text.
+        acr_end: Absolute end offset of the acronym span in the text.
+        def_start: Absolute start offset of the definition span in the text.
+        def_end: Absolute end offset of the definition span in the text.
+        original_definition: Raw definition slice prior to normalisation.
+        kind: Pattern/shape identifier (e.g. inline, def_before).
+        reasons: Human-readable scoring/decision traces.
+    """
     acronym: str
     definition: str  # normalized
     source: str
@@ -161,6 +180,22 @@ class ExtractedDefinition:
 
 @dataclass(frozen=True, slots=True)
 class InTextPick:
+    """
+    The chosen in-text definition for a single acronym key.
+    Stores the “best” candidate as spans + canonical definition for downstream use.
+    Typically selected from merged definition evidence, but may be filled heuristically.
+    Intended for consumers that want one answer per acronym (plus confidence/reasons).
+
+    Args:
+        definition: Normalised/tightened definition text selected as the winner.
+        acr_span: Absolute (start, end) offsets for the acronym occurrence.
+        def_span: Absolute (start, end) offsets for the definition span.
+        definition_confidence: Relative strength score for this pick.
+        original_definition: Raw definition slice prior to normalisation.
+        kind: Pattern/shape identifier describing how it was matched.
+        route: Internal label for how the pick was chosen (may differ from source).
+        reasons: Human-readable scoring/decision traces.
+    """
     definition: str
     acr_span: Span
     def_span: Span
@@ -173,6 +208,23 @@ class InTextPick:
 
 @dataclass(frozen=True, slots=True)
 class ExtractionResult:
+    """
+    Output bundle for Tier-1 extraction and selection.
+    Provides per-acronym winners plus the full set of definition evidence observed.
+    `picks` is the consumer-facing map; `definitions` is the evidence ledger.
+    Includes coverage/missing metrics and optional sense-resolution artefacts.
+
+    Args:
+        picks: Normalised acronym key -> selected in-text pick or None.
+        definitions: All extracted definition evidence from all strategies.
+        coverage: Fraction of acronym keys with a non-null pick.
+        missing_keys: Normalised keys with no pick after all selection steps.
+        senses_by_acronym: Candidate senses grouped by acronym key.
+        sense_index: Global sense lookup by sense_id.
+        resolutions: Per-occurrence resolution decisions.
+        ambiguous_keys: Keys with more than one viable sense.
+        undecided: Resolutions where no sense could be chosen deterministically.
+    """
     # map normalized_key -> pick (nearest in-text definition) or None if not found
     picks: dict[str, Optional[InTextPick]]
     # all definition locations considered (anchored-window matches if no global run,
