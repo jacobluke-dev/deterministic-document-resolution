@@ -1,3 +1,4 @@
+from types import SimpleNamespace as NS
 import plainera_unacronym.nlp.extraction.core.defs as mod
 import pytest
 from plainera_unacronym.nlp.common.types import (
@@ -5,12 +6,221 @@ from plainera_unacronym.nlp.common.types import (
     InTextPick,  # noqa: E402
     Span,
 )
+from plainera_unacronym.nlp.extraction.backref.extract import _valid_backref_candidate, _score_backref_confidence
 from plainera_unacronym.nlp.extraction.core.defs import _sense_key, dedupe_defs, defs_from_picks
 
 
 def _span(text: str, needle: str) -> Span:
     i = text.index(needle)
     return i, i + len(needle)
+
+
+
+class TestValidBackrefCandidate:
+    def test_rejects_empty(self, _patch):
+        _patch(_valid_backref_candidate,
+               initials_match=lambda *_a, **_k: True,
+               _initials_match_backref=lambda *_a, **_k: True)
+
+        assert _valid_backref_candidate(
+            clean="",
+            acr_norm="SSO",
+            max_chars=200,
+            require_two_words=True,
+        ) is False
+
+    def test_rejects_over_max_chars(self, _patch):
+        _patch(_valid_backref_candidate,
+               initials_match=lambda *_a, **_k: True,
+               _initials_match_backref=lambda *_a, **_k: True)
+
+        assert _valid_backref_candidate(
+            clean="x" * 201,
+            acr_norm="SSO",
+            max_chars=200,
+            require_two_words=False,
+        ) is False
+
+    def test_rejects_candidate_equal_to_acronym_ignoring_spaces_and_case(self, _patch):
+        _patch(_valid_backref_candidate,
+               initials_match=lambda *_a, **_k: True,
+               _initials_match_backref=lambda *_a, **_k: True)
+
+        assert _valid_backref_candidate(
+            clean="s s o",
+            acr_norm="SSO",
+            max_chars=200,
+            require_two_words=False,
+        ) is False
+
+    def test_requires_two_words_when_enabled(self, _patch):
+        _patch(_valid_backref_candidate,
+               initials_match=lambda *_a, **_k: True,
+               _initials_match_backref=lambda *_a, **_k: True)
+
+        assert _valid_backref_candidate(
+            clean="Single",
+            acr_norm="S",
+            max_chars=200,
+            require_two_words=True,
+        ) is False
+
+    def test_accepts_when_strict_initials_match_passes(self, _patch):
+        _patch(_valid_backref_candidate,
+               initials_match=lambda *_a, **_k: True,
+               _initials_match_backref=lambda *_a, **_k: False)
+
+        assert _valid_backref_candidate(
+            clean="Single sign on",
+            acr_norm="SSO",
+            max_chars=200,
+            require_two_words=True,
+        ) is True
+
+    def test_accepts_when_hyphen_aware_fallback_passes_even_if_strict_fails(self, _patch):
+        _patch(_valid_backref_candidate,
+               initials_match=lambda *_a, **_k: False,
+               _initials_match_backref=lambda *_a, **_k: True)
+
+        assert _valid_backref_candidate(
+            clean="Single sign-on",
+            acr_norm="SSO",
+            max_chars=200,
+            require_two_words=True,
+        ) is True
+
+    def test_rejects_when_both_initials_matchers_fail(self, _patch):
+        _patch(_valid_backref_candidate,
+               initials_match=lambda *_a, **_k: False,
+               _initials_match_backref=lambda *_a, **_k: False)
+
+        assert _valid_backref_candidate(
+            clean="Single sign-on",
+            acr_norm="SSO",
+            max_chars=200,
+            require_two_words=True,
+        ) is False
+
+
+
+def _cfg(
+    *,
+    base: float = 0.60,
+    backref_definitionish_boost: float = 0.10,
+    backref_initials_boost: float = 0.00,
+    backref_lookback_penalty: float = 0.05,
+    backref_distance_penalty_per_char: float = 0.0005,
+    backref_distance_penalty_cap_chars: int = 200,
+    backref_uppercase_acronym_boost: float = 0.05,
+    backref_titlecase_ratio_threshold: float = 0.80,
+    backref_titlecase_boost: float = 0.05,
+):
+    conf = NS(
+        base_by_source={"sentence_backref": base},
+        backref_definitionish_boost=backref_definitionish_boost,
+        backref_initials_boost=backref_initials_boost,
+        backref_lookback_penalty=backref_lookback_penalty,
+        backref_distance_penalty_per_char=backref_distance_penalty_per_char,
+        backref_distance_penalty_cap_chars=backref_distance_penalty_cap_chars,
+        backref_uppercase_acronym_boost=backref_uppercase_acronym_boost,
+        backref_titlecase_ratio_threshold=backref_titlecase_ratio_threshold,
+        backref_titlecase_boost=backref_titlecase_boost,
+    )
+    return NS(confidence=conf)
+
+
+class TestScoreBackrefConfidenceUnit:
+    def test_definitionish_nearest_applies_definitionish_boost_only(self):
+        cfg = _cfg(base=0.60)
+        score, reasons = _score_backref_confidence(
+            cfg=cfg,
+            fo_surface="Sso",  # not all-caps -> no acr_caps boost
+            cand="single sign-on",  # titlecase ratio low -> no titlecase boost
+            evidence="definitionish",
+            back=1,
+            dist_chars=0,
+        )
+
+        assert score == pytest.approx(0.70)
+        assert reasons[0] == "base=0.6000"
+        assert "evidence=definitionish:+0.1000" in reasons
+        assert "final=0.7000" in reasons
+
+    def test_initials_lookback_penalty_accumulates(self):
+        cfg = _cfg(base=0.60, backref_lookback_penalty=0.05)
+        score, reasons = _score_backref_confidence(
+            cfg=cfg,
+            fo_surface="sso",
+            cand="single sign on",
+            evidence="initials",
+            back=3,  # penalty = (3-1)*0.05 = 0.10
+            dist_chars=0,
+        )
+
+        assert score == pytest.approx(0.50)
+        assert "base=0.6000" in reasons
+        assert "evidence=initials:0" in reasons
+        assert "lookback=3:-0.1000" in reasons
+        assert "final=0.5000" in reasons
+
+    def test_distance_penalty_is_capped(self):
+        cfg = _cfg(base=0.60, backref_distance_penalty_per_char=0.0005, backref_distance_penalty_cap_chars=200)
+        score, reasons = _score_backref_confidence(
+            cfg=cfg,
+            fo_surface="sso",
+            cand="single sign on",
+            evidence="initials",
+            back=1,
+            dist_chars=10_000,  # cap at 200 -> penalty 0.1
+        )
+
+        assert score == pytest.approx(0.50)
+        assert "dist_chars=200:-0.1000" in reasons
+        assert "final=0.5000" in reasons
+
+    def test_uppercase_acronym_boost_applies(self):
+        cfg = _cfg(base=0.60, backref_uppercase_acronym_boost=0.05)
+        score, reasons = _score_backref_confidence(
+            cfg=cfg,
+            fo_surface="SSO",  # all-caps -> boost
+            cand="single sign on",
+            evidence="initials",
+            back=1,
+            dist_chars=0,
+        )
+
+        assert score == pytest.approx(0.65)
+        assert "acr_caps:+0.0500" in reasons
+        assert "final=0.6500" in reasons
+
+    def test_titlecase_boost_applies_when_ratio_meets_threshold(self):
+        cfg = _cfg(base=0.60, backref_titlecase_ratio_threshold=0.80, backref_titlecase_boost=0.05)
+        score, reasons = _score_backref_confidence(
+            cfg=cfg,
+            fo_surface="sso",
+            cand="Single Sign On",  # 3/3 titlecased -> ratio 1.0
+            evidence="initials",
+            back=1,
+            dist_chars=0,
+        )
+
+        assert score == pytest.approx(0.65)
+        assert "titlecase=1.00:+0.0500" in reasons
+        assert "final=0.6500" in reasons
+
+    def test_clamps_to_point_nine_nine(self):
+        cfg = _cfg(base=0.98, backref_definitionish_boost=0.10, backref_uppercase_acronym_boost=0.05)
+        score, reasons = _score_backref_confidence(
+            cfg=cfg,
+            fo_surface="SSO",
+            cand="Single Sign On",
+            evidence="definitionish",
+            back=1,
+            dist_chars=0,
+        )
+
+        assert score == pytest.approx(0.99)
+        assert reasons[-1] == "final=0.9900"
 
 
 class TestDefsFromPicks:
@@ -40,6 +250,7 @@ class TestDefsFromPicks:
                 def_span=(d0, d1),
                 definition_confidence=0.91,
                 original_definition=long,
+                route="all_occ_scan_parenthetical",
             ),
             "skip": None,
         }
@@ -150,6 +361,7 @@ class TestDefsFromPicksIntegration:
                 def_span=(d0, d1),
                 definition_confidence=0.87,
                 original_definition=long,
+                route="all_occ_scan_parenthetical",
             )
         }
 

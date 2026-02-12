@@ -6,6 +6,65 @@ from plainera_unacronym.nlp.extraction.core.normalise import tighten_label
 from plainera_unacronym.nlp.extraction.matchers.tighten import tighten_label_by_acronym
 
 
+_SOURCE_PRECEDENCE: dict[str, int] = {
+    "parenthetical": 5,
+    "inline": 4,
+    "first_occurrence_anchored": 3,
+    "all_occ_scan_parenthetical": 2,
+    "sentence_backref": 1,
+}
+
+def _src_rank(src: str) -> int:
+    return _SOURCE_PRECEDENCE.get(src, 0)
+
+def _wins(a: ExtractedDefinition, b: ExtractedDefinition) -> bool:
+    """
+    Return True if `a` should replace `b` as the winner for the same sense key.
+    """
+    if a.definition_confidence != b.definition_confidence:
+        return a.definition_confidence > b.definition_confidence
+    if _src_rank(a.source) != _src_rank(b.source):
+        return _src_rank(a.source) > _src_rank(b.source)
+    # stable tie-breaker: earlier definition span wins
+    if (a.def_start, a.def_end) != (b.def_start, b.def_end):
+        return (a.def_start, a.def_end) < (b.def_start, b.def_end)
+    # final tie-breaker: earlier acronym span
+    return (a.acr_start, a.acr_end) < (b.acr_start, b.acr_end)
+
+
+def _sense_key(acr: str, label: str) -> tuple[str, str]:
+    """Build a canonical (acronym, label) key.
+
+    Uppercases the acronym and returns it alongside a normalized, lowercase
+    label produced by :func:`tighten_label`. This function does not validate
+    that the acronym and label correspond; they are treated independently.
+
+    Args:
+        acr: Acronym surface form (any case).
+        label: Candidate long-form label or definition.
+
+    Returns:
+        A tuple ``(ACRONYM_UPPER, tightened_label_lower)`` suitable for use as
+        a stable dictionary key or join key.
+
+    Examples:
+        >>> _sense_key("Gpu", "Graphics Processing Unit")
+        ('GPU', 'graphics processing unit')
+        >>> _sense_key("PDF", "And, which the Portable Document Format")
+        ('PDF', 'portable document format')
+        # Acronym and label do not need to match:
+        >>> _sense_key("GPU", "Portable Document Format")
+        ('GPU', 'portable document format')
+
+    Notes:
+        - ``tighten_label`` removes leading connectors/articles and keeps
+          meaningful RHS for patterns like ``"X stands for Y"`` before lowering.
+        - No punctuation/whitespace trimming is applied to ``acr`` beyond
+          uppercasing; callers should pre-clean if needed.
+    """
+    return acr.upper(), tighten_label(label).lower()
+
+
 def defs_from_picks(text: str, picks: dict[str, Optional[InTextPick]]) -> list[ExtractedDefinition]:
     """Convert extracted in-text picks into `ExtractedDefinition` records.
 
@@ -50,7 +109,7 @@ def defs_from_picks(text: str, picks: dict[str, Optional[InTextPick]]) -> list[E
             ExtractedDefinition(
                 acronym=acr_key,
                 definition=tighten_label_by_acronym(pick.definition, acr_key),
-                source="all_occ_scan_parenthetical",
+                source=pick.route,
                 definition_confidence=pick.definition_confidence,
                 acr_start=a0,
                 acr_end=a1,
@@ -60,39 +119,6 @@ def defs_from_picks(text: str, picks: dict[str, Optional[InTextPick]]) -> list[E
             )
         )
     return out
-
-
-def _sense_key(acr: str, label: str) -> tuple[str, str]:
-    """Build a canonical (acronym, label) key.
-
-    Uppercases the acronym and returns it alongside a normalized, lowercase
-    label produced by :func:`tighten_label`. This function does not validate
-    that the acronym and label correspond; they are treated independently.
-
-    Args:
-        acr: Acronym surface form (any case).
-        label: Candidate long-form label or definition.
-
-    Returns:
-        A tuple ``(ACRONYM_UPPER, tightened_label_lower)`` suitable for use as
-        a stable dictionary key or join key.
-
-    Examples:
-        >>> _sense_key("Gpu", "Graphics Processing Unit")
-        ('GPU', 'graphics processing unit')
-        >>> _sense_key("PDF", "And, which the Portable Document Format")
-        ('PDF', 'portable document format')
-        # Acronym and label do not need to match:
-        >>> _sense_key("GPU", "Portable Document Format")
-        ('GPU', 'portable document format')
-
-    Notes:
-        - ``tighten_label`` removes leading connectors/articles and keeps
-          meaningful RHS for patterns like ``"X stands for Y"`` before lowering.
-        - No punctuation/whitespace trimming is applied to ``acr`` beyond
-          uppercasing; callers should pre-clean if needed.
-    """
-    return acr.upper(), tighten_label(label).lower()
 
 
 def dedupe_defs(defs: list[ExtractedDefinition]) -> list[ExtractedDefinition]:
@@ -126,9 +152,8 @@ def dedupe_defs(defs: list[ExtractedDefinition]) -> list[ExtractedDefinition]:
             continue
 
         cur = best[k]
-        if d.definition_confidence > cur.definition_confidence:
+        if _wins(d, cur):
             best[k] = d
-        # else tie or lower -> keep existing (first-seen)
 
     # Emit winners in order of first appearance of each key
     ordered_keys = sorted(first_idx.items(), key=lambda kv: kv[1])
