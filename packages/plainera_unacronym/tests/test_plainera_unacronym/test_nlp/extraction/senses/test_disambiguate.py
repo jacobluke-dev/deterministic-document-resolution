@@ -331,7 +331,7 @@ class TestDisambiguateOccurrencesUnit:
         r = out[0]
         assert r.acronym == "EMA"
         assert r.chosen_sense_id is None
-        assert r.candidates == {}
+        assert r.candidate_scores == {}
         assert r.margin == 0.0
 
     def test_overlap_only_picks_best_label_match(self):
@@ -369,11 +369,11 @@ class TestDisambiguateOccurrencesUnit:
         assert r.chosen_sense_id == "ema|european_medicines_agency"
         # Strong margin because other label has near-zero overlap
         assert r.margin >= 0.10
-        assert set(r.candidates) == {
+        assert set(r.candidate_scores) == {
             "ema|european_medicines_agency",
             "ema|emergency_management_australia",
         }
-        assert all(0.0 <= v <= 1.0 for v in r.candidates.values())
+        assert all(0.0 <= v <= 1.0 for v in r.candidate_scores.values())
 
     def test_distance_only_picks_nearest_definition_span(self):
         text = "FDA met EMA in Brussels yesterday."
@@ -460,8 +460,8 @@ class TestDisambiguateOccurrencesUnit:
             text, occs, senses, window_chars=400, dist_weight=0.0, overlap_weight=1.0
         )[0]
 
-        small_score = r_small.candidates.get(sid, 0.0)
-        large_score = r_large.candidates.get(sid, 0.0)
+        small_score = r_small.candidate_scores.get(sid, 0.0)
+        large_score = r_large.candidate_scores.get(sid, 0.0)
 
         # Overlap should not decrease when we widen the window
         assert small_score <= large_score

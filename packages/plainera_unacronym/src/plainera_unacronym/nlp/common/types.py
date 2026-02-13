@@ -88,7 +88,7 @@ class OccurrenceResolution:
     start: int
     end: int
     chosen_sense_id: Optional[str]  # None if ambiguous
-    candidates: dict[str, float]  # sense_id -> score (0..1)
+    candidate_scores: dict[str, float]  # sense_id -> score (0..0.99999999...)
     margin: float  # top - second best
 
 

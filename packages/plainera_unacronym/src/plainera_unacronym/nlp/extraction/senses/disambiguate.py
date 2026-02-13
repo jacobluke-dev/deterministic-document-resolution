@@ -17,6 +17,7 @@ import re
 
 from plainera_unacronym.nlp.common.types import AcronymSense, OccurrenceLite, OccurrenceResolution, Span
 
+NEAR_TIE_GAP = 0.06
 
 def _ascii_tokens(s: str) -> list[str]:
     """
@@ -77,7 +78,7 @@ def _min_distance_to_spans(pos: float, spans: list[Span]) -> int:
         - Intended for coarse tiebreaking; prefer smaller distances.
 
     """
-    best = 10**9
+    best = 10 ** 9
     for s, e in spans:
         c = _center(s, e)
         d = abs(c - pos)
@@ -91,7 +92,7 @@ DIST_TIEBREAK_MIN_ADVANTAGE = 3
 
 
 def choose_with_tiebreak(
-    occ, cand_probs, senses_by_id, *, margin_threshold: float = 0.10, near_tie_margin: float = 0.06
+    occ, cand_scores, senses_by_id, *, margin_threshold: float = 0.10, near_tie_margin: float = 0.06
 ) -> tuple[str | None, float]:
     """
     Pick a winning sense from candidate probabilities, using a relative-margin
@@ -99,7 +100,7 @@ def choose_with_tiebreak(
     proximity.
 
     Process:
-      1) Sort candidates by score desc (from `cand_probs`).
+      1) Sort candidates by score desc (from `cand_scores`).
       2) Compute relative margin: (p1 - p2) / max(p1, 1e-9). If ≥ margin_threshold,
          return top sense.
       3) Near tie: if (p1 - p2) ≤ near_tie_margin and there are ≥2 items, compare
@@ -111,8 +112,8 @@ def choose_with_tiebreak(
     Args:
         occ (OccurrenceLite):
             The occurrence to resolve; must expose `start` and `end` (ints).
-        cand_probs (dict[str, float]):
-            Candidate scores in [0,1] keyed by `sense_id`. Typically derived from
+        cand_scores (dict[str, float]):
+            Candidate scores in [0,0.9...] keyed by `sense_id`. Typically derived from
             distance/overlap scoring.
         senses_by_id (dict[str, AcronymSense]):
             Lookup for senses by `sense_id`. Each sense may provide `def_spans`
@@ -135,12 +136,8 @@ def choose_with_tiebreak(
         - The ±2 bias (≥3 units closer) avoids flapping when distances are almost equal.
     """
     items = sorted(
-        cand_probs.items(),
-        key=lambda kv: (
-            kv[1],
-            getattr(senses_by_id.get(kv[0]), "sense_confidence", 0.0),
-            kv[0],
-        ),
+        cand_scores.items(),
+        key=lambda kv: (kv[1], getattr(senses_by_id.get(kv[0]), "sense_confidence", 0.0), kv[0]),
         reverse=True,
     )
 
@@ -170,12 +167,124 @@ def choose_with_tiebreak(
     return None, margin
 
 
+def prior_weight_for_gap(gap: float, *, max_w: float = 0.08, engage_gap: float = 0.06) -> float:
+    """Return dynamic prior weight based on top-two score gap.
+
+    Engages only for near-ties: returns 0 when gap >= engage_gap, else ramps up to
+    max_w as gap approaches 0.
+
+    Args:
+        gap: Absolute (p1 - p2) gap (>=0).
+        max_w: Maximum weight applied at exact tie.
+        engage_gap: Gap threshold above which the prior is disabled.
+
+    Returns:
+        A weight in [0, max_w].
+    """
+    if gap >= engage_gap or max_w <= 0.0:
+        return 0.0
+    g = max(0.0, gap)
+    return max_w * (1.0 - (g / engage_gap))
+
+
+def sense_prior_term(*, sense_confidence: float, weight: float) -> float:
+    """Return additive prior term `weight * sense_confidence` (clamped).
+
+    Args:
+        sense_confidence: Sense confidence in [0, 1].
+        weight: Prior weight in [0, 1] (typically small).
+
+    Returns:
+        Additive score contribution.
+    """
+    if weight <= 0.0:
+        return 0.0
+    c = 0.0 if sense_confidence < 0.0 else (1.0 if sense_confidence > 1.0 else sense_confidence)
+    return weight * c
+
+
+def dynamic_prior_weight(
+    base_scores: dict[str, float],
+    *,
+    max_w: float,
+    engage_gap: float,
+) -> float:
+    """
+    Compute a dynamic prior weight for near-ties based on the top-two score gap.
+
+    Engages only when there are at least two candidates and the top-two gap is below
+    `engage_gap`; otherwise returns 0.0.
+
+    Args:
+        base_scores: Mapping of sense_id -> base score (no prior).
+        max_w: Maximum prior weight applied at exact tie; set 0.0 to disable.
+        engage_gap: Absolute gap threshold above which prior is disabled.
+
+    Returns:
+        A weight in [0.0, max_w] used to scale `sense_confidence` as an additive prior.
+    """
+    if max_w == 0:
+        return 0.0
+    if max_w <= 0.0 or len(base_scores) < 2:
+        return 0.0
+
+    items = sorted(base_scores.items(), key=lambda kv: kv[1], reverse=True)
+    p1 = items[0][1]
+    p2 = items[1][1]
+    gap = p1 - p2
+    return prior_weight_for_gap(gap, max_w=max_w, engage_gap=engage_gap)
+
+
+def base_scores_for_occurrence(
+    *,
+    occ: OccurrenceLite,
+    sense_list: list[AcronymSense],
+    ctx_tokens: set[str],
+    dist_weight: float,
+    overlap_weight: float,
+) -> dict[str, float]:
+    """
+    Compute per-sense base scores for a single occurrence.
+
+    Scores combine distance-to-definition-span proximity and local token overlap, with
+    no confidence prior applied.
+
+    Args:
+        occ: Occurrence being resolved.
+        sense_list: Candidate senses for the occurrence acronym.
+        ctx_tokens: Tokens from the occurrence context window.
+        dist_weight: Weight for proximity score.
+        overlap_weight: Weight for overlap score.
+
+    Returns:
+        Mapping of sense_id -> base score.
+    """
+    out: dict[str, float] = {}
+
+    for s in sense_list:
+        # distance score to nearest def span centre
+        if s.def_spans:
+            d = min(abs(occ.start - ((a + b) // 2)) for (a, b) in s.def_spans)
+            dist_score = 1.0 / (1.0 + d)
+        else:
+            dist_score = 0.0
+
+        # label overlap scores
+        label_tokens = set(_ascii_tokens(s.definition))
+        overlap = len(label_tokens & ctx_tokens) / max(1, len(label_tokens)) if label_tokens else 0.0
+
+        out[s.sense_id] = dist_weight * dist_score + overlap_weight * overlap
+
+    return out
+
+
 def disambiguate_occurrences(
     text: str,
     occurrences: list[OccurrenceLite],
     senses: dict[str, list["AcronymSense"]],
     *,
     window_chars: int = 300,
+    sense_prior_weight: float = 0.02,
     margin_threshold: float = 0.10,
     dist_weight: float = 0.75,
     overlap_weight: float = 0.25,
@@ -203,6 +312,10 @@ def disambiguate_occurrences(
         occurrences: OccurrenceLite list (acronym, start, end).
         senses: Mapping from UPPER(acronym) to candidate AcronymSense list.
         window_chars: Half-window (chars) around each occurrence to form ctx_tokens.
+        sense_prior_weight: Maximum weight for an optional confidence prior.
+            The prior is applied only for near-ties: a dynamic weight `w` is derived from
+            the top-two base-score gap, then each sense score is nudged by
+            `score += w * sense_confidence`. Set to 0.0 to disable.
         margin_threshold: Relative margin needed to accept the probabilistic winner.
         dist_weight: Weight for distance score.
         overlap_weight: Weight for overlap score.
@@ -221,7 +334,6 @@ def disambiguate_occurrences(
     senses_by_id = senses_by_id or {s.sense_id: s for lst in senses.values() for s in lst}
 
     for occ in occurrences:
-        cand_scores: dict[str, float] = {}
         sense_list = senses.get(occ.acronym.upper(), [])
         if not sense_list:
             results.append(OccurrenceResolution(occ.acronym, occ.start, occ.end, None, {}, 0.0))
@@ -231,29 +343,30 @@ def disambiguate_occurrences(
         R = min(len(text), occ.end + window_chars)
         ctx_tokens = set(_ascii_tokens(text[L:R]))
 
-        for s in sense_list:
-            # 1) distance score to nearest def span
-            if s.def_spans:
-                # use center of span
-                dists = [abs(occ.start - ((a + b) // 2)) for (a, b) in s.def_spans]
-                d = min(dists)
-                dist_score = 1.0 / (1.0 + d)  # 0..1, sharply favors nearby
-            else:
-                dist_score = 0.0
+        base_scores = base_scores_for_occurrence(
+            occ=occ,
+            sense_list=sense_list,
+            ctx_tokens=ctx_tokens,
+            dist_weight=dist_weight,
+            overlap_weight=overlap_weight,
+        )
 
-            # 2) label overlap
-            label_tokens = set(_ascii_tokens(s.definition))
-            overlap = len(label_tokens & ctx_tokens) / max(1, len(label_tokens)) if label_tokens else 0.0
-
-            score = dist_weight * dist_score + overlap_weight * overlap
-            cand_scores[s.sense_id] = score
-
-        if not cand_scores:
+        if not base_scores:
             results.append(OccurrenceResolution(occ.acronym, occ.start, occ.end, None, {}, 0.0))
             continue
 
+        w = dynamic_prior_weight(base_scores, max_w=sense_prior_weight, engage_gap=NEAR_TIE_GAP)
+
+        cand_scores: dict[str, float] = dict(base_scores)
+        if w:
+            for sid in cand_scores:
+                sc = getattr(senses_by_id.get(sid), "sense_confidence", 0.0)
+                cand_scores[sid] += sense_prior_term(sense_confidence=sc, weight=w)
+
         chosen, margin = choose_with_tiebreak(
-            occ, cand_scores, senses_by_id, margin_threshold=margin_threshold, near_tie_margin=0.06
+            occ, cand_scores, senses_by_id,
+            margin_threshold=margin_threshold,
+            near_tie_margin=NEAR_TIE_GAP
         )
         results.append(OccurrenceResolution(occ.acronym, occ.start, occ.end, chosen, cand_scores, margin))
 

@@ -28,7 +28,7 @@ def _chosen_id(res) -> str | None:
 
 
 def _scores(res) -> dict[str, float]:
-    return _get_attr_any(res, ["candidates", "scores", "cand_scores", "per_sense_scores"])
+    return _get_attr_any(res, ["candidate_scores", "scores", "cand_scores", "per_sense_scores"])
 
 
 def _margin(res) -> float:
@@ -200,7 +200,7 @@ class TestDisambiguateOccurrences:
 
         # The *point*: midpoint occurrence is equidistant => no decisive advantage => None.
         assert out[2].chosen_sense_id is None
-        assert set(out[2].candidates.keys()) == {"ema|medicines", "ema|emergency"}
+        assert set(out[2].candidate_scores.keys()) == {"ema|medicines", "ema|emergency"}
         assert 0.0 <= out[2].margin < 0.10
 
     def test_order_independence_of_senses_and_robust_scoring(self):
