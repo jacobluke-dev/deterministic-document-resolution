@@ -92,48 +92,35 @@ DIST_TIEBREAK_MIN_ADVANTAGE = 3
 
 
 def choose_with_tiebreak(
-    occ, cand_scores, senses_by_id, *, margin_threshold: float = 0.10, near_tie_margin: float = 0.06
+    occ: OccurrenceLite,
+    cand_scores: dict[str, float],
+    senses_by_id: dict[str, AcronymSense],
+    *,
+    margin_threshold: float = 0.10,
+    near_tie_margin: float = 0.06,
 ) -> tuple[str | None, float]:
     """
-    Pick a winning sense from candidate probabilities, using a relative-margin
-    rule first and (if needed) a spatial tiebreak based on definition-span
-    proximity.
+    Pick a winning sense from candidate scores using a relative-margin rule first,
+    then (if needed) a spatial tiebreak using definition-span proximity.
 
     Process:
       1) Sort candidates by score desc (from `cand_scores`).
       2) Compute relative margin: (p1 - p2) / max(p1, 1e-9). If ≥ margin_threshold,
-         return top sense.
+         return the top sense.
       3) Near tie: if (p1 - p2) ≤ near_tie_margin and there are ≥2 items, compare
-         the occurrence center to each sense’s definition spans via
-         `_min_distance_to_spans`. If one sense is ≥3 units closer (i.e., other + 2 < self),
-         return that sense.
-      4) Otherwise, return (None, margin).
+         occurrence center to each sense’s definition spans. If one sense is ≥3 chars
+         closer, return it.
+      4) Otherwise, return None.
 
     Args:
-        occ (OccurrenceLite):
-            The occurrence to resolve; must expose `start` and `end` (ints).
-        cand_scores (dict[str, float]):
-            Candidate scores in [0,0.9...] keyed by `sense_id`. Typically derived from
-            distance/overlap scoring.
-        senses_by_id (dict[str, AcronymSense]):
-            Lookup for senses by `sense_id`. Each sense may provide `def_spans`
-            (list[Span]) used for distance tiebreaking.
-        margin_threshold (float, optional):
-            Minimum relative margin to accept the probabilistic winner. Default 0.10.
-        near_tie_margin (float, optional):
-            Absolute score gap at which to engage the distance tiebreak when the
-            relative margin test fails. Default 0.06.
+        occ: Occurrence to resolve.
+        cand_scores: Mapping sense_id -> score.
+        senses_by_id: Mapping sense_id -> sense (used for span distance + confidence tie keys).
+        margin_threshold: Minimum relative margin ((p1 - p2) / max(p1, 1e-9)) to accept the top score.
+        near_tie_margin: Absolute score gap (p1 - p2) threshold to engage the distance tiebreak.
 
     Returns:
-        tuple[str | None, float]:
-            `(sense_id_or_none, margin)` where `margin` is the relative margin between
-            the top two candidates. If no candidates, returns `(None, 0.0)`.
-
-    Notes:
-        - Occurrence center is `(start + end) / 2.0`.
-        - Distance tiebreak uses centers of `def_spans`; missing/empty spans yield a
-          large sentinel distance, biasing toward senses with real spans.
-        - The ±2 bias (≥3 units closer) avoids flapping when distances are almost equal.
+        (sense_id_or_none, score_gap) where score_gap is (top_score - second_score), or 0.0 if <2 candidates.
     """
     items = sorted(
         cand_scores.items(),
@@ -143,28 +130,34 @@ def choose_with_tiebreak(
 
     if not items:
         return None, 0.0
-    (sid1, p1) = items[0]
+
+    sid1, p1 = items[0]
     p2 = items[1][1] if len(items) > 1 else 0.0
-    margin = (p1 - p2) / max(p1, 1e-9)
-    if margin >= margin_threshold:
-        return sid1, margin
+    gap = p1 - p2
+    rel_margin = gap / max(p1, 1e-9)
+
+    if rel_margin >= margin_threshold:
+        return sid1, gap
 
     # near tie → distance tiebreak
-    pos = _center(occ.start, occ.end)
+    if gap <= near_tie_margin and len(items) > 1:
+        pos = _center(occ.start, occ.end)
 
-    def dist_for(sid):
-        spans = getattr(senses_by_id[sid], "def_spans", []) or []
-        return _min_distance_to_spans(pos, spans)
+        def dist_for(sid: str) -> int:
+            sense = senses_by_id.get(sid)
+            spans = getattr(sense, "def_spans", None) if sense is not None else None
+            return _min_distance_to_spans(pos, spans or [])
 
-    if (p1 - p2) <= near_tie_margin and len(items) > 1:
         sid2 = items[1][0]
         d1, d2 = dist_for(sid1), dist_for(sid2)
-        if d1 - d2 >= DIST_TIEBREAK_MIN_ADVANTAGE:
-            return sid2, margin
-        if d2 - d1 >= DIST_TIEBREAK_MIN_ADVANTAGE:
-            return sid1, margin
 
-    return None, margin
+        if d1 - d2 >= DIST_TIEBREAK_MIN_ADVANTAGE:
+            return sid2, gap
+        if d2 - d1 >= DIST_TIEBREAK_MIN_ADVANTAGE:
+            return sid1, gap
+
+    return None, gap
+
 
 
 def prior_weight_for_gap(gap: float, *, max_w: float = 0.08, engage_gap: float = 0.06) -> float:

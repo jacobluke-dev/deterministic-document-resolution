@@ -57,7 +57,7 @@ class TestChooseWithTiebreak:
 
         chosen, margin = choose_with_tiebreak(occ, cand, senses_by_id, margin_threshold=0.10)
         assert chosen == "s1"
-        assert margin == pytest.approx((0.80 - 0.60) / 0.80, rel=0, abs=1e-9)
+        assert margin == pytest.approx(0.80 - 0.60, rel=0, abs=1e-9)
 
     def test_returns_none_when_margin_low_and_not_near_tie(self):
         occ = OccurrenceLite("PDF", 10, 13)
@@ -69,7 +69,7 @@ class TestChooseWithTiebreak:
 
         chosen, margin = choose_with_tiebreak(occ, cand, senses_by_id, margin_threshold=0.20, near_tie_margin=0.06)
         assert chosen is None
-        assert margin == pytest.approx((0.50 - 0.43) / 0.50, rel=0, abs=1e-9)
+        assert margin == pytest.approx(0.50 - 0.43, rel=0, abs=1e-9)
 
     def test_near_tie_distance_tiebreak_picks_closer_when_advantage_ge_3(self):
         occ = OccurrenceLite("NLP", 100, 103)

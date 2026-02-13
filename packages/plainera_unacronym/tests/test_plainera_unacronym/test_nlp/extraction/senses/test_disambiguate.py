@@ -180,86 +180,81 @@ class TestMinDistanceToSpansIntegration:
 class TestChooseWithTiebreakUnit:
     def test_empty_candidates(self):
         occ = NS(start=0, end=10)
-        sid, margin = choose_with_tiebreak(occ, {}, {})
-        assert sid is None and margin == 0.0
+        sid, gap = choose_with_tiebreak(occ, {}, {})
+        assert sid is None
+        assert gap == 0.0
 
     def test_single_candidate_short_circuit(self):
-        occ = NS(start=0, end=2)  # center=1
-        cand_probs = {"A": 0.7}
-        sid, margin = choose_with_tiebreak(occ, cand_probs, {})
-        # p2=0 → margin=(0.7-0)/0.7=1.0 ≥ margin_threshold → choose 'A'
+        occ = NS(start=0, end=2)
+        cand_scores = {"A": 0.7}
+        sid, gap = choose_with_tiebreak(occ, cand_scores, {})
         assert sid == "A"
-        assert margin == pytest.approx(1.0)
+        assert gap == pytest.approx(0.7)  # p2=0 -> gap=0.7
 
     def test_clear_margin_winner(self):
-        occ = NS(start=10, end=20)  # center=15
-        cand_probs = {"A": 0.90, "B": 0.70}
-        sid, margin = choose_with_tiebreak(occ, cand_probs, {})
-        exp_margin = (0.90 - 0.70) / 0.90
+        occ = NS(start=10, end=20)
+        cand_scores = {"A": 0.90, "B": 0.70}
+        sid, gap = choose_with_tiebreak(occ, cand_scores, {})
         assert sid == "A"
-        assert margin == pytest.approx(exp_margin)
+        assert gap == pytest.approx(0.20)
 
     def test_near_tie_distance_picks_second(self):
         # Force near tie (diff ≤ near_tie_margin and margin < margin_threshold)
         occ = NS(start=10, end=12)  # center = 11
-        cand_probs = {"A": 0.51, "B": 0.50}
+        cand_scores = {"A": 0.51, "B": 0.50}
         senses = {
-            # A is far (center ~100), B is near (center ~11)
-            "A": NS(def_spans=[(99, 101)]),
-            "B": NS(def_spans=[(10, 12)]),
+            "A": NS(def_spans=[(99, 101)]),  # far (center ~100)
+            "B": NS(def_spans=[(10, 12)]),   # near (center ~11)
         }
-        sid, margin = choose_with_tiebreak(occ, cand_probs, senses)
+        sid, gap = choose_with_tiebreak(occ, cand_scores, senses)
         assert sid == "B"
-        assert margin == pytest.approx((0.51 - 0.50) / 0.51)
+        assert gap == pytest.approx(0.01)
 
     def test_near_tie_distance_picks_first(self):
         occ = NS(start=50, end=52)  # center = 51
-        cand_probs = {"A": 0.505, "B": 0.50}
+        cand_scores = {"A": 0.505, "B": 0.50}
         senses = {
-            "A": NS(def_spans=[(50, 52)]),     # near center
-            "B": NS(def_spans=[(200, 220)]),   # far away
+            "A": NS(def_spans=[(50, 52)]),     # near
+            "B": NS(def_spans=[(200, 220)]),   # far
         }
-        sid, margin = choose_with_tiebreak(occ, cand_probs, senses)
+        sid, gap = choose_with_tiebreak(occ, cand_scores, senses)
         assert sid == "A"
-        assert margin == pytest.approx((0.505 - 0.50) / 0.505)
+        assert gap == pytest.approx(0.005)
 
     def test_near_tie_undecided_returns_none_when_within_bias(self):
         # Distances within the ±2 bias window → unresolved tie
         occ = NS(start=0, end=2)  # center = 1
-        cand_probs = {"A": 0.500, "B": 0.495}
+        cand_scores = {"A": 0.500, "B": 0.495}
         senses = {
-            "A": NS(def_spans=[(0, 2)]),   # center 1 → d=0
-            "B": NS(def_spans=[(0, 4)]),   # center 2 → d=1
+            "A": NS(def_spans=[(0, 2)]),  # center 1 -> d=0
+            "B": NS(def_spans=[(0, 4)]),  # center 2 -> d=1 (within bias window)
         }
-        sid, margin = choose_with_tiebreak(occ, cand_probs, senses)
+        sid, gap = choose_with_tiebreak(occ, cand_scores, senses)
         assert sid is None
-        assert margin == pytest.approx((0.500 - 0.495) / 0.500)
+        assert gap == pytest.approx(0.005)
 
     def test_uses_center_of_occurrence(self):
-        # If center moves, the winner toggles
-        cand_probs = {"A": 0.51, "B": 0.50}
+        cand_scores = {"A": 0.51, "B": 0.50}
         senses = {
-            "A": NS(def_spans=[(0, 2)]),   # center 1
-            "B": NS(def_spans=[(8, 12)]),  # center 10
+            "A": NS(def_spans=[(0, 2)]),    # center 1
+            "B": NS(def_spans=[(8, 12)]),   # center 10
         }
-        # Occ near A → pick A
-        sid1, _ = choose_with_tiebreak(NS(start=0, end=2), cand_probs, senses)   # center=1
-        # Occ near B → pick B
-        sid2, _ = choose_with_tiebreak(NS(start=9, end=11), cand_probs, senses)  # center=10
+        sid1, _ = choose_with_tiebreak(NS(start=0, end=2), cand_scores, senses)    # center=1
+        sid2, _ = choose_with_tiebreak(NS(start=9, end=11), cand_scores, senses)  # center=10
         assert sid1 == "A"
         assert sid2 == "B"
 
     def test_handles_missing_or_empty_def_spans(self):
-        occ = NS(start=0, end=2)  # center 1
-        cand_probs = {"A": 0.51, "B": 0.50}
+        occ = NS(start=0, end=2)
+        cand_scores = {"A": 0.51, "B": 0.50}
         senses = {
-            "A": NS(def_spans=None),      # treated as []
+            "A": NS(def_spans=None),   # should be treated as []
             "B": NS(def_spans=[]),
         }
-        # With no spans, both distances fall back to sentinel 1e9, tie remains unresolved
-        sid, margin = choose_with_tiebreak(occ, cand_probs, senses)
+        sid, gap = choose_with_tiebreak(occ, cand_scores, senses)
         assert sid is None
-        assert margin == pytest.approx((0.51 - 0.50) / 0.51)
+        assert gap == pytest.approx(0.01)
+
 
 
 class TestChooseWithTiebreakIntegration:

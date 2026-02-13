@@ -84,12 +84,25 @@ class OccurrenceLite:
 
 @dataclass
 class OccurrenceResolution:
+    """
+    Resolution result for a single acronym occurrence.
+
+    Holds the chosen sense (or None) plus per-sense scores and the top-two score gap.
+
+    Args:
+        acronym: Acronym surface for this occurrence.
+        start: Start offset (inclusive) in the source text.
+        end: End offset (exclusive) in the source text.
+        chosen_sense_id: Selected sense_id, or None if ambiguous.
+        candidate_scores: Mapping of sense_id -> score in [0.0, 0.99].
+        margin: Absolute gap (top_score - second_score), 0.0 if <2 candidates.
+    """
     acronym: str
     start: int
     end: int
-    chosen_sense_id: Optional[str]  # None if ambiguous
-    candidate_scores: dict[str, float]  # sense_id -> score (0..0.99999999...)
-    margin: float  # top - second best
+    chosen_sense_id: Optional[str]
+    candidate_scores: dict[str, float]
+    margin: float
 
 
 # -------------------------- DETECTION -------------------------------------
