@@ -13,7 +13,7 @@ from plainera_unacronym.nlp.extraction.senses.disambiguate import choose_with_ti
 
 
 def S(acr: str, sid: str, definition: str, spans: list[Span]):
-    return AcronymSense(acronym=acr, definition=definition, sense_id=sid, def_spans=spans, support=1)
+    return AcronymSense(acronym=acr, definition=definition, sense_id=sid, def_spans=spans, support=1, sense_confidence=1)
 
 
 def _get_attr_any(obj, names: list[str]):
@@ -186,8 +186,8 @@ class TestDisambiguateOccurrences:
 
         senses = {
             "EMA": [
-                AcronymSense("EMA", "European Medicines Agency", "ema|medicines", [span_med], 2),
-                AcronymSense("EMA", "Emergency Management Australia", "ema|emergency", [span_emg], 2),
+                AcronymSense("EMA", "European Medicines Agency", "ema|medicines", 1, [span_med], 2),
+                AcronymSense("EMA", "Emergency Management Australia", "ema|emergency", 2, [span_emg], 2),
             ]
         }
 
@@ -214,12 +214,14 @@ class TestDisambiguateOccurrences:
                 AcronymSense("ABC",
                              "Alpha Beta Council",
                              "abc|alpha_beta_council",
+                             1,
                              [(text.index("Org A"),
                                text.index("Org A") + 5)],
                              1),
                 AcronymSense("ABC",
                              "Applied Business Consortium",
                              "abc|applied_business_consortium",
+                             2,
                              [(text.index("Org B"),
                                text.index("Org B") + 5)],
                              1),
@@ -241,8 +243,8 @@ class TestDisambiguateOccurrences:
         # Centers at ~50 and ~53 → d1=50, d2=53 (diff=3 > 2 bias)
         senses = {
             "ACR": [
-                AcronymSense("ACR", "Alpha Core Reader", "acr|alpha", [(49, 51)], 1),  # center ~50
-                AcronymSense("ACR", "Advanced Cardiac Rehab", "acr|cardiac", [(52, 54)], 1),  # center ~53
+                AcronymSense("ACR", "Alpha Core Reader", "acr|alpha", 1, [(49, 51)], 1),  # center ~50
+                AcronymSense("ACR", "Advanced Cardiac Rehab", "acr|cardiac", 2, [(52, 54)], 1),  # center ~53
             ]
         }
 
