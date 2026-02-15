@@ -4,6 +4,8 @@ POETRY ?= $(shell command -v poetry 2>/dev/null || echo $(HOME)/.local/bin/poetr
 VENV ?= $(shell $(POETRY) env info -p 2>/dev/null)
 VENV_BIN ?= $(VENV)/bin
 PYTHON ?= python3.13
+COV_FAIL_UNDER ?= 80
+
 
 # Submodules and steps
 SUBDIRS := \
@@ -72,7 +74,7 @@ test:
 	  --cov=$(PKG) \
 	  --cov-report=term \
 	  --cov-report=xml:coverage.xml \
-	  --cov-fail-under=80
+	  --cov-fail-under=$(COV_FAIL_UNDER)
 
 # Produce a combined HTML coverage report at repo root using the root venv,
 # even if some subprojects' tests fail.
@@ -111,13 +113,6 @@ ci-local: bootstrap ## Simulate CI locally across all packages using root venv
 	done; \
 	echo ""; echo "✅ Monorepo CI local complete"
 
-
-# Run a single project: make run-ci DIR=services/unacronym_api
-#run-ci:
-#	@test -n "$(DIR)" || (echo "Usage: make run-ci DIR=<path>"; exit 2)
-#	$(MAKE) -C $(DIR) ci-local
-
-# Run a specific step (like lint, typecheck) in all submodules
 run-%:
 	@set -e; \
 	for d in $(SUBDIRS); do \
@@ -138,7 +133,11 @@ run-changed:
 	if [ -z "$(CHANGED_SUBDIRS)" ]; then echo "No changes detected"; exit 0; fi; \
 	for d in $(CHANGED_SUBDIRS); do \
 		echo ""; echo "==> $$d: ci-local"; \
-		if [ -f "$$d/Makefile" ]; then$(MAKE) -C $$d ci-local RUN="$(POETRY) run"; else echo "    (no Makefile)"; fi; \
+		if [ -f "$$d/Makefile" ]; then \
+		  $(MAKE) -C $$d ci-local RUN="$(POETRY) run"; \
+		else \
+		  echo "    (no Makefile)"; \
+		fi;
 	done
 
 # Ensure submodules are using Poetry's virtual environment

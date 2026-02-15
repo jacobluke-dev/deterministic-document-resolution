@@ -6,6 +6,7 @@ PORT ?= 8000
 IMAGE ?= unacronym-api
 APP_VERSION ?= 0.1.0
 GIT_SHA := $(shell git rev-parse --short HEAD 2>/dev/null || echo dev)
+COV_FAIL_UNDER ?= 80
 
 # Always use the compose file in ../
 COMPOSE := docker compose -f ../../docker-compose.yml
@@ -38,10 +39,10 @@ test: ## Tests + coverage (quiet)
 	  --cov=public_api \
 	  --cov-report=term \
 	  --cov-report=xml:coverage.xml \
-	  --cov-fail-under=80
+	  --cov-fail-under=$(COV_FAIL_UNDER)
 
 cover: ## Verbose coverage
-	PYTHONPATH=src $(RUN) pytest --cov=public_api --cov-report=term --cov-report=xml --cov-fail-under=80
+	PYTHONPATH=src $(RUN) pytest --cov=public_api --cov-report=term --cov-report=xml --cov-fail-under=$(COVER_FAIL_UNDER)
 
 htmlcov: ## HTML coverage report
 	PYTHONPATH=src $(RUN) pytest --cov=public_api --cov-report=html
