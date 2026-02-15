@@ -180,23 +180,25 @@ class TestMinDistanceToSpansIntegration:
 class TestChooseWithTiebreakUnit:
     def test_empty_candidates(self):
         occ = NS(start=0, end=10)
-        sid, gap = choose_with_tiebreak(occ, {}, {})
+        sid, gap, relative = choose_with_tiebreak(occ, {}, {})
         assert sid is None
         assert gap == 0.0
+        assert relative == 0.0
 
     def test_single_candidate_short_circuit(self):
         occ = NS(start=0, end=2)
         cand_scores = {"A": 0.7}
-        sid, gap = choose_with_tiebreak(occ, cand_scores, {})
+        sid, relative, gap = choose_with_tiebreak(occ, cand_scores, {})
         assert sid == "A"
         assert gap == pytest.approx(0.7)  # p2=0 -> gap=0.7
 
     def test_clear_margin_winner(self):
         occ = NS(start=10, end=20)
         cand_scores = {"A": 0.90, "B": 0.70}
-        sid, gap = choose_with_tiebreak(occ, cand_scores, {})
+        sid, relative, gap = choose_with_tiebreak(occ, cand_scores, {})
         assert sid == "A"
         assert gap == pytest.approx(0.20)
+        assert relative == pytest.approx(0.2222, abs=1e-4)
 
     def test_near_tie_distance_picks_second(self):
         # Force near tie (diff ≤ near_tie_margin and margin < margin_threshold)
@@ -206,9 +208,12 @@ class TestChooseWithTiebreakUnit:
             "A": NS(def_spans=[(99, 101)]),  # far (center ~100)
             "B": NS(def_spans=[(10, 12)]),   # near (center ~11)
         }
-        sid, gap = choose_with_tiebreak(occ, cand_scores, senses)
+        sid, relative, gap = choose_with_tiebreak(occ, cand_scores, senses)
         assert sid == "B"
         assert gap == pytest.approx(0.01)
+        assert relative == pytest.approx(0.0196078, abs=1e-7)
+
+
 
     def test_near_tie_distance_picks_first(self):
         occ = NS(start=50, end=52)  # center = 51
@@ -217,9 +222,10 @@ class TestChooseWithTiebreakUnit:
             "A": NS(def_spans=[(50, 52)]),     # near
             "B": NS(def_spans=[(200, 220)]),   # far
         }
-        sid, gap = choose_with_tiebreak(occ, cand_scores, senses)
+        sid, relative, gap = choose_with_tiebreak(occ, cand_scores, senses)
         assert sid == "A"
         assert gap == pytest.approx(0.005)
+        assert relative == pytest.approx(0.0099009900, abs=1e-7)
 
     def test_near_tie_undecided_returns_none_when_within_bias(self):
         # Distances within the ±2 bias window → unresolved tie
@@ -229,9 +235,10 @@ class TestChooseWithTiebreakUnit:
             "A": NS(def_spans=[(0, 2)]),  # center 1 -> d=0
             "B": NS(def_spans=[(0, 4)]),  # center 2 -> d=1 (within bias window)
         }
-        sid, gap = choose_with_tiebreak(occ, cand_scores, senses)
+        sid, relative, gap = choose_with_tiebreak(occ, cand_scores, senses)
         assert sid is None
         assert gap == pytest.approx(0.005)
+        assert relative == pytest.approx(0.01, abs=1e-2)
 
     def test_uses_center_of_occurrence(self):
         cand_scores = {"A": 0.51, "B": 0.50}
@@ -239,8 +246,8 @@ class TestChooseWithTiebreakUnit:
             "A": NS(def_spans=[(0, 2)]),    # center 1
             "B": NS(def_spans=[(8, 12)]),   # center 10
         }
-        sid1, _ = choose_with_tiebreak(NS(start=0, end=2), cand_scores, senses)    # center=1
-        sid2, _ = choose_with_tiebreak(NS(start=9, end=11), cand_scores, senses)  # center=10
+        sid1, _, _ = choose_with_tiebreak(NS(start=0, end=2), cand_scores, senses)    # center=1
+        sid2, _, _ = choose_with_tiebreak(NS(start=9, end=11), cand_scores, senses)  # center=10
         assert sid1 == "A"
         assert sid2 == "B"
 
@@ -251,10 +258,10 @@ class TestChooseWithTiebreakUnit:
             "A": NS(def_spans=None),   # should be treated as []
             "B": NS(def_spans=[]),
         }
-        sid, gap = choose_with_tiebreak(occ, cand_scores, senses)
+        sid, relative, gap = choose_with_tiebreak(occ, cand_scores, senses)
         assert sid is None
         assert gap == pytest.approx(0.01)
-
+        assert relative == pytest.approx(0.019607843, abs=1e-9)
 
 
 class TestChooseWithTiebreakIntegration:
@@ -278,7 +285,7 @@ class TestChooseWithTiebreakIntegration:
 
         winners = []
         for occ in trail:
-            sid, _ = choose_with_tiebreak(occ, dict(cand_probs), senses)
+            sid, _, _ = choose_with_tiebreak(occ, dict(cand_probs), senses)
             winners.append(sid)
 
         assert winners[0] == "A"
@@ -293,16 +300,18 @@ class TestChooseWithTiebreakIntegration:
         senses = {"A": NS(def_spans=[(0, 2)]), "B": NS(def_spans=[(50, 52)])}  # B is spatially closer
 
         # Default thresholds → margin = (0.55-0.52)/0.55 ≈ 0.0545 < 0.10, near tie triggers, B should win
-        sid_def, margin_def = choose_with_tiebreak(occ, cand_probs, senses)
+        sid_def, rel_margin_def, abs_def = choose_with_tiebreak(occ, cand_probs, senses)
         assert sid_def == "B"
-        assert 0.0 <= margin_def < 0.10
+        assert 0.0 <= abs_def < 0.10
+        assert 0.0 <= rel_margin_def <= 0.05454545454545459
 
         # If we make the margin_threshold tiny, the probabilistic winner short-circuits before distance
-        sid_small_thr, margin_small_thr = choose_with_tiebreak(
+        sid_small_thr, rel_margin_small_thr, abs_margin_small_thr = choose_with_tiebreak(
             occ, cand_probs, senses, margin_threshold=0.01, near_tie_margin=0.06
         )
         assert sid_small_thr == "A"
-        assert margin_small_thr >= 0.01
+        assert abs_margin_small_thr >= 0.01
+        assert rel_margin_small_thr >= 0.05454545454545459
 
     def test_handles_realistic_mix_missing_spans_and_ties(self):
         # Some senses lack def_spans; ensure function remains stable.
@@ -311,9 +320,10 @@ class TestChooseWithTiebreakIntegration:
         senses = {"A": NS(def_spans=None), "B": NS(def_spans=[(98, 102)])}  # B has nearby span
 
         # diff=0 ≤ near_tie_margin; B has finite distance, A hits sentinel → B should win
-        sid, margin = choose_with_tiebreak(occ, cand_probs, senses)
+        sid, rel_margin, abs_margin = choose_with_tiebreak(occ, cand_probs, senses)
         assert sid == "B"
-        assert margin == 0.0
+        assert abs_margin == 0.0
+        assert rel_margin == 0.0
 
 
 class TestDisambiguateOccurrencesUnit:

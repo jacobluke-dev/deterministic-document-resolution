@@ -98,29 +98,79 @@ def choose_with_tiebreak(
     *,
     margin_threshold: float = 0.10,
     near_tie_margin: float = 0.06,
-) -> tuple[str | None, float]:
+) -> tuple[None, float, float] | tuple[str, float, float]:
     """
     Pick a winning sense from candidate scores using a relative-margin rule first,
     then (if needed) a spatial tiebreak using definition-span proximity.
 
-    Process:
-      1) Sort candidates by score desc (from `cand_scores`).
-      2) Compute relative margin: (p1 - p2) / max(p1, 1e-9). If ≥ margin_threshold,
-         return the top sense.
-      3) Near tie: if (p1 - p2) ≤ near_tie_margin and there are ≥2 items, compare
-         occurrence center to each sense’s definition spans. If one sense is ≥3 chars
-         closer, return it.
-      4) Otherwise, return None.
+    Overview
+        The resolver uses two different “separation” measures for two different jobs:
+
+        1) Relative margin (dimensionless):
+               rel_margin = (p1 - p2) / max(p1, 1e-9)
+
+           Used to decide whether the top-scoring sense is clearly better than the runner-up.
+
+        2) Absolute gap (same units as the scores):
+               gap = p1 - p2
+
+           Used to decide whether the top two scores are close enough to treat as a near-tie
+           and attempt a distance-based tiebreak.
+
+    Process
+        1) Sort candidates by score descending.
+           Tie keys (in order):
+             - score (desc)
+             - sense_confidence (desc, if present on the sense)
+             - sense_id (desc) for deterministic ordering
+
+        2) Compute:
+             p1 = top score
+             p2 = second score (or 0.0 if missing)
+             gap = p1 - p2
+             rel_margin = gap / max(p1, 1e-9)
+
+        3) If rel_margin >= margin_threshold:
+             accept the probabilistic winner and return the top sense.
+
+        4) Otherwise, if gap <= near_tie_margin (and there are at least two candidates):
+             engage the distance tiebreak:
+               - compute the occurrence centre
+               - compute each sense’s distance to its nearest definition-span centre
+               - if one sense is at least DIST_TIEBREAK_MIN_ADVANTAGE closer, choose it
+               - else return None (ambiguous)
+
+        5) If not a near-tie (gap > near_tie_margin), return None (ambiguous).
 
     Args:
-        occ: Occurrence to resolve.
-        cand_scores: Mapping sense_id -> score.
-        senses_by_id: Mapping sense_id -> sense (used for span distance + confidence tie keys).
-        margin_threshold: Minimum relative margin ((p1 - p2) / max(p1, 1e-9)) to accept the top score.
-        near_tie_margin: Absolute score gap (p1 - p2) threshold to engage the distance tiebreak.
+        occ:
+            Occurrence to resolve (expects integer start/end offsets).
+        cand_scores:
+            Mapping sense_id -> score. Scores are heuristic composites (distance/overlap/prior)
+            and are not calibrated probabilities.
+        senses_by_id:
+            Mapping sense_id -> AcronymSense. Used for:
+              - definition spans (distance tiebreak)
+              - optional sense_confidence as a deterministic sorting key
+        margin_threshold:
+            Minimum relative margin to accept the top score:
+                (p1 - p2) / max(p1, 1e-9) >= margin_threshold
+        near_tie_margin:
+            Absolute score gap threshold to engage distance tiebreak:
+                (p1 - p2) <= near_tie_margin
 
     Returns:
-        (sense_id_or_none, score_gap) where score_gap is (top_score - second_score), or 0.0 if <2 candidates.
+        tuple[str | None, float]:
+            (chosen_sense_id_or_none, gap)
+
+            gap is the absolute top-two score gap (p1 - p2).
+            It is 0.0 when there are no candidates, and equals p1 when there is only one candidate
+            (since p2 is treated as 0.0).
+
+    Notes:
+        - Relative margin is used for the acceptance decision (stable across score scaling).
+        - Absolute gap is used for the near-tie decision (treats “close” as an absolute notion).
+        - The distance tiebreak only runs for near-ties; otherwise ambiguity is preserved.
     """
     items = sorted(
         cand_scores.items(),
@@ -129,35 +179,36 @@ def choose_with_tiebreak(
     )
 
     if not items:
-        return None, 0.0
+        return None, 0.0, 0.0
 
     sid1, p1 = items[0]
     p2 = items[1][1] if len(items) > 1 else 0.0
+
     gap = p1 - p2
     rel_margin = gap / max(p1, 1e-9)
 
+    # 1) accept probabilistic winner if relative margin is strong
     if rel_margin >= margin_threshold:
-        return sid1, gap
+        return sid1, rel_margin, gap
 
-    # near tie → distance tiebreak
-    if gap <= near_tie_margin and len(items) > 1:
+    # 2) near tie -> engage distance tiebreak
+    if len(items) > 1 and gap <= near_tie_margin:
         pos = _center(occ.start, occ.end)
 
         def dist_for(sid: str) -> int:
-            sense = senses_by_id.get(sid)
-            spans = getattr(sense, "def_spans", None) if sense is not None else None
-            return _min_distance_to_spans(pos, spans or [])
+            spans = getattr(senses_by_id.get(sid), "def_spans", None) or []
+            return _min_distance_to_spans(pos, spans)
 
         sid2 = items[1][0]
         d1, d2 = dist_for(sid1), dist_for(sid2)
 
         if d1 - d2 >= DIST_TIEBREAK_MIN_ADVANTAGE:
-            return sid2, gap
+            return sid2, rel_margin, gap
         if d2 - d1 >= DIST_TIEBREAK_MIN_ADVANTAGE:
-            return sid1, gap
+            return sid1, rel_margin, gap
 
-    return None, gap
-
+    # 3) unresolved
+    return None, rel_margin, gap
 
 
 def prior_weight_for_gap(gap: float, *, max_w: float = 0.08, engage_gap: float = 0.06) -> float:
@@ -329,7 +380,7 @@ def disambiguate_occurrences(
     for occ in occurrences:
         sense_list = senses.get(occ.acronym.upper(), [])
         if not sense_list:
-            results.append(OccurrenceResolution(occ.acronym, occ.start, occ.end, None, {}, 0.0))
+            results.append(OccurrenceResolution(occ.acronym, occ.start, occ.end, None, {}, 0.0, 0.0))
             continue
 
         L = max(0, occ.start - window_chars)
@@ -356,11 +407,24 @@ def disambiguate_occurrences(
                 sc = getattr(senses_by_id.get(sid), "sense_confidence", 0.0)
                 cand_scores[sid] += sense_prior_term(sense_confidence=sc, weight=w)
 
-        chosen, margin = choose_with_tiebreak(
-            occ, cand_scores, senses_by_id,
+        chosen, rel_margin, gap = choose_with_tiebreak(
+            occ,
+            cand_scores,
+            senses_by_id,
             margin_threshold=margin_threshold,
-            near_tie_margin=NEAR_TIE_GAP
+            near_tie_margin=NEAR_TIE_GAP,
         )
-        results.append(OccurrenceResolution(occ.acronym, occ.start, occ.end, chosen, cand_scores, margin))
+
+        results.append(
+            OccurrenceResolution(
+                occ.acronym,
+                occ.start,
+                occ.end,
+                chosen,
+                cand_scores,
+                gap=gap,
+                margin=rel_margin,
+            )
+        )
 
     return results
