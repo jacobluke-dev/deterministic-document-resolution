@@ -3,7 +3,7 @@ from typing import Optional
 
 from plainera_unacronym.nlp import FirstOccurrence
 from plainera_unacronym.nlp.common.shared import normalize_acronym_key
-from plainera_unacronym.nlp.common.types import ExtractedDefinition, InTextPick, Occurrence
+from plainera_unacronym.nlp.common.types import ExtractedDefinition, InTextPick
 
 
 def build_defs_index(
@@ -42,7 +42,7 @@ def backfill_missing_picks_from_defs(
     picks: dict[str, Optional[InTextPick]],
     *,
     defs_index: dict[str, list[ExtractedDefinition]],
-    unique_acronyms: dict[str, Occurrence | FirstOccurrence],
+    unique_acronyms: dict[str, FirstOccurrence],
 ) -> dict[str, Optional[InTextPick]]:
     """
     Backfill only missing picks (`None`) using candidate definitions from an index.

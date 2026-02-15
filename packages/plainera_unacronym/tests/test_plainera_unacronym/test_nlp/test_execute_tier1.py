@@ -20,7 +20,14 @@ from plainera_unacronym.nlp.extraction.senses.disambiguate import choose_with_ti
 from plainera_unacronym.nlp.extraction.senses.sense_build import build_senses
 
 
-def _ed(acr: str, d: str, a0: int = 0, a1: int = 0, d0: int = 0, d1: int = 0, conf: float = 0.95, src="all_occ_scan_parenthetical",
+def _ed(acr: str,
+        d: str,
+        a0: int = 0,
+        a1: int = 0,
+        d0: int = 0,
+        d1: int = 0,
+        conf: float = 0.95,
+        src="all_occ_scan_parenthetical",
         orig=None):
     return state.ExtractedDefinition(
         acronym=acr,

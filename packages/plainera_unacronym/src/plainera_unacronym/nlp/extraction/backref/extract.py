@@ -198,16 +198,16 @@ def _valid_backref_candidate(
     if len(clean) > max_chars:
         return False
 
-    if clean.replace(" ", "").upper() == acr_norm.replace(" ", ""):
+    clean_comp = clean.replace(" ", "").upper()
+    acr_comp = acr_norm.replace(" ", "")
+
+    if clean_comp == acr_comp:
         return False
 
     if require_two_words and len(TOKEN_RE.findall(clean)) < 2:
         return False
 
-    if not (initials_match(acr_norm, clean) or _initials_match_backref(acr_norm, clean)):
-        return False
-
-    return True
+    return initials_match(acr_norm, clean) or _initials_match_backref(acr_norm, clean)
 
 
 @dataclass(frozen=True, slots=True)

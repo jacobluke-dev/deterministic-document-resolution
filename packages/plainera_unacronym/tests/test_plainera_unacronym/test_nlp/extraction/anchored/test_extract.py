@@ -10,7 +10,11 @@ from plainera_unacronym.nlp.extraction import ExtractionConfig
 def _fo(acr: str, start: int, end: int, *, norm: str | None = None):
     # Use your existing helper if you already have one
     from plainera_unacronym.nlp.common.types import FirstOccurrence
-    return FirstOccurrence(acronym=acr, start_offset=start, end_offset=end, occurrence_confidence=0.9, normalized_key=norm)
+    return FirstOccurrence(acronym=acr,
+                           start_offset=start,
+                           end_offset=end,
+                           occurrence_confidence=0.9,
+                           normalized_key=norm)
 
 
 class TestBuildLocalWindowUnit:

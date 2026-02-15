@@ -397,7 +397,7 @@ def disambiguate_occurrences(
         )
 
         if not base_scores:
-            results.append(OccurrenceResolution(occ.acronym, occ.start, occ.end, None, {}, 0.0))
+            results.append(OccurrenceResolution(occ.acronym, occ.start, occ.end, None, {}, 0.0, 0.0))
             continue
 
         w = dynamic_prior_weight(base_scores, max_w=sense_prior_weight, engage_gap=NEAR_TIE_GAP)

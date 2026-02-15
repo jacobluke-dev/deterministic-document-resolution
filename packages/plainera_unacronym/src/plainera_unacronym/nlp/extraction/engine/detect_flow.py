@@ -3,10 +3,9 @@ from typing import Optional
 
 from plainera_unacronym.nlp.common.types import DetectorConfig, DetectorResult, ExtractionResult
 from plainera_unacronym.nlp.extraction.config import ExtractionConfig
-
-from . import stage_funcs as f
-from .stages import Chain, Stage, StageReport, TraceEvent, Tracer
-from .state import FlowState
+from plainera_unacronym.nlp.extraction.engine import stage_funcs as f
+from plainera_unacronym.nlp.extraction.engine.stages import Chain, Stage, StageReport, TraceEvent, Tracer
+from plainera_unacronym.nlp.extraction.engine.state import FlowState
 
 
 class ExtractionFlow:
@@ -143,7 +142,8 @@ class ExtractionFlow:
                     "finalise_picks",
                     f.st_finalise_picks,
                     lambda s: (
-                        f"cov={s.coverage:.0%} miss={len(s.missing_keys)} by_route={dict(sorted(Counter(p.route for p in s.picks.values() if p).items()))}"
+                        f"cov={s.coverage:.0%} miss={len(s.missing_keys)} "
+                        f"by_route={dict(sorted(Counter(p.route for p in s.picks.values() if p).items()))}"
                     ),
                     trace_fields=("picks",),
                 ),

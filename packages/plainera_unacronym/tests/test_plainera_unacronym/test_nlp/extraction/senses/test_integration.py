@@ -13,7 +13,12 @@ from plainera_unacronym.nlp.extraction.senses.disambiguate import choose_with_ti
 
 
 def S(acr: str, sid: str, definition: str, spans: list[Span]):
-    return AcronymSense(acronym=acr, definition=definition, sense_id=sid, def_spans=spans, support=1, sense_confidence=1)
+    return AcronymSense(acronym=acr,
+                        definition=definition,
+                        sense_id=sid,
+                        def_spans=spans,
+                        support=1,
+                        sense_confidence=1)
 
 
 def _get_attr_any(obj, names: list[str]):
@@ -69,7 +74,11 @@ class TestChooseWithTiebreak:
         }
         cand = {"s1": 0.50, "s2": 0.43}  # diff=0.07 > 0.06 => no distance tiebreak
 
-        chosen, rel_margin, abs_margin = choose_with_tiebreak(occ, cand, senses_by_id, margin_threshold=0.20, near_tie_margin=0.06)
+        chosen, rel_margin, abs_margin = choose_with_tiebreak(occ,
+                                                              cand,
+                                                              senses_by_id,
+                                                              margin_threshold=0.20,
+                                                              near_tie_margin=0.06)
         assert chosen is None
         assert abs_margin == pytest.approx(0.50 - 0.43, rel=0, abs=1e-9)
         assert rel_margin == pytest.approx(0.14)

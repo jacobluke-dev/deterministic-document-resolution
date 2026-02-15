@@ -27,6 +27,27 @@ _TITLECASE_RUN_ANY_RE = re.compile(
 
 
 def _pick_best_run(text: str) -> str | None:
+    """
+    Select the “best” title-case run from `text`.
+
+    This scans `text` for title-cased spans matched by `_TITLECASE_RUN_ANY_RE`,
+    filters out empty/degenerate candidates (e.g. spans that contain no valid
+    title tokens per `_TITLE_TOKEN_RE`), and then chooses a winner using a
+    deterministic ranking:
+
+      1) Prefer the candidate with the greatest number of tokens (as counted by `TOKEN_RE`).
+      2) If tied on token count, prefer the rightmost candidate (largest match end offset).
+
+    This heuristic is designed to pick the most information-dense and most
+    context-relevant title-case phrase when multiple runs are present.
+
+    Args:
+        text: Source text to scan for title-case runs.
+
+    Returns:
+        The selected title-case span (stripped), or None if no suitable
+        candidate is found.
+    """
     best: str | None = None
     best_key: tuple[int, int] | None = None  # (token_count, end_pos)
 
@@ -40,7 +61,7 @@ def _pick_best_run(text: str) -> str | None:
 
         tok_n = len(TOKEN_RE.findall(cand))
         key = (tok_n, m.end())  # prefer longer; tie-break by rightmost
-        if best is None or key > best_key:
+        if best is None or best_key is None or key > best_key:
             best, best_key = cand, key
 
     return best
