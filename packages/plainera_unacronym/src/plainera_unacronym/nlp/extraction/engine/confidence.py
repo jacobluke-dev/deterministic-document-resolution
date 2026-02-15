@@ -1,4 +1,7 @@
+from typing import Optional
+
 from plainera_unacronym.nlp.extraction import ExtractionConfig
+from plainera_unacronym.nlp.extraction.config import ConfidenceConfig
 
 
 def base_for_kind(cfg: ExtractionConfig, kind: str) -> float:
@@ -62,3 +65,24 @@ def base_conf_for(cfg: ExtractionConfig, *, source: str, default: float = 0.50) 
     """
     v = cfg.confidence.base_by_source.get(source)
     return default if v is None else v
+
+
+def conf_knob(cfg: ExtractionConfig, name: str, default: float) -> float:
+    """Read a numeric confidence knob from cfg.confidence with a safe default.
+
+    Intended for scalar tuning parameters (boosts/penalties/weights) that live on
+    `ConfidenceConfig` (e.g. `backref_lookback_penalty`, `dist_weight`).
+
+    Args:
+        cfg: ExtractionConfig (may or may not have `confidence` set).
+        name: Attribute name on `ConfidenceConfig`.
+        default: Value to return if `cfg.confidence` is missing or attribute absent.
+
+    Returns:
+        The configured knob value or `default`.
+    """
+    cc: Optional[ConfidenceConfig] = getattr(cfg, "confidence", None)
+    if cc is None:
+        return default
+    v = getattr(cc, name, None)
+    return default if v is None else float(v)

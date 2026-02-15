@@ -82,10 +82,20 @@ from plainera_unacronym.nlp.extraction.anchored.normalise import tighten_definit
 from plainera_unacronym.nlp.extraction.backref.spans import best_span_by_initials, find_span_index, sent_spans
 from plainera_unacronym.nlp.extraction.config import ExtractionConfig
 from plainera_unacronym.nlp.extraction.core.collect import initials_match
-from plainera_unacronym.nlp.extraction.engine.confidence import base_conf_for
+from plainera_unacronym.nlp.extraction.engine.confidence import base_conf_for, conf_knob
 
 BackrefEvidence = Literal["definitionish", "initials"]
+CONF_MAX = 0.99
 
+
+@dataclass(frozen=True, slots=True)
+class _ScoreCtx:
+    cfg: ExtractionConfig
+    fo_surface: str
+    cand: str
+    evidence: BackrefEvidence
+    back: int
+    dist_chars: int
 
 def _initials_hyphen_aware(phrase: str) -> str:
     """
@@ -141,9 +151,6 @@ def _initials_match_backref(acr_norm: str, clean: str) -> bool:
     return _initials_hyphen_aware(clean) == a
 
 
-CONF_MAX = 0.99
-
-
 def clamp_confidence(x: float, *, cap: float = CONF_MAX) -> float:
     """
     Clamp a confidence score into [0.0, cap] to avoid returning a hard 1.0.
@@ -159,6 +166,20 @@ def clamp_confidence(x: float, *, cap: float = CONF_MAX) -> float:
 
 
 def _titlecase_ratio(s: str) -> float:
+    """Return the fraction of tokens that look title-cased.
+
+    A token counts as "title-ish" if:
+      - its first character is uppercase (e.g., "Single"), OR
+      - the whole token is uppercase (e.g., "USA").
+
+    Used as a weak heuristic that a candidate definition resembles a proper noun / label.
+
+    Args:
+        s: Candidate definition text.
+
+    Returns:
+        Ratio in [0.0, 1.0]. Returns 0.0 when no tokens are found.
+    """
     toks = TOKEN_RE.findall(s)
     if not toks:
         return 0.0
@@ -210,30 +231,6 @@ def _valid_backref_candidate(
     return initials_match(acr_norm, clean) or _initials_match_backref(acr_norm, clean)
 
 
-@dataclass(frozen=True, slots=True)
-class _ScoreCtx:
-    cfg: ExtractionConfig
-    conf_cfg: object | None
-    fo_surface: str
-    cand: str
-    evidence: BackrefEvidence
-    back: int
-    dist_chars: int
-
-
-def _get_knob(conf_cfg: object | None, name: str, default: float) -> float:
-    """Get a numeric knob from ConfidenceConfig (or default).
-
-    Args:
-        conf_cfg: cfg.confidence or None.
-        name: Attribute name on the config.
-        default: Value if missing.
-
-    Returns:
-        The knob value.
-    """
-    return getattr(conf_cfg, name, default) if conf_cfg is not None else default
-
 
 def _add_term(
     score: float,
@@ -242,16 +239,23 @@ def _add_term(
     label: str,
     delta: float,
 ) -> float:
-    """Apply a delta and record a reason line.
+    """Apply a signed delta to the score and append a trace line to `rs`.
+
+    Records either:
+      - "<label>:+<abs(delta)>" / "<label>:-<abs(delta)>" when delta != 0
+      - "<label>:0" when delta == 0
+
+    This keeps confidence scoring explainable and testable by preserving the
+    exact additive terms used.
 
     Args:
-        score: Current score.
-        rs: Reasons list (mutated).
-        label: Reason prefix.
-        delta: Signed delta applied to score.
+        score: Current running score.
+        rs: Reasons list to append to (mutated in place).
+        label: Prefix label for the trace line (e.g., "lookback=2").
+        delta: Signed amount to add to `score`.
 
     Returns:
-        Updated score.
+        Updated score after applying `delta`.
     """
     if delta:
         sign = "+" if delta > 0 else "-"
@@ -262,44 +266,101 @@ def _add_term(
 
 
 def _evidence_delta(ctx: _ScoreCtx) -> tuple[float, str]:
+    """Return the additive confidence delta for the evidence type.
+
+    Evidence types are:
+      - "definitionish": candidate came from span tightening / definition-like selection
+      - "initials": candidate came from initials-based span selection
+
+    The returned label is formatted for the reasons trace (e.g., "evidence=initials").
+
+    Args:
+        ctx: Scoring context.
+
+    Returns:
+        (delta, label) where delta is added to the running score.
+    """
     if ctx.evidence == "definitionish":
-        v = _get_knob(ctx.conf_cfg, "backref_definitionish_boost", 0.10)
+        v = conf_knob(ctx.cfg, "backref_definitionish_boost", 0.10)
         return v, "evidence=definitionish"
-    v = _get_knob(ctx.conf_cfg, "backref_initials_boost", 0.00)
+    v = conf_knob(ctx.cfg, "backref_initials_boost", 0.00)
     return v, "evidence=initials"
 
 
 def _lookback_delta(ctx: _ScoreCtx) -> tuple[float, str]:
-    pen_per = _get_knob(ctx.conf_cfg, "backref_lookback_penalty", 0.05)
+    """Return the lookback penalty based on how many sentences back the candidate is.
+
+    Penalises candidates found further back than the immediately previous sentence:
+        penalty = max(0, back - 1) * backref_lookback_penalty
+
+    Args:
+        ctx: Scoring context.
+
+    Returns:
+        (delta, label) where delta is negative (a penalty) and label is "lookback=<n>".
+    """
+    pen_per = conf_knob(ctx.cfg, "backref_lookback_penalty", 0.05)
     pen = max(0, ctx.back - 1) * pen_per
     return -pen, f"lookback={ctx.back}"
 
 
 def _distance_delta(ctx: _ScoreCtx) -> tuple[float, str]:
-    cap = int(getattr(ctx.conf_cfg, "backref_distance_penalty_cap_chars", 200)) if ctx.conf_cfg is not None else 200
-    per = _get_knob(ctx.conf_cfg, "backref_distance_penalty_per_char", 0.0005)
+    """Return the distance penalty based on character gap between candidate and FO.
+
+    Uses `dist_chars` (distance from previous sentence end to FO start) and applies:
+        penalty = min(max(dist_chars, 0), cap) * per_char
+
+    Args:
+        ctx: Scoring context.
+
+    Returns:
+        (delta, label) where delta is negative (a penalty) and label is "dist_chars=<n>".
+    """
+    cap = int(getattr(ctx.cfg, "backref_distance_penalty_cap_chars", 200)) if ctx.cfg is not None else 200
+    per = conf_knob(ctx.cfg, "backref_distance_penalty_per_char", 0.0005)
     dist_eff = min(max(ctx.dist_chars, 0), cap)
     pen = dist_eff * per
     return -pen, f"dist_chars={dist_eff}"
 
 
 def _acronym_caps_delta(ctx: _ScoreCtx) -> tuple[float, str]:
+    """Return the uppercase-acronym boost if the FO surface is all-caps.
+
+    This favours canonical acronym renderings (e.g., "SSO" vs "sso") as they tend to
+    correlate with more intentional definitions in formal prose.
+
+    Args:
+        ctx: Scoring context.
+
+    Returns:
+        (delta, label) where delta is 0.0 if FO is not all-caps, else a positive boost.
+    """
+
     if not ctx.fo_surface.isupper():
         return 0.0, "acr_caps"
-    b = _get_knob(ctx.conf_cfg, "backref_uppercase_acronym_boost", 0.05)
+    b = conf_knob(ctx.cfg, "backref_uppercase_acronym_boost", 0.05)
     return b, "acr_caps"
 
 
 def _titlecase_delta(ctx: _ScoreCtx) -> tuple[float, str]:
+    """Return the title-case boost if the candidate looks like a proper label.
+
+    Computes `_titlecase_ratio(cand)` and compares to the configured threshold.
+    If the ratio meets/exceeds the threshold, applies `backref_titlecase_boost`.
+
+    Args:
+        ctx: Scoring context.
+
+    Returns:
+        (delta, label) where delta is 0.0 when below threshold, else a positive boost.
+        Label is "titlecase=<ratio>" for traceability.
+    """
     ratio = _titlecase_ratio(ctx.cand)
-    thr = _get_knob(ctx.conf_cfg, "backref_titlecase_ratio_threshold", 0.80)
+    thr = conf_knob(ctx.cfg, "backref_titlecase_ratio_threshold", 0.80)
     if ratio < thr:
         return 0.0, f"titlecase={ratio:.2f}"
-    b = _get_knob(ctx.conf_cfg, "backref_titlecase_boost", 0.05)
+    b = conf_knob(ctx.cfg, "backref_titlecase_boost", 0.05)
     return b, f"titlecase={ratio:.2f}"
-
-
-# --- main ------------------------------------------------------------------
 
 
 def _score_backref_confidence(
@@ -324,12 +385,10 @@ def _score_backref_confidence(
     Returns:
         (score, reasons) where score is clamped to [0.0, 0.99].
     """
-    conf_cfg = getattr(cfg, "confidence", None)
     base = base_conf_for(cfg, source="sentence_backref")
 
     ctx = _ScoreCtx(
         cfg=cfg,
-        conf_cfg=conf_cfg,
         fo_surface=fo_surface,
         cand=cand,
         evidence=evidence,
