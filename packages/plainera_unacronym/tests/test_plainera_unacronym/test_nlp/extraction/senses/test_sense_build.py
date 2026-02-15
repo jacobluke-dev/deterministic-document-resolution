@@ -10,6 +10,7 @@ class DummyDef:
     definition: str
     def_start: int
     def_end: int
+    definition_confidence: float = 0.9
 
 
 # ----------------------------
@@ -109,6 +110,19 @@ class TestBuildSensesUnit:
         assert seen["len"] == 2
         assert "A" in out
 
+    def test_build_senses_prefers_highest_confidence_duplicate(self, _patch):
+        # Use real dedupe_defs or patch it to pick max confidence.
+        defs = [
+            DummyDef("PDF", "Portable Document Format", 0, 10, definition_confidence=0.60),
+            DummyDef("pdf", "And, which the Portable Document Format", 20, 30, definition_confidence=0.90),
+        ]
+        senses = build_senses(defs)
+        pdf = senses["PDF"][0]
+        assert pdf.sense_confidence == 0.90
+        assert pdf.support == 1  # because dedupe collapses into one def before sense building
+
+
+
 
 # ----------------------------
 # Integration tests: build_senses + real tighten_label + real slugging
@@ -121,8 +135,8 @@ class TestBuildSensesIntegration:
         _patch(build_senses, dedupe_defs=lambda xs: xs)
 
         defs = [
-            DummyDef("EMA", "The European Medicines Agency", 5, 15),
-            DummyDef("ema", "EMA stands for European Medicines Agency", 50, 80),
+            DummyDef("EMA", "The European Medicines Agency", 5, 15, 0),
+            DummyDef("ema", "EMA stands for European Medicines Agency", 50, 80, 0),
         ]
 
         out = build_senses(defs)

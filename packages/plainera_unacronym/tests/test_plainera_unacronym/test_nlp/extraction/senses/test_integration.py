@@ -13,7 +13,12 @@ from plainera_unacronym.nlp.extraction.senses.disambiguate import choose_with_ti
 
 
 def S(acr: str, sid: str, definition: str, spans: list[Span]):
-    return AcronymSense(acronym=acr, definition=definition, sense_id=sid, def_spans=spans, support=1)
+    return AcronymSense(acronym=acr,
+                        definition=definition,
+                        sense_id=sid,
+                        def_spans=spans,
+                        support=1,
+                        sense_confidence=1)
 
 
 def _get_attr_any(obj, names: list[str]):
@@ -28,7 +33,7 @@ def _chosen_id(res) -> str | None:
 
 
 def _scores(res) -> dict[str, float]:
-    return _get_attr_any(res, ["candidates", "scores", "cand_scores", "per_sense_scores"])
+    return _get_attr_any(res, ["candidate_scores", "scores", "cand_scores", "per_sense_scores"])
 
 
 def _margin(res) -> float:
@@ -42,9 +47,10 @@ def _margin(res) -> float:
 class TestChooseWithTiebreak:
     def test_returns_none_when_no_candidates(self):
         occ = OccurrenceLite("NLP", 10, 13)
-        chosen, margin = choose_with_tiebreak(occ, {}, {}, margin_threshold=0.10, near_tie_margin=0.06)
+        chosen, rel_margin, abs_margin = choose_with_tiebreak(occ, {}, {}, margin_threshold=0.10, near_tie_margin=0.06)
         assert chosen is None
-        assert margin == 0.0
+        assert abs_margin == 0.0
+        assert rel_margin == 0.0
 
     def test_accepts_probabilistic_winner_when_margin_exceeds_threshold(self):
         occ = OccurrenceLite("PDF", 10, 13)
@@ -55,9 +61,10 @@ class TestChooseWithTiebreak:
         }
         cand = {"s1": 0.80, "s2": 0.60}
 
-        chosen, margin = choose_with_tiebreak(occ, cand, senses_by_id, margin_threshold=0.10)
+        chosen, rel_margin, abs_margin = choose_with_tiebreak(occ, cand, senses_by_id, margin_threshold=0.10)
         assert chosen == "s1"
-        assert margin == pytest.approx((0.80 - 0.60) / 0.80, rel=0, abs=1e-9)
+        assert abs_margin == pytest.approx(0.80 - 0.60, rel=0, abs=1e-9)
+        assert rel_margin == pytest.approx(0.25000, abs=1e-4)
 
     def test_returns_none_when_margin_low_and_not_near_tie(self):
         occ = OccurrenceLite("PDF", 10, 13)
@@ -67,9 +74,14 @@ class TestChooseWithTiebreak:
         }
         cand = {"s1": 0.50, "s2": 0.43}  # diff=0.07 > 0.06 => no distance tiebreak
 
-        chosen, margin = choose_with_tiebreak(occ, cand, senses_by_id, margin_threshold=0.20, near_tie_margin=0.06)
+        chosen, rel_margin, abs_margin = choose_with_tiebreak(occ,
+                                                              cand,
+                                                              senses_by_id,
+                                                              margin_threshold=0.20,
+                                                              near_tie_margin=0.06)
         assert chosen is None
-        assert margin == pytest.approx((0.50 - 0.43) / 0.50, rel=0, abs=1e-9)
+        assert abs_margin == pytest.approx(0.50 - 0.43, rel=0, abs=1e-9)
+        assert rel_margin == pytest.approx(0.14)
 
     def test_near_tie_distance_tiebreak_picks_closer_when_advantage_ge_3(self):
         occ = OccurrenceLite("NLP", 100, 103)
@@ -79,7 +91,7 @@ class TestChooseWithTiebreak:
         }
         cand = {"near": 0.50, "far": 0.47}  # diff=0.03 => engage distance tiebreak
 
-        chosen, _ = choose_with_tiebreak(occ, cand, senses_by_id, margin_threshold=0.10, near_tie_margin=0.06)
+        chosen, _, _ = choose_with_tiebreak(occ, cand, senses_by_id, margin_threshold=0.10, near_tie_margin=0.06)
         assert chosen == "near"
 
     def test_near_tie_distance_tiebreak_returns_none_when_distances_too_close(self):
@@ -90,7 +102,7 @@ class TestChooseWithTiebreak:
         }
         cand = {"a": 0.50, "b": 0.48}
 
-        chosen, _ = choose_with_tiebreak(occ, cand, senses_by_id, margin_threshold=0.10, near_tie_margin=0.06)
+        chosen, _, _ = choose_with_tiebreak(occ, cand, senses_by_id, margin_threshold=0.10, near_tie_margin=0.06)
         assert chosen is None
 
 
@@ -186,8 +198,8 @@ class TestDisambiguateOccurrences:
 
         senses = {
             "EMA": [
-                AcronymSense("EMA", "European Medicines Agency", "ema|medicines", [span_med], 2),
-                AcronymSense("EMA", "Emergency Management Australia", "ema|emergency", [span_emg], 2),
+                AcronymSense("EMA", "European Medicines Agency", "ema|medicines", 1, [span_med], 2),
+                AcronymSense("EMA", "Emergency Management Australia", "ema|emergency", 2, [span_emg], 2),
             ]
         }
 
@@ -200,7 +212,7 @@ class TestDisambiguateOccurrences:
 
         # The *point*: midpoint occurrence is equidistant => no decisive advantage => None.
         assert out[2].chosen_sense_id is None
-        assert set(out[2].candidates.keys()) == {"ema|medicines", "ema|emergency"}
+        assert set(out[2].candidate_scores.keys()) == {"ema|medicines", "ema|emergency"}
         assert 0.0 <= out[2].margin < 0.10
 
     def test_order_independence_of_senses_and_robust_scoring(self):
@@ -214,12 +226,14 @@ class TestDisambiguateOccurrences:
                 AcronymSense("ABC",
                              "Alpha Beta Council",
                              "abc|alpha_beta_council",
+                             1,
                              [(text.index("Org A"),
                                text.index("Org A") + 5)],
                              1),
                 AcronymSense("ABC",
                              "Applied Business Consortium",
                              "abc|applied_business_consortium",
+                             2,
                              [(text.index("Org B"),
                                text.index("Org B") + 5)],
                              1),
@@ -241,8 +255,8 @@ class TestDisambiguateOccurrences:
         # Centers at ~50 and ~53 → d1=50, d2=53 (diff=3 > 2 bias)
         senses = {
             "ACR": [
-                AcronymSense("ACR", "Alpha Core Reader", "acr|alpha", [(49, 51)], 1),  # center ~50
-                AcronymSense("ACR", "Advanced Cardiac Rehab", "acr|cardiac", [(52, 54)], 1),  # center ~53
+                AcronymSense("ACR", "Alpha Core Reader", "acr|alpha", 1, [(49, 51)], 1),  # center ~50
+                AcronymSense("ACR", "Advanced Cardiac Rehab", "acr|cardiac", 2, [(52, 54)], 1),  # center ~53
             ]
         }
 

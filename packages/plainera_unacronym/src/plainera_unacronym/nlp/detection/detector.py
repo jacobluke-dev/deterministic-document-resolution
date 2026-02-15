@@ -162,7 +162,7 @@ def _build_occurrence_from_match(
         acronym=key_base,
         start_offset=s,
         end_offset=end_for_occ,
-        confidence=conf,
+        occurrence_confidence=conf,
         context_window=ctx,
         normalized_key=display_key,
         reasons=rsn,
@@ -337,7 +337,7 @@ class Detector:
                     acronym=occ.acronym,
                     start_offset=occ.start_offset,
                     end_offset=occ.end_offset,
-                    confidence=conf,
+                    occurrence_confidence=conf,
                     normalized_key=display_key,
                 )
 
@@ -386,7 +386,7 @@ class Detector:
         cfg = self._with_auto_domains(text)
         cands = list(iter_candidates_with(text, cfg, self._pat))
         if len(cands) < threshold:
-            return self.detect(text)
+            return self.detect(text=text)
 
         if self._pool is None:
             from os import cpu_count
@@ -441,7 +441,7 @@ class Detector:
                     acronym=occ.acronym,
                     start_offset=occ.start_offset,
                     end_offset=occ.end_offset,
-                    confidence=occ.confidence,
+                    occurrence_confidence=occ.occurrence_confidence,
                     normalized_key=display_key,
                 )
 

@@ -281,7 +281,7 @@ def _best_occ_at_start(by_start: dict[int, list["Occurrence"]], start: int) -> "
     bs = by_start.get(start)
     if not bs:
         return None
-    return max(bs, key=lambda o: (o.end_offset - o.start_offset, o.confidence))
+    return max(bs, key=lambda o: (o.end_offset - o.start_offset, o.occurrence_confidence))
 
 
 def _find_paren_occurrence_after(

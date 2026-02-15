@@ -83,7 +83,7 @@ class TestTracerUnit:
                 def_start=0,
                 def_end=24,
                 confidence=0.95,
-                source="in_text",
+                source="all_occ_scan_parenthetical",
             )
         ]
         t = Tracer()
@@ -97,7 +97,7 @@ class TestTracerUnit:
         assert row["orig"] == "European Medicines Agency"
         assert row["spans"] == (30, 33, 0, 24)
         assert row["conf"] == pytest.approx(0.95)
-        assert row["src"] == "in_text"
+        assert row["src"] == "all_occ_scan_parenthetical"
 
     def test_filter_regex_applies_to_dict_keys_for_picks(self):
         picks = {
@@ -112,9 +112,9 @@ class TestTracerUnit:
     def test_filter_regex_applies_to_item_acronym_for_defs(self):
         defs = [
             SimpleNamespace(acronym="EMA", definition="x", original_definition="x", acr_start=0, acr_end=1, def_start=0,
-                            def_end=1, confidence=0.9, source="in_text"),
+                            def_end=1, confidence=0.9, source="all_occ_scan_parenthetical"),
             SimpleNamespace(acronym="NLP", definition="y", original_definition="y", acr_start=0, acr_end=1, def_start=0,
-                            def_end=1, confidence=0.9, source="in_text"),
+                            def_end=1, confidence=0.9, source="all_occ_scan_parenthetical"),
         ]
         t = Tracer(filter_regex=r"^EMA$")
         out = t._snap_value(defs)
@@ -143,7 +143,7 @@ class TestTracerUnit:
         picks = {"ema": SimpleNamespace(definition="European Medicines Agency")}
         defs = [
             SimpleNamespace(acronym="EMA", definition="x", original_definition="x", acr_start=0, acr_end=1, def_start=0,
-                            def_end=1, confidence=0.9, source="in_text")]
+                            def_end=1, confidence=0.9, source="all_occ_scan_parenthetical")]
         state = DummyState(picks=picks, anchored_defs=defs)
 
         t = Tracer()

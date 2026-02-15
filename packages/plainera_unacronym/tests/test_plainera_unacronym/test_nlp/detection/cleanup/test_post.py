@@ -12,8 +12,8 @@ class TestPostCleanup:
 
         det = DetectorResult(
             unique_acronyms={
-                occ_mrna.normalized_key: fo(cfg, "mRNA", 12, 16),
-                occ_rna.normalized_key: fo(cfg, "RNA", 13, 16),
+                occ_mrna.normalized_key: fo("mRNA", 12, 16),
+                occ_rna.normalized_key: fo("RNA", 13, 16),
             },
             occurrences=[occ_mrna, occ_rna],
         )
@@ -36,8 +36,8 @@ class TestPostCleanup:
 
         det = DetectorResult(
             unique_acronyms={
-                occ_outer.normalized_key: fo(cfg, "ABCD", 6, 10),
-                occ_inner.normalized_key: fo(cfg, "BC", 7, 9),
+                occ_outer.normalized_key: fo("ABCD", 6, 10),
+                occ_inner.normalized_key: fo("BC", 7, 9),
             },
             occurrences=[occ_outer, occ_inner],
         )
@@ -57,8 +57,8 @@ class TestPostCleanup:
 
         det = DetectorResult(
             unique_acronyms={
-                occ_rna.normalized_key: fo(cfg, "RNA", 10, 13, conf=0.6),
-                occ_mrna.normalized_key: fo(cfg, "mRNA", 15, 19, conf=0.85),
+                occ_rna.normalized_key: fo("RNA", 10, 13, conf=0.6),
+                occ_mrna.normalized_key: fo("mRNA", 15, 19, conf=0.85),
             },
             occurrences=[occ_rna, occ_mrna],
         )
@@ -79,8 +79,8 @@ class TestPostCleanup:
 
         det = DetectorResult(
             unique_acronyms={
-                occ_mrna.normalized_key: fo(cfg, "mRNA", 12, 16),
-                occ_rna.normalized_key: fo(cfg, "RNA", 18, 21),
+                occ_mrna.normalized_key: fo("mRNA", 12, 16),
+                occ_rna.normalized_key: fo("RNA", 18, 21),
             },
             occurrences=[occ_mrna, occ_rna],
         )
@@ -100,8 +100,8 @@ class TestPostCleanup:
 
         det = DetectorResult(
             unique_acronyms={
-                occ_mrna.normalized_key: fo(cfg, "mRNA", 12, 16),
-                occ_rna.normalized_key: fo(cfg, "rNa", 18, 21),
+                occ_mrna.normalized_key: fo("mRNA", 12, 16),
+                occ_rna.normalized_key: fo("rNa", 18, 21),
             },
             occurrences=[occ_mrna, occ_rna],
         )
@@ -123,8 +123,8 @@ class TestPostCleanup:
 
         det = DetectorResult(
             unique_acronyms={
-                occ_mrna.normalized_key: fo(cfg, "mRNA", 12, 16),
-                occ_rna.normalized_key: fo(cfg, "RNA", 13, 16),
+                occ_mrna.normalized_key: fo("mRNA", 12, 16),
+                occ_rna.normalized_key: fo("RNA", 13, 16),
             },
             occurrences=[occ_mrna, occ_rna],
         )
@@ -146,7 +146,7 @@ class TestPostCleanup:
 
         det = DetectorResult(
             unique_acronyms={
-                occ_typo.normalized_key: fo(cfg, "ABCdE", 12, 17),
+                occ_typo.normalized_key: fo("ABCdE", 12, 17),
             },
             occurrences=[occ_typo],
         )
@@ -165,7 +165,7 @@ class TestPostCleanup:
         occ_ok = occ(cfg, "TfL", 17, 20)
 
         det = DetectorResult(
-            unique_acronyms={occ_ok.normalized_key: fo(cfg, "TfL", 17, 20)},
+            unique_acronyms={occ_ok.normalized_key: fo("TfL", 17, 20)},
             occurrences=[occ_ok],
         )
 
@@ -184,7 +184,7 @@ class TestPostCleanup:
 
         det = DetectorResult(
             unique_acronyms={
-                occ2.normalized_key: fo(cfg, "mRNA", 22, 26, conf=0.9),  # pretend detector picked later first
+                occ2.normalized_key: fo("mRNA", 22, 26, conf=0.9),  # pretend detector picked later first
             },
             occurrences=[occ2, occ1],  # unsorted input on purpose
         )

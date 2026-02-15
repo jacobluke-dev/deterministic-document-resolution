@@ -1,12 +1,26 @@
-from types import SimpleNamespace
+from types import SimpleNamespace as NS
 
 import pytest
 from plainera_unacronym.nlp.extraction.strategies.harvest import extract_defs_all_occurrences
 
 
-class Cfg:
-    def __init__(self, window_chars=320):
-        self.window_chars = window_chars
+def _cfg(**overrides):
+    base = dict(
+        max_phrase_chars=200,
+        inline_cues=(r"short\s+for", r"stands?\s+for", r"is\s+(?:an\s+)?acronym\s+for"),
+        conf_parenthetical=0.95,
+        conf_inline=0.80,
+        require_two_words=True,
+    )
+    base.update(overrides)
+    conf = NS(base_by_source={
+        "parenthetical": base["conf_parenthetical"],
+        "all_occ_scan_parenthetical": base["conf_parenthetical"],
+        "inline": base["conf_inline"],
+        "first_occurrence_anchored": 0.85,
+    })
+    base["confidence"] = conf
+    return NS(**base)
 
 
 class Occ:
@@ -33,7 +47,7 @@ class TestExtractDefsAllOccurrencesUnit:
         _patch(
             extract_defs_all_occurrences,
             find_parenthetical_longform_before_acr=lambda snippet, acr, cfg: [
-                SimpleNamespace(
+                NS(
                     def_start=d0,  # note: in harvest, we expect these to be relative to snippet start L
                     def_end=d1,
                     definition="Portable Document Format",
@@ -44,7 +58,7 @@ class TestExtractDefsAllOccurrencesUnit:
         )
 
         # To make def_start/def_end values relative to snippet L, force L=0 with large window
-        cfg = Cfg(window_chars=len(text))
+        cfg = _cfg(window_chars=len(text))
         out = extract_defs_all_occurrences(text, occs, cfg)
         assert len(out) == 1
         item = out[0]
@@ -57,9 +71,9 @@ class TestExtractDefsAllOccurrencesUnit:
         assert text[item.def_start:item.def_end] == "Portable Document Format"
         # acr span mapped from occ
         assert (item.acr_start, item.acr_end) == (acr0, acr1)
-        assert item.source == "in_text"
+        assert item.source == "all_occ_scan_parenthetical"
         assert item.original_definition == "Portable Document Format"
-        assert item.confidence == pytest.approx(0.95)
+        assert item.definition_confidence == pytest.approx(0.95)
 
     def test_after_path_maps_relative_right_offset(self, _patch):
         text = "See GPU (Graphics Processing Unit) for details"
@@ -76,13 +90,13 @@ class TestExtractDefsAllOccurrencesUnit:
         def fake_after(right, cfg, acr=None):
             # right is text starting at acr1 when L=0 (big window)
             # so def_start is inner_start - acr1
-            return [SimpleNamespace(
+            return [NS(
                 def_start=inner_start - acr1,
                 def_end=inner_end - acr1,
                 definition=inner,
             )]
 
-        cfg = Cfg(window_chars=len(text))
+        cfg = _cfg(window_chars=len(text))
         _patch(
             extract_defs_all_occurrences,
             find_parenthetical_longform_before_acr=lambda *a, **k: [],
@@ -105,7 +119,7 @@ class TestExtractDefsAllOccurrencesUnit:
         gpu0 = text.index("GPU")
         gpu1 = gpu0 + 3
 
-        cfg = Cfg(window_chars=len(text))  # big window: include both phrases
+        cfg = _cfg(window_chars=len(text))  # big window: include both phrases
 
         def fake_before(snippet, acr, cfg):
             if acr != "PDF":
@@ -114,7 +128,7 @@ class TestExtractDefsAllOccurrencesUnit:
             if phrase in snippet:
                 s = snippet.index(phrase)
                 e = s + len(phrase)
-                return [SimpleNamespace(def_start=s, def_end=e, definition=phrase)]
+                return [NS(def_start=s, def_end=e, definition=phrase)]
             return []
 
         def fake_after(snippet, cfg, acr=None, **_):
@@ -128,7 +142,7 @@ class TestExtractDefsAllOccurrencesUnit:
             if phrase in snippet:
                 s = snippet.index(phrase)
                 e = s + len(phrase)
-                return [SimpleNamespace(def_start=s, def_end=e, definition=phrase)]
+                return [NS(def_start=s, def_end=e, definition=phrase)]
             return []
 
         _patch(
@@ -153,7 +167,7 @@ class TestExtractDefsAllOccurrencesUnit:
         pdf1 = pdf0 + 3
         gpu0 = text.index("GPU")
         gpu1 = gpu0 + 3
-        cfg = Cfg(window_chars=3)
+        cfg = _cfg(window_chars=3)
 
         _patch(
             extract_defs_all_occurrences,
@@ -170,15 +184,15 @@ class TestExtractDefsAllOccurrencesUnit:
         acr0 = text.index("PDF")
         acr1 = acr0 + 3
         occs = [Occ("PDF", acr0, acr1)]
-        cfg = Cfg(window_chars=len(text))
+        cfg = _cfg(window_chars=len(text))
 
         phrase = "Portable Document Format"
         d0 = text.index(phrase)
         d1 = d0 + len(phrase)
 
-        before_match = SimpleNamespace(def_start=d0, def_end=d1, definition=phrase)
+        before_match = NS(def_start=d0, def_end=d1, definition=phrase)
         # after matcher reports spans relative to `right = snippet[rel_a1:]`
-        after_match = SimpleNamespace(def_start=(d0 - acr1), def_end=(d1 - acr1), definition=phrase)
+        after_match = NS(def_start=(d0 - acr1), def_end=(d1 - acr1), definition=phrase)
 
         _patch(
             extract_defs_all_occurrences,
@@ -195,8 +209,8 @@ class TestExtractDefsAllOccurrencesUnit:
             assert text[item.def_start:item.def_end] == phrase
             assert item.original_definition == phrase
             assert item.definition == phrase
-            assert item.source == "in_text"
-            assert item.confidence == pytest.approx(0.95)
+            assert item.source == "all_occ_scan_parenthetical"
+            assert item.definition_confidence == pytest.approx(0.95)
 
     def test_window_clamp_L_nonzero_maps_before_match_relative_spans_to_absolute(self, _patch):
         # Build text with a prefix so L will be > 0 when window clamps.
@@ -209,7 +223,7 @@ class TestExtractDefsAllOccurrencesUnit:
 
         # Choose a window smaller than acr0 so L>0, but large enough to still include the definition.
         win = 30
-        cfg = Cfg(window_chars=win)
+        cfg = _cfg(window_chars=win)
         occs = [Occ("PDF", acr0, acr1)]
 
         # What harvest will compute:
@@ -228,7 +242,7 @@ class TestExtractDefsAllOccurrencesUnit:
         def fake_before(pre, acr, cfg):
             # sanity: definition must be inside the clamped snippet region
             assert phrase in snippet
-            return [SimpleNamespace(def_start=rel_d0, def_end=rel_d1, definition=phrase)]
+            return [NS(def_start=rel_d0, def_end=rel_d1, definition=phrase)]
 
         _patch(
             extract_defs_all_occurrences,
@@ -259,7 +273,7 @@ class TestExtractDefsAllOccurrencesIntegration:
         gpu0 = text.index("GPU")
         gpu1 = gpu0 + 3
 
-        cfg = Cfg(window_chars=80)
+        cfg = _cfg(window_chars=80)
         occs = [Occ("PDF", pdf0, pdf1), Occ("GPU", gpu0, gpu1)]
         out = extract_defs_all_occurrences(text, occs, cfg)
 
@@ -270,13 +284,13 @@ class TestExtractDefsAllOccurrencesIntegration:
         by_acr = {o.acronym: o for o in out}
 
         pdf = by_acr["PDF"]
-        assert pdf.source == "in_text"
+        assert pdf.source == "all_occ_scan_parenthetical"
         assert pdf.original_definition == "Portable Document Format"
         # tightened label should still be the same canonical phrase
         assert pdf.definition == "Portable Document Format"
         assert text[pdf.def_start:pdf.def_end] == "Portable Document Format"
         assert (pdf.acr_start, pdf.acr_end) == (pdf0, pdf1)
-        assert pdf.confidence == pytest.approx(0.95)
+        assert pdf.definition_confidence == pytest.approx(0.95)
 
         gpu = by_acr["GPU"]
         assert gpu.original_definition == "Graphics Processing Unit"
@@ -291,12 +305,12 @@ class TestExtractDefsAllOccurrencesIntegration:
         pdf1 = pdf0 + 3
 
         # Window that doesn't reach the words before "PDF"
-        cfg = Cfg(window_chars=1)
+        cfg = _cfg(window_chars=1)
         out = extract_defs_all_occurrences(text, [Occ("PDF", pdf0, pdf1)], cfg)
         assert out == []
 
         # Large enough window finds it
-        cfg2 = Cfg(window_chars=50)
+        cfg2 = _cfg(window_chars=50)
         out2 = extract_defs_all_occurrences(text, [Occ("PDF", pdf0, pdf1)], cfg2)
         assert len(out2) == 1
         assert out2[0].definition == "Portable Document Format"
@@ -309,7 +323,7 @@ class TestExtractDefsAllOccurrencesIntegration:
         acr0 = text.index("QAE")
         acr1 = acr0 + 3  # end offset is exclusive by convention in the codebase
 
-        cfg = Cfg(window_chars=len(text))  # ensure the window covers the whole phrase
+        cfg = _cfg(window_chars=len(text))  # ensure the window covers the whole phrase
         occs = [Occ("QAE", acr0, acr1)]
 
         out = extract_defs_all_occurrences(text, occs, cfg)
@@ -318,8 +332,8 @@ class TestExtractDefsAllOccurrencesIntegration:
         item = out[0]
         # Acronym comes from the occurrence as-is
         assert item.acronym == "QAE"
-        assert item.source == "in_text"
-        assert item.confidence == pytest.approx(0.95)
+        assert item.source == "all_occ_scan_parenthetical"
+        assert item.definition_confidence == pytest.approx(0.95)
         assert (item.acr_start, item.acr_end) == (acr0, acr1)
 
         # Original definition should be the normalized parenthetical content
@@ -341,7 +355,7 @@ class TestExtractDefsAllOccurrencesIntegration:
         acr0 = text.index("QAE")
         acr1 = acr0 + 3
 
-        cfg = Cfg(window_chars=len(text))  # ensure the window covers the whole phrase
+        cfg = _cfg(window_chars=len(text))  # ensure the window covers the whole phrase
         occs = [Occ("QAE", acr0, acr1)]
 
         out = extract_defs_all_occurrences(text, occs, cfg)
@@ -349,8 +363,8 @@ class TestExtractDefsAllOccurrencesIntegration:
 
         item = out[0]
         assert item.acronym == "QAE"
-        assert item.source == "in_text"
-        assert item.confidence == pytest.approx(0.95)
+        assert item.source == "all_occ_scan_parenthetical"
+        assert item.definition_confidence == pytest.approx(0.95)
         assert (item.acr_start, item.acr_end) == (acr0, acr1)
 
         expected_phrase = "Queen's Award for Enterprise"

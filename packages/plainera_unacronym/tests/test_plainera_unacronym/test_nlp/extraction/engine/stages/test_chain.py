@@ -132,7 +132,7 @@ class TestChainTracerIntegration:
                     def_start=0,
                     def_end=27,
                     confidence=0.95,
-                    source="in_text",
+                    source="all_occ_scan_parenthetical",
                 )
             )
             return StageResult(s, note="added")

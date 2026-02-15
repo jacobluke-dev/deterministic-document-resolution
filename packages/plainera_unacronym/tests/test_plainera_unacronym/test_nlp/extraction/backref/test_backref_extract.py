@@ -1,29 +1,32 @@
-
 from plainera_unacronym.nlp import FirstOccurrence
-from plainera_unacronym.nlp.common.constants_regex import BRIDGES_DEFAULT
 from plainera_unacronym.nlp.common.types import ExtractedDefinition
 from plainera_unacronym.nlp.extraction.backref.extract import (
     _candidate_from_prev_sentence,
     _find_backref_candidate,
+    _score_backref_confidence,
     extract_sentence_backrefs,
 )
-from plainera_unacronym.nlp.extraction.backref.spans import best_span_by_initials
 from plainera_unacronym.nlp.extraction.config import ExtractionConfig
-from plainera_unacronym.nlp.extraction.core.normalise import normalize_definition
-from plainera_unacronym.nlp.extraction.matchers.tighten import tighten_label_by_acronym
+
+
+class TestScoreBackrefConfidence:
+
+    def test_score_backref_confidence_penalises_lookback_and_distance(self):
+        cfg = ExtractionConfig()  # with confidence defaults
+        c1, _ = _score_backref_confidence(
+            cfg=cfg, fo_surface="SSO", cand="Single Sign-on", evidence="definitionish", back=1, dist_chars=5
+        )
+        c2, _ = _score_backref_confidence(
+            cfg=cfg, fo_surface="SSO", cand="Single Sign-on", evidence="definitionish", back=2, dist_chars=5
+        )
+        assert c1 > c2
 
 
 class TestCandidateFromPrevSentenceIntegration:
     def test_happy_path_returns_normalised_candidate(self):
-        cand0 = best_span_by_initials("SSO", "We use Single sign-on for authentication", max_chars=200)
-        print("cand0:", cand0)
-
-        cand1 = tighten_label_by_acronym(cand0, "SSO", bridges=set(BRIDGES_DEFAULT))
-        cand1 = normalize_definition(cand1)
-        print("cand1:", cand1)
         cfg = ExtractionConfig()
         prev = "We use Single sign-on for authentication."
-        out = _candidate_from_prev_sentence(
+        out, evidence = _candidate_from_prev_sentence(
             acr_norm="SSO",
             prev_text=prev,
             cfg=cfg,
@@ -31,6 +34,7 @@ class TestCandidateFromPrevSentenceIntegration:
             require_two_words=True,
         )
         assert out == "Single sign-on"
+        assert evidence == "definitionish"
 
     def test_returns_none_for_blank_prev_text(self):
         cfg = ExtractionConfig()
@@ -56,7 +60,7 @@ class TestCandidateFromPrevSentenceIntegration:
     def test_strips_trailing_punctuation_before_span_search(self):
         cfg = ExtractionConfig()
         prev = "We use Single sign-on for authentication...   "
-        out = _candidate_from_prev_sentence(
+        out, evidence = _candidate_from_prev_sentence(
             acr_norm="SSO",
             prev_text=prev,
             cfg=cfg,
@@ -64,6 +68,7 @@ class TestCandidateFromPrevSentenceIntegration:
             require_two_words=True,
         )
         assert out == "Single sign-on"
+        assert evidence == "definitionish"
 
     def test_returns_none_when_no_initials_span_found(self):
         cfg = ExtractionConfig()
@@ -161,8 +166,7 @@ class TestFindBackrefCandidate:
 
         def fake_candidate(*, prev_text, **_):
             seen_prev_texts.append(prev_text)
-            # Return a hit only for the nearest previous sentence (S1)
-            return "HIT" if prev_text.strip() == "S1." else None
+            return ("HIT", "definitionish") if prev_text.strip() == "S1." else None
 
         _patch(_find_backref_candidate, _candidate_from_prev_sentence=fake_candidate)
 
@@ -176,8 +180,7 @@ class TestFindBackrefCandidate:
             require_two_words=True,
         )
 
-        assert out == ("HIT", spans[1])
-        # Must try nearest first (span index 1), and stop after hit
+        assert out == ("HIT", spans[1], 1, "definitionish")
         assert seen_prev_texts == ["S1."]
 
     def test_falls_back_to_older_sentence_if_nearest_has_no_hit(self, _patch):
@@ -191,7 +194,7 @@ class TestFindBackrefCandidate:
         def fake_candidate(*, prev_text, **_):
             calls.append(prev_text.strip())
             if prev_text.strip() == "Alpha.":
-                return "FOUND"
+                return "FOUND", "definitionish"
             return None
 
         _patch(_find_backref_candidate, _candidate_from_prev_sentence=fake_candidate)
@@ -206,7 +209,7 @@ class TestFindBackrefCandidate:
             require_two_words=True,
         )
 
-        assert out == ("FOUND", spans[0])
+        assert out == ("FOUND", spans[0], 2, "definitionish")
         # Must attempt Beta first (nearest), then Alpha
         assert calls == ["Beta.", "Alpha."]
 
@@ -249,7 +252,7 @@ class TestFindBackrefCandidate:
 
         def fake_candidate(**kwargs):
             seen.update(kwargs)
-            return "OK"
+            return "OK", "definitionish"
 
         _patch(_find_backref_candidate, _candidate_from_prev_sentence=fake_candidate)
 
@@ -263,7 +266,7 @@ class TestFindBackrefCandidate:
             require_two_words=False,
         )
 
-        assert out == ("OK", spans[0])
+        assert out == ("OK", spans[0], 1, "definitionish")
         assert seen["acr_norm"] == "SSO"
         assert seen["cfg"] is cfg
         assert seen["max_chars"] == 123
@@ -276,7 +279,7 @@ def test_sentence_backref_ignores_single_letter_acronyms():
     text = "We use Authentication. A is sometimes used as shorthand."
     firsts = {
         "A": FirstOccurrence(acronym="A", start_offset=text.index("A is"), end_offset=text.index("A is") + 1,
-                             confidence=0.9, normalized_key="A")
+                             occurrence_confidence=0.9, normalized_key="A")
     }
 
     out = extract_sentence_backrefs(text=text, firsts=firsts, cfg=cfg)
@@ -291,7 +294,7 @@ def _fo(acr: str, start: int, end: int, *, norm: str | None = None):
         acronym=acr,
         start_offset=start,
         end_offset=end,
-        confidence=0.9,
+        occurrence_confidence=0.9,
         normalized_key=norm,
     )
 
@@ -368,24 +371,22 @@ class TestExtractSentenceBackrefsUnit:
         fo = _fo("SSO", start=text.index("SSO"), end=text.index("SSO") + 3, norm="SSO")
         firsts = {"SSO": fo}
 
-        _patch(
-            extract_sentence_backrefs,
-            sent_spans=lambda _t: spans,
-            find_span_index=lambda _spans, _pos: 1,
-            _find_backref_candidate=lambda **_: ("Single sign-on", spans[0]),
-        )
-
         emitted: list[dict] = []
 
-        def fake_emit(*, acr_norm, fo, cand, prev_span, text):
+        def fake_emit(*, acr_norm, fo, cand, prev_span, text, cfg, back,  evidence):
             emitted.append(
-                {"acr_norm": acr_norm, "cand": cand, "prev_span": prev_span, "fo": fo, "text": text}
+                {"acr_norm": acr_norm,
+                 "cand": cand,
+                 "prev_span": prev_span,
+                 "fo": fo, "text": text,
+                 "back": back,
+                 "evidence": evidence}
             )
             return ExtractedDefinition(
                 acronym=acr_norm,
                 definition=cand,
                 source="backref",
-                confidence=0.77,
+                definition_confidence=0.77,
                 acr_start=fo.start_offset,
                 acr_end=fo.end_offset,
                 def_start=prev_span[0],
@@ -394,7 +395,11 @@ class TestExtractSentenceBackrefsUnit:
                 kind="sentence_backref",
             )
 
-        _patch(extract_sentence_backrefs, _emit_backref_def=fake_emit)
+        _patch(extract_sentence_backrefs,
+               sent_spans=lambda _t: spans,
+               find_span_index=lambda _spans, _pos: 1,
+               _find_backref_candidate=lambda **_: ("Single sign-on", spans[0], 1, "definitionish"),
+               _emit_backref_def=fake_emit)
 
         out = extract_sentence_backrefs(text=text, firsts=firsts, cfg=cfg)
         assert len(out) == 1
@@ -414,25 +419,17 @@ class TestExtractSentenceBackrefsUnit:
         # insertion order: SSO then GPU
         firsts = {"SSO": sso_fo, "GPU": gpu_fo}
 
-        _patch(
-            extract_sentence_backrefs,
-            sent_spans=lambda _t: spans,
-            find_span_index=lambda _spans, _pos: 1,
-        )
-
         def fake_find(*, acr_norm, **_):
             if acr_norm == "SSO":
-                return "Single sign-on", spans[0]
+                return "Single sign-on", spans[0], 1, "definitionish"
             return None
 
-        _patch(extract_sentence_backrefs, _find_backref_candidate=fake_find)
-
-        def fake_emit(*, acr_norm, fo, cand, prev_span, text):
+        def fake_emit(*, acr_norm, fo, cand, prev_span, text, cfg, back, evidence):
             return ExtractedDefinition(
                 acronym=acr_norm,
                 definition=cand,
                 source="backref",
-                confidence=0.77,
+                definition_confidence=0.77,
                 acr_start=fo.start_offset,
                 acr_end=fo.end_offset,
                 def_start=prev_span[0],
@@ -441,7 +438,13 @@ class TestExtractSentenceBackrefsUnit:
                 kind="sentence_backref",
             )
 
-        _patch(extract_sentence_backrefs, _emit_backref_def=fake_emit)
+        _patch(extract_sentence_backrefs,
+               _emit_backref_def=fake_emit,
+               _find_backref_candidate=fake_find,
+               sent_spans=lambda _t: spans,
+               find_span_index=lambda _spans, _pos: 1,
+               )
+
 
         out = extract_sentence_backrefs(text=text, firsts=firsts, cfg=cfg)
         assert [d.acronym for d in out] == ["SSO"]
@@ -467,7 +470,7 @@ class TestExtractSentenceBackrefsIntegration:
         d = out[0]
         assert d.acronym == "SSO"
         assert d.definition == "Single sign-on"
-        assert d.source == "backref"
+        assert d.source == "sentence_backref"
         assert d.kind == "sentence_backref"
         # sanity: acronym span maps from FO
         assert (d.acr_start, d.acr_end) == (a0, a1)

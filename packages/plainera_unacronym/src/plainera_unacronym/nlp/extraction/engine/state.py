@@ -5,7 +5,6 @@ from plainera_unacronym.nlp.common.types import (
     DetectorConfig,
     DetectorResult,
     ExtractedDefinition,
-    Extraction_strategy,
     ExtractionResult,
     InTextPick,
 )
@@ -30,7 +29,6 @@ class FlowState:
     backref_defs: list[ExtractedDefinition] = field(default_factory=list)
     all_defs: list[ExtractedDefinition] = field(default_factory=list)
 
-    strategy: Extraction_strategy = "anchored+harvest"
     coverage: float = 0.0
     missing_keys: tuple[str, ...] = ()
 

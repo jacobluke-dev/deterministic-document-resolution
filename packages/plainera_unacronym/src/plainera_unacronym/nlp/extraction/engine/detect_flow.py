@@ -1,11 +1,11 @@
+from collections import Counter
 from typing import Optional
 
 from plainera_unacronym.nlp.common.types import DetectorConfig, DetectorResult, ExtractionResult
 from plainera_unacronym.nlp.extraction.config import ExtractionConfig
-
-from . import stage_funcs as f
-from .stages import Chain, Stage, StageReport, TraceEvent, Tracer
-from .state import FlowState
+from plainera_unacronym.nlp.extraction.engine import stage_funcs as f
+from plainera_unacronym.nlp.extraction.engine.stages import Chain, Stage, StageReport, TraceEvent, Tracer
+from plainera_unacronym.nlp.extraction.engine.state import FlowState
 
 
 class ExtractionFlow:
@@ -139,9 +139,12 @@ class ExtractionFlow:
                 ),
                 Stage("merge_dedupe", f.st_merge, lambda s: f"{len(s.all_defs)}", trace_fields=("all_defs",)),
                 Stage(
-                    "gap_fill_picks",
-                    f.st_gapfill,
-                    lambda s: f"cov={s.coverage:.0%} miss={len(s.missing_keys)}",
+                    "finalise_picks",
+                    f.st_finalise_picks,
+                    lambda s: (
+                        f"cov={s.coverage:.0%} miss={len(s.missing_keys)} "
+                        f"by_route={dict(sorted(Counter(p.route for p in s.picks.values() if p).items()))}"
+                    ),
                     trace_fields=("picks",),
                 ),
                 Stage(
