@@ -1,4 +1,6 @@
 from plainera_unacronym.nlp.common.types import ExtractedDefinition
+from plainera_unacronym.nlp.extraction import ExtractionConfig
+from plainera_unacronym.nlp.extraction.engine.confidence import base_conf_for
 from plainera_unacronym.nlp.extraction.matchers.defs import (
     find_parenthetical_longform_after_acr,
     find_parenthetical_longform_before_acr,
@@ -6,7 +8,7 @@ from plainera_unacronym.nlp.extraction.matchers.defs import (
 from plainera_unacronym.nlp.extraction.matchers.tighten import tighten_label_by_acronym
 
 
-def extract_defs_all_occurrences(text: str, occs, cfg) -> list[ExtractedDefinition]:
+def extract_defs_all_occurrences(text: str, occs, cfg: ExtractionConfig) -> list[ExtractedDefinition]:
     """
     Extract parenthetical acronym definitions around detected occurrences.
 
@@ -38,6 +40,8 @@ def extract_defs_all_occurrences(text: str, occs, cfg) -> list[ExtractedDefiniti
     """
     out: list[ExtractedDefinition] = []
     win = getattr(cfg, "window_chars", 320)
+    SRC = "all_occ_scan_parenthetical"
+    base = base_conf_for(cfg, source=SRC, default=0.8)
 
     for o in occs:
         a0, a1 = o.start_offset, o.end_offset
@@ -54,8 +58,8 @@ def extract_defs_all_occurrences(text: str, occs, cfg) -> list[ExtractedDefiniti
                 ExtractedDefinition(
                     acronym=o.acronym,
                     definition=tighten_label_by_acronym(m.definition, o.acronym.upper()),
-                    source="in_text",
-                    confidence=0.95,
+                    source=SRC,
+                    definition_confidence=base,
                     acr_start=a0,
                     acr_end=a1,
                     def_start=ds,
@@ -72,8 +76,8 @@ def extract_defs_all_occurrences(text: str, occs, cfg) -> list[ExtractedDefiniti
                 ExtractedDefinition(
                     acronym=o.acronym,
                     definition=tighten_label_by_acronym(m.definition, o.acronym.upper()),
-                    source="in_text",
-                    confidence=0.95,
+                    source=SRC,
+                    definition_confidence=base,
                     acr_start=a0,
                     acr_end=a1,
                     def_start=ds,

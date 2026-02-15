@@ -119,7 +119,7 @@ class TestBuildOccurrenceFromMatch:
         assert occ.acronym == "NASA"
         assert occ.start_offset == 0
         assert occ.end_offset == 4
-        assert occ.confidence == 0.87
+        assert occ.occurrence_confidence == 0.87
         assert occ.context_window == (111, 222)
         assert occ.normalized_key == display_key
         assert occ.reasons is None
@@ -334,7 +334,7 @@ class TestScoreChunkWorkerUnit:
                 acronym=surface,
                 start_offset=s,
                 end_offset=e,
-                confidence=conf,
+                occurrence_confidence=conf,
                 context_window=(0, 0),
                 normalized_key=surface,
                 reasons=None,
@@ -385,7 +385,7 @@ class TestScoreChunkWorkerUnit:
         out = _score_chunk_worker(cfg, text="AI & R&D", cands=cands)
         # Only "R&D" should survive at equality
         assert [o.acronym for o in out] == ["R&D"]
-        assert out[0].confidence == pytest.approx(0.60)
+        assert out[0].occurrence_confidence == pytest.approx(0.60)
 
     def test_order_preserved_and_confidence_propagated(self, _patch):
         """
@@ -415,7 +415,7 @@ class TestScoreChunkWorkerUnit:
 
         out = _score_chunk_worker(cfg, text="A B C", cands=cands)
         assert [o.acronym for o in out] == ["A", "C"]
-        assert [o.confidence for o in out] == [pytest.approx(0.8), pytest.approx(0.9)]
+        assert [o.occurrence_confidence for o in out] == [pytest.approx(0.8), pytest.approx(0.9)]
 
     def test_filters_and_builds_occurrences_end_to_end(self):
         """
@@ -457,14 +457,14 @@ class TestScoreChunkWorkerUnit:
         rnd = out[0]
         assert rnd.start_offset == s_rnd
         assert rnd.end_offset == e_rnd
-        assert rnd.confidence >= 0.60  # score() baseline hits threshold
+        assert rnd.occurrence_confidence >= 0.60  # score() baseline hits threshold
 
         # 'N.A.S.A' — preserve mode includes trailing '.' so end offset advances by 1
         nasa = out[1]
         assert nasa.start_offset == s_nasa
         assert nasa.end_offset == e_nasa + 1
         # Confidence should be >= threshold (effective len >= 3 → 0.60)
-        assert nasa.confidence >= 0.60
+        assert nasa.occurrence_confidence >= 0.60
 
         # Context-window sanity (bounds and containment)
         n = len(text)

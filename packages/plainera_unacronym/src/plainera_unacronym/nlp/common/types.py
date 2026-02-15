@@ -9,7 +9,6 @@ from plainera_unacronym.nlp.common.constants_regex import ALLOW_CHARS, DottedMod
 
 SCHEMA_VERSION = "1.1.0"
 
-
 # -------------------------- SPANS ------------------------------------
 
 Span: TypeAlias = tuple[int, int]
@@ -33,13 +32,6 @@ class TextSpan:
 
 # -------------------------- STRATEGIES ------------------------------------
 
-# TODO these will be adjusted to tier 1 tier 2 or some other consideration right now these will do
-Extraction_strategy: TypeAlias = Literal[
-    "anchored+harvest",
-    "hybrid-filled",
-    "global",
-    "anchored+harvest+global",
-]
 
 Definition_strategy = Literal[
     "direct_def",
@@ -57,7 +49,7 @@ class Occurrence:
     acronym: str  # surface form as detected (not lowercased)
     start_offset: int
     end_offset: int  # end-exclusive
-    confidence: float
+    occurrence_confidence: float
     context_window: Span  # (left_idx, right_idx) in the original text
     normalized_key: str | None = None
     reasons: tuple[str, ...] | None = None
@@ -68,21 +60,63 @@ class FirstOccurrence:
     acronym: str
     start_offset: int
     end_offset: int
-    confidence: float
+    occurrence_confidence: float
     normalized_key: str | None = None
 
 
 @dataclass
 class AcronymSense:
+    """
+    Represents a single “meaning” (sense) of an acronym within a document.
+
+    An `AcronymSense` is constructed from one or more extracted in-text definitions
+    that normalise to the same `(acronym, definition)` identity (e.g. multiple
+    mentions of “European Medicines Agency (EMA)” across the text). It is used as
+    the unit of choice during occurrence-level disambiguation.
+
+    Key ideas:
+      - `sense_id` is a stable identifier (typically derived from the acronym plus a
+        slug of the tightened definition) used for indexing and resolution outputs.
+      - `def_spans` records where this sense was defined in the source text; these
+        spans drive proximity-based scoring and distance tie-breaks.
+      - `sense_confidence` is a deterministic strength signal for the sense (e.g. the
+        max confidence among supporting definitions). It may be used as a small prior
+        for near-tie breaking, but should not override structural validity gates.
+      - `support` counts how many definition instances were merged into this sense.
+
+    Attributes:
+        acronym: Uppercased acronym string (e.g. "EMA").
+        definition: Tightened/normalised definition label for this sense.
+        sense_id: Stable key for this sense (e.g. "ema|european_medicines_agency").
+        sense_confidence: Deterministic confidence scalar in [0, 1] for this sense.
+        def_spans: List of (start, end) spans where this sense is defined in the text.
+        support: Number of definition instances merged into this sense.
+    """
+
     acronym: str
     definition: str  # tightened, normalized label ("European Medicines Agency")
     sense_id: str  # stable key, e.g., "ema|european_medicines_agency"
+    sense_confidence: float
     def_spans: list[Span]  # locations where this sense was defined
     support: int  # number of defining mentions merged into this sense
 
 
 @dataclass
 class OccurrenceLite:
+    """
+    Minimal representation of an acronym occurrence in the source text.
+
+    This type is intentionally lightweight: it captures only the acronym surface
+    and its character offsets. It is fed into disambiguation, where each occurrence
+    is scored against candidate `AcronymSense` objects using local context windows
+    and distance to definition spans.
+
+    Attributes:
+        acronym: Acronym surface string as detected (typically uppercased upstream).
+        start: Start character offset of the occurrence in the document.
+        end: End character offset (exclusive) of the occurrence in the document.
+    """
+
     acronym: str
     start: int
     end: int
@@ -90,12 +124,28 @@ class OccurrenceLite:
 
 @dataclass
 class OccurrenceResolution:
+    """
+    Resolution result for a single acronym occurrence.
+
+    Holds the chosen sense (or None) plus per-sense scores and the top-two score gap.
+
+    Args:
+        acronym: Acronym surface for this occurrence.
+        start: Start offset (inclusive) in the source text.
+        end: End offset (exclusive) in the source text.
+        chosen_sense_id: Selected sense_id, or None if ambiguous.
+        candidate_scores: Mapping of sense_id -> score in [0.0, 0.99].
+        gap: Absolute gap (top_score - second_score), 0.0 if <2 candidates.
+        margin:
+    """
+
     acronym: str
     start: int
     end: int
-    chosen_sense_id: Optional[str]  # None if ambiguous
-    candidates: dict[str, float]  # sense_id -> score (0..1)
-    margin: float  # top - second best
+    chosen_sense_id: Optional[str]
+    candidate_scores: dict[str, float]
+    gap: float
+    margin: float
 
 
 # -------------------------- DETECTION -------------------------------------
@@ -152,37 +202,93 @@ class DetectorResult:
 
 @dataclass(frozen=True, slots=True)
 class ExtractedDefinition:
+    """
+    Normalised definition evidence produced by an extraction strategy.
+    Carries absolute spans into the source text plus provenance and confidence.
+    This is the “ledger” of all candidates considered, not necessarily the final pick.
+    Used for dedupe/merge, sense building, debugging, and traceability.
+
+    Args:
+        acronym: Acronym key/surface for this definition evidence.
+        definition: Normalised/tightened definition text.
+        source: Provenance label for where this evidence came from.
+        definition_confidence: Relative strength score for ranking/selection.
+        acr_start: Absolute start offset of the acronym span in the text.
+        acr_end: Absolute end offset of the acronym span in the text.
+        def_start: Absolute start offset of the definition span in the text.
+        def_end: Absolute end offset of the definition span in the text.
+        original_definition: Raw definition slice prior to normalisation.
+        kind: Pattern/shape identifier (e.g. inline, def_before).
+        reasons: Human-readable scoring/decision traces.
+    """
+
     acronym: str
     definition: str  # normalized
-    source: str  # "in_text"
-    confidence: float
+    source: str
+    definition_confidence: float
     acr_start: int
     acr_end: int
     def_start: int
     def_end: int
     original_definition: str
     kind: str = "unknown"
+    reasons: tuple[str, ...] = ()
 
 
 @dataclass(frozen=True, slots=True)
 class InTextPick:
+    """
+    The chosen in-text definition for a single acronym key.
+    Stores the “best” candidate as spans + canonical definition for downstream use.
+    Typically selected from merged definition evidence, but may be filled heuristically.
+    Intended for consumers that want one answer per acronym (plus confidence/reasons).
+
+    Args:
+        definition: Normalised/tightened definition text selected as the winner.
+        acr_span: Absolute (start, end) offsets for the acronym occurrence.
+        def_span: Absolute (start, end) offsets for the definition span.
+        definition_confidence: Relative strength score for this pick.
+        original_definition: Raw definition slice prior to normalisation.
+        kind: Pattern/shape identifier describing how it was matched.
+        route: Internal label for how the pick was chosen (may differ from source).
+        reasons: Human-readable scoring/decision traces.
+    """
+
     definition: str
     acr_span: Span
     def_span: Span
-    confidence: float
+    definition_confidence: float
     original_definition: str
     kind: str = "unknown"
+    route: str = "unknown"
+    reasons: tuple[str, ...] = ()
 
 
 @dataclass(frozen=True, slots=True)
 class ExtractionResult:
+    """
+    Output bundle for Tier-1 extraction and selection.
+    Provides per-acronym winners plus the full set of definition evidence observed.
+    `picks` is the consumer-facing map; `definitions` is the evidence ledger.
+    Includes coverage/missing metrics and optional sense-resolution artefacts.
+
+    Args:
+        picks: Normalised acronym key -> selected in-text pick or None.
+        definitions: All extracted definition evidence from all strategies.
+        coverage: Fraction of acronym keys with a non-null pick.
+        missing_keys: Normalised keys with no pick after all selection steps.
+        senses_by_acronym: Candidate senses grouped by acronym key.
+        sense_index: Global sense lookup by sense_id.
+        resolutions: Per-occurrence resolution decisions.
+        ambiguous_keys: Keys with more than one viable sense.
+        undecided: Resolutions where no sense could be chosen deterministically.
+    """
+
     # map normalized_key -> pick (nearest in-text definition) or None if not found
     picks: dict[str, Optional[InTextPick]]
     # all definition locations considered (anchored-window matches if no global run,
     # or full global matches if we did the fallback)
     definitions: list[ExtractedDefinition]
-    # which strategy ultimately produced 'picks' / 'definitions'
-    extraction_strategy: Extraction_strategy
     # convenience metric: fraction of acronyms with a pick
     coverage: float
     # normalized keys that had no in-text definition
@@ -203,13 +309,10 @@ class OccurrenceBuildError(Exception):
 
 pattern_cache: dict[tuple[Any, ...], re.Pattern[str]] = {}
 
-soft_dotted_drop: frozenset[str] = frozenset({"EG", "IE", "AKA"})
-
 INLINE = "inline"
 INLINE_BEFORE = "inline_before"
 
 INLINE_KINDS = {INLINE, INLINE_BEFORE}
-
 
 JsonDict = dict[str, Any]
 
@@ -225,22 +328,3 @@ def as_str_set(x: Any, *, default: Iterable[str]) -> set[str]:
     if isinstance(x, str):
         return {x}
     return set(cast(Iterable[str], x))
-
-
-ExtractionStrategy: TypeAlias = Literal[
-    "anchored+harvest",
-    "hybrid-filled",
-    "global",
-    "anchored+harvest+global",
-]
-
-
-def _compute_strategy(
-    *, has_gapfill: bool, has_global: bool, has_anchored: bool, has_harvest: bool
-) -> ExtractionStrategy:
-    if has_gapfill:
-        return "hybrid-filled"
-    if has_global:
-        # keep this strict so it matches your alias exactly
-        return "anchored+harvest+global" if (has_anchored and has_harvest) else "global"
-    return "anchored+harvest"

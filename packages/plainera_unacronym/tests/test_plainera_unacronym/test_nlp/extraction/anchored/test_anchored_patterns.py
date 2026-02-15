@@ -1,6 +1,6 @@
 
 from plainera_unacronym.nlp.extraction import ExtractionConfig
-from plainera_unacronym.nlp.extraction.anchored.patterns import compile_anchored_exact
+from plainera_unacronym.nlp.extraction.anchored.patterns import compile_anchored_for_surface
 from plainera_unacronym.nlp.extraction.anchored.spans import resolve_def_span
 
 
@@ -19,7 +19,7 @@ def _first_match(specs, text: str):
 class TestCompileAnchoredExactContracts:
     def test_returns_non_empty_and_has_expected_kinds(self):
         cfg = ExtractionConfig()
-        specs = compile_anchored_exact("PDF", cfg)
+        specs = compile_anchored_for_surface("PDF", cfg)
 
         kinds = {s.kind for s in specs}
         # Parenthetical shapes
@@ -36,7 +36,7 @@ class TestCompileAnchoredExactContracts:
 
     def test_forward_paren_captures_groups(self):
         cfg = ExtractionConfig()
-        specs = compile_anchored_exact("PTO", cfg)
+        specs = compile_anchored_for_surface("PTO", cfg)
         text = "Please turn over (PTO)."
 
         spec, m = _first_match(specs, text)
@@ -47,7 +47,7 @@ class TestCompileAnchoredExactContracts:
 
     def test_reverse_paren_captures_groups(self):
         cfg = ExtractionConfig()
-        specs = compile_anchored_exact("SSO", cfg)
+        specs = compile_anchored_for_surface("SSO", cfg)
         text = "SSO (Single sign-on) is enabled."
 
         spec, m = _first_match(specs, text)
@@ -58,7 +58,7 @@ class TestCompileAnchoredExactContracts:
 
     def test_brackets_variants_work(self):
         cfg = ExtractionConfig()
-        specs = compile_anchored_exact("GPU", cfg)
+        specs = compile_anchored_for_surface("GPU", cfg)
 
         # Forward bracket
         text1 = "Graphics Processing Unit [GPU]"
@@ -76,7 +76,7 @@ class TestCompileAnchoredExactContracts:
 
     def test_optional_trailing_dot_is_outside_acr_group(self):
         cfg = ExtractionConfig()
-        specs = compile_anchored_exact("U.S", cfg)
+        specs = compile_anchored_for_surface("U.S", cfg)
 
         text = "United States (U.S.)."
         spec, m = _first_match(specs, text)
@@ -88,7 +88,7 @@ class TestCompileAnchoredExactContracts:
 
     def test_optional_quotes_do_not_enter_acr_group(self):
         cfg = ExtractionConfig()
-        specs = compile_anchored_exact("NHS", cfg)
+        specs = compile_anchored_for_surface("NHS", cfg)
 
         text = 'National Health Service ("NHS")'
         spec, m = _first_match(specs, text)
@@ -98,7 +98,7 @@ class TestCompileAnchoredExactContracts:
 
     def test_tail_inside_wrapper_does_not_pollute_acr_group(self):
         cfg = ExtractionConfig()
-        specs = compile_anchored_exact("PPE", cfg)
+        specs = compile_anchored_for_surface("PPE", cfg)
 
         text = "Personal Protective Equipment (PPE, including masks)."
         spec, m = _first_match(specs, text)
@@ -109,7 +109,7 @@ class TestCompileAnchoredExactContracts:
 
     def test_possessive_surface_allowed_but_acr_group_remains_plain(self):
         cfg = ExtractionConfig()
-        specs = compile_anchored_exact("PDF", cfg)
+        specs = compile_anchored_for_surface("PDF", cfg)
 
         text1 = "PDF's (Portable Document Format) is common."
         spec1, m1 = _first_match(specs, text1)
@@ -125,7 +125,7 @@ class TestCompileAnchoredExactContracts:
 
     def test_inline_after_resolves_definition_span(self):
         cfg = ExtractionConfig()
-        specs = compile_anchored_exact("NLP", cfg)
+        specs = compile_anchored_for_surface("NLP", cfg)
 
         text = "NLP stands for Natural language processing."
         seg = text
@@ -153,7 +153,7 @@ class TestCompileAnchoredExactContracts:
 
     def test_inline_before_resolves_definition_span(self):
         cfg = ExtractionConfig()
-        specs = compile_anchored_exact("NLP", cfg)
+        specs = compile_anchored_for_surface("NLP", cfg)
 
         text = "Natural language processing stands for NLP."
         seg = text
@@ -180,7 +180,7 @@ class TestCompileAnchoredExactContracts:
 
     def test_inline_before_matches_one_cue(self):
         cfg = ExtractionConfig()
-        specs = compile_anchored_exact("NLP", cfg)
+        specs = compile_anchored_for_surface("NLP", cfg)
         text = "Natural language processing stands for NLP"
         seg = text
 

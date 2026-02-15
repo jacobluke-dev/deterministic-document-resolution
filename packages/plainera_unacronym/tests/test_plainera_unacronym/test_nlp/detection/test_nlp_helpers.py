@@ -124,7 +124,7 @@ def fo(key: str, conf: float, start: int = 0, end: int = 1) -> FirstOccurrence:
         acronym=key,
         start_offset=start,
         end_offset=end,
-        confidence=conf,
+        occurrence_confidence=conf,
         normalized_key=key,
     )
 

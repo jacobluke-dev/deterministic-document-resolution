@@ -97,6 +97,10 @@ _LINKERS_RE: Final[str] = "(?:" + "|".join(sorted(re.escape(w) for w in WORDS_FU
 # Boundaries / punctuation
 # -----------------------------
 
+# includes ASCII hyphen-minus, Unicode hyphen/dash variants, and minus sign
+DASH_CHARS = r"\-\u2010\u2011\u2012\u2013\u2014\u2015\u2212"
+HYPHEN_SPLIT_RE = re.compile(rf"[{DASH_CHARS}]")
+
 # Dashes (ascii + en/em)
 _DASH: Final[str] = r"[–—-—–-]"
 

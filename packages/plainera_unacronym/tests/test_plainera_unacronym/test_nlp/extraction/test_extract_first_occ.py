@@ -5,7 +5,7 @@ import plainera_unacronym.nlp.extraction.anchored.extract as ext
 import plainera_unacronym.nlp.extraction.anchored.patterns as mod
 from plainera_unacronym.nlp.extraction import ExtractionConfig
 from plainera_unacronym.nlp.extraction.anchored.extract import extract_near_firsts
-from plainera_unacronym.nlp.extraction.anchored.patterns import compile_anchored_exact
+from plainera_unacronym.nlp.extraction.anchored.patterns import compile_anchored_for_surface
 
 
 def _cfg(**overrides):
@@ -17,6 +17,12 @@ def _cfg(**overrides):
         require_two_words=True,
     )
     base.update(overrides)
+    conf = NS(base_by_source={
+        "parenthetical": base["conf_parenthetical"],
+        "inline": base["conf_inline"],
+        "first_occurrence_anchored": 0.85,
+    })
+    base["confidence"] = conf
     return NS(**base)
 
 
@@ -26,7 +32,7 @@ def _apply_for_acr(text: str, acr: str, cfg) -> list[tuple[str, float, str, str]
     returns list of (label, conf, acr, def) for all matches across all patterns.
     """
     results = []
-    for spec in compile_anchored_exact(acr, cfg):
+    for spec in compile_anchored_for_surface(acr, cfg):
         for m in spec.pat.finditer(text):
             results.append((spec.kind, spec.base_conf, m.group("acr"), m.group("def")))
     return results
@@ -37,7 +43,7 @@ class TestCompileAnchoredExact:
 
     def test_tuple_shape_and_flags(self):
         cfg = _cfg()
-        out = compile_anchored_exact("PDF", cfg)
+        out = compile_anchored_for_surface("PDF", cfg)
 
         n_cues = len(cfg.inline_cues)
 
@@ -69,7 +75,7 @@ class TestCompileAnchoredExact:
             "Portable Document Format (PDF) is widely used.\n"
             "Also PDF (Portable Document Format) appears later."
         )
-        pats = compile_anchored_exact("PDF", cfg)
+        pats = compile_anchored_for_surface("PDF", cfg)
 
         fwd = next((p for p in pats if p.kind == "def_before"), None)
         rev = next((p for p in pats if p.kind == "def_after"), None)
@@ -93,7 +99,7 @@ class TestCompileAnchoredExact:
             "PDF, short for Portable Document Format, is common. "
             "PDF stands for Portable Document Format."
         )
-        inlines = [p for p in compile_anchored_exact("PDF", cfg) if p.kind == "inline"]
+        inlines = [p for p in compile_anchored_for_surface("PDF", cfg) if p.kind == "inline"]
         assert len(inlines) == len(cfg.inline_cues)
 
         hits = 0
@@ -110,7 +116,7 @@ class TestCompileAnchoredExact:
         # Tight limit still matches; DEF capture must be <= max_phrase_chars
         cfg = _cfg(max_phrase_chars=10)
         long_def_text = "Incredibly long descriptive name for a format (PDF)"
-        fwd = next((p for p in compile_anchored_exact("PDF", cfg) if p.kind == "def_before"), None)
+        fwd = next((p for p in compile_anchored_for_surface("PDF", cfg) if p.kind == "def_before"), None)
         assert fwd
         m = fwd.pat.search(long_def_text)
         assert m is not None
@@ -126,18 +132,18 @@ class TestCompileAnchoredExact:
         )
 
         # R&D: forward parenthetical present
-        pats = compile_anchored_exact("R&D", cfg)
+        pats = compile_anchored_for_surface("R&D", cfg)
         fwd = next((p for p in pats if p.kind == "def_before"), None)
         assert fwd and fwd.pat.search(text)
 
         # C/A: reverse parenthetical present
-        pats = compile_anchored_exact("C/A", cfg)
+        pats = compile_anchored_for_surface("C/A", cfg)
         rev = next((p for p in pats if p.kind == "def_after"), None)
         m = rev.pat.search(text)
         assert m and "Cost per Acquisition" in m.group("def")
 
         # SME: forward parenthetical present
-        pats = compile_anchored_exact("SME", cfg)
+        pats = compile_anchored_for_surface("SME", cfg)
         fwd = next((p for p in pats if p.kind == "def_before"), None)
         assert fwd and fwd.pat.search(text)
 
@@ -206,8 +212,8 @@ class TestExtractNearFirstsUnit:
         def fake_compile(_acr, _cfg):
             return ((pat_fwd, 0.95, "def_before"),)
 
-        monkeypatch.setattr(mod, "compile_anchored_exact", fake_compile)
-
+        monkeypatch.setattr(mod, "compile_anchored_for_surface", fake_compile)
+        monkeypatch.setattr(ext, "base_for_kind", lambda _cfg, _kind: 0.95)
         out = extract_near_firsts(
             text,
             firsts={"PDF": fo},
@@ -219,7 +225,7 @@ class TestExtractNearFirstsUnit:
         assert out["PDF"] is not None
         assert out["PDF"].definition.strip() != ""
         assert out["PDF"].acr_span == (fo.start_offset, fo.end_offset)
-        assert 0 < out["PDF"].confidence <= 0.99
+        assert 0 < out["PDF"].definition_confidence <= 0.99
         assert "Portable" in out["PDF"].original_definition
 
     def test_requires_exact_alignment_other_match_is_ignored(self, monkeypatch):
@@ -242,7 +248,7 @@ class TestExtractNearFirstsUnit:
         assert m2 is not None
         assert m2.span("acr")[0] == second_idx
 
-        monkeypatch.setattr(mod, "compile_anchored_exact", fake_compile)
+        monkeypatch.setattr(mod, "compile_anchored_for_surface", fake_compile)
         out = extract_near_firsts(text, {"PDF": fo}, window_left=80, window_right=80, cfg=_cfg())
 
         assert out["PDF"] is None
@@ -267,13 +273,19 @@ class TestExtractNearFirstsUnit:
                 ),
             )
 
-        monkeypatch.setattr(ext, "compile_anchored_exact", fake_compile)
+        monkeypatch.setattr(ext, "compile_anchored_for_surface", fake_compile)
+        monkeypatch.setattr(
+            ext,
+            "base_for_kind",
+            lambda _cfg, kind: 0.995 if kind in {"inline", "inline_before"} else 0.95,
+        )
+
         out = extract_near_firsts(text, {"PDF": fo}, window_left=10, window_right=50, cfg=_cfg())
 
         assert out["PDF"] is not None
         assert out["PDF"].definition.strip() != ""
         assert out["PDF"].acr_span == (a0, a0 + 3)
-        assert abs(out["PDF"].confidence - 0.99) < 1e-9
+        assert abs(out["PDF"].definition_confidence - 0.99) < 1e-9
 
     def test_definition_too_long_is_dropped(self, monkeypatch):
         text = "Extremely verbose explanation that keeps going forever (PDF)"
@@ -288,7 +300,7 @@ class TestExtractNearFirstsUnit:
         def fake_compile(_acr, _cfg):
             return ((pat_fwd, 0.95, "def_before"),)
 
-        monkeypatch.setattr(mod, "compile_anchored_exact", fake_compile)
+        monkeypatch.setattr(mod, "compile_anchored_for_surface", fake_compile)
 
         cfg = _cfg(max_phrase_chars=8)
         out = extract_near_firsts(text, {"PDF": fo}, window_left=50, window_right=50, cfg=cfg)
@@ -309,14 +321,15 @@ class TestExtractNearFirstsUnit:
         def fake_compile(_acr, _cfg):
             return ((pat_rev, 0.95, "def_after"),)
 
-        monkeypatch.setattr(mod, "compile_anchored_exact", fake_compile)
+        monkeypatch.setattr(mod, "compile_anchored_for_surface", fake_compile)
+        monkeypatch.setattr(ext, "base_for_kind", lambda _cfg, _kind: 0.95)
         out = extract_near_firsts(text, {"C/A": fo}, window_left=40, window_right=60, cfg=_cfg())
 
         assert out["C/A"] is not None
         assert out["C/A"].definition == "Cost per Acquisition"
         assert out["C/A"].original_definition == "Cost per Acquisition"
         assert out["C/A"].acr_span == (a0, a0 + 3)
-        assert 0 < out["C/A"].confidence <= 0.99
+        assert 0 < out["C/A"].definition_confidence <= 0.99
 
 
 def _cfg_near_firsts_integrated(**overrides):
@@ -327,11 +340,7 @@ def _cfg_near_firsts_integrated(**overrides):
             r"stands?\s+for",
             r"is\s+(?:an\s+)?acronym\s+for",
         ),
-        "max_phrase_chars": overrides.get("max_phrase_chars", 200),
-        "enabled_parenthetical": True,
-        "enabled_inline": True,
-        "conf_parenthetical": 0.95,
-        "conf_inline": 0.80,
+        "max_phrase_chars": overrides.get("max_phrase_chars", 200)
     })
 
 
@@ -365,26 +374,26 @@ class TestExtractNearFirstsIntegration:
         assert out["R&D"] is not None
         assert "Research" in out["R&D"].definition
         assert out["R&D"].acr_span == (r_and_d_idx, r_and_d_idx + 3)
-        assert 0 < out["R&D"].confidence <= 0.99
+        assert 0 < out["R&D"].definition_confidence <= 0.99
 
         # C/A reverse parenthetical
         assert out["C/A"] is not None
         assert out["C/A"].definition == "Cost per Acquisition"
         assert out["C/A"].original_definition == "Cost per Acquisition"
         assert out["C/A"].acr_span == (c_a_idx, c_a_idx + 3)
-        assert 0 < out["C/A"].confidence <= 0.99
+        assert 0 < out["C/A"].definition_confidence <= 0.99
 
         # PTO inline (“stands for …”)
         assert out["PTO"] is not None
         assert out["PTO"].definition.strip() != ""
         assert out["PTO"].acr_span == (pto_idx, pto_idx + 3)
-        assert 0 < out["PTO"].confidence <= 0.99
+        assert 0 < out["PTO"].definition_confidence <= 0.99
 
         # AM inline (“short for …”)
         assert out["AM"] is not None
         assert out["AM"].definition.strip() != ""
         assert out["AM"].acr_span == (am_idx, am_idx + 2)
-        assert 0 < out["AM"].confidence <= 0.99
+        assert 0 < out["AM"].definition_confidence <= 0.99
 
         # PDF (first is forward)
         assert out["PDF"] is not None
@@ -404,10 +413,6 @@ class TestExtractNearFirstsIntegration:
         cfg_strict = ExtractionConfig(
             inline_cues=(r"short\s+for", r"stands?\s+for", r"is\s+(?:an\s+)?acronym\s+for"),
             max_phrase_chars=20,
-            # enabled_parenthetical=True,
-            enabled_inline=True,
-            conf_parenthetical=0.95,
-            conf_inline=0.80,
             require_two_words=False,
         )
         out_strict = extract_near_firsts(text, firsts, window_left=10, window_right=200, cfg=cfg_strict)
@@ -417,16 +422,12 @@ class TestExtractNearFirstsIntegration:
         cfg_relaxed = ExtractionConfig(
             inline_cues=(r"short\s+for", r"stands?\s+for", r"is\s+(?:an\s+)?acronym\s+for"),
             max_phrase_chars=160,
-            # enabled_parenthetical=True,
-            enabled_inline=True,
-            conf_parenthetical=0.95,
-            conf_inline=0.80,
         )
         out_relaxed = extract_near_firsts(text, firsts, window_left=10, window_right=200, cfg=cfg_relaxed)
         assert out_relaxed["PTO"] is not None
         assert out_relaxed["PTO"].definition.strip() != ""
         assert out_relaxed["PTO"].acr_span == (pto_idx, pto_idx + 3)
-        assert 0 < out_relaxed["PTO"].confidence <= 0.99
+        assert 0 < out_relaxed["PTO"].definition_confidence <= 0.99
 
     def test_ignores_matches_not_aligned_to_first_occurrence(self):
         text = "PDF appears first. Portable Document Format (PDF) later still."

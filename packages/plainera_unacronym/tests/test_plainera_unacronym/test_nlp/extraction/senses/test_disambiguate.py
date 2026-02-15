@@ -180,86 +180,88 @@ class TestMinDistanceToSpansIntegration:
 class TestChooseWithTiebreakUnit:
     def test_empty_candidates(self):
         occ = NS(start=0, end=10)
-        sid, margin = choose_with_tiebreak(occ, {}, {})
-        assert sid is None and margin == 0.0
+        sid, gap, relative = choose_with_tiebreak(occ, {}, {})
+        assert sid is None
+        assert gap == 0.0
+        assert relative == 0.0
 
     def test_single_candidate_short_circuit(self):
-        occ = NS(start=0, end=2)  # center=1
-        cand_probs = {"A": 0.7}
-        sid, margin = choose_with_tiebreak(occ, cand_probs, {})
-        # p2=0 → margin=(0.7-0)/0.7=1.0 ≥ margin_threshold → choose 'A'
+        occ = NS(start=0, end=2)
+        cand_scores = {"A": 0.7}
+        sid, relative, gap = choose_with_tiebreak(occ, cand_scores, {})
         assert sid == "A"
-        assert margin == pytest.approx(1.0)
+        assert gap == pytest.approx(0.7)  # p2=0 -> gap=0.7
 
     def test_clear_margin_winner(self):
-        occ = NS(start=10, end=20)  # center=15
-        cand_probs = {"A": 0.90, "B": 0.70}
-        sid, margin = choose_with_tiebreak(occ, cand_probs, {})
-        exp_margin = (0.90 - 0.70) / 0.90
+        occ = NS(start=10, end=20)
+        cand_scores = {"A": 0.90, "B": 0.70}
+        sid, relative, gap = choose_with_tiebreak(occ, cand_scores, {})
         assert sid == "A"
-        assert margin == pytest.approx(exp_margin)
+        assert gap == pytest.approx(0.20)
+        assert relative == pytest.approx(0.2222, abs=1e-4)
 
     def test_near_tie_distance_picks_second(self):
         # Force near tie (diff ≤ near_tie_margin and margin < margin_threshold)
         occ = NS(start=10, end=12)  # center = 11
-        cand_probs = {"A": 0.51, "B": 0.50}
+        cand_scores = {"A": 0.51, "B": 0.50}
         senses = {
-            # A is far (center ~100), B is near (center ~11)
-            "A": NS(def_spans=[(99, 101)]),
-            "B": NS(def_spans=[(10, 12)]),
+            "A": NS(def_spans=[(99, 101)]),  # far (center ~100)
+            "B": NS(def_spans=[(10, 12)]),   # near (center ~11)
         }
-        sid, margin = choose_with_tiebreak(occ, cand_probs, senses)
+        sid, relative, gap = choose_with_tiebreak(occ, cand_scores, senses)
         assert sid == "B"
-        assert margin == pytest.approx((0.51 - 0.50) / 0.51)
+        assert gap == pytest.approx(0.01)
+        assert relative == pytest.approx(0.0196078, abs=1e-7)
+
+
 
     def test_near_tie_distance_picks_first(self):
         occ = NS(start=50, end=52)  # center = 51
-        cand_probs = {"A": 0.505, "B": 0.50}
+        cand_scores = {"A": 0.505, "B": 0.50}
         senses = {
-            "A": NS(def_spans=[(50, 52)]),     # near center
-            "B": NS(def_spans=[(200, 220)]),   # far away
+            "A": NS(def_spans=[(50, 52)]),     # near
+            "B": NS(def_spans=[(200, 220)]),   # far
         }
-        sid, margin = choose_with_tiebreak(occ, cand_probs, senses)
+        sid, relative, gap = choose_with_tiebreak(occ, cand_scores, senses)
         assert sid == "A"
-        assert margin == pytest.approx((0.505 - 0.50) / 0.505)
+        assert gap == pytest.approx(0.005)
+        assert relative == pytest.approx(0.0099009900, abs=1e-7)
 
     def test_near_tie_undecided_returns_none_when_within_bias(self):
         # Distances within the ±2 bias window → unresolved tie
         occ = NS(start=0, end=2)  # center = 1
-        cand_probs = {"A": 0.500, "B": 0.495}
+        cand_scores = {"A": 0.500, "B": 0.495}
         senses = {
-            "A": NS(def_spans=[(0, 2)]),   # center 1 → d=0
-            "B": NS(def_spans=[(0, 4)]),   # center 2 → d=1
+            "A": NS(def_spans=[(0, 2)]),  # center 1 -> d=0
+            "B": NS(def_spans=[(0, 4)]),  # center 2 -> d=1 (within bias window)
         }
-        sid, margin = choose_with_tiebreak(occ, cand_probs, senses)
+        sid, relative, gap = choose_with_tiebreak(occ, cand_scores, senses)
         assert sid is None
-        assert margin == pytest.approx((0.500 - 0.495) / 0.500)
+        assert gap == pytest.approx(0.005)
+        assert relative == pytest.approx(0.01, abs=1e-2)
 
     def test_uses_center_of_occurrence(self):
-        # If center moves, the winner toggles
-        cand_probs = {"A": 0.51, "B": 0.50}
+        cand_scores = {"A": 0.51, "B": 0.50}
         senses = {
-            "A": NS(def_spans=[(0, 2)]),   # center 1
-            "B": NS(def_spans=[(8, 12)]),  # center 10
+            "A": NS(def_spans=[(0, 2)]),    # center 1
+            "B": NS(def_spans=[(8, 12)]),   # center 10
         }
-        # Occ near A → pick A
-        sid1, _ = choose_with_tiebreak(NS(start=0, end=2), cand_probs, senses)   # center=1
-        # Occ near B → pick B
-        sid2, _ = choose_with_tiebreak(NS(start=9, end=11), cand_probs, senses)  # center=10
+        sid1, _, _ = choose_with_tiebreak(NS(start=0, end=2), cand_scores, senses)    # center=1
+        sid2, _, _ = choose_with_tiebreak(NS(start=9, end=11), cand_scores, senses)  # center=10
         assert sid1 == "A"
         assert sid2 == "B"
 
     def test_handles_missing_or_empty_def_spans(self):
-        occ = NS(start=0, end=2)  # center 1
-        cand_probs = {"A": 0.51, "B": 0.50}
+        occ = NS(start=0, end=2)
+        cand_scores = {"A": 0.51, "B": 0.50}
         senses = {
-            "A": NS(def_spans=None),      # treated as []
+            "A": NS(def_spans=None),   # should be treated as []
             "B": NS(def_spans=[]),
         }
-        # With no spans, both distances fall back to sentinel 1e9, tie remains unresolved
-        sid, margin = choose_with_tiebreak(occ, cand_probs, senses)
+        sid, relative, gap = choose_with_tiebreak(occ, cand_scores, senses)
         assert sid is None
-        assert margin == pytest.approx((0.51 - 0.50) / 0.51)
+        assert gap == pytest.approx(0.01)
+        assert relative == pytest.approx(0.019607843, abs=1e-9)
 
 
 class TestChooseWithTiebreakIntegration:
@@ -283,7 +285,7 @@ class TestChooseWithTiebreakIntegration:
 
         winners = []
         for occ in trail:
-            sid, _ = choose_with_tiebreak(occ, dict(cand_probs), senses)
+            sid, _, _ = choose_with_tiebreak(occ, dict(cand_probs), senses)
             winners.append(sid)
 
         assert winners[0] == "A"
@@ -298,16 +300,18 @@ class TestChooseWithTiebreakIntegration:
         senses = {"A": NS(def_spans=[(0, 2)]), "B": NS(def_spans=[(50, 52)])}  # B is spatially closer
 
         # Default thresholds → margin = (0.55-0.52)/0.55 ≈ 0.0545 < 0.10, near tie triggers, B should win
-        sid_def, margin_def = choose_with_tiebreak(occ, cand_probs, senses)
+        sid_def, rel_margin_def, abs_def = choose_with_tiebreak(occ, cand_probs, senses)
         assert sid_def == "B"
-        assert 0.0 <= margin_def < 0.10
+        assert 0.0 <= abs_def < 0.10
+        assert 0.0 <= rel_margin_def <= 0.05454545454545459
 
         # If we make the margin_threshold tiny, the probabilistic winner short-circuits before distance
-        sid_small_thr, margin_small_thr = choose_with_tiebreak(
+        sid_small_thr, rel_margin_small_thr, abs_margin_small_thr = choose_with_tiebreak(
             occ, cand_probs, senses, margin_threshold=0.01, near_tie_margin=0.06
         )
         assert sid_small_thr == "A"
-        assert margin_small_thr >= 0.01
+        assert abs_margin_small_thr >= 0.01
+        assert rel_margin_small_thr >= 0.05454545454545459
 
     def test_handles_realistic_mix_missing_spans_and_ties(self):
         # Some senses lack def_spans; ensure function remains stable.
@@ -316,9 +320,10 @@ class TestChooseWithTiebreakIntegration:
         senses = {"A": NS(def_spans=None), "B": NS(def_spans=[(98, 102)])}  # B has nearby span
 
         # diff=0 ≤ near_tie_margin; B has finite distance, A hits sentinel → B should win
-        sid, margin = choose_with_tiebreak(occ, cand_probs, senses)
+        sid, rel_margin, abs_margin = choose_with_tiebreak(occ, cand_probs, senses)
         assert sid == "B"
-        assert margin == 0.0
+        assert abs_margin == 0.0
+        assert rel_margin == 0.0
 
 
 class TestDisambiguateOccurrencesUnit:
@@ -331,7 +336,7 @@ class TestDisambiguateOccurrencesUnit:
         r = out[0]
         assert r.acronym == "EMA"
         assert r.chosen_sense_id is None
-        assert r.candidates == {}
+        assert r.candidate_scores == {}
         assert r.margin == 0.0
 
     def test_overlap_only_picks_best_label_match(self):
@@ -346,6 +351,7 @@ class TestDisambiguateOccurrencesUnit:
                     sense_id="ema|european_medicines_agency",
                     def_spans=[],  # distance score -> 0.0
                     support=1,
+                    sense_confidence=0.9,
                 ),
                 AcronymSense(
                     acronym="EMA",
@@ -353,6 +359,7 @@ class TestDisambiguateOccurrencesUnit:
                     sense_id="ema|emergency_management_australia",
                     def_spans=[],
                     support=1,
+                    sense_confidence=0.9,
                 ),
             ]
         }
@@ -367,11 +374,11 @@ class TestDisambiguateOccurrencesUnit:
         assert r.chosen_sense_id == "ema|european_medicines_agency"
         # Strong margin because other label has near-zero overlap
         assert r.margin >= 0.10
-        assert set(r.candidates) == {
+        assert set(r.candidate_scores) == {
             "ema|european_medicines_agency",
             "ema|emergency_management_australia",
         }
-        assert all(0.0 <= v <= 1.0 for v in r.candidates.values())
+        assert all(0.0 <= v <= 1.0 for v in r.candidate_scores.values())
 
     def test_distance_only_picks_nearest_definition_span(self):
         text = "FDA met EMA in Brussels yesterday."
@@ -385,6 +392,7 @@ class TestDisambiguateOccurrencesUnit:
                     sense_id="ema|medicines",
                     def_spans=[(6, 10)],  # center ~8
                     support=2,
+                    sense_confidence=0.9
                 ),
                 AcronymSense(
                     acronym="EMA",
@@ -392,6 +400,7 @@ class TestDisambiguateOccurrencesUnit:
                     sense_id="ema|emergency",
                     def_spans=[(100, 110)],  # far away
                     support=2,
+                    sense_confidence=0.9
                 ),
             ]
         }
@@ -411,8 +420,8 @@ class TestDisambiguateOccurrencesUnit:
         occs = [OccurrenceLite(acronym="ACR", start=0, end=3)]
         senses = {
             "ACR": [
-                AcronymSense("ACR", "Alpha Core Reader", "acr|alpha_core_reader", [(0, 2)], 1),
-                AcronymSense("ACR", "Advanced Cardiac Rehab", "acr|advanced_cardiac_rehab", [(50, 60)], 1),
+                AcronymSense("ACR", "Alpha Core Reader", "acr|alpha_core_reader", 0.9, [(0, 2)], 1),
+                AcronymSense("ACR", "Advanced Cardiac Rehab", "acr|advanced_cardiac_rehab", 0.9, [(50, 60)], 1),
             ]
         }
         # Pass senses_by_id=None to exercise the internal build
@@ -437,6 +446,7 @@ class TestDisambiguateOccurrencesUnit:
                     "UKHSA",
                     "United Kingdom Health Security Agency",
                     "ukhsa|united_kingdom_health_security_agency",
+                    0.9,
                     [],  # distance 0 → rely on overlap
                     1,
                 )
@@ -455,8 +465,8 @@ class TestDisambiguateOccurrencesUnit:
             text, occs, senses, window_chars=400, dist_weight=0.0, overlap_weight=1.0
         )[0]
 
-        small_score = r_small.candidates.get(sid, 0.0)
-        large_score = r_large.candidates.get(sid, 0.0)
+        small_score = r_small.candidate_scores.get(sid, 0.0)
+        large_score = r_large.candidate_scores.get(sid, 0.0)
 
         # Overlap should not decrease when we widen the window
         assert small_score <= large_score
@@ -466,3 +476,86 @@ class TestDisambiguateOccurrencesUnit:
 
         # With a tiny window, resolution can be None (score 0.0)
         assert r_small.chosen_sense_id in (None, sid)
+
+    def test_dynamic_prior_disabled_keeps_near_tie_unresolved(self, _patch):
+        """
+        With forced near-tie base scores, disabling the prior should leave the
+        occurrence undecided *when distance tiebreak cannot distinguish senses*.
+        """
+        from plainera_unacronym.nlp.extraction.senses import disambiguate as mod
+
+        def fake_base_scores_for_occurrence(*_, **__):
+            return {
+                "nlp|natural_language_processing": 0.50,
+                "nlp|nice_lovely_plants": 0.49,
+            }
+
+        # Make distance tiebreak non-informative (same distance for every sense).
+        def fake_min_distance_to_spans(*_, **__):
+            return 0
+
+        _patch(
+            mod.disambiguate_occurrences,
+            base_scores_for_occurrence=fake_base_scores_for_occurrence,
+            _min_distance_to_spans=fake_min_distance_to_spans,
+        )
+
+        occs = [OccurrenceLite("NLP", 0, 3)]
+        out = mod.disambiguate_occurrences(
+            text="x" * 50,
+            occurrences=occs,
+            senses={
+                "NLP": [
+                    # Only ids matter because base_scores is patched; spans won’t help now anyway.
+                    mod.AcronymSense("NLP", "Natural language processing", "nlp|natural_language_processing", 0.9, [],
+                                     1),
+                    mod.AcronymSense("NLP", "Nice Lovely Plants", "nlp|nice_lovely_plants", 0.1, [], 1),
+                ]
+            },
+            sense_prior_weight=0.0,  # disable prior
+            senses_by_id={
+                "nlp|natural_language_processing": mod.AcronymSense("NLP", "Natural language processing",
+                                                                    "nlp|natural_language_processing", 0.9, [], 1),
+                "nlp|nice_lovely_plants": mod.AcronymSense("NLP", "Nice Lovely Plants", "nlp|nice_lovely_plants", 0.1,
+                                                           [], 1),
+            },
+            window_chars=10,
+            margin_threshold=0.10,
+        )
+
+        assert out and out[0].chosen_sense_id is None
+
+    def test_dynamic_prior_breaks_near_tie_in_favour_of_higher_confidence_sense(self, _patch):
+
+        def fake_base_scores_for_occurrence(*_, **__):
+            return {
+                "nlp|natural_language_processing": 0.50,
+                "nlp|nice_lovely_plants": 0.49,
+            }
+
+        _patch(disambiguate_occurrences, base_scores_for_occurrence=fake_base_scores_for_occurrence)
+
+        # must be non-empty so disambiguate_occurrences doesn't short-circuit
+        dummy_senses = [
+            NS(sense_id="nlp|natural_language_processing", definition="Natural language processing",
+               def_spans=[(0, 1)]),
+            NS(sense_id="nlp|nice_lovely_plants", definition="Nice Lovely Plants", def_spans=[(0, 1)]),
+        ]
+
+        senses_by_id = {
+            "nlp|natural_language_processing": NS(sense_confidence=1.0, def_spans=[(0, 1)]),
+            "nlp|nice_lovely_plants": NS(sense_confidence=0.0, def_spans=[(0, 1)]),
+        }
+
+        out = disambiguate_occurrences(
+            text="x" * 50,
+            occurrences=[OccurrenceLite("NLP", 0, 3)],
+            senses={"NLP": dummy_senses},
+            senses_by_id=senses_by_id,
+            window_chars=10,
+            sense_prior_weight=0.08,
+            margin_threshold=0.10,
+        )
+
+        assert out
+        assert out[0].chosen_sense_id == "nlp|natural_language_processing"

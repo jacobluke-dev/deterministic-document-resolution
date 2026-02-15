@@ -10,7 +10,11 @@ from plainera_unacronym.nlp.extraction import ExtractionConfig
 def _fo(acr: str, start: int, end: int, *, norm: str | None = None):
     # Use your existing helper if you already have one
     from plainera_unacronym.nlp.common.types import FirstOccurrence
-    return FirstOccurrence(acronym=acr, start_offset=start, end_offset=end, confidence=0.9, normalized_key=norm)
+    return FirstOccurrence(acronym=acr,
+                           start_offset=start,
+                           end_offset=end,
+                           occurrence_confidence=0.9,
+                           normalized_key=norm)
 
 
 class TestBuildLocalWindowUnit:
@@ -77,8 +81,8 @@ def _ed(*, conf: float, d0: int, d1: int) -> ExtractedDefinition:
     return ExtractedDefinition(
         acronym="X",
         definition="DEF",
-        source="in_text",
-        confidence=conf,
+        source="all_occ_scan_parenthetical",
+        definition_confidence=conf,
         acr_start=0,
         acr_end=1,
         def_start=d0,
@@ -147,7 +151,7 @@ def _fo_extract_near_firsts_only(acr: str,
         acronym=acr,
         start_offset=a0,
         end_offset=a0 + len(acr) + end_extra,
-        confidence=0.9,
+        occurrence_confidence=0.9,
         normalized_key=norm,
     )
 
@@ -194,7 +198,7 @@ class TestExtractNearFirstsUnit:
 
         _patch(
             mod.extract_near_firsts,
-            compile_anchored_exact=lambda acr_surface, cfg: specs,
+            compile_anchored_for_surface=lambda acr_surface, cfg: specs,
             resolve_def_span=fake_resolve_def_span,
             clean_definition=lambda orig, *, acr_norm, cfg, kind: orig,  # passthrough
         )
@@ -215,7 +219,7 @@ class TestExtractNearFirstsUnit:
 
         _patch(
             mod.extract_near_firsts,
-            compile_anchored_exact=lambda *_: specs,
+            compile_anchored_for_surface=lambda *_: specs,
             _build_local_window=lambda text, fo, wl, wr: (0, len(text), "ZZ AAA Y"),  # shifts match position
             resolve_def_span=lambda *a, **k: (0, 1),
             clean_definition=lambda *a, **k: "DEF",
@@ -233,7 +237,7 @@ class TestExtractNearFirstsUnit:
             acronym="U.S.",
             start_offset=fo.start_offset,
             end_offset=fo.end_offset,
-            confidence=0.9,
+            occurrence_confidence=0.9,
             normalized_key="U.S."
         )}
 
@@ -242,7 +246,7 @@ class TestExtractNearFirstsUnit:
 
         _patch(
             mod.extract_near_firsts,
-            compile_anchored_exact=lambda *_: specs,
+            compile_anchored_for_surface=lambda *_: specs,
             resolve_def_span=lambda *a, **k: (0, 3),
             clean_definition=lambda *a, **k: "US DEF",
         )
