@@ -9,7 +9,6 @@ from plainera_unacronym.nlp.common.constants_regex import ALLOW_CHARS, DottedMod
 
 SCHEMA_VERSION = "1.1.0"
 
-
 # -------------------------- SPANS ------------------------------------
 
 Span: TypeAlias = tuple[int, int]
@@ -67,6 +66,32 @@ class FirstOccurrence:
 
 @dataclass
 class AcronymSense:
+    """
+        Represents a single “meaning” (sense) of an acronym within a document.
+
+        An `AcronymSense` is constructed from one or more extracted in-text definitions
+        that normalise to the same `(acronym, definition)` identity (e.g. multiple
+        mentions of “European Medicines Agency (EMA)” across the text). It is used as
+        the unit of choice during occurrence-level disambiguation.
+
+        Key ideas:
+          - `sense_id` is a stable identifier (typically derived from the acronym plus a
+            slug of the tightened definition) used for indexing and resolution outputs.
+          - `def_spans` records where this sense was defined in the source text; these
+            spans drive proximity-based scoring and distance tie-breaks.
+          - `sense_confidence` is a deterministic strength signal for the sense (e.g. the
+            max confidence among supporting definitions). It may be used as a small prior
+            for near-tie breaking, but should not override structural validity gates.
+          - `support` counts how many definition instances were merged into this sense.
+
+        Attributes:
+            acronym: Uppercased acronym string (e.g. "EMA").
+            definition: Tightened/normalised definition label for this sense.
+            sense_id: Stable key for this sense (e.g. "ema|european_medicines_agency").
+            sense_confidence: Deterministic confidence scalar in [0, 1] for this sense.
+            def_spans: List of (start, end) spans where this sense is defined in the text.
+            support: Number of definition instances merged into this sense.
+    """
     acronym: str
     definition: str  # tightened, normalized label ("European Medicines Agency")
     sense_id: str  # stable key, e.g., "ema|european_medicines_agency"
@@ -77,6 +102,19 @@ class AcronymSense:
 
 @dataclass
 class OccurrenceLite:
+    """
+        Minimal representation of an acronym occurrence in the source text.
+
+        This type is intentionally lightweight: it captures only the acronym surface
+        and its character offsets. It is fed into disambiguation, where each occurrence
+        is scored against candidate `AcronymSense` objects using local context windows
+        and distance to definition spans.
+
+        Attributes:
+            acronym: Acronym surface string as detected (typically uppercased upstream).
+            start: Start character offset of the occurrence in the document.
+            end: End character offset (exclusive) of the occurrence in the document.
+    """
     acronym: str
     start: int
     end: int
@@ -265,13 +303,10 @@ class OccurrenceBuildError(Exception):
 
 pattern_cache: dict[tuple[Any, ...], re.Pattern[str]] = {}
 
-soft_dotted_drop: frozenset[str] = frozenset({"EG", "IE", "AKA"})
-
 INLINE = "inline"
 INLINE_BEFORE = "inline_before"
 
 INLINE_KINDS = {INLINE, INLINE_BEFORE}
-
 
 JsonDict = dict[str, Any]
 
