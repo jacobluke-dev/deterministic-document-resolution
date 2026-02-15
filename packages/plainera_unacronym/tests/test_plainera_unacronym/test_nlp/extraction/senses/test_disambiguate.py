@@ -524,3 +524,38 @@ class TestDisambiguateOccurrencesUnit:
         )
 
         assert out and out[0].chosen_sense_id is None
+
+    def test_dynamic_prior_breaks_near_tie_in_favour_of_higher_confidence_sense(self, _patch):
+
+        def fake_base_scores_for_occurrence(*_, **__):
+            return {
+                "nlp|natural_language_processing": 0.50,
+                "nlp|nice_lovely_plants": 0.49,
+            }
+
+        _patch(disambiguate_occurrences, base_scores_for_occurrence=fake_base_scores_for_occurrence)
+
+        # must be non-empty so disambiguate_occurrences doesn't short-circuit
+        dummy_senses = [
+            NS(sense_id="nlp|natural_language_processing", definition="Natural language processing",
+               def_spans=[(0, 1)]),
+            NS(sense_id="nlp|nice_lovely_plants", definition="Nice Lovely Plants", def_spans=[(0, 1)]),
+        ]
+
+        senses_by_id = {
+            "nlp|natural_language_processing": NS(sense_confidence=1.0, def_spans=[(0, 1)]),
+            "nlp|nice_lovely_plants": NS(sense_confidence=0.0, def_spans=[(0, 1)]),
+        }
+
+        out = disambiguate_occurrences(
+            text="x" * 50,
+            occurrences=[OccurrenceLite("NLP", 0, 3)],
+            senses={"NLP": dummy_senses},
+            senses_by_id=senses_by_id,
+            window_chars=10,
+            sense_prior_weight=0.08,
+            margin_threshold=0.10,
+        )
+
+        assert out
+        assert out[0].chosen_sense_id == "nlp|natural_language_processing"
