@@ -476,3 +476,51 @@ class TestDisambiguateOccurrencesUnit:
 
         # With a tiny window, resolution can be None (score 0.0)
         assert r_small.chosen_sense_id in (None, sid)
+
+    def test_dynamic_prior_disabled_keeps_near_tie_unresolved(self, _patch):
+        """
+        With forced near-tie base scores, disabling the prior should leave the
+        occurrence undecided *when distance tiebreak cannot distinguish senses*.
+        """
+        from plainera_unacronym.nlp.extraction.senses import disambiguate as mod
+
+        def fake_base_scores_for_occurrence(*_, **__):
+            return {
+                "nlp|natural_language_processing": 0.50,
+                "nlp|nice_lovely_plants": 0.49,
+            }
+
+        # Make distance tiebreak non-informative (same distance for every sense).
+        def fake_min_distance_to_spans(*_, **__):
+            return 0
+
+        _patch(
+            mod.disambiguate_occurrences,
+            base_scores_for_occurrence=fake_base_scores_for_occurrence,
+            _min_distance_to_spans=fake_min_distance_to_spans,
+        )
+
+        occs = [OccurrenceLite("NLP", 0, 3)]
+        out = mod.disambiguate_occurrences(
+            text="x" * 50,
+            occurrences=occs,
+            senses={
+                "NLP": [
+                    # Only ids matter because base_scores is patched; spans won’t help now anyway.
+                    mod.AcronymSense("NLP", "Natural language processing", "nlp|natural_language_processing", 0.9, [],
+                                     1),
+                    mod.AcronymSense("NLP", "Nice Lovely Plants", "nlp|nice_lovely_plants", 0.1, [], 1),
+                ]
+            },
+            sense_prior_weight=0.0,  # disable prior
+            senses_by_id={
+                "nlp|natural_language_processing": mod.AcronymSense("NLP", "Natural language processing",
+                                                                    "nlp|natural_language_processing", 0.9, [], 1),
+                "nlp|nice_lovely_plants": mod.AcronymSense("NLP", "Nice Lovely Plants", "nlp|nice_lovely_plants", 0.1,
+                                                           [], 1),
+            },
+            window_chars=10,
+            margin_threshold=0.10,
+        )
+
+        assert out and out[0].chosen_sense_id is None

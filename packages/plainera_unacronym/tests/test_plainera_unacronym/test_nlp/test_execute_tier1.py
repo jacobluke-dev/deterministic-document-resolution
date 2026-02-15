@@ -1,16 +1,17 @@
 import pprint
 from types import SimpleNamespace as NS
 
+import pytest
 from _pytest.python_api import approx
 
 import plainera_unacronym.nlp.extraction.engine.stage_funcs as stage_fxn
 import plainera_unacronym.nlp.extraction.engine.state as state
-from plainera_unacronym.nlp.common.types import DetectorConfig, DetectorResult, FirstOccurrence, InTextPick, Occurrence, \
+from plainera_unacronym.nlp.common.types import DetectorConfig, DetectorResult, InTextPick, Occurrence, \
     OccurrenceLite, ExtractedDefinition, AcronymSense, Span
 from plainera_unacronym.nlp.execute import detect_and_extract
 from plainera_unacronym.nlp.extraction import ExtractionConfig
 from plainera_unacronym.nlp.extraction.core.defs import dedupe_defs
-from plainera_unacronym.nlp.extraction.senses.disambiguate import choose_with_tiebreak
+from plainera_unacronym.nlp.extraction.senses.disambiguate import choose_with_tiebreak, disambiguate_occurrences
 from plainera_unacronym.nlp.extraction.senses.sense_build import build_senses
 
 
@@ -203,10 +204,7 @@ class TestDetectAndExtractIntegrationEdgeCases:
         # Ensure numeric-leading tokens (e.g., 3M) are kept in the definition window
         text = "PF (3M Portable format) is a special case in this doc."
         det_cfg, ext_cfg = _cfg_integrated()
-        det_res, extr, r = detect_and_extract(text, det_cfg=det_cfg, ext_cfg=ext_cfg, return_reports=True)
-        pprint.pprint(extr)
-        pprint.pprint(r)
-        pprint.pprint(det_res)
+        det_res, extr = detect_and_extract(text, det_cfg=det_cfg, ext_cfg=ext_cfg)
         by = {}
         for d in extr.definitions:
             by.setdefault(d.acronym, []).append(d)
@@ -304,10 +302,7 @@ class TestDetectAndExtractE2E:
         assert picked_def(extr, "SSO") in {"Single sign-on"}, extr.picks.get("SSO")
 
     def test_parenthetical_reserve_token(self, picked_def):
-        det, extr, r = detect_and_extract("SSO (single sign-on) is enabled.", return_reports=True)
-        pprint.pprint(r)
-        pprint.pprint(extr)
-        pprint.pprint(det)
+        det, extr = detect_and_extract("SSO (single sign-on) is enabled.")
         assert picked_def(extr, "SSO") == "single sign-on", extr.picks.get("SSO")
 
     def test_parenthetical_all_lowercase_definition_is_allowed(self, picked_def):
@@ -364,11 +359,8 @@ class TestDetectAndExtractE2E:
         assert picked_def(extr, "JWT") == "JSON Web Tokens", extr.picks.get("JWT")
 
     def test_tier_one_sso_is_extracted_via_sentence_backref(self, picked_def):
-        det, extr, r = detect_and_extract(
-            "We use Single sign-on in hospitals. This method of auth is known as SSO.", return_reports=True)
-        pprint.pprint(r)
-        pprint.pprint(extr)
-        pprint.pprint(extr)
+        det, extr = detect_and_extract(
+            "We use Single sign-on in hospitals. This method of auth is known as SSO.")
         assert picked_def(extr, "SSO") == "Single sign-on", extr.picks.get("SSO")
 
     def test_tier_one_negative_mismatch_plausible_longform_wrong_acronym(self, picked_def):
@@ -589,14 +581,8 @@ class TestDisambiguationE2E:
         assert "nice_lovely_plants" in last.chosen_sense_id, last
 
     def test_disambiguation_not_ambiguous_when_only_one_sense(self, picked_def):
-        det, extr, r = detect_and_extract(
-            "European Medicines Agency (EMA) issued guidance. EMA guidance was updated later.",
-            return_reports=True,
-        )
-
-        pprint.pprint(extr)
-        pprint.pprint(r)
-        pprint.pprint(det)
+        det, extr = detect_and_extract(
+            "European Medicines Agency (EMA) issued guidance. EMA guidance was updated later.")
         assert "EMA" in extr.senses_by_acronym
         assert len(extr.senses_by_acronym["EMA"]) == 1
         assert "EMA" not in set(extr.ambiguous_keys)
@@ -783,46 +769,57 @@ class TestDisambiguationE2EConfidenceContract:
         assert out and out[0].chosen_sense_id is not None
         assert "natural_language_processing" in out[0].chosen_sense_id
 
-    def test_dynamic_prior_disabled_keeps_near_tie_unresolved(self, _patch):
+    def test_dynamic_prior_disabled_keeps_near_tie_unresolved(self):
         """
-        With the same forced near-tie base scores, disabling the prior should leave
-        the occurrence undecided unless distance tiebreak triggers.
+        Integration-style contract:
+        - Build real senses (and real def_spans) from the pipeline.
+        - Create a synthetic occurrence positioned exactly midway between the two def spans.
+        - With prior disabled and distance unable to distinguish, resolution stays undecided.
         """
-        from plainera_unacronym.nlp.extraction.senses import disambiguate as mod
 
-        def fake_base_scores_for_occurrence(*_, **__):
-            return {
-                "nlp|natural_language_processing": 0.50,
-                "nlp|nice_lovely_plants": 0.49,
-            }
 
-        _patch(mod.disambiguate_occurrences, base_scores_for_occurrence=fake_base_scores_for_occurrence)
-
-        det, extr, r = detect_and_extract(
+        # 1) Run full pipeline once to get REAL senses + REAL def_spans.
+        _det, extr, _r = detect_and_extract(
             "Natural language processing (NLP) helps. "
-            "Nice Lovely Plants (NLP) sold locally. "
-            "NLP appears again.",
+            "Nice Lovely Plants (NLP) sold locally.",
             return_reports=True,
         )
 
-        occs = [OccurrenceLite("NLP", 0, 3)]
-        out = mod.disambiguate_occurrences(
-            text="x" * 50,
-            occurrences=occs,
-            senses={"NLP": list(extr.senses_by_acronym["NLP"])},
-            sense_prior_weight=0.0,  # disable
+        senses = list(extr.senses_by_acronym["NLP"])
+        assert len(senses) == 2
+        s1, s2 = senses
+
+        # Take the first def span for each sense and compute span-centers (same logic as disambiguate.py)
+        (a1, b1) = s1.def_spans[0]
+        (a2, b2) = s2.def_spans[0]
+        c1 = (a1 + b1) // 2
+        c2 = (a2 + b2) // 2
+
+        # 2) Place occurrence start exactly at the midpoint between centers (equal distance to both).
+        mid = (c1 + c2) // 2
+        occ = OccurrenceLite("NLP", mid, mid + 3)
+
+        # 3) Use dummy text with no useful overlap signal (tokens won't intersect sense definitions).
+        text = "x" * (mid + 50)
+
+        out = disambiguate_occurrences(
+            text=text,
+            occurrences=[occ],
+            senses={"NLP": senses},
             senses_by_id=extr.sense_index,
-            window_chars=10,
+            window_chars=20,
+            sense_prior_weight=0.0,  # disable prior (what we're asserting)
+            margin_threshold=0.10,
+            dist_weight=0.75,
+            overlap_weight=0.25,
         )
 
-        # With forced scores and no prior, we expect unresolved unless distance tiebreak
-        # can fire (it won't here because we didn't engineer spans/pos).
-        assert out and out[0].chosen_sense_id is None
+        assert out
+        assert out[0].chosen_sense_id is None, out[0]
 
-    def test_choose_with_tiebreak_margin_is_relative(self):
+    def test_choose_with_tiebreak_margins_checked(self):
         """
-        Contract test: choose_with_tiebreak returns *relative* margin (not absolute gap).
-        This protects your public OccurrenceResolution.margin semantics.
+        Contract test: choose_with_tiebreak returns relative and absolute margins.
         """
 
         def S(acr: str, sense_id: str, definition: str, spans: list[Span], *, conf: float = 0.0,
@@ -842,6 +839,8 @@ class TestDisambiguationE2EConfidenceContract:
         }
         cand = {"s1": 0.80, "s2": 0.60}
 
-        chosen, margin = choose_with_tiebreak(occ, cand, senses_by_id, margin_threshold=0.10)
+        chosen, rel_margin, abs_margin = choose_with_tiebreak(occ, cand, senses_by_id, margin_threshold=0.10)
         assert chosen == "s1"
-        assert margin == approx((0.80 - 0.60) / 0.80, rel=0, abs=1e-9)
+
+        assert abs_margin == approx(0.200000, abs=1e-6)
+        assert rel_margin == approx((0.80 - 0.60) / 0.80, rel=0, abs=1e-9)
