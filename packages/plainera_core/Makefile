@@ -3,6 +3,7 @@ export PATH := $(HOME)/.local/bin:$(PATH)
 RUN ?= python -m
 SRC := src
 TESTS := tests
+COV_FAIL_UNDER ?= 80
 
 .PHONY: install fmt lint style typecheck test cover htmlcov clean ci-local help
 
@@ -31,11 +32,11 @@ test:
 	@set -e; \
 	ROOT=$$(git rev-parse --show-toplevel); \
 	PYTHONPATH="$$ROOT/services/unacronym_api/src:src" $(RUN) pytest -q \
-	  --override-ini="addopts=-q --cov=src --cov-report=term --cov-report=xml:coverage.xml --cov-fail-under=80" \
+	  --override-ini="addopts=-q --cov=src --cov-report=term --cov-report=xml:coverage.xml --cov-fail-under=$(COV_FAIL_UNDER)" \
 	  tests
 
 cover:
-	$(RUN) pytest --cov=$(SRC) --cov-report=term --cov-report=xml --cov-fail-under=80
+	$(RUN) pytest --cov=$(SRC) --cov-report=term --cov-report=xml --cov-fail-under=$(COVER_FAIL_UNDER)
 
 htmlcov:
 	$(RUN) pytest --cov=$(SRC) --cov-report=html
