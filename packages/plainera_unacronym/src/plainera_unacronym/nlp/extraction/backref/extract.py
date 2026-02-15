@@ -70,11 +70,12 @@ list[ExtractedDefinition]
     Zero or more extracted definitions; each corresponds to an acronym whose definition
     was found in a prior sentence using initials-based span selection.
 """
+
 from dataclasses import dataclass
-from typing import Mapping, Literal
+from typing import Literal, Mapping
 
 from plainera_unacronym.nlp import FirstOccurrence
-from plainera_unacronym.nlp.common.constants_regex import TOKEN_RE, HYPHEN_SPLIT_RE
+from plainera_unacronym.nlp.common.constants_regex import HYPHEN_SPLIT_RE, TOKEN_RE
 from plainera_unacronym.nlp.common.types import ExtractedDefinition, Span
 from plainera_unacronym.nlp.extraction.anchored.clean import clean_definition
 from plainera_unacronym.nlp.extraction.anchored.normalise import tighten_definition_span
@@ -299,6 +300,7 @@ def _titlecase_delta(ctx: _ScoreCtx) -> tuple[float, str]:
 
 
 # --- main ------------------------------------------------------------------
+
 
 def _score_backref_confidence(
     *,

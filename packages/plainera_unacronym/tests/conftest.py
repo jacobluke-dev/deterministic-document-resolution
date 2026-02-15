@@ -1,11 +1,9 @@
-import pytest
 from typing import Callable
 
 import plainera_unacronym.nlp.detection.detector as det
-from plainera_unacronym.nlp.common.types import Span
+import pytest
 from plainera_unacronym.nlp.common.shared import normalize_acronym_key
-from plainera_unacronym.nlp.common.types import DetectorConfig, FirstOccurrence, Occurrence
-
+from plainera_unacronym.nlp.common.types import DetectorConfig, FirstOccurrence, Occurrence, Span
 
 
 @pytest.fixture

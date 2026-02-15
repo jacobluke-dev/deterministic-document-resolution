@@ -237,5 +237,7 @@ def logger(  # noqa: C901
                         error=repr(e),
                     )
                     raise
+
             return sw
+
     return decorate

@@ -25,6 +25,7 @@ _TITLECASE_RUN_ANY_RE = re.compile(
     flags=re.UNICODE,
 )
 
+
 def _pick_best_run(text: str) -> str | None:
     best: str | None = None
     best_key: tuple[int, int] | None = None  # (token_count, end_pos)
@@ -43,8 +44,6 @@ def _pick_best_run(text: str) -> str | None:
             best, best_key = cand, key
 
     return best
-
-
 
 
 def tighten_definition_span(s: str) -> str:

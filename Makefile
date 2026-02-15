@@ -113,9 +113,9 @@ ci-local: bootstrap ## Simulate CI locally across all packages using root venv
 
 
 # Run a single project: make run-ci DIR=services/unacronym_api
-run-ci:
-	@test -n "$(DIR)" || (echo "Usage: make run-ci DIR=<path>"; exit 2)
-	$(MAKE) -C $(DIR) ci-local
+#run-ci:
+#	@test -n "$(DIR)" || (echo "Usage: make run-ci DIR=<path>"; exit 2)
+#	$(MAKE) -C $(DIR) ci-local
 
 # Run a specific step (like lint, typecheck) in all submodules
 run-%:

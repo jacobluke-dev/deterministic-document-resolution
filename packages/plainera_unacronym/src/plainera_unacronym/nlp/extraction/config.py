@@ -8,13 +8,15 @@ from plainera_unacronym.nlp.common.constants_regex import BRIDGES_DEFAULT, DEFAU
 @dataclass(frozen=True, slots=True)
 class ConfidenceConfig:
     base_by_source: Mapping[str, float] = field(
-        default_factory=lambda: MappingProxyType({
-            "first_occurrence_anchored": 0.85, # first-occurrence local window + anchored regex patterns RENAME this 'first_occurrence_anchored'
-            "parenthetical": 0.95, # (ACR) long form (long form) ACR
-            "inline": 0.8,  # cue-based: "ACR stands for Long Form" / "Long Form, abbreviated as ACR"
-            "sentence_backref": 0.60, # definition in earlier sentence(s), acronym later
-            "all_occ_scan_parenthetical": 0.80, # scan around all occurrences, looser than anchored-first aka 'harvest'
-        })
+        default_factory=lambda: MappingProxyType(
+            {
+                "first_occurrence_anchored": 0.85,  # first-occurrence local window + anchored regex patterns RENAME this 'first_occurrence_anchored'
+                "parenthetical": 0.95,  # (ACR) long form (long form) ACR
+                "inline": 0.8,  # cue-based: "ACR stands for Long Form" / "Long Form, abbreviated as ACR"
+                "sentence_backref": 0.60,  # definition in earlier sentence(s), acronym later
+                "all_occ_scan_parenthetical": 0.80,  # scan around all occurrences, looser than anchored-first aka 'harvest'
+            }
+        )
     )
 
     # --- backref shaping ---
@@ -38,7 +40,6 @@ class ConfidenceConfig:
 
 @dataclass(frozen=True, slots=True)
 class ExtractionConfig:
-
     confidence: ConfidenceConfig = field(default_factory=ConfidenceConfig)
 
     # Phrase limits / toggles

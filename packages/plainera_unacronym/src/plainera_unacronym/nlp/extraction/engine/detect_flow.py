@@ -143,11 +143,7 @@ class ExtractionFlow:
                     "finalise_picks",
                     f.st_finalise_picks,
                     lambda s: (
-                        "cov={:.0%} miss={} by_route={}".format(
-                            s.coverage,
-                            len(s.missing_keys),
-                            dict(sorted(Counter(p.route for p in s.picks.values() if p).items()))
-                        )
+                        f"cov={s.coverage:.0%} miss={len(s.missing_keys)} by_route={dict(sorted(Counter(p.route for p in s.picks.values() if p).items()))}"
                     ),
                     trace_fields=("picks",),
                 ),

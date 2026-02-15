@@ -1,13 +1,18 @@
-import pprint
 from types import SimpleNamespace as NS
-
-import pytest
-from _pytest.python_api import approx
 
 import plainera_unacronym.nlp.extraction.engine.stage_funcs as stage_fxn
 import plainera_unacronym.nlp.extraction.engine.state as state
-from plainera_unacronym.nlp.common.types import DetectorConfig, DetectorResult, InTextPick, Occurrence, \
-    OccurrenceLite, ExtractedDefinition, AcronymSense, Span
+from _pytest.python_api import approx
+from plainera_unacronym.nlp.common.types import (
+    AcronymSense,
+    DetectorConfig,
+    DetectorResult,
+    ExtractedDefinition,
+    InTextPick,
+    Occurrence,
+    OccurrenceLite,
+    Span,
+)
 from plainera_unacronym.nlp.execute import detect_and_extract
 from plainera_unacronym.nlp.extraction import ExtractionConfig
 from plainera_unacronym.nlp.extraction.core.defs import dedupe_defs

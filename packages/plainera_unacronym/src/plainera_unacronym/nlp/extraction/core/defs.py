@@ -5,7 +5,6 @@ from plainera_unacronym.nlp.common.types import ExtractedDefinition, InTextPick
 from plainera_unacronym.nlp.extraction.core.normalise import tighten_label
 from plainera_unacronym.nlp.extraction.matchers.tighten import tighten_label_by_acronym
 
-
 _SOURCE_PRECEDENCE: dict[str, int] = {
     "parenthetical": 5,
     "inline": 4,
@@ -14,8 +13,10 @@ _SOURCE_PRECEDENCE: dict[str, int] = {
     "sentence_backref": 1,
 }
 
+
 def _src_rank(src: str) -> int:
     return _SOURCE_PRECEDENCE.get(src, 0)
+
 
 def _wins(a: ExtractedDefinition, b: ExtractedDefinition) -> bool:
     """

@@ -8,9 +8,9 @@ from plainera_unacronym.nlp.extraction.senses.disambiguate import disambiguate_o
 from plainera_unacronym.nlp.extraction.senses.sense_build import build_senses
 from plainera_unacronym.nlp.extraction.strategies.harvest import extract_defs_all_occurrences
 
+from ..strategies.pick_resolution import backfill_missing_picks_from_defs, build_defs_index, patch_pick_provenance
 from .stages import StageResult
 from .state import FlowState
-from ..strategies.pick_resolution import build_defs_index, backfill_missing_picks_from_defs, patch_pick_provenance
 
 
 def st_detect(s: FlowState) -> StageResult[FlowState]:

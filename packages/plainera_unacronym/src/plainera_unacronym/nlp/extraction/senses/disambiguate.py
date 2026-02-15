@@ -19,6 +19,7 @@ from plainera_unacronym.nlp.common.types import AcronymSense, OccurrenceLite, Oc
 
 NEAR_TIE_GAP = 0.06
 
+
 def _ascii_tokens(s: str) -> list[str]:
     """
     Tokenize ASCII-ish words/numbers with optional internal apostrophes/hyphens.
@@ -78,7 +79,7 @@ def _min_distance_to_spans(pos: float, spans: list[Span]) -> int:
         - Intended for coarse tiebreaking; prefer smaller distances.
 
     """
-    best = 10 ** 9
+    best = 10**9
     for s, e in spans:
         c = _center(s, e)
         d = abs(c - pos)

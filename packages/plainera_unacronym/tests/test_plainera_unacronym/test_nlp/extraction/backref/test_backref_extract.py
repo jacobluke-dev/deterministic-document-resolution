@@ -3,8 +3,8 @@ from plainera_unacronym.nlp.common.types import ExtractedDefinition
 from plainera_unacronym.nlp.extraction.backref.extract import (
     _candidate_from_prev_sentence,
     _find_backref_candidate,
-    extract_sentence_backrefs,
     _score_backref_confidence,
+    extract_sentence_backrefs,
 )
 from plainera_unacronym.nlp.extraction.config import ExtractionConfig
 
