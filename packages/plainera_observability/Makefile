@@ -6,6 +6,7 @@ SRC := src
 
 FORMAT_PATHS := $(SRC)
 LINT_PATHS := $(SRC) tests
+COV_FAIL_UNDER ?= 80
 
 .PHONY: fmt lint style typecheck test build ci-local
 
@@ -25,7 +26,7 @@ typecheck:
 
 test:
 	# keep coverage by import name (not src path)
-	$(RUN) pytest -q --override-ini="addopts=-q --cov=$(PKG) --cov-report=term --cov-report=xml:coverage.xml --cov-fail-under=80" tests
+	$(RUN) pytest -q --override-ini="addopts=-q --cov=$(PKG) --cov-report=term --cov-report=xml:coverage.xml --cov-fail-under=$(COV_FAIL_UNDER)" tests
 
 build:
 	$(RUN) build .

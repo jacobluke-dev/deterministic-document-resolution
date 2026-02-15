@@ -97,6 +97,7 @@ class _ScoreCtx:
     back: int
     dist_chars: int
 
+
 def _initials_hyphen_aware(phrase: str) -> str:
     """
     Build an initials string from a phrase, treating hyphenated tokens as multiple parts.
@@ -229,7 +230,6 @@ def _valid_backref_candidate(
         return False
 
     return initials_match(acr_norm, clean) or _initials_match_backref(acr_norm, clean)
-
 
 
 def _add_term(
