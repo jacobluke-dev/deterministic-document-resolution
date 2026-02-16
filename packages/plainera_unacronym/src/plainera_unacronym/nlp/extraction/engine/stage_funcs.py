@@ -17,6 +17,7 @@ from plainera_unacronym.nlp.extraction.strategies.pick_resolution import (
     build_defs_index,
     patch_pick_provenance,
 )
+from plainera_unacronym.nlp.extraction.tiers.tier_2 import collect_tier2_inputs, apply_tier2_reranks, _embed_for_tier2
 from plainera_unacronym.nlp.extraction.tiers.types import Tier2OccurrenceRanking, Tier2Report, Tier2SkipReason, \
     Tier1OccurrenceRanking
 
@@ -309,7 +310,21 @@ def st_tier1_score_occurrences(
 
 
 def st_tier2_semantic_rerank(s: FlowState, *, window_chars: int) -> StageResult[FlowState]:
-    """Tier-2: optional semantic rerank of Tier-1 candidates (no acceptance changes)."""
+    """
+    Tier-2: optional semantic rerank of Tier-1 candidates (no acceptance changes).
+
+    Applies embedding-based similarity scoring to reorder/adjust Tier-1 candidate
+    scores for eligible occurrences. Tier-2 is conservative: it only runs when
+    enabled and when Tier-1 did not already decide for an occurrence.
+
+    Args:
+        s: FlowState for the pipeline stage. Requires `s.det_res` and Tier-1
+            rankings in `s.disambig.tier1.ranked`.
+        window_chars: Context window size around each occurrence.
+
+    Returns:
+        StageResult containing the mutated FlowState and a short info string.
+    """
     assert s.det_res is not None
 
     t1 = s.disambig.tier1
@@ -317,6 +332,8 @@ def st_tier2_semantic_rerank(s: FlowState, *, window_chars: int) -> StageResult[
 
     tier2_cfg = getattr(s.ext_cfg, "tier2", None)
     enabled = bool(getattr(tier2_cfg, "enabled", False))
+
+    reasons: Counter[Tier2SkipReason] = Counter()
 
     if not enabled:
         n = len(t1.ranked)
@@ -328,60 +345,33 @@ def st_tier2_semantic_rerank(s: FlowState, *, window_chars: int) -> StageResult[
     weight = float(getattr(tier2_cfg, "weight", 0.35))
     model_name = str(getattr(tier2_cfg, "model_name", "all-MiniLM-L6-v2"))
 
-    out: list[Tier2OccurrenceRanking] = []
-    reasons: Counter[Tier2SkipReason] = Counter()
-    applied = 0
+    ranked2, eligible = collect_tier2_inputs(
+        text=s.text,
+        t1_ranked=t1.ranked,
+        sense_index=t1.sense_index,
+        window_chars=window_chars,
+        reasons=reasons,
+    )
 
-    for r in t1.ranked:
-        scores = r.candidate_scores
+    if not eligible:
+        t2.ranked = []
+        t2.report = Tier2Report(applied=0, skipped=len(t1.ranked), reasons=dict(reasons))
+        s.last_info = "tier2=skipped(nothing_eligible)"
+        return StageResult(s, s.last_info)
 
-        if len(scores) < 2:
-            reasons["single_candidate"] += 1
-            out.append(Tier2OccurrenceRanking(r.occ, applied=False, skip_reason="single_candidate",
-                                             tier2_sims=None, blended_scores=None))
-            continue
+    batch = _embed_for_tier2(model_name, eligible)
+    if batch is None:
+        reasons["model_unavailable"] += len(eligible)
+        t2.ranked = ranked2
+        t2.report = Tier2Report(applied=0, skipped=len(ranked2), reasons=dict(reasons))
+        s.last_info = "tier2=skipped(model_unavailable)"
+        return StageResult(s, s.last_info)
 
-        # Conservative gate: only try Tier-2 when Tier-1 did NOT decide.
-        if r.chosen_sense_id is not None:
-            reasons["tier1_decided"] += 1
-            out.append(Tier2OccurrenceRanking(r.occ, applied=False, skip_reason="tier1_decided",
-                                             tier2_sims=None, blended_scores=None))
-            continue
+    applied = apply_tier2_reranks(ranked2=ranked2, eligible=eligible, batch=batch, weight=weight)
 
-        L = max(0, r.occ.start - window_chars)
-        R = min(len(s.text), r.occ.end + window_chars)
-        context = s.text[L:R]
-
-        cand_ids = list(scores.keys())  # preserves insertion order
-        cand_texts = [f"{r.occ.acronym.upper()}: {t1.sense_index[sid].definition}" for sid in cand_ids]
-
-        # TODO: implement tier2_rerank; for now placeholder
-        # sims = tier2_rerank(model_name=model_name, context=context, candidate_texts=cand_texts)
-        sims = None
-
-        if sims is None:
-            reasons["model_unavailable"] += 1
-            out.append(Tier2OccurrenceRanking(r.occ, applied=False, skip_reason="model_unavailable",
-                                             tier2_sims=None, blended_scores=None))
-            continue
-
-        blended: dict[str, float] = {}
-        tier2_sims: dict[str, float] = {}
-
-        # Prefer returning sims aligned to cand_texts as a list, but keeping your mapping approach:
-        for sid, txt in zip(cand_ids, cand_texts, strict=True):
-            sim = float(sims[txt])
-            tier2_sims[sid] = sim
-            t1_score = float(scores[sid])
-            blended[sid] = (1.0 - weight) * t1_score + weight * sim
-
-        applied += 1
-        out.append(Tier2OccurrenceRanking(r.occ, applied=True, skip_reason=None,
-                                         tier2_sims=tier2_sims, blended_scores=blended))
-
-    t2.ranked = out
-    t2.report = Tier2Report(applied=applied, skipped=len(out) - applied, reasons=dict(reasons))
-    s.last_info = f"tier2=applied({applied}) skipped({len(out)-applied})"
+    t2.ranked = ranked2
+    t2.report = Tier2Report(applied=applied, skipped=len(ranked2) - applied, reasons=dict(reasons))
+    s.last_info = f"tier2=applied({applied}) skipped({len(ranked2)-applied})"
     return StageResult(s, s.last_info)
 
 

@@ -39,8 +39,18 @@ class ConfidenceConfig:
 
 
 @dataclass(frozen=True, slots=True)
+class Tier2Config:
+    enabled: bool = False
+    model_name: str = "sentence-transformers/all-MiniLM-L6-v2"  # or "all-MiniLM-L6-v2" depending on your install
+    weight: float = 0.35
+    # Optional: only run Tier-2 when Tier-1 couldn't decide (conservative)
+    only_when_undecided: bool = True
+
+
+@dataclass(frozen=True, slots=True)
 class ExtractionConfig:
     confidence: ConfidenceConfig = field(default_factory=ConfidenceConfig)
+    tier2: Tier2Config = field(default_factory=Tier2Config)
 
     # Phrase limits / toggles
     max_phrase_chars: int = 200

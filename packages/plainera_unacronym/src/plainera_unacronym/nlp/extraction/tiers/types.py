@@ -3,7 +3,15 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Literal
 
+import numpy as np
+from numpy._typing import NDArray
+
 from plainera_unacronym.nlp.common.types import AcronymSense, OccurrenceLite
+
+
+FloatMat = NDArray[np.floating]
+FloatVec = NDArray[np.floating]
+
 
 Tier2SkipReason = Literal[
     "disabled",
