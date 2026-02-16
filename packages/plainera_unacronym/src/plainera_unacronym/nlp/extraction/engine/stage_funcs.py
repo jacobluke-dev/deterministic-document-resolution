@@ -1,12 +1,15 @@
+from collections import Counter
+
 from plainera_unacronym.nlp import Detector
-from plainera_unacronym.nlp.common.types import ExtractionResult, OccurrenceLite
+from plainera_unacronym.nlp.common.types import ExtractionResult, OccurrenceLite, OccurrenceResolution
 from plainera_unacronym.nlp.detection.cleanup.post import post_detect_cleanup
 from plainera_unacronym.nlp.extraction.anchored.extract import extract_near_firsts
 from plainera_unacronym.nlp.extraction.backref.extract import extract_sentence_backrefs
 from plainera_unacronym.nlp.extraction.core.defs import dedupe_defs, defs_from_picks
 from plainera_unacronym.nlp.extraction.engine.stages import StageResult
 from plainera_unacronym.nlp.extraction.engine.state import FlowState
-from plainera_unacronym.nlp.extraction.senses.disambiguate import disambiguate_occurrences
+from plainera_unacronym.nlp.extraction.senses.disambiguate import disambiguate_occurrences, choose_with_tiebreak, \
+    NEAR_TIE_GAP
 from plainera_unacronym.nlp.extraction.senses.sense_build import build_senses
 from plainera_unacronym.nlp.extraction.strategies.harvest import extract_defs_all_occurrences
 from plainera_unacronym.nlp.extraction.strategies.pick_resolution import (
@@ -14,6 +17,8 @@ from plainera_unacronym.nlp.extraction.strategies.pick_resolution import (
     build_defs_index,
     patch_pick_provenance,
 )
+from plainera_unacronym.nlp.extraction.tiers.types import Tier2OccurrenceRanking, Tier2Report, Tier2SkipReason, \
+    Tier1OccurrenceRanking
 
 
 def st_detect(s: FlowState) -> StageResult[FlowState]:
@@ -202,54 +207,281 @@ def st_finalise_picks(s: FlowState) -> StageResult[FlowState]:
     s.last_info = f"coverage={s.coverage:.2%} missing={len(s.missing_keys)}"
     return StageResult(s, s.last_info)
 
+def st_tier1_build_senses(s: FlowState) -> StageResult[FlowState]:
+    """
+        Tier-1 setup: build senses and lightweight occurrences for disambiguation.
 
-def st_senses_and_assemble(
-    s: FlowState, *, disambig_window_chars: int, disambig_margin_threshold: float
-) -> StageResult[FlowState]:
-    """Build senses, disambiguate occurrences, and assemble the final ExtractionResult.
+        Constructs the Tier-1 disambiguation working set from the current extraction
+        state:
 
-    Builds sense candidates from `s.all_defs`, then performs occurrence-level
-    disambiguation over the document to choose a sense per occurrence. Populates
-    `s.extr` with picks, definitions, senses, and disambiguation outputs.
-    Records counts (total senses and undecided occurrences) in `s.last_info`.
+        - Derives `s.disambig.tier1.senses_by_acronym` from `s.all_defs` via
+          `build_senses()`.
+        - Builds `s.disambig.tier1.sense_index` for O(1) lookup by `sense_id`.
+        - Projects detector occurrences (`s.det_res.occurrences`) into a minimal
+          `OccurrenceLite` list (`acronym`, `start_offset`, `end_offset`) suitable
+          for scoring and reranking stages.
 
-    Args:
-        s (FlowState): Mutable flow state. Must already contain `s.det_res` and `s.all_defs`.
-        disambig_window_chars (int): Context window size (chars) for disambiguation.
-        disambig_margin_threshold (float): Minimum score margin required to auto-select a sense.
+        This stage does not score or choose senses; it only prepares data structures
+        consumed by subsequent Tier-1/Tier-2 stages.
 
-    Returns:
-        StageResult[FlowState]: Updated flow state plus a human-readable note.
+        Args:
+            s: FlowState for the pipeline stage. Requires `s.det_res` and `s.all_defs`
+                to be populated.
 
-    Raises:
-        AssertionError: If `s.det_res` is None (detect stage not run).
+        Returns:
+            StageResult containing the mutated FlowState and a short info string
+            summarising the number of senses and occurrences prepared.
     """
     assert s.det_res is not None
 
-    senses_by_acr = build_senses(s.all_defs)
-    sense_index = {x.sense_id: x for xs in senses_by_acr.values() for x in xs}
-    occs = [OccurrenceLite(o.acronym, o.start_offset, o.end_offset) for o in s.det_res.occurrences]
+    t1 = s.disambig.tier1
+    t1.senses_by_acronym = build_senses(s.all_defs)
+    t1.sense_index = {x.sense_id: x for xs in t1.senses_by_acronym.values() for x in xs}
+    t1.occurrences = [OccurrenceLite(o.acronym, o.start_offset, o.end_offset) for o in s.det_res.occurrences]
 
-    resolutions = disambiguate_occurrences(
+    s.last_info = f"senses={sum(len(v) for v in t1.senses_by_acronym.values())} occs={len(t1.occurrences)}"
+    return StageResult(s, s.last_info)
+
+
+
+def st_tier1_score_occurrences(
+    s: FlowState, *, window_chars: int, margin_threshold: float
+) -> StageResult[FlowState]:
+    """
+    Tier-1: score each occurrence against candidate senses and produce a provisional choice.
+
+    Runs the heuristic disambiguation pass over the prepared Tier-1 working set
+    (`s.disambig.tier1.occurrences` and `s.disambig.tier1.senses_by_acronym`),
+    computing per-occurrence candidate scores and (optionally) selecting a
+    provisional winning sense.
+
+    The underlying scorer (`disambiguate_occurrences`) is expected to return, per
+    occurrence:
+      - a stable mapping of candidate `sense_id -> score` (`candidate_scores`)
+      - a provisional winner (`chosen_sense_id`) or `None` if undecided
+      - tie diagnostics (`gap`, `margin`) used by later selection/assembly stages
+
+    Results are normalised into `Tier1OccurrenceRanking` entries and stored in
+    `s.disambig.tier1.ranked`. This stage does not mutate extracted definitions;
+    it only annotates occurrences with ranking metadata.
+
+    Args:
+        s: FlowState for the pipeline stage. Requires `s.det_res` and Tier-1
+            working data (senses/occurrences) to be prepared (typically by
+            `st_tier1_build_senses`).
+        window_chars: Number of characters to include on each side of the
+            occurrence when deriving the scoring context window.
+        margin_threshold: Minimum relative margin required for the heuristic
+            scorer to consider an occurrence “decided”; otherwise the winner is
+            left as `None`.
+
+    Returns:
+        StageResult containing the mutated FlowState and a short info string
+        reporting the number of ranked occurrences and how many remain undecided.
+    """
+    assert s.det_res is not None
+
+    t1 = s.disambig.tier1
+
+    res = disambiguate_occurrences(
         text=s.text,
-        occurrences=occs,
-        senses=senses_by_acr,
-        window_chars=disambig_window_chars,
-        margin_threshold=disambig_margin_threshold,
+        occurrences=t1.occurrences,
+        senses=t1.senses_by_acronym,
+        window_chars=window_chars,
+        margin_threshold=margin_threshold,
+        senses_by_id=t1.sense_index,
     )
+
+    t1.ranked = [
+        Tier1OccurrenceRanking(
+            occ=OccurrenceLite(r.acronym, r.start, r.end),
+            candidate_scores=r.candidate_scores,
+            chosen_sense_id=r.chosen_sense_id,
+            gap=r.gap,
+            margin=r.margin,
+        )
+        for r in res
+    ]
+
+    undec = sum(1 for r in t1.ranked if r.chosen_sense_id is None)
+    s.last_info = f"ranked={len(t1.ranked)} undecided={undec}"
+    return StageResult(s, s.last_info)
+
+
+def st_tier2_semantic_rerank(s: FlowState, *, window_chars: int) -> StageResult[FlowState]:
+    """Tier-2: optional semantic rerank of Tier-1 candidates (no acceptance changes)."""
+    assert s.det_res is not None
+
+    t1 = s.disambig.tier1
+    t2 = s.disambig.tier2
+
+    tier2_cfg = getattr(s.ext_cfg, "tier2", None)
+    enabled = bool(getattr(tier2_cfg, "enabled", False))
+
+    if not enabled:
+        n = len(t1.ranked)
+        t2.ranked = []
+        t2.report = Tier2Report(applied=0, skipped=n, reasons={"disabled": n})
+        s.last_info = "tier2=skipped(disabled)"
+        return StageResult(s, s.last_info)
+
+    weight = float(getattr(tier2_cfg, "weight", 0.35))
+    model_name = str(getattr(tier2_cfg, "model_name", "all-MiniLM-L6-v2"))
+
+    out: list[Tier2OccurrenceRanking] = []
+    reasons: Counter[Tier2SkipReason] = Counter()
+    applied = 0
+
+    for r in t1.ranked:
+        scores = r.candidate_scores
+
+        if len(scores) < 2:
+            reasons["single_candidate"] += 1
+            out.append(Tier2OccurrenceRanking(r.occ, applied=False, skip_reason="single_candidate",
+                                             tier2_sims=None, blended_scores=None))
+            continue
+
+        # Conservative gate: only try Tier-2 when Tier-1 did NOT decide.
+        if r.chosen_sense_id is not None:
+            reasons["tier1_decided"] += 1
+            out.append(Tier2OccurrenceRanking(r.occ, applied=False, skip_reason="tier1_decided",
+                                             tier2_sims=None, blended_scores=None))
+            continue
+
+        L = max(0, r.occ.start - window_chars)
+        R = min(len(s.text), r.occ.end + window_chars)
+        context = s.text[L:R]
+
+        cand_ids = list(scores.keys())  # preserves insertion order
+        cand_texts = [f"{r.occ.acronym.upper()}: {t1.sense_index[sid].definition}" for sid in cand_ids]
+
+        # TODO: implement tier2_rerank; for now placeholder
+        # sims = tier2_rerank(model_name=model_name, context=context, candidate_texts=cand_texts)
+        sims = None
+
+        if sims is None:
+            reasons["model_unavailable"] += 1
+            out.append(Tier2OccurrenceRanking(r.occ, applied=False, skip_reason="model_unavailable",
+                                             tier2_sims=None, blended_scores=None))
+            continue
+
+        blended: dict[str, float] = {}
+        tier2_sims: dict[str, float] = {}
+
+        # Prefer returning sims aligned to cand_texts as a list, but keeping your mapping approach:
+        for sid, txt in zip(cand_ids, cand_texts, strict=True):
+            sim = float(sims[txt])
+            tier2_sims[sid] = sim
+            t1_score = float(scores[sid])
+            blended[sid] = (1.0 - weight) * t1_score + weight * sim
+
+        applied += 1
+        out.append(Tier2OccurrenceRanking(r.occ, applied=True, skip_reason=None,
+                                         tier2_sims=tier2_sims, blended_scores=blended))
+
+    t2.ranked = out
+    t2.report = Tier2Report(applied=applied, skipped=len(out) - applied, reasons=dict(reasons))
+    s.last_info = f"tier2=applied({applied}) skipped({len(out)-applied})"
+    return StageResult(s, s.last_info)
+
+
+def st_tiers_select_and_assemble(
+    s: FlowState, *, margin_threshold: float
+) -> StageResult[FlowState]:
+    """
+    Final selection + result assembly using Tier-1 rankings (optionally Tier-2 reordered scores).
+
+    Converts disambiguation work products into the public `ExtractionResult`.
+
+    Selection policy:
+
+    - Tier-1 produces a provisional winner (`chosen_sense_id`) and diagnostics
+      (`gap`, `margin`) per occurrence.
+    - Tier-2, if applied for a given occurrence, may provide `blended_scores`
+      that *reorder/adjust* candidate scores.
+    - The acceptance policy (margin/tie-break rules) is applied once at this
+      stage:
+        - If Tier-2 blended scores exist for an occurrence, selection is computed
+          from those scores via `choose_with_tiebreak`.
+        - Otherwise the Tier-1 provisional decision is preserved verbatim (no
+          recomputation).
+
+    The stage then assembles:
+
+    - `resolutions`: per-occurrence `OccurrenceResolution` entries
+    - `ambiguous_keys`: acronyms with multiple candidate senses
+    - `undecided`: occurrences with no chosen sense
+
+    and writes the final `ExtractionResult` to `s.extr`.
+
+    Args:
+        s: FlowState for the pipeline stage. Requires `s.det_res` to be present
+            and Tier-1 rankings to have been computed (typically by
+            `st_tier1_score_occurrences`). Tier-2 rankings may be present but are
+            optional.
+        margin_threshold: Minimum relative margin required to accept a winner
+            when computing selection from Tier-2 blended scores.
+
+    Returns:
+        StageResult containing the mutated FlowState (with `s.extr` populated)
+        and a short info string summarising senses and the number of undecided
+        occurrences.
+    """
+    assert s.det_res is not None
+
+    t1 = s.disambig.tier1
+    t2 = s.disambig.tier2
+
+    tier2_by_key: dict[tuple[str, int, int], Tier2OccurrenceRanking] = {
+        (r2.occ.acronym, r2.occ.start, r2.occ.end): r2
+        for r2 in (t2.ranked or [])
+    }
+
+    resolutions: list[OccurrenceResolution] = []
+
+    for r1 in t1.ranked:
+        key = (r1.occ.acronym, r1.occ.start, r1.occ.end)
+        r2 = tier2_by_key.get(key)
+
+        if r2 and r2.applied and r2.blended_scores:
+            chosen, rel_margin, gap = choose_with_tiebreak(
+                r1.occ,
+                r2.blended_scores,
+                t1.sense_index,
+                margin_threshold=margin_threshold,
+                near_tie_margin=NEAR_TIE_GAP,
+            )
+            cand_scores = r2.blended_scores
+        else:
+            chosen, rel_margin, gap = r1.chosen_sense_id, r1.margin, r1.gap
+            cand_scores = r1.candidate_scores
+
+        resolutions.append(
+            OccurrenceResolution(
+                r1.occ.acronym,
+                r1.occ.start,
+                r1.occ.end,
+                chosen,
+                cand_scores,
+                gap=gap,
+                margin=rel_margin,
+            )
+        )
+
     undecided = [r for r in resolutions if r.chosen_sense_id is None]
-    ambiguous = tuple(sorted(k for k, v in senses_by_acr.items() if len(v) > 1))
+    ambiguous = tuple(sorted(k for k, v in t1.senses_by_acronym.items() if len(v) > 1))
 
     s.extr = ExtractionResult(
         picks=s.picks,
         definitions=s.all_defs,
         coverage=s.coverage,
         missing_keys=s.missing_keys,
-        senses_by_acronym=senses_by_acr,
-        sense_index=sense_index,
+        senses_by_acronym=t1.senses_by_acronym,
+        sense_index=t1.sense_index,
         resolutions=resolutions,
         ambiguous_keys=ambiguous,
         undecided=undecided,
     )
-    s.last_info = f"senses={sum(len(v) for v in senses_by_acr.values())}, undecided={len(undecided)}"
+
+    s.last_info = f"senses={sum(len(v) for v in t1.senses_by_acronym.values())}, undecided={len(undecided)}"
     return StageResult(s, s.last_info)

@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from collections import Counter
 from typing import Optional
 
@@ -90,18 +92,17 @@ class ExtractionFlow:
 
         # compute disambig knobs once here (engine concern)
         def _win(s: FlowState) -> int:
-            return (
-                self._ovr_win
-                if self._ovr_win is not None
-                else getattr(getattr(s.ext_cfg, "disambig", s.det_cfg), "window_chars", 320)
-            )
+            if self._ovr_win is not None:
+                return self._ovr_win
+            dis = getattr(s.ext_cfg, "disambig", None)
+            return int(getattr(dis, "window_chars", 320))
 
         def _margin(s: FlowState) -> float:
-            return (
-                self._ovr_margin
-                if self._ovr_margin is not None
-                else getattr(getattr(s.ext_cfg, "disambig", None), "margin_threshold", 0.20)
-            )
+            if self._ovr_margin is not None:
+                return self._ovr_margin
+            dis = getattr(s.ext_cfg, "disambig", None)
+            return float(getattr(dis, "margin_threshold", 0.20))
+
 
         return Chain(
             [
@@ -148,9 +149,34 @@ class ExtractionFlow:
                     trace_fields=("picks",),
                 ),
                 Stage(
-                    "senses_disambiguate",
-                    lambda s: f.st_senses_and_assemble(
-                        s, disambig_window_chars=_win(s), disambig_margin_threshold=_margin(s)
+                    "tier1_build_senses",
+                    f.st_tier1_build_senses,
+                    lambda s: s.last_info,
+                ),
+                Stage(
+                    "tier1_score_occurrences",
+                    lambda s: f.st_tier1_score_occurrences(
+                        s,
+                        window_chars=_win(s),
+                        margin_threshold=_margin(s),
+                    ),
+                    lambda s: s.last_info,
+                    trace_fields=("disambig.tier1.ranked",)
+                ),
+                Stage(
+                    "tier2_semantic_rerank",
+                    lambda s: f.st_tier2_semantic_rerank(
+                        s,
+                        window_chars=_win(s),
+                    ),
+                    lambda s: s.last_info,
+                    trace_fields=("disambig.tier2.report",)
+                ),
+                Stage(
+                    "tier1_select_and_assemble",
+                    lambda s: f.st_tiers_select_and_assemble(
+                        s,
+                        margin_threshold=_margin(s),
                     ),
                     lambda s: "ready",
                 ),

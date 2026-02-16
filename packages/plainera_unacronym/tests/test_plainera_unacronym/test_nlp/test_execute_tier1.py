@@ -1,5 +1,7 @@
 from types import SimpleNamespace as NS
 
+from tornado.autoreload import start
+
 import plainera_unacronym.nlp.extraction.engine.stage_funcs as stage_fxn
 import plainera_unacronym.nlp.extraction.engine.state as state
 from _pytest.python_api import approx
@@ -107,7 +109,17 @@ class TestDetectAndExtractUnit:
         monkeypatch.setattr(
             stage_fxn,
             "disambiguate_occurrences",
-            lambda **kw: [NS(chosen_sense_id="PDF::Portable Document Format", occurrence=NS(acronym="PDF"))],
+            lambda **kw: [
+                NS(
+                    acronym="PDF",
+                    start=28,
+                    end=31,
+                    chosen_sense_id="PDF::Portable Document Format",
+                    candidate_scores={"PDF::Portable Document Format": 1.0},
+                    gap=1.0,
+                    margin=1.0,
+                )
+            ],
         )
 
         det_res, extr = detect_and_extract(text, det_cfg=det_cfg, ext_cfg=ext_cfg)
