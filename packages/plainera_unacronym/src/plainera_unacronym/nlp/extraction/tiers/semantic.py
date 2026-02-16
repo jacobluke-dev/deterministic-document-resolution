@@ -4,7 +4,7 @@ from functools import lru_cache
 from typing import Iterable, Sequence, Optional
 
 import numpy as np
-from numpy._typing import NDArray
+from numpy.typing import NDArray
 
 from plainera_unacronym.nlp.extraction.tiers.types import FloatMat, FloatVec
 

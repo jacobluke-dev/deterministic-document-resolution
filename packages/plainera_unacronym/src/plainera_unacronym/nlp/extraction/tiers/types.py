@@ -4,7 +4,7 @@ from dataclasses import dataclass, field
 from typing import Literal
 
 import numpy as np
-from numpy._typing import NDArray
+from numpy.typing import NDArray
 
 from plainera_unacronym.nlp.common.types import AcronymSense, OccurrenceLite
 

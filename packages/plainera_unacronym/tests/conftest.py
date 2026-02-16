@@ -35,7 +35,6 @@ def _patch(monkeypatch):
         for name, impl in replacements.items():
             monkeypatch.setitem(g, name, impl)
         return func
-
     return _apply
 
 
