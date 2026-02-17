@@ -113,7 +113,7 @@ class ExtractionFlow:
 
         def _t2_select_margin(s: FlowState) -> float:
             t2 = getattr(s.ext_cfg, "tier2", None)
-            return float(getattr(t2, "select_margin_threshold", 0.10))
+            return float(getattr(t2, "select_margin_threshold", _margin(s)))
 
         return Chain(
             [

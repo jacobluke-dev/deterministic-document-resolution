@@ -125,7 +125,7 @@ def collect_tier2_inputs(
             ranked2.append(_skip_tier2(r1, "not_ambiguous"))
             continue
 
-        if only_when_undecided and r1.chosen_sense_id is not None:
+        if mode != "on" and only_when_undecided and r1.chosen_sense_id is not None:
             reasons["tier1_decided"] += 1
             ranked2.append(_skip_tier2(r1, "tier1_decided"))
             continue

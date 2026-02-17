@@ -47,7 +47,7 @@ class Tier2Config:
 
     # If True, Tier-2 only runs when Tier-1 chose None.
     # If False, Tier-2 may rerank even when Tier-1 chose, but you still gate via ceilings below.
-    only_when_undecided: bool = True
+    only_when_undecided: bool = False
 
     # AUTO eligibility gate:
     # - Tier-1 still "decides" at margin_threshold (e.g. 0.20)
