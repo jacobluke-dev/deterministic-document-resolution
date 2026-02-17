@@ -1,6 +1,6 @@
 from dataclasses import dataclass, field
 from types import MappingProxyType
-from typing import Mapping
+from typing import Mapping, Literal
 
 from plainera_unacronym.nlp.common.constants_regex import BRIDGES_DEFAULT, DEFAULT_STOPWORDS, INLINE_CUE_FRAGMENTS
 
@@ -40,11 +40,20 @@ class ConfidenceConfig:
 
 @dataclass(frozen=True, slots=True)
 class Tier2Config:
-    enabled: bool = False
-    model_name: str = "sentence-transformers/all-MiniLM-L6-v2"  # or "all-MiniLM-L6-v2" depending on your install
+    mode: Literal["off", "auto", "on"] = "auto"
+    model_name: str = "all-MiniLM-L6-v2"
+    max_candidates: int = 6
     weight: float = 0.35
-    # Optional: only run Tier-2 when Tier-1 couldn't decide (conservative)
+
+    # If True, Tier-2 only runs when Tier-1 chose None.
+    # If False, Tier-2 may rerank even when Tier-1 chose, but you still gate via ceilings below.
     only_when_undecided: bool = True
+
+    # AUTO eligibility gate:
+    # - Tier-1 still "decides" at margin_threshold (e.g. 0.20)
+    # - Tier-2 runs in auto-mode when r1.margin < auto_margin_ceiling (e.g. 0.75 for auditing)
+    auto_margin_ceiling: float = 0.75  # eligibility in auto
+    select_margin_threshold: float = 0.10  # acceptance when using blended scores (auto)
 
 
 @dataclass(frozen=True, slots=True)

@@ -6,6 +6,7 @@ from types import MappingProxyType
 from typing import Any, FrozenSet, Literal, Mapping, Optional, TypeAlias, cast
 
 from plainera_unacronym.nlp.common.constants_regex import ALLOW_CHARS, DottedMode
+from plainera_unacronym.nlp.extraction.tiers.types import Tier2OccurrenceRanking, Tier2Report
 
 SCHEMA_VERSION = "1.1.0"
 
@@ -299,6 +300,8 @@ class ExtractionResult:
     resolutions: list[OccurrenceResolution] = field(default_factory=list)
     ambiguous_keys: tuple[str, ...] = field(default_factory=tuple)  # acronyms with >1 senses
     undecided: list[OccurrenceResolution] = field(default_factory=list)  # chosen_sense_id is None
+    tier2_report: Tier2Report | None = None
+    tier2_ranked: tuple[Tier2OccurrenceRanking, ...] = ()
 
 
 class OccurrenceBuildError(Exception):

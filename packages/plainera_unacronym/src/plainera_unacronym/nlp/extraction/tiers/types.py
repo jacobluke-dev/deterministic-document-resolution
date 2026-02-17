@@ -8,16 +8,16 @@ from numpy.typing import NDArray
 
 from plainera_unacronym.nlp.common.types import AcronymSense, OccurrenceLite
 
-
 FloatMat = NDArray[np.floating]
 FloatVec = NDArray[np.floating]
-
 
 Tier2SkipReason = Literal[
     "disabled",
     "model_unavailable",
     "single_candidate",
+    "not_ambiguous",
     "tier1_decided",
+    "tier1_confident",
     "no_senses",
 ]
 

@@ -103,6 +103,17 @@ class ExtractionFlow:
             dis = getattr(s.ext_cfg, "disambig", None)
             return float(getattr(dis, "margin_threshold", 0.20))
 
+        def _t1_margin(s: FlowState) -> float:
+            dis = getattr(s.ext_cfg, "disambig", None)
+            return float(getattr(dis, "margin_threshold", 0.20))
+
+        def _t2_ceiling(s: FlowState) -> float:
+            t2 = getattr(s.ext_cfg, "tier2", None)
+            return float(getattr(t2, "auto_margin_ceiling", 0.75))
+
+        def _t2_select_margin(s: FlowState) -> float:
+            t2 = getattr(s.ext_cfg, "tier2", None)
+            return float(getattr(t2, "select_margin_threshold", 0.10))
 
         return Chain(
             [
@@ -158,7 +169,7 @@ class ExtractionFlow:
                     lambda s: f.st_tier1_score_occurrences(
                         s,
                         window_chars=_win(s),
-                        margin_threshold=_margin(s),
+                        margin_threshold=_t1_margin(s)
                     ),
                     lambda s: s.last_info,
                     trace_fields=("disambig.tier1.ranked",)
@@ -168,15 +179,16 @@ class ExtractionFlow:
                     lambda s: f.st_tier2_semantic_rerank(
                         s,
                         window_chars=_win(s),
+                        auto_margin_ceiling=_t2_ceiling(s)
                     ),
                     lambda s: s.last_info,
-                    trace_fields=("disambig.tier2.report",)
+                    trace_fields=("disambig.tier2.report", "disambig.tier2.ranked")
                 ),
                 Stage(
-                    "tier1_select_and_assemble",
+                    "tiers_select_and_assemble",
                     lambda s: f.st_tiers_select_and_assemble(
                         s,
-                        margin_threshold=_margin(s),
+                        margin_threshold=_t2_select_margin(s)
                     ),
                     lambda s: "ready",
                 ),

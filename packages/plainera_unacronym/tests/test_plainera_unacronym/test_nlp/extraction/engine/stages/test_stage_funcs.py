@@ -34,7 +34,7 @@ class TestSrTier2SemanticRerank:
             )
         ]
 
-        f.st_tier2_semantic_rerank(s, window_chars=50)
+        f.st_tier2_semantic_rerank(s, window_chars=50, auto_margin_ceiling=0.02)
 
         assert s.disambig.tier2.report is not None
         assert s.disambig.tier2.report.applied == 0

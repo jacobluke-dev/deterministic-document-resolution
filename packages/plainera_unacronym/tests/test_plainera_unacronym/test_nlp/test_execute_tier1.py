@@ -1,3 +1,4 @@
+import pprint
 from types import SimpleNamespace as NS
 
 from tornado.autoreload import start
@@ -564,7 +565,10 @@ class TestDetectAndExtractE2EInlineCues:
         assert picked_def(extr, "PDF") in {"Portable Document Format"}, extr.picks.get("PDF")
 
     def test_inline_after_means(self, picked_def):
-        det, extr = detect_and_extract("PDF means Portable Document Format.")
+        det, extr, r = detect_and_extract("PDF means Portable Document Format.", return_reports=True)
+        pprint.pprint(r)
+        pprint.pprint(extr)
+        pprint.pprint(det)
         assert picked_def(extr, "PDF") in {"Portable Document Format"}, extr.picks.get("PDF")
 
     def test_inline_after_is_short_for(self, picked_def):

@@ -309,7 +309,12 @@ def st_tier1_score_occurrences(
     return StageResult(s, s.last_info)
 
 
-def st_tier2_semantic_rerank(s: FlowState, *, window_chars: int) -> StageResult[FlowState]:
+def st_tier2_semantic_rerank(
+    s: FlowState,
+    *,
+    window_chars: int,
+    auto_margin_ceiling: float,
+) -> StageResult[FlowState]:
     """
     Tier-2: optional semantic rerank of Tier-1 candidates (no acceptance changes).
 
@@ -325,17 +330,21 @@ def st_tier2_semantic_rerank(s: FlowState, *, window_chars: int) -> StageResult[
     Returns:
         StageResult containing the mutated FlowState and a short info string.
     """
+
+    def _fmt_reasons(reasons: Counter[Tier2SkipReason]) -> dict[str, int]:
+        return dict(sorted(reasons.items(), key=lambda kv: kv[0]))
+
     assert s.det_res is not None
 
     t1 = s.disambig.tier1
     t2 = s.disambig.tier2
 
     tier2_cfg = getattr(s.ext_cfg, "tier2", None)
-    enabled = bool(getattr(tier2_cfg, "enabled", False))
+    mode = getattr(tier2_cfg, "mode", "off")
 
     reasons: Counter[Tier2SkipReason] = Counter()
 
-    if not enabled:
+    if mode == "off" or tier2_cfg is None:
         n = len(t1.ranked)
         t2.ranked = []
         t2.report = Tier2Report(applied=0, skipped=n, reasons={"disabled": n})
@@ -345,18 +354,29 @@ def st_tier2_semantic_rerank(s: FlowState, *, window_chars: int) -> StageResult[
     weight = float(getattr(tier2_cfg, "weight", 0.35))
     model_name = str(getattr(tier2_cfg, "model_name", "all-MiniLM-L6-v2"))
 
+    # IMPORTANT: normalise keys to match r1.occ.acronym.upper()
+    ambiguous_acrs = {k.upper() for k, v in t1.senses_by_acronym.items() if len(v) > 1}
+
+    # Tier-2 eligibility threshold (AUTO): default to margin_threshold if unset
+    auto_ceiling = getattr(tier2_cfg, "auto_margin_ceiling", None)
+    auto_ceiling = float(auto_ceiling) if auto_ceiling is not None else float(auto_margin_ceiling)
+
     ranked2, eligible = collect_tier2_inputs(
         text=s.text,
         t1_ranked=t1.ranked,
         sense_index=t1.sense_index,
+        ambiguous_acrs=ambiguous_acrs,
         window_chars=window_chars,
+        auto_margin_ceiling=auto_ceiling,
+        only_when_undecided=bool(getattr(tier2_cfg, "only_when_undecided", True)),
+        mode=mode,
         reasons=reasons,
     )
 
     if not eligible:
-        t2.ranked = []
-        t2.report = Tier2Report(applied=0, skipped=len(t1.ranked), reasons=dict(reasons))
-        s.last_info = "tier2=skipped(nothing_eligible)"
+        t2.ranked = ranked2
+        t2.report = Tier2Report(applied=0, skipped=len(ranked2), reasons=dict(reasons))
+        s.last_info = f"tier2=skipped(nothing_eligible) reasons={_fmt_reasons(reasons)}"
         return StageResult(s, s.last_info)
 
     batch = _embed_for_tier2(model_name, eligible)
@@ -371,7 +391,8 @@ def st_tier2_semantic_rerank(s: FlowState, *, window_chars: int) -> StageResult[
 
     t2.ranked = ranked2
     t2.report = Tier2Report(applied=applied, skipped=len(ranked2) - applied, reasons=dict(reasons))
-    s.last_info = f"tier2=applied({applied}) skipped({len(ranked2)-applied})"
+
+    s.last_info = f"tier2=applied({applied}) skipped({len(ranked2) - applied}) reasons={_fmt_reasons(reasons)}"
     return StageResult(s, s.last_info)
 
 
@@ -418,6 +439,22 @@ def st_tiers_select_and_assemble(
         occurrences.
     """
     assert s.det_res is not None
+    tier2_cfg = getattr(s.ext_cfg, "tier2", None)
+    mode = getattr(tier2_cfg, "mode", "off")
+
+    def _top2_stats(scores: dict[str, float]) -> tuple[str | None, float, float]:
+        """
+        Return (best_sid, rel_margin, gap) for a score map.
+        rel_margin = (p1-p2)/p1, gap = p1-p2.
+        """
+        if not scores:
+            return None, 0.0, 0.0
+        items = sorted(scores.items(), key=lambda kv: kv[1], reverse=True)
+        sid1, p1 = items[0]
+        p2 = items[1][1] if len(items) > 1 else 0.0
+        gap = p1 - p2
+        rel_margin = gap / max(p1, 1e-9)
+        return sid1, rel_margin, gap
 
     t1 = s.disambig.tier1
     t2 = s.disambig.tier2
@@ -434,14 +471,17 @@ def st_tiers_select_and_assemble(
         r2 = tier2_by_key.get(key)
 
         if r2 and r2.applied and r2.blended_scores:
-            chosen, rel_margin, gap = choose_with_tiebreak(
-                r1.occ,
-                r2.blended_scores,
-                t1.sense_index,
-                margin_threshold=margin_threshold,
-                near_tie_margin=NEAR_TIE_GAP,
-            )
             cand_scores = r2.blended_scores
+            if mode == "on":
+                chosen, rel_margin, gap = _top2_stats(cand_scores)  # unconditional best guess
+            else:
+                chosen, rel_margin, gap = choose_with_tiebreak(
+                    r1.occ,
+                    cand_scores,
+                    t1.sense_index,
+                    margin_threshold=margin_threshold,
+                    near_tie_margin=NEAR_TIE_GAP,
+                )
         else:
             chosen, rel_margin, gap = r1.chosen_sense_id, r1.margin, r1.gap
             cand_scores = r1.candidate_scores
@@ -471,6 +511,8 @@ def st_tiers_select_and_assemble(
         resolutions=resolutions,
         ambiguous_keys=ambiguous,
         undecided=undecided,
+        tier2_report=s.disambig.tier2.report,
+        tier2_ranked=tuple(s.disambig.tier2.ranked),
     )
 
     s.last_info = f"senses={sum(len(v) for v in t1.senses_by_acronym.values())}, undecided={len(undecided)}"

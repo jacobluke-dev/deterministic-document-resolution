@@ -10,10 +10,12 @@ from plainera_unacronym.nlp.extraction.tiers.types import FloatMat, FloatVec
 
 
 @lru_cache(maxsize=4)
-def _load_st_model(model_name: str):
-    # Lazy import so missing deps don’t break Tier-1.
-    from sentence_transformers import SentenceTransformer  # type: ignore
-    return SentenceTransformer(model_name)
+def _load_st_model(model_name: str, *, cache_folder: str | None = None):
+    from sentence_transformers import SentenceTransformer  # lazy import
+    return SentenceTransformer(
+        model_name,
+        cache_folder=cache_folder,
+    )
 
 
 def _as_list(xs: Iterable[str]) -> list[str]:

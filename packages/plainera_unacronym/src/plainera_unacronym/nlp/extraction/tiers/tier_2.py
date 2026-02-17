@@ -2,13 +2,12 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from collections import Counter
-from typing import Sequence
+from typing import Sequence, Literal
 import numpy as np
-from numpy.typing import NDArray
 
 from plainera_unacronym.nlp.extraction.tiers.semantic import embed_texts, cosine_sim01
 from plainera_unacronym.nlp.extraction.tiers.types import Tier1OccurrenceRanking, Tier2SkipReason, \
-    Tier2OccurrenceRanking
+    Tier2OccurrenceRanking, FloatVec, FloatMat
 
 
 @dataclass(frozen=True)
@@ -89,28 +88,25 @@ def collect_tier2_inputs(
     *,
     text: str,
     t1_ranked: Sequence[Tier1OccurrenceRanking],
-    sense_index: dict[str, object],  # object to avoid importing AcronymSense here; only `.definition` is used.
+    sense_index: dict[str, object],
     window_chars: int,
+    auto_margin_ceiling: float,
+    mode: Literal["off", "auto", "on"],
+    only_when_undecided: bool,
+    ambiguous_acrs: set[str],  # EXPECTED UPPERCASE
     reasons: Counter[Tier2SkipReason],
 ) -> tuple[list[Tier2OccurrenceRanking], list[_EligibleRerank]]:
     """
-    Build the default Tier-2 output list and collect eligible rerank work items.
+    Collect Tier-2 eligible occurrences and return:
+      - ranked2: 1:1 aligned with t1_ranked (placeholders for eligible)
+      - eligible: rerank work items (subset)
 
-    This function guarantees the returned Tier-2 ranking list is aligned 1:1 with
-    `t1_ranked` and fully populated (no Optionals). Eligible occurrences are
-    represented as placeholders (model_unavailable) until rerank is applied.
-
-    Args:
-        text: Source document text.
-        t1_ranked: Tier-1 rankings to evaluate.
-        sense_index: Sense lookup by id; used to format candidate texts.
-        window_chars: Context window size for Tier-2.
-        reasons: Counter to be updated with skip reasons for ineligible occurrences.
-
-    Returns:
-        A tuple of:
-          - `ranked2`: pre-filled Tier-2 records aligned with Tier-1 order
-          - `eligible`: occurrences eligible for semantic reranking
+    Eligibility:
+      - >=2 candidates
+      - acronym is multi-sense (in ambiguous_acrs)
+      - if only_when_undecided: Tier-1 must not have chosen (chosen_sense_id is None)
+      - AUTO mode: skip if Tier-1 margin >= auto_margin_ceiling
+      - ON mode: ignore margin ceiling (still respects only_when_undecided if set)
     """
     ranked2: list[Tier2OccurrenceRanking] = []
     eligible: list[_EligibleRerank] = []
@@ -123,27 +119,44 @@ def collect_tier2_inputs(
             ranked2.append(_skip_tier2(r1, "single_candidate"))
             continue
 
-        if r1.chosen_sense_id is not None:
+        acr = r1.occ.acronym.upper()
+        if acr not in ambiguous_acrs:
+            reasons["not_ambiguous"] += 1
+            ranked2.append(_skip_tier2(r1, "not_ambiguous"))
+            continue
+
+        if only_when_undecided and r1.chosen_sense_id is not None:
             reasons["tier1_decided"] += 1
             ranked2.append(_skip_tier2(r1, "tier1_decided"))
             continue
 
+        if mode == "auto" and r1.margin >= auto_margin_ceiling:
+            reasons["tier1_confident"] += 1
+            ranked2.append(_skip_tier2(r1, "tier1_confident"))
+            continue
+
         context = _slice_context(text, r1.occ.start, r1.occ.end, window_chars)
 
-        cand_ids = list(scores.keys())  # Tier-1 insertion order
+        cand_ids = list(scores.keys())
         cand_texts: list[str] = []
         for sid in cand_ids:
-            sense = sense_index[sid]
-            # mypy: `sense` is object; we only rely on `.definition` existing.
-            definition = getattr(sense, "definition")
-            cand_texts.append(f"{r1.occ.acronym.upper()}: {definition}")
+            sense = sense_index.get(sid)
+            definition = getattr(sense, "definition", None) if sense is not None else None
+            if not definition:
+                reasons["no_senses"] += 1
+                cand_texts = []
+                break
+            cand_texts.append(f"{acr}: {definition}")
+
+        if not cand_texts:
+            ranked2.append(_skip_tier2(r1, "no_senses"))
+            continue
 
         eligible.append(_EligibleRerank(i, r1, context, cand_ids, cand_texts))
-
-        # Placeholder: will be overwritten if rerank applies successfully.
         ranked2.append(_skip_tier2(r1, "model_unavailable"))
 
     return ranked2, eligible
+
 
 
 def _embed_for_tier2(model_name: str, eligible: Sequence[_EligibleRerank]) -> _EmbeddingsBatch | None:
