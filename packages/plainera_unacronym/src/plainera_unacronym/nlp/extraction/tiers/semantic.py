@@ -11,6 +11,23 @@ from plainera_unacronym.nlp.extraction.tiers.types import FloatMat, FloatVec
 
 @lru_cache(maxsize=4)
 def _load_st_model(model_name: str, *, cache_folder: str | None = None):
+    """Load (and memoise) a Sentence-Transformers model by name.
+
+    Uses an LRU cache to avoid repeatedly initialising the same embedding model.
+    The cache is intentionally small because models are large in memory.
+
+    Args:
+        model_name: Sentence-Transformers model identifier (e.g. "all-MiniLM-L6-v2").
+        cache_folder: Optional filesystem path for the HF/SBERT cache. If None,
+            the library default is used.
+
+    Returns:
+        A `SentenceTransformer` instance ready to encode text.
+
+    Notes:
+        The import of `SentenceTransformer` is intentionally lazy to keep the
+        module import-light when Tier-2 is disabled.
+    """
     from sentence_transformers import SentenceTransformer  # lazy import
     return SentenceTransformer(
         model_name,
@@ -19,17 +36,55 @@ def _load_st_model(model_name: str, *, cache_folder: str | None = None):
 
 
 def _as_list(xs: Iterable[str]) -> list[str]:
+    """Materialise an iterable of strings into a list.
+
+    Args:
+        xs: Iterable of strings (may be a generator).
+
+    Returns:
+        A list containing the same strings in iteration order.
+    """
     return list(xs)
 
 
 def _normalize_rows(m: np.ndarray) -> np.ndarray:
-    # m: [N, D]
+    """L2-normalise each row vector of a 2D matrix.
+
+    Args:
+        m: Array of shape [N, D], where each row is a D-dimensional vector.
+
+    Returns:
+        Array of shape [N, D] where each row has unit L2 norm (within numerical
+        tolerance). Rows with near-zero norm are stabilised by a small epsilon.
+
+    Notes:
+        This is used to ensure dot products correspond to cosine similarity.
+    """
     denom = np.linalg.norm(m, axis=1, keepdims=True) + 1e-12
     return m / denom
 
 
 def embed_texts(model_name: str, texts: Sequence[str]) -> Optional[FloatMat]:
-    """Return float32 embeddings [N, D] or None if model not available."""
+    """Embed a batch of texts using Sentence-Transformers.
+
+    Encodes `texts` into a dense float32 embedding matrix and row-normalises the
+    result so that dot products equal cosine similarity.
+
+    Args:
+        model_name: Sentence-Transformers model identifier to load.
+        texts: Sequence of input strings to embed.
+
+    Returns:
+        A float32 matrix of shape [N, D] (where N == len(texts)) with each row
+        L2-normalised, or None if the model could not be loaded or embedding
+        failed for any reason.
+
+    Notes:
+        - Normalisation is applied here so downstream scoring can use fast dot
+          products for cosine similarity.
+        - Exceptions are swallowed and represented as `None` to keep Tier-2
+          failure non-fatal to the overall pipeline.
+    """
     try:
         model = _load_st_model(model_name)
         # sentence-transformers returns numpy by default on CPU
@@ -40,8 +95,48 @@ def embed_texts(model_name: str, texts: Sequence[str]) -> Optional[FloatMat]:
         return None
 
 
+def _l2_normalise(v: np.ndarray, *, axis: int | None = None, eps: float = 1e-12) -> np.ndarray:
+    """L2-normalise an array along an axis with epsilon stabilisation.
+
+    Args:
+        v: Input array.
+        axis: Axis along which to compute L2 norms. Use 0 for a vector shaped [D],
+            and 1 for a matrix shaped [N, D] to normalise each row.
+        eps: Small constant to prevent division by zero.
+
+    Returns:
+        The normalised array with the same shape as `v`.
+
+    Notes:
+        This is a defensive normaliser for cases where upstream embeddings may
+        not be unit-normalised (or you want to guarantee it regardless).
+    """
+    n = np.linalg.norm(v, axis=axis, keepdims=True)
+    return v / np.maximum(n, eps)
+
+
 def cosine_sim01(ctx_vec: FloatVec, cand_mat: FloatMat) -> NDArray[np.floating]:
-    """Cosine in [-1,1] -> [0,1]. ctx_vec is [D], cand_mat is [K,D]."""
-    cos = cand_mat @ ctx_vec  # dot since both are unit-normalised
+    """Compute cosine similarity mapped from [-1, 1] into [0, 1].
+
+    This function assumes a single context vector and a matrix of candidate
+    vectors. It normalises both inputs defensively to ensure the dot product
+    equals cosine similarity, then maps cosine similarity to the [0,1] range.
+
+    Args:
+        ctx_vec: Context embedding vector of shape [D].
+        cand_mat: Candidate embedding matrix of shape [K, D].
+
+    Returns:
+        A vector of shape [K] with similarities in [0, 1], where 1.0 indicates
+        identical direction and 0.0 indicates opposite direction.
+
+    Notes:
+        Mapping to [0,1] is a monotonic linear transform:
+            sim01 = 0.5 * (cos + 1)
+        which preserves ranking while being easier to interpret in reports.
+    """
+    ctx = _l2_normalise(np.asarray(ctx_vec), axis=0)   # [D]
+    mat = _l2_normalise(np.asarray(cand_mat), axis=1)  # [K, D]
+    cos = mat @ ctx                                    # [K]
     sim01 = 0.5 * (cos + 1.0)
     return np.clip(sim01, 0.0, 1.0)
