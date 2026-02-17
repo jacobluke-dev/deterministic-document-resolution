@@ -47,23 +47,6 @@ def _as_list(xs: Iterable[str]) -> list[str]:
     return list(xs)
 
 
-def _normalize_rows(m: np.ndarray) -> np.ndarray:
-    """L2-normalise each row vector of a 2D matrix.
-
-    Args:
-        m: Array of shape [N, D], where each row is a D-dimensional vector.
-
-    Returns:
-        Array of shape [N, D] where each row has unit L2 norm (within numerical
-        tolerance). Rows with near-zero norm are stabilised by a small epsilon.
-
-    Notes:
-        This is used to ensure dot products correspond to cosine similarity.
-    """
-    denom = np.linalg.norm(m, axis=1, keepdims=True) + 1e-12
-    return m / denom
-
-
 def embed_texts(model_name: str, texts: Sequence[str]) -> Optional[FloatMat]:
     """Embed a batch of texts using Sentence-Transformers.
 
@@ -88,31 +71,11 @@ def embed_texts(model_name: str, texts: Sequence[str]) -> Optional[FloatMat]:
     try:
         model = _load_st_model(model_name)
         # sentence-transformers returns numpy by default on CPU
-        embs = model.encode(texts, show_progress_bar=False)
+        embs = model.encode(texts, show_progress_bar=False, normalize_embeddings=True)
         embs = np.asarray(embs, dtype=np.float32)
-        return _normalize_rows(embs)
+        return embs
     except Exception:
         return None
-
-
-def _l2_normalise(v: np.ndarray, *, axis: int | None = None, eps: float = 1e-12) -> np.ndarray:
-    """L2-normalise an array along an axis with epsilon stabilisation.
-
-    Args:
-        v: Input array.
-        axis: Axis along which to compute L2 norms. Use 0 for a vector shaped [D],
-            and 1 for a matrix shaped [N, D] to normalise each row.
-        eps: Small constant to prevent division by zero.
-
-    Returns:
-        The normalised array with the same shape as `v`.
-
-    Notes:
-        This is a defensive normaliser for cases where upstream embeddings may
-        not be unit-normalised (or you want to guarantee it regardless).
-    """
-    n = np.linalg.norm(v, axis=axis, keepdims=True)
-    return v / np.maximum(n, eps)
 
 
 def cosine_sim01(ctx_vec: FloatVec, cand_mat: FloatMat) -> NDArray[np.floating]:
@@ -135,8 +98,6 @@ def cosine_sim01(ctx_vec: FloatVec, cand_mat: FloatMat) -> NDArray[np.floating]:
             sim01 = 0.5 * (cos + 1)
         which preserves ranking while being easier to interpret in reports.
     """
-    ctx = _l2_normalise(np.asarray(ctx_vec), axis=0)   # [D]
-    mat = _l2_normalise(np.asarray(cand_mat), axis=1)  # [K, D]
-    cos = mat @ ctx                                    # [K]
+    cos = np.asarray(cand_mat) @ np.asarray(ctx_vec)  # [K]
     sim01 = 0.5 * (cos + 1.0)
     return np.clip(sim01, 0.0, 1.0)
