@@ -1,10 +1,14 @@
 from typing import Callable
 
+import numpy as np
+
 import plainera_unacronym.nlp.detection.detector as det
 import pytest
 from plainera_unacronym.nlp.common.shared import normalize_acronym_key
 from plainera_unacronym.nlp.common.types import DetectorConfig, FirstOccurrence, Occurrence, Span
+from plainera_unacronym.nlp.extraction import ExtractionConfig
 
+from plainera_unacronym.nlp.extraction.engine import stage_funcs as f
 
 @pytest.fixture
 def span() -> Callable[[str, str], Span]:
@@ -117,3 +121,26 @@ def occ():
             reasons=None,
         )
     return _occ
+
+@pytest.fixture
+def cfg_integrated():
+    def _cfg_integrated(require_two_words=True, max_chars=200):
+        return (
+            DetectorConfig(),
+            ExtractionConfig(
+                inline_cues=(r"short\s+for", r"stands?\s+for", r"is\s+(?:an\s+)?acronym\s+for"),
+                max_phrase_chars=max_chars,
+                require_two_words=require_two_words,
+            ),
+        )
+    return _cfg_integrated
+
+@pytest.fixture(autouse=True)
+def _mock_tier2_embeddings(monkeypatch):
+    from plainera_unacronym.nlp.extraction.tiers import semantic as Semantic
+
+    class _FakeModel:
+        def encode(self, texts, show_progress_bar=False, normalize_embeddings=False):
+            return np.zeros((len(texts), 8), dtype=np.float32)
+
+    monkeypatch.setattr(Semantic, "_load_st_model", lambda *a, **k: _FakeModel(), raising=True)

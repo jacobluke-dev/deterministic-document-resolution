@@ -1,4 +1,5 @@
 from dataclasses import replace
+from typing import Literal
 
 import numpy as np
 
@@ -8,19 +9,20 @@ from plainera_unacronym.nlp.extraction.engine.detect_flow import ExtractionFlow
 from plainera_unacronym.nlp.extraction.engine.state import FlowState
 from plainera_unacronym.nlp.extraction.engine import stage_funcs as f
 from plainera_unacronym.nlp.extraction.tiers import tier_2 as Tier2
+from plainera_unacronym.nlp.extraction.tiers import semantic as Semantic
 from plainera_unacronym.nlp.common.types import OccurrenceLite, AcronymSense
 from plainera_unacronym.nlp.extraction.tiers.types import Tier1OccurrenceRanking
 
 
-def _mk_state(*, enabled: bool) -> FlowState:
-    ext_cfg = replace(ExtractionConfig(), tier2=Tier2Config(enabled=enabled, weight=0.5, model_name="fake"))
+def _mk_state(*, mode: Literal["off", "auto", "on"]) -> FlowState:
+    ext_cfg = replace(ExtractionConfig(), tier2=Tier2Config(mode=mode, weight=0.5, model_name="fake"))
     s = FlowState(text="ctx ... GPU ... kernel ...", det_cfg=DetectorConfig(), ext_cfg=ext_cfg)
     s.det_res = object()  # only asserted as not None in these stages
     return s
 
 class TestSrTier2SemanticRerank:
-    def test_tier2_disabled_sets_report_and_no_rankings(self,):
-        s = _mk_state(enabled=False)
+    def test_tier2_disabled_sets_report_and_no_rankings(self, _patch):
+        s = _mk_state(mode="off")
 
         # Set minimal Tier-1 ranked list (so "skipped=n" is meaningful)
         t1 = s.disambig.tier1
@@ -34,6 +36,8 @@ class TestSrTier2SemanticRerank:
             )
         ]
 
+        _patch(Tier2._embed_for_tier2, embed_texts=lambda *a, **k: None)
+
         f.st_tier2_semantic_rerank(s, window_chars=50, auto_margin_ceiling=0.02)
 
         assert s.disambig.tier2.report is not None
@@ -43,7 +47,7 @@ class TestSrTier2SemanticRerank:
 
 
     def test_tier2_model_unavailable_falls_back_cleanly(self, _patch):
-        s = _mk_state(enabled=True)
+        s = _mk_state(mode="on")
 
         # Seed Tier-1 work
         t1 = s.disambig.tier1
@@ -51,6 +55,9 @@ class TestSrTier2SemanticRerank:
             "gpu|graphics": AcronymSense("GPU", "Graphics Processing Unit", "gpu|graphics", 0.8, [], 1),
             "gpu|general": AcronymSense("GPU", "General Purpose Unit", "gpu|general", 0.7, [], 1),
         }
+
+        t1.senses_by_acronym = {"GPU": list(t1.sense_index.values())}
+
         t1.ranked = [
             Tier1OccurrenceRanking(
                 occ=OccurrenceLite("GPU", 5, 8),
@@ -63,8 +70,9 @@ class TestSrTier2SemanticRerank:
 
         # Force embedder failure
         _patch(f.st_tier2_semantic_rerank,embed_texts=lambda *a, **k: None)
+        _patch(Tier2._embed_for_tier2, embed_texts=lambda *a, **k: None)
 
-        f.st_tier2_semantic_rerank(s, window_chars=50)
+        f.st_tier2_semantic_rerank(s, window_chars=50, auto_margin_ceiling=0)
 
         rep = s.disambig.tier2.report
         assert rep is not None
@@ -73,9 +81,8 @@ class TestSrTier2SemanticRerank:
         assert s.disambig.tier2.ranked[0].applied is False
         assert s.disambig.tier2.ranked[0].skip_reason == "model_unavailable"
 
-
     def test_tier2_applies_and_blends_in_tier1_order(self, monkeypatch):
-        s = _mk_state(enabled=True)
+        s = _mk_state(mode="on")
         s.text = "kernel launch overhead ... GPU ..."
 
         t1 = s.disambig.tier1
@@ -83,6 +90,7 @@ class TestSrTier2SemanticRerank:
             "gpu|graphics": AcronymSense("GPU", "Graphics Processing Unit", "gpu|graphics", 0.8, [], 1),
             "gpu|general": AcronymSense("GPU", "General Purpose Unit", "gpu|general", 0.7, [], 1),
         }
+        t1.senses_by_acronym = {"GPU": list(t1.sense_index.values())}
         t1.ranked = [
             Tier1OccurrenceRanking(
                 occ=OccurrenceLite("GPU", 10, 13),
@@ -94,7 +102,6 @@ class TestSrTier2SemanticRerank:
         ]
 
         def fake_embed_texts(_model_name, texts):
-            # Called twice: candidates (sorted unique), then contexts
             vecs = []
             for t in texts:
                 if "Graphics Processing Unit" in t:
@@ -104,12 +111,11 @@ class TestSrTier2SemanticRerank:
                 else:
                     # context -> align with graphics
                     vecs.append([1.0, 0.0])
-            return np.asarray(vecs, dtype=float)
+            return np.asarray(vecs, dtype=np.float32)
 
-        # Patch EXACTLY where the stage looks it up
         monkeypatch.setattr(Tier2, "embed_texts", fake_embed_texts, raising=True)
 
-        f.st_tier2_semantic_rerank(s, window_chars=50)
+        f.st_tier2_semantic_rerank(s, window_chars=50, auto_margin_ceiling=0)
 
         r2 = s.disambig.tier2.ranked[0]
         assert r2.applied is True
@@ -120,7 +126,7 @@ class TestSrTier2SemanticRerank:
 
 class TestStTier1SelectAndAssemble:
     def test_select_and_assemble_uses_tier1_when_tier2_absent(self):
-        ext_cfg = replace(ExtractionConfig(), tier2=Tier2Config(enabled=False))
+        ext_cfg = replace(ExtractionConfig(), tier2=Tier2Config(mode="off"))
         s = FlowState(text="x", det_cfg=DetectorConfig(), ext_cfg=ext_cfg)
         s.det_res = object()
 
@@ -149,15 +155,12 @@ class TestStTier1SelectAndAssemble:
         assert s.extr.resolutions[0].candidate_scores == {"gpu|graphics": 0.9, "gpu|general": 0.1}
 
 class TestStTier2SelectAndAssemble:
-    def test_flow_runs_with_tier2_enabled(self, _patch):
-
-        ext_cfg = replace(ExtractionConfig(), tier2=Tier2Config(enabled=True, model_name="fake"))
-        flow = ExtractionFlow(ext_cfg=ext_cfg, disambig_margin_threshold=0.99)  # encourage undecided in Tier-1
-
-        _patch(flow.run,embed_texts=lambda *a, **k: None)
+    def test_flow_runs_with_tier2_enabled(self, monkeypatch):
+        ext_cfg = replace(ExtractionConfig(), tier2=Tier2Config(mode="on", model_name="fake"))
+        flow = ExtractionFlow(ext_cfg=ext_cfg, disambig_margin_threshold=0.99)
 
         text = "Graphics Processing Unit (GPU) does X. General Purpose Unit (GPU) does Y. Later, GPU appears."
         det_res, extr, reports = flow.run(text)
 
         assert extr is not None
-        assert reports  # chain executed
+        assert reports

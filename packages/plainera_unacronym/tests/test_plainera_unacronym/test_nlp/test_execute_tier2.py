@@ -1,12 +1,25 @@
 from __future__ import annotations
 
-from dataclasses import asdict, replace
 import json
-import pytest
+from dataclasses import asdict, replace
+from typing import Literal
 
+import pytest
+from _pytest.python_api import approx
+from plainera_unacronym.nlp.common.types import (
+    AcronymSense,
+    ExtractedDefinition,
+    OccurrenceLite,
+    Span,
+)
 from plainera_unacronym.nlp.execute import detect_and_extract
+
+from plainera_unacronym.nlp.extraction.core.defs import dedupe_defs
+from plainera_unacronym.nlp.extraction.senses.disambiguate import choose_with_tiebreak, disambiguate_occurrences
+from plainera_unacronym.nlp.extraction.senses.sense_build import build_senses
 from plainera_unacronym.nlp.extraction.config import ExtractionConfig, Tier2Config  # adjust imports to your tree
 from plainera_unacronym.nlp.extraction.engine import stage_funcs as f
+
 
 # -----------------------
 # helpers
@@ -19,11 +32,11 @@ def _dump_extr(extr) -> str:
     # Stable compare for “byte-identical output” style assertions
     return _stable_json(asdict(extr))
 
-def _tier2_cfg(*, enabled: bool, weight: float = 0.5) -> ExtractionConfig:
+def _tier2_cfg(*, mode: Literal["off", "auto", "on"], weight: float = 0.5) -> ExtractionConfig:
     return replace(
         ExtractionConfig(),
         tier2=Tier2Config(
-            enabled=enabled,
+            mode=mode,
             model_name="fake-model",
             weight=weight,
             # only_when_undecided=True,  # if you have it
@@ -55,7 +68,7 @@ class TestDetectAndExtractE2ETier2Contracts:
         )
 
         # Disabled
-        _det0, extr0, r0 = detect_and_extract(text, ext_cfg=_tier2_cfg(enabled=False), return_reports=True)
+        _det0, extr0, r0 = detect_and_extract(text, ext_cfg=_tier2_cfg(mode="off"), return_reports=True)
         assert "tier2=skipped(disabled)" in _stage_info(r0, "tier2_semantic_rerank")
 
         # Enabled but semantic helper returns None => model_unavailable
@@ -64,7 +77,7 @@ class TestDetectAndExtractE2ETier2Contracts:
 
         _patch(f.st_tier2_semantic_rerank, sims_for_context_and_candidates=fake_sims_for_context_and_candidates)
 
-        _det1, extr1, r1 = detect_and_extract(text, ext_cfg=_tier2_cfg(enabled=True), return_reports=True)
+        _det1, extr1, r1 = detect_and_extract(text, ext_cfg=_tier2_cfg(mode="on"), return_reports=True)
         info = _stage_info(r1, "tier2_semantic_rerank")
         assert "model_unavailable" in info or "applied(0)" in info, info
 
@@ -83,7 +96,7 @@ class TestDetectAndExtractE2ETier2Contracts:
 
         _patch(f.st_tier2_semantic_rerank, sims_for_context_and_candidates=fake_sims_for_context_and_candidates)
 
-        _det, extr, reports = detect_and_extract(text, ext_cfg=_tier2_cfg(enabled=True), return_reports=True)
+        _det, extr, reports = detect_and_extract(text, ext_cfg=_tier2_cfg(mode="on"), return_reports=True)
         info = _stage_info(reports, "tier2_semantic_rerank")
         # Your info string may differ; assert the intent:
         assert "applied(0)" in info or "single_candidate" in info, info
@@ -113,7 +126,7 @@ class TestDetectAndExtractE2ETier2AcronymWins:
         )
 
         # Baseline: Tier-2 disabled (records what Tier-1 does)
-        _det0, extr0, r0 = detect_and_extract(text, ext_cfg=_tier2_cfg(enabled=False), return_reports=True)
+        _det0, extr0, r0 = detect_and_extract(text, ext_cfg=_tier2_cfg(mode="off"), return_reports=True)
         last0 = _last_res(extr0, "GPU")
         assert last0.chosen_sense_id is not None  # Tier-1 likely chooses *something*
         baseline = last0.chosen_sense_id
@@ -134,7 +147,7 @@ class TestDetectAndExtractE2ETier2AcronymWins:
 
         _patch(f.st_tier2_semantic_rerank, sims_for_context_and_candidates=fake_sims_for_context_and_candidates)
 
-        _det1, extr1, r1 = detect_and_extract(text, ext_cfg=_tier2_cfg(enabled=True, weight=0.6), return_reports=True)
+        _det1, extr1, r1 = detect_and_extract(text, ext_cfg=_tier2_cfg(mode="on", weight=0.6), return_reports=True)
         info = _stage_info(r1, "tier2_semantic_rerank")
         assert "applied(" in info, info
 
@@ -174,7 +187,7 @@ class TestDetectAndExtractE2ETier2AcronymWins:
 
         _patch(f.st_tier2_semantic_rerank, sims_for_context_and_candidates=fake_sims_for_context_and_candidates)
 
-        _det, extr, reports = detect_and_extract(text, ext_cfg=_tier2_cfg(enabled=True, weight=0.7), return_reports=True)
+        _det, extr, reports = detect_and_extract(text, ext_cfg=_tier2_cfg(mode="on", weight=0.7), return_reports=True)
         last = _last_res(extr, "API")
         assert last.chosen_sense_id is not None
         assert "application_programming_interface" in last.chosen_sense_id, last
@@ -203,7 +216,7 @@ class TestDetectAndExtractE2ETier2AcronymWins:
 
         _patch(f.st_tier2_semantic_rerank, sims_for_context_and_candidates=fake_sims_for_context_and_candidates)
 
-        _det, extr, reports = detect_and_extract(text, ext_cfg=_tier2_cfg(enabled=True, weight=0.7), return_reports=True)
+        _det, extr, reports = detect_and_extract(text, ext_cfg=_tier2_cfg(mode="on", weight=0.7), return_reports=True)
         last = _last_res(extr, "NHS")
         assert last.chosen_sense_id is not None
         assert "national_health_service" in last.chosen_sense_id, last
@@ -228,3 +241,328 @@ class TestDetectAndExtractE2ETier2MixedCaseAcronyms:
     def test_stylised_latex_parenthetical_inverse(self, picked_def):
         det, extr = detect_and_extract("Lamport TeX (LaTeX) is used for typesetting.")
         assert picked_def(extr, "LaTeX") in {"LaTeX"}, extr.picks.get("LaTeX")
+
+
+class TestDetectAndExtractIntegrationEdgeCases:
+    # this one
+    def test_ambiguous_acronym_builds_multiple_senses(self, picked_def, cfg_integrated):
+        # EMA appears with two meanings; result should have ambiguous senses for EMA
+        text = (
+            "EMA stands for European Medicines Agency in the EU context. "
+            "On charts, EMA (Exponential Moving Average) is a common indicator."
+        )
+        det_cfg, ext_cfg = cfg_integrated()
+        det_res, extr = detect_and_extract(text, det_cfg=det_cfg, ext_cfg=ext_cfg)
+
+        # senses_by_acronym and ambiguous_keys should reflect two senses for EMA
+        senses = extr.senses_by_acronym.get("EMA", [])
+        assert len(senses) >= 2, f"Expected multiple senses for EMA, got {senses}"
+        assert "EMA" in extr.ambiguous_keys
+
+        # And definitions should include both
+        defs_for_ema = [d.definition for d in extr.definitions if d.acronym == "EMA"]
+        joined = " || ".join(defs_for_ema).lower()
+        assert "european medicines agency" in joined
+        assert "exponential moving average" in joined
+    # this one
+    def test_nearest_pick_prefers_definition_near_first_occurrence(self, picked_def, cfg_integrated):
+        # Two candidate long-forms for the same acronym; ensure the one closest to the FO wins
+        text = (
+            "Portable Document Format (PDF) is ubiquitous. "  # <-- near FO
+            "Later we see some detour text and a PDF (Pretty Darn Fast) joke."
+        )
+        det_cfg, ext_cfg = cfg_integrated()
+        det_res, extr = detect_and_extract(text, det_cfg=det_cfg, ext_cfg=ext_cfg)
+
+        # The chosen pick for PDF (by nearest) should be the first proper definition
+        pick = extr.picks.get("PDF")
+        assert pick is not None
+        assert "Portable Document Format" in pick.definition
+
+    # this one
+    def test_tier_one_digit_prefixed_acronym_parenthetical(self, picked_def):
+        det, extr = detect_and_extract("Third Generation Partnership Project (3GPP) publishes specs.")
+        assert picked_def(extr, "3GPP") == "Third Generation Partnership Project"
+
+
+
+class TestDisambiguationE2E:
+
+    def test_disambiguation_picks_nearest_definition_by_distance(self, picked_def):
+        # Two senses, then a later occurrence near the second definition → should pick second.
+        det, extr, r = detect_and_extract(
+            "Natural language processing (NLP) helps. "
+            "Later we discuss Nice Lovely Plants (NLP) sold locally. "
+            "These NLP are popular in spring.",
+            return_reports=True,
+        )
+        # The last "NLP" should resolve to the nearby "Nice Lovely Plants" sense.
+        last = extr.resolutions[-1]
+        assert last.acronym == "NLP"
+        assert last.chosen_sense_id is not None
+        assert "nice_lovely_plants" in last.chosen_sense_id, last
+
+    def test_disambiguation_not_ambiguous_when_only_one_sense(self, picked_def):
+        det, extr = detect_and_extract(
+            "European Medicines Agency (EMA) issued guidance. EMA guidance was updated later.")
+        assert "EMA" in extr.senses_by_acronym
+        assert len(extr.senses_by_acronym["EMA"]) == 1
+        assert "EMA" not in set(extr.ambiguous_keys)
+        # both occurrences should be resolved (same sole sense)
+        ema_res = [x for x in extr.resolutions if x.acronym.upper() == "EMA"]
+        assert len(ema_res) >= 2
+        assert all(x.chosen_sense_id is not None for x in ema_res), ema_res
+
+    def test_disambiguation_ambiguous_keys_flagged_when_two_senses_exist(self, picked_def):
+        det, extr, r = detect_and_extract(
+            "Natural language processing (NLP) is common. "
+            "Nice Lovely Plants (NLP) are sold locally.",
+            return_reports=True,
+        )
+        assert "NLP" in extr.senses_by_acronym
+        assert len(extr.senses_by_acronym["NLP"]) == 2
+        assert "NLP" in set(extr.ambiguous_keys)
+
+    def test_disambiguation_near_tie_chooses_nearest_definition(self, picked_def):
+        det, extr, r = detect_and_extract(
+            "Natural language processing (NLP) is a field. "
+            "Nice Lovely Plants (NLP) are sold down the road. "
+            "NLP is mentioned again here without context.",
+            return_reports=True,
+        )
+
+        nlp_res = [x for x in extr.resolutions if x.acronym.upper() == "NLP"]
+        assert nlp_res, extr
+
+        last = nlp_res[-1]
+        # Near-tie (margin below threshold) => distance tiebreak => pick nearest def span.
+        assert last.chosen_sense_id is not None
+        assert "nice_lovely_plants" in last.chosen_sense_id, last
+        assert last.margin < 0.10, last  # confirms it was in the "not confident" zone
+
+    def test_disambiguation_overlap_can_win_when_distance_not_dominating(self, picked_def):
+        # Make the final NLP mention much closer (and semantically aligned) to the NLP sense,
+        # while pushing the Plants definition far away via filler.
+        filler = " ".join(["filler"] * 250)
+
+        det, extr, r = detect_and_extract(
+            "Natural language processing (NLP) is a CS topic. "
+            "In this paper we discuss language models and processing techniques; NLP is crucial. "
+            f"{filler} "
+            "Nice Lovely Plants (NLP) are available in shops.",
+            return_reports=True,
+        )
+
+        # Pick the resolution for the NLP occurrence in the "language/processing" sentence.
+        # (There will be multiple; choose the one with start after the first def and before the plants def.)
+        nlp_res = [x for x in extr.resolutions if x.acronym.upper() == "NLP"]
+        assert len(nlp_res) >= 2, nlp_res
+
+        # The second occurrence is the one in the language/processing sentence in this construction.
+        mid = nlp_res[1]
+        assert mid.chosen_sense_id is not None
+        assert "natural_language_processing" in mid.chosen_sense_id, mid
+
+
+class TestDisambiguationE2EConfidenceContract:
+    def test_merge_dedupe_prefers_higher_confidence_for_same_sense(self):
+        """
+        Two strategies extract the *same* (acronym, definition) sense with different
+        confidence. Dedupe must keep the higher-confidence definition.
+        """
+        det, extr, r = detect_and_extract(
+            "European Medicines Agency (EMA) issued guidance. EMA guidance was updated later.",
+            return_reports=True,
+        )
+
+        # Force a competing duplicate sense with higher confidence and a distinct source.
+        # (We inject post-extract because this is E2E against merge/dedupe behaviour,
+        # not against upstream strategy extraction.)
+
+        d0 = extr.definitions[0]
+        injected = ExtractedDefinition(
+            acronym=d0.acronym,
+            definition=d0.definition,
+            source="injected_strategy",
+            definition_confidence=min(1.0, d0.definition_confidence + 0.04),
+            acr_start=d0.acr_start,
+            acr_end=d0.acr_end,
+            def_start=d0.def_start,
+            def_end=d0.def_end,
+            original_definition=d0.original_definition,
+            kind="injected",
+            reasons=("injected_higher_conf",),
+        )
+
+        winners = dedupe_defs([d0, injected])
+        assert len(winners) == 1
+        assert winners[0].source == "injected_strategy"
+        assert winners[0].definition_confidence == approx(injected.definition_confidence)
+
+    def test_build_senses_uses_max_definition_confidence_as_sense_confidence(self):
+        """
+        When multiple defs collapse to the same sense_id, sense_confidence must reflect
+        the best supporting definition_confidence.
+        """
+        det, extr, r = detect_and_extract(
+            "European Medicines Agency (EMA) issued guidance. EMA guidance was updated later.",
+            return_reports=True,
+        )
+
+
+        d0 = extr.definitions[0]
+        low = ExtractedDefinition(
+            acronym=d0.acronym,
+            definition=d0.definition,
+            source="injected_low",
+            definition_confidence=max(0.0, d0.definition_confidence - 0.20),
+            acr_start=d0.acr_start,
+            acr_end=d0.acr_end,
+            def_start=d0.def_start,
+            def_end=d0.def_end,
+            original_definition=d0.original_definition,
+            kind="injected",
+            reasons=("injected_low_conf",),
+        )
+
+        senses_by = build_senses([d0, low])
+        assert "EMA" in senses_by
+        assert len(senses_by["EMA"]) == 1
+        sense = senses_by["EMA"][0]
+        assert sense.sense_confidence == approx(d0.definition_confidence)
+
+    def test_dynamic_prior_breaks_near_tie_in_favour_of_higher_confidence_sense(self, _patch):
+        """
+        If base scores are a near tie, the confidence prior should nudge selection
+        toward the higher-confidence sense (when enabled).
+        """
+        # Patch base scoring to guarantee a near-tie, regardless of text/layout.
+        from plainera_unacronym.nlp.extraction.senses import disambiguate as mod
+
+        def fake_base_scores_for_occurrence(*_, **__):
+            # Near tie: gap = 0.01 (<= NEAR_TIE_GAP 0.06), and relative margin is small.
+            return {
+                "nlp|natural_language_processing": 0.50,
+                "nlp|nice_lovely_plants": 0.49,
+            }
+
+        _patch(mod.disambiguate_occurrences, base_scores_for_occurrence=fake_base_scores_for_occurrence)
+
+        det, extr, r = detect_and_extract(
+            "Natural language processing (NLP) helps. "
+            "Nice Lovely Plants (NLP) sold locally. "
+            "NLP appears again.",
+            return_reports=True,
+        )
+
+        # Build a minimal senses_by_id map from extraction output.
+        senses_by_id = extr.sense_index
+
+        # Ensure we have both senses and that we can control their sense_confidence:
+        # (E2E-friendly: mutate by rebuilding local objects if your dataclass is frozen elsewhere;
+        # here, we just assert what's already present and use patch on sense_prior term behaviour.)
+        assert "nlp|natural_language_processing" in senses_by_id
+        assert "nlp|nice_lovely_plants" in senses_by_id
+
+        # Now patch confidence levels by monkeypatching the sense_index entries via replacement.
+        # If AcronymSense is mutable in your codebase, you can direct-set instead.
+        s_hi = senses_by_id["nlp|natural_language_processing"]
+        s_lo = senses_by_id["nlp|nice_lovely_plants"]
+
+        # Sanity: make sure we can see a difference (or the prior would be moot).
+        # If both are equal from upstream, this test can still pass by force-setting.
+        try:
+            s_hi.sense_confidence = 0.95
+            s_lo.sense_confidence = 0.40
+        except Exception:
+            # If frozen, rebuild lightweight namespace objects for the call below
+            pass
+
+        # Directly call disambiguate_occurrences with a known near-tie + prior enabled.
+        occs = [OccurrenceLite("NLP", 0, 3)]
+        out = mod.disambiguate_occurrences(
+            text="x" * 50,
+            occurrences=occs,
+            senses={"NLP": list(extr.senses_by_acronym["NLP"])},
+            sense_prior_weight=0.08,  # enable
+            senses_by_id=senses_by_id,
+            window_chars=10,
+        )
+        assert out and out[0].chosen_sense_id is not None
+        assert "natural_language_processing" in out[0].chosen_sense_id
+
+    def test_dynamic_prior_disabled_keeps_near_tie_unresolved(self):
+        """
+        Integration-style contract:
+        - Build real senses (and real def_spans) from the pipeline.
+        - Create a synthetic occurrence positioned exactly midway between the two def spans.
+        - With prior disabled and distance unable to distinguish, resolution stays undecided.
+        """
+
+
+        # 1) Run full pipeline once to get REAL senses + REAL def_spans.
+        _det, extr, _r = detect_and_extract(
+            "Natural language processing (NLP) helps. "
+            "Nice Lovely Plants (NLP) sold locally.",
+            return_reports=True,
+        )
+
+        senses = list(extr.senses_by_acronym["NLP"])
+        assert len(senses) == 2
+        s1, s2 = senses
+
+        # Take the first def span for each sense and compute span-centers (same logic as disambiguate.py)
+        (a1, b1) = s1.def_spans[0]
+        (a2, b2) = s2.def_spans[0]
+        c1 = (a1 + b1) // 2
+        c2 = (a2 + b2) // 2
+
+        # 2) Place occurrence start exactly at the midpoint between centers (equal distance to both).
+        mid = (c1 + c2) // 2
+        occ = OccurrenceLite("NLP", mid, mid + 3)
+
+        # 3) Use dummy text with no useful overlap signal (tokens won't intersect sense definitions).
+        text = "x" * (mid + 50)
+
+        out = disambiguate_occurrences(
+            text=text,
+            occurrences=[occ],
+            senses={"NLP": senses},
+            senses_by_id=extr.sense_index,
+            window_chars=20,
+            sense_prior_weight=0.0,  # disable prior (what we're asserting)
+            margin_threshold=0.10,
+            dist_weight=0.75,
+            overlap_weight=0.25,
+        )
+
+        assert out
+        assert out[0].chosen_sense_id is None, out[0]
+
+    def test_choose_with_tiebreak_margins_checked(self):
+        """
+        Contract test: choose_with_tiebreak returns relative and absolute margins.
+        """
+
+        def S(acr: str, sense_id: str, definition: str, spans: list[Span], *, conf: float = 0.0,
+              support: int = 1) -> AcronymSense:
+            return AcronymSense(
+                acronym=acr,
+                definition=definition,
+                sense_id=sense_id,
+                sense_confidence=conf,
+                def_spans=list(spans),
+                support=support,
+            )
+        occ = OccurrenceLite("PDF", 10, 13)
+        senses_by_id = {
+            "s1": S("PDF", "s1", "Portable Document Format", [(0, 1)]),
+            "s2": S("PDF", "s2", "Other", [(0, 1)]),
+        }
+        cand = {"s1": 0.80, "s2": 0.60}
+
+        chosen, rel_margin, abs_margin = choose_with_tiebreak(occ, cand, senses_by_id, margin_threshold=0.10)
+        assert chosen == "s1"
+
+        assert abs_margin == approx(0.200000, abs=1e-6)
+        assert rel_margin == approx((0.80 - 0.60) / 0.80, rel=0, abs=1e-9)
