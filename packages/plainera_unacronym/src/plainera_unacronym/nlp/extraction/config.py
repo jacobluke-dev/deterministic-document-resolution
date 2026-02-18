@@ -49,6 +49,8 @@ class Tier2Config:
     # If False, Tier-2 may rerank even when Tier-1 chose, but you still gate via ceilings below.
     only_when_undecided: bool = False
 
+    context_window_chars: int | None = None  # if None, uses disambig.window_chars
+
     # AUTO eligibility gate:
     # - Tier-1 still "decides" at margin_threshold (e.g. 0.20)
     # - Tier-2 runs in auto-mode when r1.margin < auto_margin_ceiling (e.g. 0.75 for auditing)

@@ -40,7 +40,7 @@ def make_cfg(allow_chars: str = "-&/._") -> DetectorConfig:
 def _patch_near(monkeypatch, left_gap: int, right_gap: int):
     """Simulate 'near' using max gap thresholds."""
 
-    def comma_near_left(text: str, s: int) -> bool:
+    def fake_comma_near_left(text: str, s: int) -> bool:
         i = s - 1
         spaces = 0
         while i >= 0 and text[i].isspace():
@@ -48,7 +48,7 @@ def _patch_near(monkeypatch, left_gap: int, right_gap: int):
             i -= 1
         return i >= 0 and text[i] == "," and spaces <= left_gap
 
-    def exclam_near_right(text: str, e: int) -> bool:
+    def fake_exclam_near_right(text: str, e: int) -> bool:
         # Distance from e to the next '!' (counts every char between, incl. the next word).
         i = e
         dist = 0
@@ -59,10 +59,10 @@ def _patch_near(monkeypatch, left_gap: int, right_gap: int):
         return i < n and dist <= right_gap
 
     monkeypatch.setattr("plainera_unacronym.nlp.detection.heuristics.general._comma_near_left",
-                        comma_near_left,
+                        fake_comma_near_left,
                         raising=True)
     monkeypatch.setattr("plainera_unacronym.nlp.detection.heuristics.general.exclam_near_right",
-                        exclam_near_right,
+                        fake_exclam_near_right,
                         raising=True)
 
 

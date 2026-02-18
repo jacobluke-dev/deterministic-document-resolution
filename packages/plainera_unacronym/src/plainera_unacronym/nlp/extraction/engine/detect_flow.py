@@ -97,6 +97,11 @@ class ExtractionFlow:
             dis = getattr(s.ext_cfg, "disambig", None)
             return int(getattr(dis, "window_chars", 320))
 
+        def _t2_win(s: FlowState) -> int:
+            t2 = getattr(s.ext_cfg, "tier2", None)
+            v = getattr(t2, "context_window_chars", None)
+            return int(v) if v is not None else _win(s)
+
         def _margin(s: FlowState) -> float:
             if self._ovr_margin is not None:
                 return self._ovr_margin
@@ -178,7 +183,7 @@ class ExtractionFlow:
                     "tier2_semantic_rerank",
                     lambda s: f.st_tier2_semantic_rerank(
                         s,
-                        window_chars=_win(s),
+                        window_chars=_t2_win(s),
                         auto_margin_ceiling=_t2_ceiling(s)
                     ),
                     lambda s: s.last_info,

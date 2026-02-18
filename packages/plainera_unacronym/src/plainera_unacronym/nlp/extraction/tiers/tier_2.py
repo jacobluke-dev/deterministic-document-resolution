@@ -172,20 +172,19 @@ def _embed_for_tier2(model_name: str, eligible: Sequence[_EligibleRerank]) -> _E
         or None if embedding/model is unavailable.
     """
     uniq_cands: set[str] = set()
-    contexts: list[str] = []
+    ctx_texts: list[str] = []  # keep duplicates; must align 1:1 with eligible
 
     for e in eligible:
         uniq_cands.update(e.cand_texts)
-        contexts.append(e.context)
+        ctx_texts.append(e.context)
 
     cand_texts = sorted(uniq_cands)  # determinism
     cand_mat = embed_texts(model_name, cand_texts)
-    ctx_mat = embed_texts(model_name, contexts)
+    ctx_mat = embed_texts(model_name, ctx_texts)
 
     if cand_mat is None or ctx_mat is None:
         return None
 
-    # If your semantic module already returns NDArray, these types line up.
     cand_mat = np.asarray(cand_mat)
     ctx_mat = np.asarray(ctx_mat)
 

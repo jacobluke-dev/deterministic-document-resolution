@@ -367,7 +367,7 @@ def st_tier2_semantic_rerank(
         sense_index=t1.sense_index,
         ambiguous_acrs=ambiguous_acrs,
         window_chars=window_chars,
-        auto_margin_ceiling=auto_margin_ceiling,
+        auto_margin_ceiling=auto_ceiling,
         mode=mode,
         only_when_undecided=tier2_cfg.only_when_undecided,
         reasons=reasons,
