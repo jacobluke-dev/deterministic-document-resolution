@@ -122,7 +122,9 @@ class ExtractionFlow:
 
         return Chain(
             [
-                Stage("detect", f.st_detect, lambda s: f"firsts={self._n_firsts(s)} dropped={len(s.cleanup_dropped)}"),
+                Stage("detect",
+                      f.st_detect,
+                      lambda s: f"firsts={self._n_firsts(s)} dropped={len(s.cleanup_dropped)}"),
                 Stage(
                     "post_detect_cleanup",
                     f.st_post_detect_cleanup,
