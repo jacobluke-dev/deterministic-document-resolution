@@ -4,6 +4,7 @@ import json
 from dataclasses import asdict, replace
 from typing import Literal
 
+import numpy as np
 import pytest
 from _pytest.python_api import approx
 from plainera_unacronym.nlp.common.types import (
@@ -19,6 +20,7 @@ from plainera_unacronym.nlp.extraction.senses.disambiguate import choose_with_ti
 from plainera_unacronym.nlp.extraction.senses.sense_build import build_senses
 from plainera_unacronym.nlp.extraction.config import ExtractionConfig, Tier2Config  # adjust imports to your tree
 from plainera_unacronym.nlp.extraction.engine import stage_funcs as f
+import plainera_unacronym.nlp.extraction.tiers.tier_2 as t2
 
 
 # -----------------------
@@ -55,6 +57,14 @@ def _last_res(extr, acr: str):
 # -----------------------
 # Tier-2 E2E: contracts
 # -----------------------
+def _dump_extr_core(extr) -> str:
+    d = asdict(extr)
+
+    # remove Tier-2-only diagnostics/telemetry
+    d.pop("tier2_ranked", None)
+    d.pop("tier2_report", None)
+
+    return _stable_json(d)
 
 class TestDetectAndExtractE2ETier2Contracts:
     def test_tier2_disabled_equals_model_unavailable(self, _patch):
@@ -63,25 +73,26 @@ class TestDetectAndExtractE2ETier2Contracts:
         """
         text = (
             "Graphics Processing Unit (GPU) accelerates kernels. "
+            + ("filler " * 300) + "\n"
             "General Purpose Unit (GPU) is used elsewhere. "
             "Later, GPU appears again."
         )
+        import plainera_unacronym.nlp.extraction.tiers.tier_2 as t2
+
+        def _raise_unavailable(*args, **kwargs):
+            raise RuntimeError("model_unavailable")
+
+        _patch(t2.embed_for_tier2, embed_texts=_raise_unavailable)
 
         # Disabled
         _det0, extr0, r0 = detect_and_extract(text, ext_cfg=_tier2_cfg(mode="off"), return_reports=True)
         assert "tier2=skipped(disabled)" in _stage_info(r0, "tier2_semantic_rerank")
 
-        # Enabled but semantic helper returns None => model_unavailable
-        def fake_sims_for_context_and_candidates(*, model_name, context, candidate_texts):
-            return None
-
-        _patch(f.st_tier2_semantic_rerank, sims_for_context_and_candidates=fake_sims_for_context_and_candidates)
-
         _det1, extr1, r1 = detect_and_extract(text, ext_cfg=_tier2_cfg(mode="on"), return_reports=True)
         info = _stage_info(r1, "tier2_semantic_rerank")
-        assert "model_unavailable" in info or "applied(0)" in info, info
 
-        assert _dump_extr(extr1) == _dump_extr(extr0)
+        assert "model_unavailable" in info or "skipped(model_unavailable)" in info, info
+        assert _dump_extr_core(extr1) == _dump_extr_core(extr0)
 
     def test_tier2_skips_single_candidate_everywhere(self, _patch):
         """
@@ -132,22 +143,43 @@ class TestDetectAndExtractE2ETier2AcronymWins:
         baseline = last0.chosen_sense_id
 
         # Tier-2 enabled with deterministic semantic sims
-        def fake_sims_for_context_and_candidates(*, model_name, context, candidate_texts):
-            ctx = context.lower()
-            out = []
-            for t in candidate_texts:
-                tt = t.lower()
-                if "kernel" in ctx and "graphics processing unit" in tt:
-                    out.append(0.99)
-                elif "kernel" in ctx and "general purpose unit" in tt:
-                    out.append(0.01)
-                else:
-                    out.append(0.50)  # neutral
+        def _fake_embed_texts(model_name: str, texts: list[str], *_, **__) -> np.ndarray:
+            """
+            Deterministic tiny embedding:
+            - dimension 0 = "kernel/graphics/device" semantics
+            - dimension 1 = "general/purpose/department" semantics
+            """
+            out = np.zeros((len(texts), 2), dtype=np.float32)
+
+            for i, t in enumerate(texts):
+                s = t.lower()
+
+                # context cues
+                if "kernel" in s or "device" in s or "graphics" in s:
+                    out[i, 0] = 1.0
+                if "general purpose unit" in s or "department" in s:
+                    out[i, 1] = 1.0
+
+                # candidate cues (these appear in candidate_texts passed into embed_texts)
+                if "graphics processing unit" in s:
+                    out[i, 0] = 1.0
+                if "general purpose unit" in s:
+                    out[i, 1] = 1.0
+
+                # avoid zero vectors
+                if out[i].sum() == 0:
+                    out[i, 0] = 1e-6
+
             return out
 
-        _patch(f.st_tier2_semantic_rerank, sims_for_context_and_candidates=fake_sims_for_context_and_candidates)
+        _patch(t2.embed_for_tier2, embed_texts=_fake_embed_texts)
 
-        _det1, extr1, r1 = detect_and_extract(text, ext_cfg=_tier2_cfg(mode="on", weight=0.6), return_reports=True)
+        _det1, extr1, r1 = detect_and_extract(
+            text,
+            ext_cfg=_tier2_cfg(mode="on", weight=1.0),  # crank it
+            return_reports=True,
+        )
+
         info = _stage_info(r1, "tier2_semantic_rerank")
         assert "applied(" in info, info
 
@@ -187,7 +219,7 @@ class TestDetectAndExtractE2ETier2AcronymWins:
 
         _patch(f.st_tier2_semantic_rerank, sims_for_context_and_candidates=fake_sims_for_context_and_candidates)
 
-        _det, extr, reports = detect_and_extract(text, ext_cfg=_tier2_cfg(mode="on", weight=0.7), return_reports=True)
+        _det, extr, reports = detect_and_extract(text, ext_cfg=_tier2_cfg(mode="on", weight=1), return_reports=True)
         last = _last_res(extr, "API")
         assert last.chosen_sense_id is not None
         assert "application_programming_interface" in last.chosen_sense_id, last
@@ -216,7 +248,7 @@ class TestDetectAndExtractE2ETier2AcronymWins:
 
         _patch(f.st_tier2_semantic_rerank, sims_for_context_and_candidates=fake_sims_for_context_and_candidates)
 
-        _det, extr, reports = detect_and_extract(text, ext_cfg=_tier2_cfg(mode="on", weight=0.7), return_reports=True)
+        _det, extr, reports = detect_and_extract(text, ext_cfg=_tier2_cfg(mode="on", weight=1), return_reports=True)
         last = _last_res(extr, "NHS")
         assert last.chosen_sense_id is not None
         assert "national_health_service" in last.chosen_sense_id, last

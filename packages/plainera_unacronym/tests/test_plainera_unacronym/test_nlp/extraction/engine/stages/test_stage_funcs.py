@@ -36,7 +36,7 @@ class TestSrTier2SemanticRerank:
             )
         ]
 
-        _patch(Tier2._embed_for_tier2, embed_texts=lambda *a, **k: None)
+        _patch(Tier2.embed_for_tier2, embed_texts=lambda *a, **k: None)
 
         f.st_tier2_semantic_rerank(s, window_chars=50, auto_margin_ceiling=0.02)
 
@@ -70,7 +70,7 @@ class TestSrTier2SemanticRerank:
 
         # Force embedder failure
         _patch(f.st_tier2_semantic_rerank,embed_texts=lambda *a, **k: None)
-        _patch(Tier2._embed_for_tier2, embed_texts=lambda *a, **k: None)
+        _patch(Tier2.embed_for_tier2, embed_texts=lambda *a, **k: None)
 
         f.st_tier2_semantic_rerank(s, window_chars=50, auto_margin_ceiling=0)
 

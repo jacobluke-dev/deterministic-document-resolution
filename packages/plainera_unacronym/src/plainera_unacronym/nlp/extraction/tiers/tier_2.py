@@ -159,7 +159,7 @@ def collect_tier2_inputs(
 
 
 
-def _embed_for_tier2(model_name: str, eligible: Sequence[_EligibleRerank]) -> _EmbeddingsBatch | None:
+def embed_for_tier2(model_name: str, eligible: Sequence[_EligibleRerank]) -> _EmbeddingsBatch | None:
     """
     Embed all unique candidate texts and all eligible contexts in two batches.
 
@@ -205,7 +205,7 @@ def apply_tier2_reranks(
     Args:
         ranked2: Tier-2 rankings aligned with Tier-1 order; eligible slots are placeholders.
         eligible: Eligible rerank work items aligned with `batch.ctx_mat` rows.
-        batch: Embedded candidate/context batch returned by `_embed_for_tier2`.
+        batch: Embedded candidate/context batch returned by `embed_for_tier2`.
         weight: Blend weight for Tier-2 similarity in [0,1].
 
     Returns:
