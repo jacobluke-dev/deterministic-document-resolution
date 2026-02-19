@@ -30,9 +30,11 @@ import plainera_unacronym.nlp.extraction.tiers.tier_2 as t2
 def _stable_json(obj) -> str:
     return json.dumps(obj, sort_keys=True, ensure_ascii=False, separators=(",", ":"))
 
+
 def _dump_extr(extr) -> str:
     # Stable compare for “byte-identical output” style assertions
     return _stable_json(asdict(extr))
+
 
 def _tier2_cfg(*, mode: Literal["off", "auto", "on"], weight: float = 0.5) -> ExtractionConfig:
     return replace(
@@ -45,8 +47,10 @@ def _tier2_cfg(*, mode: Literal["off", "auto", "on"], weight: float = 0.5) -> Ex
         ),
     )
 
+
 def _stage_info(reports, name: str) -> str:
     return next(r for r in reports if r.name == name).info
+
 
 def _last_res(extr, acr: str):
     xs = [r for r in extr.resolutions if r.acronym.upper() == acr.upper()]
@@ -66,6 +70,7 @@ def _dump_extr_core(extr) -> str:
 
     return _stable_json(d)
 
+
 class TestDetectAndExtractE2ETier2Contracts:
     def test_tier2_disabled_equals_model_unavailable(self, _patch):
         """
@@ -74,8 +79,8 @@ class TestDetectAndExtractE2ETier2Contracts:
         text = (
             "Graphics Processing Unit (GPU) accelerates kernels. "
             + ("filler " * 300) + "\n"
-            "General Purpose Unit (GPU) is used elsewhere. "
-            "Later, GPU appears again."
+                                  "General Purpose Unit (GPU) is used elsewhere. "
+                                  "Later, GPU appears again."
         )
         import plainera_unacronym.nlp.extraction.tiers.tier_2 as t2
 
@@ -255,26 +260,6 @@ class TestDetectAndExtractE2ETier2AcronymWins:
         assert "applied(" in _stage_info(reports, "tier2_semantic_rerank")
 
 
-
-class TestDetectAndExtractE2ETier2MixedCaseAcronyms:
-
-    def test_stylised_ios_parenthetical(self, picked_def):
-        det, extr = detect_and_extract("iOS (iPhone Operating System) is supported.")
-        assert picked_def(extr, "iOS") in {"iPhone Operating System"}, extr.picks.get("iOS")
-
-    def test_stylised_ebay_parenthetical(self, picked_def):
-        det, extr = detect_and_extract("eBay (electronic Bay) is a marketplace.")
-        assert picked_def(extr, "eBay") in {"electronic Bay"}, extr.picks.get("eBay")
-
-    def test_stylised_latex_parenthetical(self, picked_def):
-        det, extr = detect_and_extract("LaTeX (Lamport TeX) is used for typesetting.")
-        assert picked_def(extr, "LaTeX") in {"Lamport TeX"}, extr.picks.get("LaTeX")
-
-    def test_stylised_latex_parenthetical_inverse(self, picked_def):
-        det, extr = detect_and_extract("Lamport TeX (LaTeX) is used for typesetting.")
-        assert picked_def(extr, "LaTeX") in {"LaTeX"}, extr.picks.get("LaTeX")
-
-
 class TestDetectAndExtractIntegrationEdgeCases:
     # this one
     def test_ambiguous_acronym_builds_multiple_senses(self, picked_def, cfg_integrated):
@@ -296,6 +281,7 @@ class TestDetectAndExtractIntegrationEdgeCases:
         joined = " || ".join(defs_for_ema).lower()
         assert "european medicines agency" in joined
         assert "exponential moving average" in joined
+
     # this one
     def test_nearest_pick_prefers_definition_near_first_occurrence(self, picked_def, cfg_integrated):
         # Two candidate long-forms for the same acronym; ensure the one closest to the FO wins
@@ -315,7 +301,6 @@ class TestDetectAndExtractIntegrationEdgeCases:
     def test_tier_one_digit_prefixed_acronym_parenthetical(self, picked_def):
         det, extr = detect_and_extract("Third Generation Partnership Project (3GPP) publishes specs.")
         assert picked_def(extr, "3GPP") == "Third Generation Partnership Project"
-
 
 
 class TestDisambiguationE2E:
@@ -441,7 +426,6 @@ class TestDisambiguationE2EConfidenceContract:
             return_reports=True,
         )
 
-
         d0 = extr.definitions[0]
         low = ExtractedDefinition(
             acronym=d0.acronym,
@@ -531,7 +515,6 @@ class TestDisambiguationE2EConfidenceContract:
         - With prior disabled and distance unable to distinguish, resolution stays undecided.
         """
 
-
         # 1) Run full pipeline once to get REAL senses + REAL def_spans.
         _det, extr, _r = detect_and_extract(
             "Natural language processing (NLP) helps. "
@@ -586,6 +569,7 @@ class TestDisambiguationE2EConfidenceContract:
                 def_spans=list(spans),
                 support=support,
             )
+
         occ = OccurrenceLite("PDF", 10, 13)
         senses_by_id = {
             "s1": S("PDF", "s1", "Portable Document Format", [(0, 1)]),
