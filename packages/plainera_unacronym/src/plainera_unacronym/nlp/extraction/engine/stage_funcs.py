@@ -17,9 +17,11 @@ from plainera_unacronym.nlp.extraction.strategies.pick_resolution import (
     build_defs_index,
     patch_pick_provenance,
 )
-from plainera_unacronym.nlp.extraction.tiers.tier_2 import collect_tier2_inputs, apply_tier2_reranks, _embed_for_tier2
-from plainera_unacronym.nlp.extraction.tiers.types import Tier2OccurrenceRanking, Tier2Report, Tier2SkipReason, \
-    Tier1OccurrenceRanking
+from plainera_unacronym.nlp.extraction.tiers.tier_2 import collect_tier2_inputs, apply_tier2_reranks, embed_for_tier2
+from plainera_unacronym.nlp.extraction.tiers.types import (Tier2OccurrenceRanking,
+                                                           Tier2Report,
+                                                           Tier2SkipReason,
+                                                           Tier1OccurrenceRanking)
 
 
 def st_detect(s: FlowState) -> StageResult[FlowState]:
@@ -208,6 +210,7 @@ def st_finalise_picks(s: FlowState) -> StageResult[FlowState]:
     s.last_info = f"coverage={s.coverage:.2%} missing={len(s.missing_keys)}"
     return StageResult(s, s.last_info)
 
+
 def st_tier1_build_senses(s: FlowState) -> StageResult[FlowState]:
     """
         Tier-1 setup: build senses and lightweight occurrences for disambiguation.
@@ -242,7 +245,6 @@ def st_tier1_build_senses(s: FlowState) -> StageResult[FlowState]:
 
     s.last_info = f"senses={sum(len(v) for v in t1.senses_by_acronym.values())} occs={len(t1.occurrences)}"
     return StageResult(s, s.last_info)
-
 
 
 def st_tier1_score_occurrences(
@@ -378,22 +380,21 @@ def st_tier2_semantic_rerank(
         t2.report = Tier2Report(applied=0, skipped=len(ranked2), reasons=dict(reasons))
         s.last_info = f"tier2=skipped(nothing_eligible) reasons={_fmt_reasons(reasons)}"
         return StageResult(s, s.last_info)
+    try:
+        batch = embed_for_tier2(model_name, eligible)
+        applied = apply_tier2_reranks(ranked2=ranked2, eligible=eligible, batch=batch, weight=weight)
 
-    batch = _embed_for_tier2(model_name, eligible)
-    if batch is None:
+        t2.ranked = ranked2
+        t2.report = Tier2Report(applied=applied, skipped=len(ranked2) - applied, reasons=dict(reasons))
+
+        s.last_info = f"tier2=applied({applied}) skipped({len(ranked2) - applied}) reasons={_fmt_reasons(reasons)}"
+        return StageResult(s, s.last_info)
+    except Exception as exc:
         reasons["model_unavailable"] += len(eligible)
         t2.ranked = ranked2
         t2.report = Tier2Report(applied=0, skipped=len(ranked2), reasons=dict(reasons))
-        s.last_info = "tier2=skipped(model_unavailable)"
+        s.last_info = f"tier2=skipped(model_unavailable) reasons={_fmt_reasons(reasons)}"
         return StageResult(s, s.last_info)
-
-    applied = apply_tier2_reranks(ranked2=ranked2, eligible=eligible, batch=batch, weight=weight)
-
-    t2.ranked = ranked2
-    t2.report = Tier2Report(applied=applied, skipped=len(ranked2) - applied, reasons=dict(reasons))
-
-    s.last_info = f"tier2=applied({applied}) skipped({len(ranked2) - applied}) reasons={_fmt_reasons(reasons)}"
-    return StageResult(s, s.last_info)
 
 
 def st_tiers_select_and_assemble(
