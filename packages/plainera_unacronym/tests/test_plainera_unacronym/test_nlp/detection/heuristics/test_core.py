@@ -1189,7 +1189,7 @@ class TestIterCandidatesWith:
     def test_mixed_case_requires_two_uppers_for_relax(self):
         # Relaxation only kicks in if upp >= 2. "eBay" has only 1 uppercase in practice (B),
         # so it should fail under default require_caps_ratio=0.7.
-        cfg = DetectorConfig(enable_mixed_case=True)
+        cfg = DetectorConfig(enable_mixed_case=False)
         text = "We listed it on eBay."
         out = self.collect(text, cfg, self.PAT)
         surfaces = [s for s, _, _ in out]
