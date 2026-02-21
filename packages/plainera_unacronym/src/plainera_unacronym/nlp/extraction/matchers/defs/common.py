@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import re
 from dataclasses import dataclass
 from typing import Literal, Optional
@@ -7,6 +9,16 @@ from plainera_unacronym.nlp.common.shared import collapse_ws, strip_trailing_pun
 from plainera_unacronym.nlp.common.types import Span, as_str_set
 from plainera_unacronym.nlp.extraction import ExtractionConfig
 from plainera_unacronym.nlp.extraction.matchers.common import is_mixed_case_acronym, split_compound
+
+_SEG_RE = re.compile(
+    r"""
+    [A-Z]+(?=[A-Z][a-z]) |   # "HTTP" in "HTTPServer" style
+    [A-Z]?[a-z]+         |   # "La", "port", "electronic"
+    [A-Z]+               |   # "OS"
+    [0-9]+                   # digits
+    """,
+    re.VERBOSE,
+)
 
 
 class LocalDefMatch:
@@ -72,6 +84,29 @@ def get_cfg_consts(cfg: ExtractionConfig, max_char_default: int = 80) -> tuple[s
 
     max_chars = getattr(cfg, "max_phrase_chars", max_char_default)
     return bridges, stop, max_chars
+
+
+def _acr_signature_for_initials(acr: str) -> str:
+    """
+    Build an initials-style acronym used ONLY for alignment against long-form initials.
+
+    - Split into CamelCase / ALLCAPS segments
+    - Emit:
+        * all letters for ALLCAPS segments (OS -> O,S)
+        * first letter for mixed/lower segments (TeX -> T, Bay -> B, f -> F)
+    """
+    segs = _SEG_RE.findall("".join(ch for ch in acr if ch.isalnum()))
+    if not segs:
+        return acr
+
+    out: list[str] = []
+    for seg in segs:
+        if seg.isalpha() and seg.isupper() and len(seg) > 1:
+            out.extend(list(seg))  # OS -> O,S
+        else:
+            out.append(seg[0].upper())  # TeX -> T, f -> F, Bay -> B, La -> L
+
+    return "".join(out) or acr
 
 
 def build_initials_stream(
@@ -405,6 +440,9 @@ def align_acronym_to_initials(
         An `AlignmentHit` if alignment succeeds, else None.
 
     """
+    if acr and lowercase_prefix_exception and is_mixed_case_acronym(acr):
+        acr = _acr_signature_for_initials(acr)
+
     if not acr or not stream.letters:
         return None
 
@@ -947,7 +985,7 @@ def strip_inline_cue_prefix(snippet: str, cfg) -> tuple[str, int] | None:
     for cue in cues:
         m = re.match(rf"^\s*,?\s*(?:{cue})\s+", snippet, flags=re.IGNORECASE)
         if m:
-            return snippet[m.end() :], m.end()
+            return snippet[m.end():], m.end()
     return None
 
 
@@ -1080,6 +1118,6 @@ def build_kept_phrase(
             kept.append(tok)
 
     if not kept:
-        kept = tokens[tok_left : tok_right + 1]
+        kept = tokens[tok_left: tok_right + 1]
 
     return strip_trailing_punct_str(collapse_ws(" ".join(kept)))
