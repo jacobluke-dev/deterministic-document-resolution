@@ -85,6 +85,10 @@ def compile_pattern(cfg: DetectorConfig) -> re.Pattern[str]:
     # - optional trailing alnum
     lower_prefix_brand = r"(?:[a-z]{1,2}[A-Z][a-z]+[A-Za-z0-9]*)"
 
+    # 6c)
+    # Upper-prefix mixed-case, e.g. LaTeX, PowerBI, OpenAI (if you want), iPhoneOS-style variants
+    upper_prefix_mixed = r"(?:[A-Z][a-z]{1,}[A-Z][A-Za-z0-9]*)"
+
     # 7)
     # ALL-CAPS (or alnum) with an optional short lowercase suffix (e.g. PDFs, GPUs, NHSs).
     # Keep suffix short to avoid normal words; 1–3 is usually enough.
@@ -98,6 +102,7 @@ def compile_pattern(cfg: DetectorConfig) -> re.Pattern[str]:
     if cfg.enable_mixed_case:
         branches.append(camel_uc)
         branches.append(lower_prefix_mixed)
+        branches.append(upper_prefix_mixed)
         branches.append(lower_prefix_brand)
 
     # Word boundaries prevent matching inside longer identifiers/words.
@@ -105,8 +110,6 @@ def compile_pattern(cfg: DetectorConfig) -> re.Pattern[str]:
     token = r"\b(?P<tok>" + "|".join(branches) + r")\b"
 
     pat = re.compile(token)
-    print("[DBG] eBay match:", bool(pat.search("eBay (electronic Bay) is a marketplace.")))
-
     pattern_cache[key] = pat
     return pat
 
