@@ -550,3 +550,7 @@ class TestDetectAndExtractE2ETier1MixedCaseAcronyms:
     def test_stylised_latex_parenthetical_inverse(self, picked_def):
         det, extr = detect_and_extract("Lamport TeX (LaTeX) is used for typesetting.")
         assert picked_def(extr, "LaTeX") in {"LaTeX"}, extr.picks.get("LaTeX")
+
+    def test_all_lower_case_acronyms(self, picked_def):
+        det, extr = detect_and_extract("But despite suffering a ruptured anterior cruciate ligament (ACL) in Switzerland in the last World Cup race before the Games.")
+        assert picked_def(extr, "ACL") in {"anterior cruciate ligament"}, extr.picks.get("ACL")
