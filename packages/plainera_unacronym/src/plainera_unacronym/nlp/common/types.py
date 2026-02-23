@@ -300,7 +300,7 @@ class ExtractionResult:
     missing_keys: tuple[str, ...]
 
     senses_by_acronym: dict[str, list[AcronymSense]] = field(default_factory=dict)
-    sense_index: dict[str, AcronymSense] = field(default_factory=dict)  # sense_id -> sense
+    sense_index: Mapping[str, AcronymSense] = field(default_factory=dict)  # sense_id -> sense
     resolutions: list[OccurrenceResolution] = field(default_factory=list)
     ambiguous_keys: tuple[str, ...] = field(default_factory=tuple)  # acronyms with >1 senses
     undecided: list[OccurrenceResolution] = field(default_factory=list)  # chosen_sense_id is None

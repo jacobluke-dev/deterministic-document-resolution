@@ -1,7 +1,8 @@
 from __future__ import annotations
 
+import importlib
 from functools import lru_cache
-from typing import Iterable, Sequence
+from typing import Any, Iterable, Sequence
 
 import numpy as np
 from numpy.typing import NDArray
@@ -10,7 +11,7 @@ from plainera_unacronym.nlp.extraction.tiers.types import FloatMat, FloatVec
 
 
 @lru_cache(maxsize=4)
-def _load_st_model(model_name: str, *, cache_folder: str | None = None):
+def _load_st_model(model_name: str, *, cache_folder: str | None = None) -> Any:
     """Load (and memoise) a Sentence-Transformers model by name.
 
     Uses an LRU cache to avoid repeatedly initialising the same embedding model.
@@ -28,8 +29,8 @@ def _load_st_model(model_name: str, *, cache_folder: str | None = None):
         The import of `SentenceTransformer` is intentionally lazy to keep the
         module import-light when Tier-2 is disabled.
     """
-    from sentence_transformers import SentenceTransformer  # lazy import
-
+    st = importlib.import_module("sentence_transformers")
+    SentenceTransformer = st.SentenceTransformer
     return SentenceTransformer(
         model_name,
         cache_folder=cache_folder,

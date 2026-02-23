@@ -96,7 +96,6 @@ BRIDGES_DEFAULT: Final[frozenset[str]] = frozenset(
         "with",
         "&",
         "per",
-        # optional: keep name particles if you care about proper names
         "de",
         "la",
         "le",

@@ -1,4 +1,5 @@
 from collections import Counter
+from typing import Literal, cast
 
 from plainera_unacronym.nlp import Detector
 from plainera_unacronym.nlp.common.types import ExtractionResult, OccurrenceLite, OccurrenceResolution
@@ -331,6 +332,7 @@ def st_tier2_semantic_rerank(
         s: FlowState for the pipeline stage. Requires `s.det_res` and Tier-1
             rankings in `s.disambig.tier1.ranked`.
         window_chars: Context window size around each occurrence.
+        auto_margin_ceiling: The margin ceiling
 
     Returns:
         StageResult containing the mutated FlowState and a short info string.
@@ -345,7 +347,14 @@ def st_tier2_semantic_rerank(
     t2 = s.disambig.tier2
 
     tier2_cfg = getattr(s.ext_cfg, "tier2", None)
-    mode = getattr(tier2_cfg, "mode", "off")
+    Mode = Literal["off", "auto", "on"]
+
+    mode_raw = getattr(tier2_cfg, "mode", "off")
+
+    if mode_raw in ("off", "auto", "on"):
+        mode: Mode = cast(Mode, mode_raw)
+    else:
+        mode = "off"
 
     reasons: Counter[Tier2SkipReason] = Counter()
 
@@ -385,7 +394,15 @@ def st_tier2_semantic_rerank(
         return StageResult(s, s.last_info)
     try:
         batch = embed_for_tier2(model_name, eligible)
-        applied = apply_tier2_reranks(ranked2=ranked2, eligible=eligible, batch=batch, weight=weight)
+        if batch is None:
+            raise RuntimeError("model_unavailable")
+
+        applied = apply_tier2_reranks(
+            ranked2=ranked2,
+            eligible=eligible,
+            batch=batch,
+            weight=weight,
+        )
 
         t2.ranked = ranked2
         t2.report = Tier2Report(applied=applied, skipped=len(ranked2) - applied, reasons=dict(reasons))

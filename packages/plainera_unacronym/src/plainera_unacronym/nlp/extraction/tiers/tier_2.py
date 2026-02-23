@@ -6,6 +6,7 @@ from typing import Literal, Sequence
 
 import numpy as np
 
+from plainera_unacronym.nlp.common.types import AcronymSense
 from plainera_unacronym.nlp.extraction.tiers.semantic import cosine_sim01, embed_texts
 from plainera_unacronym.nlp.extraction.tiers.types import (
     FloatMat,
@@ -96,7 +97,7 @@ def collect_tier2_inputs(
     *,
     text: str,
     t1_ranked: Sequence[Tier1OccurrenceRanking],
-    sense_index: dict[str, object],
+    sense_index: dict[str, AcronymSense],
     window_chars: int,
     auto_margin_ceiling: float,
     mode: Literal["off", "auto", "on"],
