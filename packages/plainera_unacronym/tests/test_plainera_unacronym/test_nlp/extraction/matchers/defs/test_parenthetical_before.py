@@ -103,8 +103,8 @@ class TestFindParentheticalLongformBeforeAcrUnitAlignmentAndFallback:
 
         assert seen["scan"] == "rtl"
         assert seen["expand_allcaps_tokens"] is False
-        assert seen["split_compounds"] is True
-        assert seen["treat_acronym_tokens_as_multi_letter"] is True
+        assert seen["split_compounds"] is False
+        assert seen["treat_acronym_tokens_as_multi_letter"] is False
 
     def test_mixed_case_acronym_controls_allow_lower_on_non_stop(self, _patch, dummy_cfg, hit_cfg, build_stream_seen):
         calls = {"allow_lower_on_non_stop": []}
