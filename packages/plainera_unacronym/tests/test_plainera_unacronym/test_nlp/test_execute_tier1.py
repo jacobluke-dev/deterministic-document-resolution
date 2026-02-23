@@ -12,15 +12,17 @@ from plainera_unacronym.nlp.execute import detect_and_extract
 from plainera_unacronym.nlp.extraction import ExtractionConfig
 
 
-def _ed(acr: str,
-        d: str,
-        a0: int = 0,
-        a1: int = 0,
-        d0: int = 0,
-        d1: int = 0,
-        conf: float = 0.95,
-        src="all_occ_scan_parenthetical",
-        orig=None):
+def _ed(
+    acr: str,
+    d: str,
+    a0: int = 0,
+    a1: int = 0,
+    d0: int = 0,
+    d1: int = 0,
+    conf: float = 0.95,
+    src="all_occ_scan_parenthetical",
+    orig=None,
+):
     return state.ExtractedDefinition(
         acronym=acr,
         definition=d,
@@ -60,12 +62,20 @@ class TestDetectAndExtractUnit:
         class FakeDetector:
             cfg = det_cfg
 
-            def __init__(self, config=None): pass
+            def __init__(self, config=None):
+                pass
 
             def detect(self, t):
                 return DetectorResult(
-                    occurrences=[Occurrence(acronym="PDF", start_offset=28, end_offset=31, occurrence_confidence=0.5,
-                                            context_window=(0, 32))],
+                    occurrences=[
+                        Occurrence(
+                            acronym="PDF",
+                            start_offset=28,
+                            end_offset=31,
+                            occurrence_confidence=0.5,
+                            context_window=(0, 32),
+                        )
+                    ],
                     unique_acronyms={"PDF": fo(text, "PDF", 28, 0.5)},
                 )
 
@@ -82,8 +92,7 @@ class TestDetectAndExtractUnit:
         monkeypatch.setattr(stage_fxn, "extract_near_firsts", lambda *a, **k: {"PDF": anchored_pick})
 
         # defs_from_picks returns one ED
-        monkeypatch.setattr(stage_fxn, "defs_from_picks",
-                            lambda _text, picks: [_ed("PDF", "Portable Document Format")])
+        monkeypatch.setattr(stage_fxn, "defs_from_picks", lambda _text, picks: [_ed("PDF", "Portable Document Format")])
 
         # harvest returns nothing extra
         monkeypatch.setattr(stage_fxn, "extract_defs_all_occurrences", lambda *_: [])
@@ -92,8 +101,9 @@ class TestDetectAndExtractUnit:
         monkeypatch.setattr(stage_fxn, "dedupe_defs", lambda defs: defs)
 
         # build_senses: single sense per acronym
-        monkeypatch.setattr(stage_fxn, "build_senses",
-                            lambda defs: {"PDF": [NS(sense_id="PDF::Portable Document Format")]})
+        monkeypatch.setattr(
+            stage_fxn, "build_senses", lambda defs: {"PDF": [NS(sense_id="PDF::Portable Document Format")]}
+        )
 
         # disambiguate_occurrences: one resolution using that sense
         monkeypatch.setattr(
@@ -123,7 +133,6 @@ class TestDetectAndExtractUnit:
 
 
 class TestDetectAndExtractIntegration:
-
     def test_mixed_forward_reverse_inline_and_confidence(self, picked_def, cfg_integrated):
         text = (
             "We invest in Research and Development (R&D) to innovate.\n"
@@ -154,13 +163,9 @@ class TestDetectAndExtractIntegration:
 
 
 class TestDetectAndExtractIntegrationEdgeCases:
-
     def test_forward_parenthetical_does_not_span_newlines_and_keeps_pto(self, picked_def, cfg_integrated):
         # PTO line must not be swallowed by the forward (PDF) match
-        text = (
-            "PTO stands for Please Turn Over on print jobs.\n"
-            "Portable Document Format (PDF) dominates documents."
-        )
+        text = "PTO stands for Please Turn Over on print jobs.\n" "Portable Document Format (PDF) dominates documents."
         det_cfg, ext_cfg = cfg_integrated()
         det_res, extr = detect_and_extract(text, det_cfg=det_cfg, ext_cfg=ext_cfg)
 
@@ -185,8 +190,7 @@ class TestDetectAndExtractIntegrationEdgeCases:
         # Strict
         det_cfg, ext_cfg_strict = cfg_integrated(require_two_words=True, max_chars=30)
         det, extr, reports, trace = detect_and_extract(
-            base, det_cfg=det_cfg, ext_cfg=ext_cfg_strict,
-            return_reports=True, trace=True, trace_filter=r"^(PTO|PF)$"
+            base, det_cfg=det_cfg, ext_cfg=ext_cfg_strict, return_reports=True, trace=True, trace_filter=r"^(PTO|PF)$"
         )
 
         assert not any(d.acronym == "PTO" for d in extr.definitions)
@@ -218,10 +222,7 @@ class TestDetectAndExtractIntegrationEdgeCases:
 
     def test_special_char_acronym_and_bridges(self, picked_def, cfg_integrated):
         # Exercise slash (& keeps) and dash/ampersand cases
-        text = (
-            "We track C/A (Cost per Acquisition) closely. "
-            "Research & Development (R&D) invests heavily."
-        )
+        text = "We track C/A (Cost per Acquisition) closely. " "Research & Development (R&D) invests heavily."
         det_cfg, ext_cfg = cfg_integrated()
         det_res, extr = detect_and_extract(text, det_cfg=det_cfg, ext_cfg=ext_cfg)
 
@@ -261,7 +262,6 @@ class TestDetectAndExtractIntegrationEdgeCases:
 
 
 class TestDetectAndExtractE2E:
-
     def test_detect_and_extract_dash_mixed_case(self, picked_def):
         # 1) Lower-case tokens should be preserved (no truncation)
         det, extr = detect_and_extract("Single sign-on (SSO) is enabled.")
@@ -276,9 +276,7 @@ class TestDetectAndExtractE2E:
         assert picked_def(extr, "ROI") == "return on investment", extr.picks.get("ROI")
 
     def test_parenthetical_acronym_only_is_rejected(self, picked_def):
-        det, extr = detect_and_extract(
-            "We discussed options and agreed on the approach (SLA) yesterday."
-        )
+        det, extr = detect_and_extract("We discussed options and agreed on the approach (SLA) yesterday.")
         assert extr.picks.get("SLA") is None, extr.picks.get("SLA")
 
     def test_parenthetical_proper_noun_definition_is_extracted(self, picked_def):
@@ -291,20 +289,23 @@ class TestDetectAndExtractE2E:
 
     def test_tier_one_nlp(self, picked_def):
         det, extr = detect_and_extract(
-            "Natural language processing (NLP) is used to detect entities, but the NLP output can be noisy.")
+            "Natural language processing (NLP) is used to detect entities, but the NLP output can be noisy."
+        )
         assert picked_def(extr, "NLP") in {"Natural language processing"}, extr.picks.get("NLP")
 
     def test_tier_one_ppe_with_parenthetical_tail(self, picked_def):
         det, extr = detect_and_extract(
-            "Personal protective equipment (PPE, required on site) must be worn in the laboratory at all times.")
+            "Personal protective equipment (PPE, required on site) must be worn in the laboratory at all times."
+        )
         assert picked_def(extr, "PPE") in {"Personal protective equipment"}, extr.picks.get("PPE")
 
     def test_tier_one_ceo(self, picked_def):
         det, extr = detect_and_extract(
             "The Chief Executive Officer (CEO) approved the new security policy and requested weekly reporting."
         )
-        assert picked_def(extr, "CEO") in {"Chief Executive Officer",
-                                           "The Chief Executive Officer"}, extr.picks.get("CEO")
+        assert picked_def(extr, "CEO") in {"Chief Executive Officer", "The Chief Executive Officer"}, extr.picks.get(
+            "CEO"
+        )
 
     def test_tier_one_sla_inline_abbreviated_as(self, picked_def):
         det, extr = detect_and_extract(
@@ -325,8 +326,7 @@ class TestDetectAndExtractE2E:
         assert picked_def(extr, "JWT") == "JSON Web Tokens", extr.picks.get("JWT")
 
     def test_tier_one_sso_is_extracted_via_sentence_backref(self, picked_def):
-        det, extr = detect_and_extract(
-            "We use Single sign-on in hospitals. This method of auth is known as SSO.")
+        det, extr = detect_and_extract("We use Single sign-on in hospitals. This method of auth is known as SSO.")
         assert picked_def(extr, "SSO") == "Single sign-on", extr.picks.get("SSO")
 
     def test_tier_one_negative_mismatch_plausible_longform_wrong_acronym(self, picked_def):
@@ -338,8 +338,10 @@ class TestDetectAndExtractE2E:
             "Natural language processing (NLP) and personal protective equipment (PPE) are mentioned."
         )
         assert picked_def(extr, "NLP") in {"Natural language processing"}, extr.picks.get("NLP")
-        assert picked_def(extr, "PPE") in {"personal protective equipment",
-                                           "Personal protective equipment"}, extr.picks.get("PPE")
+        assert picked_def(extr, "PPE") in {
+            "personal protective equipment",
+            "Personal protective equipment",
+        }, extr.picks.get("PPE")
 
     def test_tier_one_reverse_parenthetical_longform_before_acronym_if_supported(self, picked_def):
         det, extr = detect_and_extract("(Portable Document Format) PDF is common.")
@@ -359,8 +361,9 @@ class TestDetectAndExtractE2E:
 
     def test_tier_one_en_dash_in_definition_preserved(self, picked_def):
         det, extr = detect_and_extract("Director-General’s Office (DGO) issued guidance.")
-        assert picked_def(extr, "DGO") in {"Director-General’s Office",
-                                           "Director-General's Office"}, extr.picks.get("DGO")
+        assert picked_def(extr, "DGO") in {"Director-General’s Office", "Director-General's Office"}, extr.picks.get(
+            "DGO"
+        )
 
     def test_tier_one_all_caps_definition_preserved(self, picked_def):
         det, extr = detect_and_extract("COST PER ACQUISITION (CPA) is a metric.")
@@ -385,29 +388,38 @@ class TestDetectAndExtractE2E:
 
 
 class TestDetectAndExtractE2EConfigAdjustment:
-
     def test_tier_one_dotted_acronym_key_strips_to_plain_preserves_dots_and_detects(self, picked_def):
-        det, extr = detect_and_extract("The United States of America (U.S.A.) is referenced.",
-                                       det_cfg=DetectorConfig(enable_dotted=True, dotted_display="preserve"))
+        det, extr = detect_and_extract(
+            "The United States of America (U.S.A.) is referenced.",
+            det_cfg=DetectorConfig(enable_dotted=True, dotted_display="preserve"),
+        )
         assert picked_def(extr, "U.S.A") in {"United States of America"}, extr.picks.get("U.S.A")
 
     def test_tier_one_dotted_acronym_key_strips_to_plain_removes_dots_and_detects(self, picked_def):
-        det, extr = detect_and_extract("The United States of America (U.S.A.) is referenced.",
-                                       det_cfg=DetectorConfig(enable_dotted=True, dotted_display="strip"))
+        det, extr = detect_and_extract(
+            "The United States of America (U.S.A.) is referenced.",
+            det_cfg=DetectorConfig(enable_dotted=True, dotted_display="strip"),
+        )
         assert picked_def(extr, "USA") in {"United States of America"}, extr.picks.get("USA")
 
-    def test_tier_one_dotted_acronym_key_strips_to_plain_removes_dots_and_detects_but_not_name_initials(self,
-                                                                                                        picked_def):
-        det, extr = detect_and_extract("The United States of America (U.S.A.) is referenced, written by A.B.",
-                                       det_cfg=DetectorConfig(enable_dotted=True, dotted_display="strip"))
+    def test_tier_one_dotted_acronym_key_strips_to_plain_removes_dots_and_detects_but_not_name_initials(
+        self, picked_def
+    ):
+        det, extr = detect_and_extract(
+            "The United States of America (U.S.A.) is referenced, written by A.B.",
+            det_cfg=DetectorConfig(enable_dotted=True, dotted_display="strip"),
+        )
         assert picked_def(extr, "USA") in {"United States of America"}, extr.picks.get("USA")
         assert picked_def(extr, "AB") is None
         assert picked_def(extr, "A.B.") is None
 
-    def test_tier_one_dotted_acronym_key_strips_to_plain_preserves_dots_and_detects_but_not_name_initials(self,
-                                                                                                          picked_def):
-        det, extr = detect_and_extract("The United States of America (U.S.A.) is referenced, written by A.B.",
-                                       det_cfg=DetectorConfig(enable_dotted=True, dotted_display="preserve"))
+    def test_tier_one_dotted_acronym_key_strips_to_plain_preserves_dots_and_detects_but_not_name_initials(
+        self, picked_def
+    ):
+        det, extr = detect_and_extract(
+            "The United States of America (U.S.A.) is referenced, written by A.B.",
+            det_cfg=DetectorConfig(enable_dotted=True, dotted_display="preserve"),
+        )
         assert picked_def(extr, "U.S.A") in {"United States of America"}, extr.picks.get("U.S.A")
         assert picked_def(extr, "AB") is None
         assert picked_def(extr, "A.B.") is None
@@ -466,7 +478,6 @@ class TestDetectAndExtractE2EConfigAdjustment:
 
 
 class TestDetectAndExtractE2EMixedCaseAcronyms:
-
     def test_mixed_case_tfl_parenthetical_reverse(self, picked_def):
         det, extr = detect_and_extract("The TfL (Transport for London) is based in London.")
         assert picked_def(extr, "TfL") in {"Transport for London"}, extr.picks.get("TfL")
@@ -504,7 +515,9 @@ class TestDetectAndExtractE2EMixedCaseAcronyms:
         assert picked_def(extr, "LaTeX") in {"Lamport TeX"}, extr.picks.get("LaTeX")
 
     def test_all_lower_case_acronyms(self, picked_def):
-        det, extr = detect_and_extract("But despite suffering a ruptured anterior cruciate ligament (ACL) in Switzerland in the last World Cup race before the Games.")
+        det, extr = detect_and_extract(
+            "But despite suffering a ruptured anterior cruciate ligament (ACL) in Switzerland in the last World Cup race before the Games."
+        )
         assert picked_def(extr, "ACL") in {"anterior cruciate ligament"}, extr.picks.get("ACL")
 
 

@@ -92,7 +92,7 @@ class TestSplitCompound:
             ("A&B&C", ["A", "B", "C"]),  # multiple &
             ("v1.2.3", ["v1", "2", "3"]),  # dot with numbers
             ("Hypertext", ["Hyper", "text"]),
-            ("HyperText", ["Hyper", "text"])
+            ("HyperText", ["Hyper", "text"]),
         ],
     )
     def test_split_various(self, token, expected):
@@ -104,8 +104,6 @@ class TestSplitCompound:
         token = "a--b///c..d&&e"
         assert split_compound(token) == ["a", "b", "c", "d", "e"]
 
-
-
     @pytest.mark.parametrize(
         "token, expected",
         [
@@ -115,20 +113,17 @@ class TestSplitCompound:
             ("7Zip", ["7Zip"]),
             ("v1", ["v1"]),
             ("x86", ["x86"]),
-
             # ---- Policy A: should preserve other letter+digit patterns ----
             ("HTTP2", ["HTTP2"]),
             ("RFC7231", ["RFC7231"]),
             ("SHA256", ["SHA256"]),
             ("H264", ["H264"]),
             ("B2B", ["B2B"]),
-
             # ---- separators: hyphen/slash/dot/& ----
             ("Foo-Bar", ["Foo", "Bar"]),
             ("Foo/Bar", ["Foo", "Bar"]),
             ("Foo.Bar", ["Foo", "Bar"]),
             ("Foo&Bar", ["Foo", "Bar"]),
-
             # ---- CamelCase splitting (ASCII) ----
             ("XMLHttpRequest", ["XML", "Http", "Request"]),
             ("MyThing", ["My", "Thing"]),
@@ -138,11 +133,9 @@ class TestSplitCompound:
     def test_split_compound_policy_a(self, token, expected):
         assert split_compound(token) == expected
 
-
     def test_split_compound_non_ascii_kept_intact(self):
         # Non-ASCII => do not Camel-split; keep the piece intact
         assert split_compound("ÅngströmValue") == ["ÅngströmValue"]
-
 
     @pytest.mark.parametrize(
         "token, expected_prefix",
@@ -230,7 +223,6 @@ class TestInitialsSeqUnit:
 
 
 class TestInitialsSeqIntegration:
-
     def test_stopword_checked_before_split(self, _patch):
         tokens = ["and-or", "Useful"]
         letters, owners = initials_seq(tokens)
@@ -263,7 +255,6 @@ class TestInitialsSeqIntegration:
         assert letters == ["Β", "B", "Å", "G"]  # Python uppercases β to Β
         assert owners == [0, 0, 1, 2]
 
-
     def test_initials_seq_expand_allcaps_supports_mixed_case_acronyms(self):
         # The core behavioural goal: mRNA should align against "messenger RNA"
         tokens = ["messenger", "RNA"]
@@ -275,8 +266,8 @@ class TestInitialsSeqIntegration:
         assert letters_expand == ["M", "R", "N", "A"]
         assert owners_expand == [0, 1, 1, 1]
 
-class TestIsMixCaseAcronym:
 
+class TestIsMixCaseAcronym:
     def test_is_mixed_case_acronym(self):
         assert is_mixed_case_acronym("mRNA") is True
         assert is_mixed_case_acronym("PDF") is False

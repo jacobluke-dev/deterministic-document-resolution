@@ -24,6 +24,7 @@ from plainera_unacronym.nlp.extraction.senses.sense_build import build_senses
 # helpers
 # -----------------------
 
+
 def _stable_json(obj) -> str:
     return json.dumps(obj, sort_keys=True, ensure_ascii=False, separators=(",", ":"))
 
@@ -74,10 +75,9 @@ class TestDetectAndExtractE2ETier2Contracts:
         Contract: Tier-2 disabled and Tier-2 enabled-but-unavailable must produce identical ExtractionResult.
         """
         text = (
-            "Graphics Processing Unit (GPU) accelerates kernels. "
-            + ("filler " * 300) + "\n"
-                                  "General Purpose Unit (GPU) is used elsewhere. "
-                                  "Later, GPU appears again."
+            "Graphics Processing Unit (GPU) accelerates kernels. " + ("filler " * 300) + "\n"
+            "General Purpose Unit (GPU) is used elsewhere. "
+            "Later, GPU appears again."
         )
         import plainera_unacronym.nlp.extraction.tiers.tier_2 as t2
 
@@ -121,6 +121,7 @@ class TestDetectAndExtractE2ETier2Contracts:
 # Tier-2 E2E: “wins”
 # -----------------------
 
+
 class TestDetectAndExtractE2ETier2AcronymWins:
     def test_tier2_can_override_distance_when_semantics_strong_gpu(self, _patch):
         """
@@ -133,8 +134,9 @@ class TestDetectAndExtractE2ETier2AcronymWins:
         """
         text = (
             "Graphics Processing Unit (GPU) accelerates kernel execution on the device. "
-            "Some filler words to push distance around. " * 20 +
-            "General Purpose Unit (GPU) is used in a different department. "
+            "Some filler words to push distance around. "
+            * 20
+            + "General Purpose Unit (GPU) is used in a different department. "
             "The GPU was saturated due to kernel launch overhead."
         )
 
@@ -201,8 +203,7 @@ class TestDetectAndExtractE2ETier2AcronymWins:
     def test_tier2_api_programming_interface_vs_active_pharmaceutical_ingredient(self, _patch):
         text = (
             "Application Programming Interface (API) defines endpoints and contracts. "
-            "Some filler words. " * 15 +
-            "Active Pharmaceutical Ingredient (API) must be controlled under GMP. "
+            "Some filler words. " * 15 + "Active Pharmaceutical Ingredient (API) must be controlled under GMP. "
             "Our API exposes a REST endpoint for searching."
         )
 
@@ -211,7 +212,12 @@ class TestDetectAndExtractE2ETier2AcronymWins:
             out = []
             for t in candidate_texts:
                 tt = t.lower()
-                if ("rest" in ctx or "endpoint" in ctx) and "application programming interface" in tt or ("gmp" in ctx or "pharmaceutical" in ctx) and "active pharmaceutical ingredient" in tt:
+                if (
+                    ("rest" in ctx or "endpoint" in ctx)
+                    and "application programming interface" in tt
+                    or ("gmp" in ctx or "pharmaceutical" in ctx)
+                    and "active pharmaceutical ingredient" in tt
+                ):
                     out.append(0.95)
                 else:
                     out.append(0.10)
@@ -228,8 +234,7 @@ class TestDetectAndExtractE2ETier2AcronymWins:
     def test_tier2_nhs_health_service_vs_honour_society(self, _patch):
         text = (
             "National Health Service (NHS) publishes guidance for hospitals. "
-            "Some filler. " * 10 +
-            "National Honor Society (NHS) recognises student achievement in the US. "
+            "Some filler. " * 10 + "National Honor Society (NHS) recognises student achievement in the US. "
             "The NHS hospital trust updated policy."
         )
 
@@ -238,7 +243,12 @@ class TestDetectAndExtractE2ETier2AcronymWins:
             out = []
             for t in candidate_texts:
                 tt = t.lower()
-                if ("hospital" in ctx or "trust" in ctx) and "national health service" in tt or ("student" in ctx or "achievement" in ctx) and "national honor society" in tt:
+                if (
+                    ("hospital" in ctx or "trust" in ctx)
+                    and "national health service" in tt
+                    or ("student" in ctx or "achievement" in ctx)
+                    and "national honor society" in tt
+                ):
                     out.append(0.97)
                 else:
                     out.append(0.20)
@@ -297,7 +307,6 @@ class TestDetectAndExtractIntegrationEdgeCases:
 
 
 class TestDisambiguationE2E:
-
     def test_disambiguation_picks_nearest_definition_by_distance(self, picked_def):
         # Two senses, then a later occurrence near the second definition → should pick second.
         det, extr, r = detect_and_extract(
@@ -314,7 +323,8 @@ class TestDisambiguationE2E:
 
     def test_disambiguation_not_ambiguous_when_only_one_sense(self, picked_def):
         det, extr = detect_and_extract(
-            "European Medicines Agency (EMA) issued guidance. EMA guidance was updated later.")
+            "European Medicines Agency (EMA) issued guidance. EMA guidance was updated later."
+        )
         assert "EMA" in extr.senses_by_acronym
         assert len(extr.senses_by_acronym["EMA"]) == 1
         assert "EMA" not in set(extr.ambiguous_keys)
@@ -325,8 +335,7 @@ class TestDisambiguationE2E:
 
     def test_disambiguation_ambiguous_keys_flagged_when_two_senses_exist(self, picked_def):
         det, extr, r = detect_and_extract(
-            "Natural language processing (NLP) is common. "
-            "Nice Lovely Plants (NLP) are sold locally.",
+            "Natural language processing (NLP) is common. " "Nice Lovely Plants (NLP) are sold locally.",
             return_reports=True,
         )
         assert "NLP" in extr.senses_by_acronym
@@ -458,9 +467,7 @@ class TestDisambiguationE2EConfidenceContract:
         _patch(mod.disambiguate_occurrences, base_scores_for_occurrence=fake_base_scores_for_occurrence)
 
         det, extr, r = detect_and_extract(
-            "Natural language processing (NLP) helps. "
-            "Nice Lovely Plants (NLP) sold locally. "
-            "NLP appears again.",
+            "Natural language processing (NLP) helps. " "Nice Lovely Plants (NLP) sold locally. " "NLP appears again.",
             return_reports=True,
         )
 
@@ -510,8 +517,7 @@ class TestDisambiguationE2EConfidenceContract:
 
         # 1) Run full pipeline once to get REAL senses + REAL def_spans.
         _det, extr, _r = detect_and_extract(
-            "Natural language processing (NLP) helps. "
-            "Nice Lovely Plants (NLP) sold locally.",
+            "Natural language processing (NLP) helps. " "Nice Lovely Plants (NLP) sold locally.",
             return_reports=True,
         )
 
@@ -552,8 +558,9 @@ class TestDisambiguationE2EConfidenceContract:
         Contract test: choose_with_tiebreak returns relative and absolute margins.
         """
 
-        def S(acr: str, sense_id: str, definition: str, spans: list[Span], *, conf: float = 0.0,
-              support: int = 1) -> AcronymSense:
+        def S(
+            acr: str, sense_id: str, definition: str, spans: list[Span], *, conf: float = 0.0, support: int = 1
+        ) -> AcronymSense:
             return AcronymSense(
                 acronym=acr,
                 definition=definition,

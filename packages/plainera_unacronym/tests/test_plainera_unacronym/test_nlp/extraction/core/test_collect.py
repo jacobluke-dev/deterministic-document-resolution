@@ -5,6 +5,7 @@ from plainera_unacronym.nlp.extraction.core.collect import initials_match
 def _msg(acr, phrase):
     return f"acr={acr!r}, phrase={phrase!r}"
 
+
 class TestRequireInitialsMatchOk:
     @pytest.mark.parametrize(
         "acr,phrase,expected",
@@ -67,9 +68,8 @@ class TestRequireInitialsMatchOk:
         assert initials_match("USA", "U.S.A. Agency") is False
         assert initials_match("UA", "U.S.A. Agency") is True
 
-
     def test_leading_punctuation_words_are_ignored(self):
-        phrase = '(Portable) Document Format'
+        phrase = "(Portable) Document Format"
         # initials from this phrase: "D" + "F" => "DF"
         assert initials_match("PDF", phrase) is False
         assert initials_match("DF", phrase) is True

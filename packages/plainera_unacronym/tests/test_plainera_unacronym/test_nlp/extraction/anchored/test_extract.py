@@ -10,11 +10,10 @@ from plainera_unacronym.nlp.extraction import ExtractionConfig
 def _fo(acr: str, start: int, end: int, *, norm: str | None = None):
     # Use your existing helper if you already have one
     from plainera_unacronym.nlp.common.types import FirstOccurrence
-    return FirstOccurrence(acronym=acr,
-                           start_offset=start,
-                           end_offset=end,
-                           occurrence_confidence=0.9,
-                           normalized_key=norm)
+
+    return FirstOccurrence(
+        acronym=acr, start_offset=start, end_offset=end, occurrence_confidence=0.9, normalized_key=norm
+    )
 
 
 class TestBuildLocalWindowUnit:
@@ -103,8 +102,8 @@ class TestPickBetterUnit:
         assert mod._pick_better(best, cand) is cand
 
     def test_tie_confidence_shorter_span_wins(self):
-        best = _ed(conf=0.8, d0=0, d1=50)   # len 50
-        cand = _ed(conf=0.8, d0=0, d1=10)   # len 10
+        best = _ed(conf=0.8, d0=0, d1=50)  # len 50
+        cand = _ed(conf=0.8, d0=0, d1=10)  # len 10
         assert mod._pick_better(best, cand) is cand
 
     def test_tie_confidence_and_length_keeps_best(self):
@@ -128,6 +127,7 @@ class TestAnchoredConfidenceUnit:
     def test_confidence_caps_at_099(self):
         assert mod._anchored_confidence(base_conf=1.5, dist=0) == pytest.approx(0.99)
 
+
 class TestDistanceFromFoUnit:
     def test_zero_when_aligned(self):
         assert mod._distance_from_fo(a0_local=5, left=10, fo_start_offset=15) == 0
@@ -141,11 +141,9 @@ class TestDistanceFromFoUnit:
         assert mod._distance_from_fo(a0_local=5, left=10, fo_start_offset=12) == 3
 
 
-def _fo_extract_near_firsts_only(acr: str,
-                                 text: str,
-                                 *,
-                                 norm: str | None = None,
-                                 end_extra: int = 0) -> FirstOccurrence:
+def _fo_extract_near_firsts_only(
+    acr: str, text: str, *, norm: str | None = None, end_extra: int = 0
+) -> FirstOccurrence:
     a0 = text.index(acr)
     return FirstOccurrence(
         acronym=acr,
@@ -166,8 +164,7 @@ class TestExtractNearFirstsIntegration:
 
         assert picks["SSO"] is not None
         assert picks["SSO"].definition == "Single sign-on"
-        assert text[picks["SSO"].acr_span[0]:picks["SSO"].acr_span[1]] == "SSO"
-
+        assert text[picks["SSO"].acr_span[0] : picks["SSO"].acr_span[1]] == "SSO"
 
 
 class TestExtractNearFirstsUnit:
@@ -194,7 +191,7 @@ class TestExtractNearFirstsUnit:
             calls["n"] += 1
             if calls["n"] == 1:
                 return (0, 20)  # "Alpha (AAA) ... Bet"
-            return (0, 5)      # "Alpha"
+            return (0, 5)  # "Alpha"
 
         _patch(
             mod.extract_near_firsts,
@@ -233,13 +230,15 @@ class TestExtractNearFirstsUnit:
         text = "U.S. Senate is a body."
         # FO spans "U.S." including the trailing dot (end_extra=1 because acr string below is "U.S")
         fo = _fo_extract_near_firsts_only("U.S", text, end_extra=1)
-        firsts = {"U.S.": FirstOccurrence(
-            acronym="U.S.",
-            start_offset=fo.start_offset,
-            end_offset=fo.end_offset,
-            occurrence_confidence=0.9,
-            normalized_key="U.S."
-        )}
+        firsts = {
+            "U.S.": FirstOccurrence(
+                acronym="U.S.",
+                start_offset=fo.start_offset,
+                end_offset=fo.end_offset,
+                occurrence_confidence=0.9,
+                normalized_key="U.S.",
+            )
+        }
 
         pat = re.compile(r"(?P<acr>U\.S)\.")  # captures without the trailing dot
         specs = [SimpleNamespace(pat=pat, base_conf=0.9, kind="inline", strategy="x")]
@@ -254,4 +253,4 @@ class TestExtractNearFirstsUnit:
         out = mod.extract_near_firsts(text, firsts, window_left=50, window_right=50, cfg=ExtractionConfig())
         assert out["U.S."] is not None
         assert out["U.S."].definition == "US DEF"
-        assert text[out["U.S."].acr_span[0]:out["U.S."].acr_span[1]] == "U.S."
+        assert text[out["U.S."].acr_span[0] : out["U.S."].acr_span[1]] == "U.S."

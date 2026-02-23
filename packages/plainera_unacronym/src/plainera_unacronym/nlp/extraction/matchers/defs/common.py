@@ -1147,6 +1147,6 @@ def build_kept_phrase(
             kept.append(tok)
 
     if not kept:
-        kept = tokens[tok_left: tok_right + 1]
+        kept = tokens[tok_left : tok_right + 1]
 
     return strip_trailing_punct_str(collapse_ws(" ".join(kept)))

@@ -19,7 +19,7 @@ class TestIsAlternatingCase:
         assert _is_alternating_case("aBCd") is False  # a->B flip, B->C no flip
 
     def test_ignores_non_letters(self):
-        assert _is_alternating_case("A-bAb") is True   # letters a b A => a b A alternates
+        assert _is_alternating_case("A-bAb") is True  # letters a b A => a b A alternates
         assert _is_alternating_case("a-bAb") is False  # a b A does not alternate (a->b no flip)
         assert _is_alternating_case("A1b2C") is True  # letters A b C alternates
         assert _is_alternating_case("a-B-a") is True  # a B a alternates

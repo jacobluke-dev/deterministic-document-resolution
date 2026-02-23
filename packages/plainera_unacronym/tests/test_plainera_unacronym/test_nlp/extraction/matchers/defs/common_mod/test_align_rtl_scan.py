@@ -1,4 +1,3 @@
-
 from plainera_unacronym.nlp.extraction.matchers.defs.common import (
     AlignmentHit,
     InitialsStream,
@@ -12,10 +11,10 @@ class TestAlignRtlScanWrapper:
         _patch(_align_rtl_scan_wrapper, align_rtl_scan=lambda *a, **k: None)
         stream = InitialsStream(letters=["A"], owners=[0], is_stop=[False])
         assert _align_rtl_scan_wrapper(
-            ["A"],
-            stream=stream,
-            allow_upper_on_stop=False,
-            allow_lower_on_non_stop=False,
+                ["A"],
+                stream=stream,
+                allow_upper_on_stop=False,
+                allow_lower_on_non_stop=False,
         ) is None
 
     def test_builds_alignment_hit_from_used_positions(self, _patch):
@@ -101,11 +100,11 @@ class TestAlignRtlScan:
         initials = ["M"]
         assert (
             align_rtl_scan(
-                targets,
-                initials,
-                [False],
-                allow_upper_on_stop=False,
-                allow_lower_on_non_stop=True,
+            targets,
+            initials,
+            [False],
+            allow_upper_on_stop=False,
+            allow_lower_on_non_stop=True,
             )
             == [0]
         )

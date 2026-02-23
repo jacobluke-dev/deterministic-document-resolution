@@ -10,7 +10,6 @@ from plainera_unacronym.nlp.extraction.config import ExtractionConfig
 
 
 class TestScoreBackrefConfidence:
-
     def test_score_backref_confidence_penalises_lookback_and_distance(self):
         cfg = ExtractionConfig()  # with confidence defaults
         c1, _ = _score_backref_confidence(
@@ -38,24 +37,30 @@ class TestCandidateFromPrevSentenceIntegration:
 
     def test_returns_none_for_blank_prev_text(self):
         cfg = ExtractionConfig()
-        assert _candidate_from_prev_sentence(
-            acr_norm="SSO",
-            prev_text="   \n\t",
-            cfg=cfg,
-            max_chars=200,
-            require_two_words=True,
-        ) is None
+        assert (
+            _candidate_from_prev_sentence(
+                acr_norm="SSO",
+                prev_text="   \n\t",
+                cfg=cfg,
+                max_chars=200,
+                require_two_words=True,
+            )
+            is None
+        )
 
     def test_filters_out_very_long_prev_sentence(self):
         cfg = ExtractionConfig()
         prev = "Word " * 1000  # collapsed length likely > max_chars*3
-        assert _candidate_from_prev_sentence(
-            acr_norm="SSO",
-            prev_text=prev,
-            cfg=cfg,
-            max_chars=50,
-            require_two_words=True,
-        ) is None
+        assert (
+            _candidate_from_prev_sentence(
+                acr_norm="SSO",
+                prev_text=prev,
+                cfg=cfg,
+                max_chars=50,
+                require_two_words=True,
+            )
+            is None
+        )
 
     def test_strips_trailing_punctuation_before_span_search(self):
         cfg = ExtractionConfig()
@@ -73,59 +78,74 @@ class TestCandidateFromPrevSentenceIntegration:
     def test_returns_none_when_no_initials_span_found(self):
         cfg = ExtractionConfig()
         prev = "Nothing matching here."
-        assert _candidate_from_prev_sentence(
-            acr_norm="SSO",
-            prev_text=prev,
-            cfg=cfg,
-            max_chars=200,
-            require_two_words=True,
-        ) is None
+        assert (
+            _candidate_from_prev_sentence(
+                acr_norm="SSO",
+                prev_text=prev,
+                cfg=cfg,
+                max_chars=200,
+                require_two_words=True,
+            )
+            is None
+        )
 
     def test_rejects_candidate_without_letters(self):
         cfg = ExtractionConfig()
         # This sentence can never produce a valid initials span with letters for "A"
         prev = "123 456 789."
-        assert _candidate_from_prev_sentence(
-            acr_norm="A",
-            prev_text=prev,
-            cfg=cfg,
-            max_chars=200,
-            require_two_words=False,
-        ) is None
+        assert (
+            _candidate_from_prev_sentence(
+                acr_norm="A",
+                prev_text=prev,
+                cfg=cfg,
+                max_chars=200,
+                require_two_words=False,
+            )
+            is None
+        )
 
     def test_rejects_candidate_equal_to_acronym(self):
         cfg = ExtractionConfig()
         prev = "We use SSO for authentication."
-        assert _candidate_from_prev_sentence(
-            acr_norm="SSO",
-            prev_text=prev,
-            cfg=cfg,
-            max_chars=200,
-            require_two_words=False,
-        ) is None
+        assert (
+            _candidate_from_prev_sentence(
+                acr_norm="SSO",
+                prev_text=prev,
+                cfg=cfg,
+                max_chars=200,
+                require_two_words=False,
+            )
+            is None
+        )
 
     def test_rejects_candidate_over_max_chars(self):
         cfg = ExtractionConfig()
         prev = "We use Single sign-on for authentication."
-        assert _candidate_from_prev_sentence(
-            acr_norm="SSO",
-            prev_text=prev,
-            cfg=cfg,
-            max_chars=5,  # far too small for "Single sign-on"
-            require_two_words=False,
-        ) is None
+        assert (
+            _candidate_from_prev_sentence(
+                acr_norm="SSO",
+                prev_text=prev,
+                cfg=cfg,
+                max_chars=5,  # far too small for "Single sign-on"
+                require_two_words=False,
+            )
+            is None
+        )
 
     def test_initials_match_validation_blocks_false_positive(self):
         cfg = ExtractionConfig()
         # "Lots Of Llamas" gives initials LOL; acronym LLO should not validate
         prev = "We use Lots Of Llamas in testing."
-        assert _candidate_from_prev_sentence(
-            acr_norm="LLO",
-            prev_text=prev,
-            cfg=cfg,
-            max_chars=200,
-            require_two_words=True,
-        ) is None
+        assert (
+            _candidate_from_prev_sentence(
+                acr_norm="LLO",
+                prev_text=prev,
+                cfg=cfg,
+                max_chars=200,
+                require_two_words=True,
+            )
+            is None
+        )
 
 
 class TestFindBackrefCandidate:
@@ -278,8 +298,13 @@ def test_sentence_backref_ignores_single_letter_acronyms():
     cfg = ExtractionConfig()
     text = "We use Authentication. A is sometimes used as shorthand."
     firsts = {
-        "A": FirstOccurrence(acronym="A", start_offset=text.index("A is"), end_offset=text.index("A is") + 1,
-                             occurrence_confidence=0.9, normalized_key="A")
+        "A": FirstOccurrence(
+            acronym="A",
+            start_offset=text.index("A is"),
+            end_offset=text.index("A is") + 1,
+            occurrence_confidence=0.9,
+            normalized_key="A",
+        )
     }
 
     out = extract_sentence_backrefs(text=text, firsts=firsts, cfg=cfg)
@@ -373,14 +398,17 @@ class TestExtractSentenceBackrefsUnit:
 
         emitted: list[dict] = []
 
-        def fake_emit(*, acr_norm, fo, cand, prev_span, text, cfg, back,  evidence):
+        def fake_emit(*, acr_norm, fo, cand, prev_span, text, cfg, back, evidence):
             emitted.append(
-                {"acr_norm": acr_norm,
-                 "cand": cand,
-                 "prev_span": prev_span,
-                 "fo": fo, "text": text,
-                 "back": back,
-                 "evidence": evidence}
+                {
+                    "acr_norm": acr_norm,
+                    "cand": cand,
+                    "prev_span": prev_span,
+                    "fo": fo,
+                    "text": text,
+                    "back": back,
+                    "evidence": evidence,
+                }
             )
             return ExtractedDefinition(
                 acronym=acr_norm,
@@ -395,11 +423,13 @@ class TestExtractSentenceBackrefsUnit:
                 kind="sentence_backref",
             )
 
-        _patch(extract_sentence_backrefs,
-               sent_spans=lambda _t: spans,
-               find_span_index=lambda _spans, _pos: 1,
-               _find_backref_candidate=lambda **_: ("Single sign-on", spans[0], 1, "definitionish"),
-               _emit_backref_def=fake_emit)
+        _patch(
+            extract_sentence_backrefs,
+            sent_spans=lambda _t: spans,
+            find_span_index=lambda _spans, _pos: 1,
+            _find_backref_candidate=lambda **_: ("Single sign-on", spans[0], 1, "definitionish"),
+            _emit_backref_def=fake_emit,
+        )
 
         out = extract_sentence_backrefs(text=text, firsts=firsts, cfg=cfg)
         assert len(out) == 1
@@ -438,13 +468,13 @@ class TestExtractSentenceBackrefsUnit:
                 kind="sentence_backref",
             )
 
-        _patch(extract_sentence_backrefs,
-               _emit_backref_def=fake_emit,
-               _find_backref_candidate=fake_find,
-               sent_spans=lambda _t: spans,
-               find_span_index=lambda _spans, _pos: 1,
-               )
-
+        _patch(
+            extract_sentence_backrefs,
+            _emit_backref_def=fake_emit,
+            _find_backref_candidate=fake_find,
+            sent_spans=lambda _t: spans,
+            find_span_index=lambda _spans, _pos: 1,
+        )
 
         out = extract_sentence_backrefs(text=text, firsts=firsts, cfg=cfg)
         assert [d.acronym for d in out] == ["SSO"]

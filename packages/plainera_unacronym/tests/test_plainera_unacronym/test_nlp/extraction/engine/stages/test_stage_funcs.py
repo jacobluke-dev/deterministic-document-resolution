@@ -17,6 +17,7 @@ def _mk_state(*, mode: Literal["off", "auto", "on"]) -> FlowState:
     s.det_res = object()  # only asserted as not None in these stages
     return s
 
+
 class TestSrTier2SemanticRerank:
     def test_tier2_disabled_sets_report_and_no_rankings(self, _patch):
         s = _mk_state(mode="off")
@@ -42,7 +43,6 @@ class TestSrTier2SemanticRerank:
         assert s.disambig.tier2.report.reasons["disabled"] == 1
         assert s.disambig.tier2.ranked == []
 
-
     def test_tier2_model_unavailable_falls_back_cleanly(self, _patch):
         s = _mk_state(mode="on")
 
@@ -66,7 +66,7 @@ class TestSrTier2SemanticRerank:
         ]
 
         # Force embedder failure
-        _patch(f.st_tier2_semantic_rerank,embed_texts=lambda *a, **k: None)
+        _patch(f.st_tier2_semantic_rerank, embed_texts=lambda *a, **k: None)
         _patch(Tier2.embed_for_tier2, embed_texts=lambda *a, **k: None)
 
         f.st_tier2_semantic_rerank(s, window_chars=50, auto_margin_ceiling=0)
@@ -150,6 +150,7 @@ class TestStTier1SelectAndAssemble:
         assert s.extr is not None
         assert s.extr.resolutions[0].chosen_sense_id == "gpu|graphics"
         assert s.extr.resolutions[0].candidate_scores == {"gpu|graphics": 0.9, "gpu|general": 0.1}
+
 
 class TestStTier2SelectAndAssemble:
     def test_flow_runs_with_tier2_enabled(self, monkeypatch):

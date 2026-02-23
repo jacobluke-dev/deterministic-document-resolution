@@ -26,7 +26,7 @@ class TestTokenizePreserve:
     def test_preserves_ascii_and_curly_apostrophes(self):
         s = "can't don’t O'Reilly ‘no’ “quotes”"
         # Note: the quotes characters are NOT in the regex; only apostrophes are.
-        assert _tokenize_preserve(s) == ["can't", 'don’t', "O'Reilly", 'no’', 'quotes']
+        assert _tokenize_preserve(s) == ["can't", "don’t", "O'Reilly", "no’", "quotes"]
 
     def test_parentheses_and_commas_are_boundaries(self):
         s = "PF (3M Portable format), v1.2"
@@ -79,29 +79,24 @@ class TestNumericLeading:
             ("5th", True),
             ("12V", True),
             ("0-day", True),
-
             # ---- leading punctuation should be ignored ----
             ("(3M)", True),
             ("'5th'", True),
             ('"12V"', True),
             ("—7Zip", True),
             ("..9", True),
-
             # ---- alpha-leading ----
             ("GPU", False),
-            ("v1", False),          # first alnum is 'v'
-            ("x86", False),         # first alnum is 'x'
-            ("B2B", False),         # first alnum is 'B'
-
+            ("v1", False),  # first alnum is 'v'
+            ("x86", False),  # first alnum is 'x'
+            ("B2B", False),  # first alnum is 'B'
             # ---- no alnum ----
             ("", False),
             ("--", False),
             ("…—", False),
-
             # ---- whitespace ----
             ("   5G", True),
             ("   GPU", False),
-
             # ---- non-ascii digits (optional: depends on your policy) ----
             # If you *don't* want this to count, change implementation to `ch in "0123456789"`.
             ("١٢V", True),  # Arabic-Indic digit '١' isdigit() == True
@@ -113,21 +108,27 @@ class TestNumericLeading:
 
 class TestTrySplitAcronymInitialsWindow:
     def test_returns_none_when_not_split_acronym(self):
-        assert _try_split_acronym_initials_window(
-            tokens=["Portable", "Document", "Format"],
-            acronym="PDF",
-            bridges={"and", "of"},
-            keep_case=True,
-        ) is None
+        assert (
+            _try_split_acronym_initials_window(
+                tokens=["Portable", "Document", "Format"],
+                acronym="PDF",
+                bridges={"and", "of"},
+                keep_case=True,
+            )
+            is None
+        )
 
     def test_returns_none_when_too_short_after_stripping(self):
         # e.g. "/" only => letters list too short
-        assert _try_split_acronym_initials_window(
-            tokens=["foo", "bar"],
-            acronym="/",
-            bridges=set(),
-            keep_case=True,
-        ) is None
+        assert (
+            _try_split_acronym_initials_window(
+                tokens=["foo", "bar"],
+                acronym="/",
+                bridges=set(),
+                keep_case=True,
+            )
+            is None
+        )
 
     def test_subsequence_match_can_skip_non_bridge_tokens(self):
         got = _try_split_acronym_initials_window(
@@ -230,6 +231,7 @@ class TestPhraseFromBestWindow:
             return None
 
         import plainera_unacronym.nlp.extraction.matchers.tighten as mod
+
         monkeypatch.setattr(mod, "_best_window_for_acronym", _fake_best_window)
 
         got = mod._phrase_from_best_window(
@@ -247,6 +249,7 @@ class TestPhraseFromBestWindow:
             return 0, 3, {0, 3}
 
         import plainera_unacronym.nlp.extraction.matchers.tighten as mod
+
         monkeypatch.setattr(mod, "_best_window_for_acronym", _fake_best_window)
 
         got = mod._phrase_from_best_window(
@@ -264,6 +267,7 @@ class TestPhraseFromBestWindow:
             return 1, 2, {1, 2}
 
         import plainera_unacronym.nlp.extraction.matchers.tighten as mod
+
         monkeypatch.setattr(mod, "_best_window_for_acronym", _fake_best_window)
 
         got = mod._phrase_from_best_window(
@@ -280,6 +284,7 @@ class TestPhraseFromBestWindow:
             return 0, 1, {0, 1}
 
         import plainera_unacronym.nlp.extraction.matchers.tighten as mod
+
         monkeypatch.setattr(mod, "_best_window_for_acronym", _fake_best_window)
 
         got = mod._phrase_from_best_window(
@@ -295,6 +300,7 @@ class TestPhraseFromBestWindow:
             return 0, 1, {0, 1}
 
         import plainera_unacronym.nlp.extraction.matchers.tighten as mod
+
         monkeypatch.setattr(mod, "_best_window_for_acronym", _fake_best_window)
 
         got = mod._phrase_from_best_window(
@@ -311,6 +317,7 @@ class TestPhraseFromBestWindow:
             return 0, 2, set()
 
         import plainera_unacronym.nlp.extraction.matchers.tighten as mod
+
         monkeypatch.setattr(mod, "_best_window_for_acronym", _fake_best_window)
 
         got = mod._phrase_from_best_window(
@@ -326,6 +333,7 @@ class TestPhraseFromBestWindow:
             return 0, 2, {0, 2}
 
         import plainera_unacronym.nlp.extraction.matchers.tighten as mod
+
         monkeypatch.setattr(mod, "_best_window_for_acronym", _fake_best_window)
 
         got = mod._phrase_from_best_window(
@@ -358,7 +366,6 @@ class TestPhraseFromBestWindowIntegration:
         got = _phrase_from_best_window(tokens=tokens, acronym="TOS", bridges=set(), keep_case=True)
         assert got == "Terms of Service"
 
-
     def test_expands_to_include_numeric_leading_left_neighbour(self):
         # Regression guard: numeric-leading tokens should be preserved (e.g., "3M").
         # Window for PF should naturally be "Portable format" then expand to include "3M".
@@ -387,9 +394,7 @@ class TestPhraseFromBestWindowIntegration:
         assert got == "portable format"
 
 
-
 class TestBestWindowForAcronymUnit:
-
     def test_returns_none_when_acronym_has_no_alnum(self, _patch):
         # Even if initials exist, empty A should short-circuit
         _patch(_best_window_for_acronym, _initials_seq=lambda t, s: (["A"], [0]))
@@ -512,10 +517,12 @@ class TestTightenLabelByAcronymUnit:
         # Simulate tokens + best window + bridges kept inside the chosen span
         tokens = ["Other", "Portable", "of", "Document", "Format", "spec"]
 
-        def fake_tokenize(s): return tokens
+        def fake_tokenize(s):
+            return tokens
 
         # window i..j = 1..4; matched tokens at indices 1,3,4 (PDF), token 2 "of" is a bridge
-        def fake_win(toks, acr): return 1, 4, {1, 3, 4}
+        def fake_win(toks, acr):
+            return 1, 4, {1, 3, 4}
 
         _patch(
             tighten_label_by_acronym,
@@ -527,8 +534,10 @@ class TestTightenLabelByAcronymUnit:
         )
 
         out = tighten_label_by_acronym(
-            "Other Portable of Document Format.", "PDF",
-             bridges={"of"}, keep_case=True,
+            "Other Portable of Document Format.",
+            "PDF",
+            bridges={"of"},
+            keep_case=True,
         )
         assert out == "Portable of Document Format"
 
@@ -536,9 +545,11 @@ class TestTightenLabelByAcronymUnit:
         # If hits set ends up empty (pathological), keep the original span tokens
         tokens = ["foo", "bar", "baz"]
 
-        def fake_tokenize(s): return tokens
+        def fake_tokenize(s):
+            return tokens
 
-        def fake_win(toks, acr): return 0, 1, set()  # span 0..1, but no hits
+        def fake_win(toks, acr):
+            return 0, 1, set()  # span 0..1, but no hits
 
         _patch(
             tighten_label_by_acronym,
@@ -555,9 +566,11 @@ class TestTightenLabelByAcronymUnit:
     def test_keep_case_false_on_success(self, _patch):
         tokens = ["Graphics", "Processing", "Unit"]
 
-        def fake_tokenize(s): return tokens
+        def fake_tokenize(s):
+            return tokens
 
-        def fake_win(toks, acr): return 0, 2, {0, 1, 2}
+        def fake_win(toks, acr):
+            return 0, 2, {0, 1, 2}
 
         _patch(
             tighten_label_by_acronym,
@@ -573,7 +586,6 @@ class TestTightenLabelByAcronymUnit:
 
 
 class TestTightenLabelByAcronymIntegration:
-
     def test_preserves_numeric_leading_token_in_pruned_phrase(self):
         # This is the *real* path that bit you in your E2E:
         # tighten_label_by_acronym() must include numeric-leading neighbours in the chosen window.
@@ -593,8 +605,9 @@ class TestTightenLabelByAcronymIntegration:
         # Intentionally include a bridge word "of" and a trailing period
         raw = "Other Portable of Document Format."
         out = tighten_label_by_acronym(
-            raw, "PDF",
-              # make behavior explicit/deterministic
+            raw,
+            "PDF",
+            # make behavior explicit/deterministic
             bridges={"of"},
             keep_case=True,
         )
@@ -605,8 +618,8 @@ class TestTightenLabelByAcronymIntegration:
         # so the minimal span is the full phrase.
         raw = "Graphics/Processing Unit (spec)"
         out = tighten_label_by_acronym(
-            raw, "GPU",
-
+            raw,
+            "GPU",
             bridges=set(),
             keep_case=True,
         )
@@ -616,8 +629,8 @@ class TestTightenLabelByAcronymIntegration:
         # Acronym letters don't align; fall back to canon + collapse + strip.
         raw = "  Foo   Bar...  "
         out = tighten_label_by_acronym(
-            raw, "XYZ",
-
+            raw,
+            "XYZ",
             bridges=set(),
             keep_case=True,
         )
@@ -626,8 +639,8 @@ class TestTightenLabelByAcronymIntegration:
     def test_keep_case_false_integration(self):
         raw = "Graphics Processing Unit"
         out = tighten_label_by_acronym(
-            raw, "GPU",
-
+            raw,
+            "GPU",
             bridges=set(),
             keep_case=False,
         )
@@ -641,6 +654,7 @@ class TestInitialsRuleBenefit:
         # simulate flow: tighten_definition_span -> tighten_label_by_acronym
         # span function likely returns the whole tail (lowercase), then cleaner kicks in
         from plainera_unacronym.nlp.extraction.anchored.normalise import tighten_definition_span
+
         tail = tighten_definition_span(s)
         out = tighten_label_by_acronym(tail, "C/A", bridges={"per", "of", "and", "&"})
         assert out == "cost per acquisition"  # passes only with initials-in-order tweak

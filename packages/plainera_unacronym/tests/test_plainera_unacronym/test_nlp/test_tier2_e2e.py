@@ -24,6 +24,7 @@ def _mock_tier2_embeddings():
 # Patch point: Tier-2 embeddings
 # ----------------------------
 
+
 def _fake_embed_texts(model_name: str, texts: list[str], *_, **__) -> np.ndarray:
     """
     Deterministic, fast "embeddings" for tests.
@@ -36,8 +37,19 @@ def _fake_embed_texts(model_name: str, texts: list[str], *_, **__) -> np.ndarray
 
     buckets = [
         {"programming", "interface", "endpoint", "http", "rest", "sdk", "client", "server"},
-        {"pharmaceutical", "ingredient", "gmp", "assay", "batch", "purity", "tablet", "dose", "drug", "formulation",
-         "excipient"},
+        {
+            "pharmaceutical",
+            "ingredient",
+            "gmp",
+            "assay",
+            "batch",
+            "purity",
+            "tablet",
+            "dose",
+            "drug",
+            "formulation",
+            "excipient",
+        },
     ]
 
     out = np.zeros((len(texts), len(buckets)), dtype=np.float32)
@@ -55,9 +67,11 @@ def _patch_tier2_embed(_patch):
     # optional paranoia check
     assert t2.embed_for_tier2.__globals__["embed_texts"] is _fake_embed_texts
 
+
 # ----------------------------
 # Tiny helpers to avoid overfitting to exact datamodel shapes
 # ----------------------------
+
 
 def _get(obj: Any, path: str) -> Any:
     cur = obj
@@ -134,6 +148,7 @@ def _sense_index(state: FlowState) -> dict[str, Any]:
     assert isinstance(idx, dict) and idx, "Expected state.disambig.sense_index to exist."
     return idx
 
+
 def _iter_ranked_records(state: FlowState):
     ranked2 = _get(state, "disambig.tier2.ranked")
     if isinstance(ranked2, (list, tuple)) and ranked2:
@@ -176,8 +191,6 @@ def _find_sid_by_slug(state: FlowState, *, acr: str, contains: str) -> str:
                 return sid
 
     raise AssertionError(f"Couldn't find sense id for {acr=} containing {contains!r}")
-
-
 
 
 def _iter_resolutions(extr: Any) -> Iterable[Any]:
@@ -251,6 +264,7 @@ def _run_flow(
 # E2E 1 — Tier-2 resolves later occurrences using context
 # ----------------------------
 
+
 def test_tier2_e2e_resolves_api_by_section_context(_patch) -> None:
     _patch_tier2_embed(_patch)
     assert t2.embed_for_tier2.__globals__["embed_texts"]("fake", ["a", "b"]).shape[0] == 2
@@ -303,6 +317,7 @@ def test_tier2_e2e_resolves_api_by_section_context(_patch) -> None:
 # E2E 2 — Tier-2 does not run when Tier-1 is confident (auto)
 # ----------------------------
 
+
 def test_tier2_e2e_auto_skips_when_tier1_confident(_patch) -> None:
     _patch_tier2_embed(_patch)
 
@@ -316,8 +331,7 @@ def test_tier2_e2e_auto_skips_when_tier1_confident(_patch) -> None:
         "DOCS\n"
         "Portable Document Format (PDF) is a file format used by a document reader.\n"
         "This PDF file prints reliably. The PDF page layout is stable.\n"
-        "\n"
-        + ("FILLER " * 300) + "\n"
+        "\n" + ("FILLER " * 300) + "\n"
         "STATS\n"
         "Probability Density Function (PDF) describes a distribution in statistics.\n"
         "The PDF integrates to one for a random variable.\n"
@@ -353,6 +367,7 @@ def test_tier2_e2e_auto_skips_when_tier1_confident(_patch) -> None:
 # E2E 3 — Tier-2 reranks and changes outcome (on vs off)
 # ----------------------------
 
+
 def _pick_last_api_resolution_after(extr: Any, after: int) -> Any:
     cands = []
     for r in _iter_resolutions(extr):
@@ -363,6 +378,7 @@ def _pick_last_api_resolution_after(extr: Any, after: int) -> Any:
             cands.append((pos, r))
     assert cands
     return sorted(cands, key=lambda x: x[0])[-1][1]
+
 
 def test_tier2_e2e_on_flips_choice_vs_tier1_rank(_patch) -> None:
     _patch_tier2_embed(_patch)
@@ -375,8 +391,7 @@ def test_tier2_e2e_on_flips_choice_vs_tier1_rank(_patch) -> None:
         "OPERATIONS\n"
         "The API was approved for formulation and recorded in the run sheet.\n"
         "The API was released for use.\n"
-        "\n"
-        + ("FILLER " * 400) + "\n"
+        "\n" + ("FILLER " * 400) + "\n"
         "GLOSSARY\n"
         "Active Pharmaceutical Ingredient (API) is defined for manufacturing.\n"
     )
@@ -412,7 +427,8 @@ def test_tier2_e2e_on_flips_choice_vs_tier1_rank(_patch) -> None:
         for rec in ranked2
     ), f"Expected Tier-2 to rank the target API occurrence at pos={pos_on}"
     rec = next(
-        r for r in ranked2
+        r
+        for r in ranked2
         if getattr(getattr(r, "occ", None), "start", None) == pos_on
         and getattr(getattr(r, "occ", None), "acronym", "").upper() == "API"
     )
@@ -421,6 +437,6 @@ def test_tier2_e2e_on_flips_choice_vs_tier1_rank(_patch) -> None:
     tier2_sims = getattr(rec, "tier2_sims", None)
     blended = getattr(rec, "blended_scores", None)
 
-    assert (isinstance(tier2_sims, dict) and tier2_sims) or (isinstance(blended, dict) and blended), (
-        f"Expected Tier-2 scores for target occurrence; tier2_sims={tier2_sims!r}, blended_scores={blended!r}"
-    )
+    assert (isinstance(tier2_sims, dict) and tier2_sims) or (
+        isinstance(blended, dict) and blended
+    ), f"Expected Tier-2 scores for target occurrence; tier2_sims={tier2_sims!r}, blended_scores={blended!r}"

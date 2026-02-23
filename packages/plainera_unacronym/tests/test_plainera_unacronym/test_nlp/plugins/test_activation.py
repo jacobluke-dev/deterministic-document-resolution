@@ -6,23 +6,31 @@ from plainera_unacronym.nlp.plugins.activation import _safe_sniff, autodetect_do
 
 # --------- Test doubles (plugins) ---------------------------------------------
 
+
 class GoodBioPlugin:
     name = "bio"
+
     def sniff(self, text: str) -> bool:
         return "mRNA" in text
 
+
 class FalsePlugin:
     name = "other"
+
     def sniff(self, text: str) -> bool:
         return False
 
+
 class ErrorPlugin:
     name = "error"
+
     def sniff(self, text: str) -> bool:
         raise ValueError("boom")
 
+
 class NoSniffPlugin:
     """No sniff() method; autodetect should ignore it."""
+
     name = "nosniff"
 
 
@@ -41,7 +49,8 @@ class TestAutodetectDomains:
     def test_detects_plugins_that_sniff_true(self, monkeypatch):
         cfg = DetectorConfig()
         monkeypatch.setattr(
-            activation_mod, "DOMAIN_PLUGINS",
+            activation_mod,
+            "DOMAIN_PLUGINS",
             {"bio": GoodBioPlugin(), "other": FalsePlugin()},
             raising=False,
         )
@@ -51,7 +60,8 @@ class TestAutodetectDomains:
     def test_ignores_plugins_without_sniff(self, monkeypatch):
         cfg = DetectorConfig()
         monkeypatch.setattr(
-            activation_mod, "DOMAIN_PLUGINS",
+            activation_mod,
+            "DOMAIN_PLUGINS",
             {"nosniff": NoSniffPlugin()},
             raising=False,
         )
@@ -61,7 +71,8 @@ class TestAutodetectDomains:
     def test_handles_exceptions_and_detects_others(self, monkeypatch):
         cfg = DetectorConfig()
         monkeypatch.setattr(
-            activation_mod, "DOMAIN_PLUGINS",
+            activation_mod,
+            "DOMAIN_PLUGINS",
             {"bio": GoodBioPlugin(), "error": ErrorPlugin()},
             raising=False,
         )
@@ -71,7 +82,8 @@ class TestAutodetectDomains:
     def test_respects_cap_truncation(self, monkeypatch):
         cfg = DetectorConfig()
         monkeypatch.setattr(
-            activation_mod, "DOMAIN_PLUGINS",
+            activation_mod,
+            "DOMAIN_PLUGINS",
             {"bio": GoodBioPlugin()},
             raising=False,
         )
@@ -84,7 +96,8 @@ class TestAutodetectDomains:
     def test_returns_frozenset(self, monkeypatch):
         cfg = DetectorConfig()
         monkeypatch.setattr(
-            activation_mod, "DOMAIN_PLUGINS",
+            activation_mod,
+            "DOMAIN_PLUGINS",
             {"bio": GoodBioPlugin()},
             raising=False,
         )

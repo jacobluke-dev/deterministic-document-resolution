@@ -18,6 +18,7 @@ def _end_of(text: str, token: str) -> int:
     i = text.index(token)
     return i + len(token)
 
+
 class TestHasParenDefinition:
     def test_detects_basic_definition(self):
         text = "GPU (Graphics Processing Unit) is common."
@@ -72,15 +73,16 @@ class TestHasParenDefinition:
         end = _end_of(text, "ID")
         assert has_paren_definition(text, end) is False
 
+
 class TestCanonicalize:
     def test_apostrophe_variants_fold_to_ascii_quote(self):
-        assert canonicalize("don’t") == "don't"      # U+2019
-        assert canonicalize("don‘ t") == "don' t"    # U+2018
+        assert canonicalize("don’t") == "don't"  # U+2019
+        assert canonicalize("don‘ t") == "don' t"  # U+2018
         assert canonicalize("rockʼnʼroll") == "rock'n'roll"  # U+02BC
 
     def test_dash_variants_fold_to_ascii_hyphen(self):
-        assert canonicalize("A–B") == "A-B"          # en dash
-        assert canonicalize("A—B") == "A-B"          # em dash
+        assert canonicalize("A–B") == "A-B"  # en dash
+        assert canonicalize("A—B") == "A-B"  # em dash
 
     def test_nfkc_collapses_fullwidth_apostrophe_then_translates(self):
         # Fullwidth apostrophe U+FF07 maps to ASCII via NFKC + translation.
@@ -228,7 +230,6 @@ class TestNormalizeAcronymKeyIntegration:
         # Curly apostrophe should normalize to ASCII "'"
         assert normalize_acronym_key("O’Reilly", allow_chars="&-/", dotted_mode="preserve") == "O'Reilly"
 
-
     def test_apostrophe_normalization_is_idempotent(self) -> None:
         assert self._norm("O'Reilly") == "O'Reilly"
         assert self._norm("rock'n'roll") == "rock'n'roll"
@@ -249,8 +250,6 @@ class TestNormalizeAcronymKeyIntegration:
         assert normalize_acronym_key("A &B", allow_chars="&", dotted_mode="preserve") == "A&B"
         assert normalize_acronym_key("A& B", allow_chars="&", dotted_mode="preserve") == "A&B"
 
-
-
     def test_key_dotted_and_separators(self):
         assert normalize_acronym_key("U.S.A.", "&-./", "strip") == "USA"
         assert normalize_acronym_key("R & D", "&-./", "strip") == "R&D"
@@ -266,6 +265,7 @@ class TestCollapseWs:
 
     def test_handles_newlines(self):
         assert collapse_ws("a\nb\r\nc") == "a b c"
+
 
 class TestTightenDefinitionSpan:
     def test_keeps_titlecase_with_per(self):
@@ -323,7 +323,6 @@ class TestTightenDefinitionSpan:
 
 
 class TestHasLetters:
-
     @pytest.mark.parametrize(
         "s,expected",
         [
@@ -354,7 +353,6 @@ class TestHasLetters:
     def test_long_string_performance_smoke(self):
         s = "1234567" * 1000 + "X" + "!" * 1000
         assert has_letter(s) is True
-
 
     @pytest.mark.parametrize(
         "s,expected",

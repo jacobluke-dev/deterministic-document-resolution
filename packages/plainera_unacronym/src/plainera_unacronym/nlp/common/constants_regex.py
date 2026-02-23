@@ -87,9 +87,26 @@ DEFAULT_STOPWORDS: Final[frozenset[str]] = WORDS_FUNCTION
 # Keep readability connectors, drop determiners and citation-y bits.
 BRIDGES_DEFAULT: Final[frozenset[str]] = frozenset(
     {
-        "of", "and", "for", "to", "in", "on", "with", "&", "per",
+        "of",
+        "and",
+        "for",
+        "to",
+        "in",
+        "on",
+        "with",
+        "&",
+        "per",
         # optional: keep name particles if you care about proper names
-        "de", "la", "le", "du", "des", "del", "da", "di", "von", "und",
+        "de",
+        "la",
+        "le",
+        "du",
+        "des",
+        "del",
+        "da",
+        "di",
+        "von",
+        "und",
     }
 )
 

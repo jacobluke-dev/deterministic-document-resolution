@@ -137,8 +137,9 @@ class TestFindParentheticalLongformBeforeAcrUnitAlignmentAndFallback:
 
 
 class TestFindParentheticalLongformBeforeAcrUnitNumericDesignatorsAndWindowing:
-    def test_consume_left_numeric_designator_called_twice_when_acr_starts_with_digit(self, _patch, dummy_cfg, hit_cfg,
-                                                                                     build_stream_seen):
+    def test_consume_left_numeric_designator_called_twice_when_acr_starts_with_digit(
+        self, _patch, dummy_cfg, hit_cfg, build_stream_seen
+    ):
         build_stream_fn, _ = build_stream_seen
 
         calls = {"consume": 0}

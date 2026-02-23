@@ -22,7 +22,6 @@ def mk_cfg(**overrides) -> DetectorConfig:
 
 
 class TestBlacklistContextDrop:
-
     def test_all_caps_heading_drops(self, span, monkeypatch):
         import plainera_unacronym.nlp.detection.heuristics.context as ctx
 

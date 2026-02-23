@@ -16,92 +16,125 @@ def _span(text: str, needle: str) -> Span:
     return i, i + len(needle)
 
 
-
 class TestValidBackrefCandidate:
     def test_rejects_empty(self, _patch):
-        _patch(_valid_backref_candidate,
-               initials_match=lambda *_a, **_k: True,
-               _initials_match_backref=lambda *_a, **_k: True)
+        _patch(
+            _valid_backref_candidate,
+            initials_match=lambda *_a, **_k: True,
+            _initials_match_backref=lambda *_a, **_k: True,
+        )
 
-        assert _valid_backref_candidate(
-            clean="",
-            acr_norm="SSO",
-            max_chars=200,
-            require_two_words=True,
-        ) is False
+        assert (
+            _valid_backref_candidate(
+                clean="",
+                acr_norm="SSO",
+                max_chars=200,
+                require_two_words=True,
+            )
+            is False
+        )
 
     def test_rejects_over_max_chars(self, _patch):
-        _patch(_valid_backref_candidate,
-               initials_match=lambda *_a, **_k: True,
-               _initials_match_backref=lambda *_a, **_k: True)
+        _patch(
+            _valid_backref_candidate,
+            initials_match=lambda *_a, **_k: True,
+            _initials_match_backref=lambda *_a, **_k: True,
+        )
 
-        assert _valid_backref_candidate(
-            clean="x" * 201,
-            acr_norm="SSO",
-            max_chars=200,
-            require_two_words=False,
-        ) is False
+        assert (
+            _valid_backref_candidate(
+                clean="x" * 201,
+                acr_norm="SSO",
+                max_chars=200,
+                require_two_words=False,
+            )
+            is False
+        )
 
     def test_rejects_candidate_equal_to_acronym_ignoring_spaces_and_case(self, _patch):
-        _patch(_valid_backref_candidate,
-               initials_match=lambda *_a, **_k: True,
-               _initials_match_backref=lambda *_a, **_k: True)
+        _patch(
+            _valid_backref_candidate,
+            initials_match=lambda *_a, **_k: True,
+            _initials_match_backref=lambda *_a, **_k: True,
+        )
 
-        assert _valid_backref_candidate(
-            clean="s s o",
-            acr_norm="SSO",
-            max_chars=200,
-            require_two_words=False,
-        ) is False
+        assert (
+            _valid_backref_candidate(
+                clean="s s o",
+                acr_norm="SSO",
+                max_chars=200,
+                require_two_words=False,
+            )
+            is False
+        )
 
     def test_requires_two_words_when_enabled(self, _patch):
-        _patch(_valid_backref_candidate,
-               initials_match=lambda *_a, **_k: True,
-               _initials_match_backref=lambda *_a, **_k: True)
+        _patch(
+            _valid_backref_candidate,
+            initials_match=lambda *_a, **_k: True,
+            _initials_match_backref=lambda *_a, **_k: True,
+        )
 
-        assert _valid_backref_candidate(
-            clean="Single",
-            acr_norm="S",
-            max_chars=200,
-            require_two_words=True,
-        ) is False
+        assert (
+            _valid_backref_candidate(
+                clean="Single",
+                acr_norm="S",
+                max_chars=200,
+                require_two_words=True,
+            )
+            is False
+        )
 
     def test_accepts_when_strict_initials_match_passes(self, _patch):
-        _patch(_valid_backref_candidate,
-               initials_match=lambda *_a, **_k: True,
-               _initials_match_backref=lambda *_a, **_k: False)
+        _patch(
+            _valid_backref_candidate,
+            initials_match=lambda *_a, **_k: True,
+            _initials_match_backref=lambda *_a, **_k: False,
+        )
 
-        assert _valid_backref_candidate(
-            clean="Single sign on",
-            acr_norm="SSO",
-            max_chars=200,
-            require_two_words=True,
-        ) is True
+        assert (
+            _valid_backref_candidate(
+                clean="Single sign on",
+                acr_norm="SSO",
+                max_chars=200,
+                require_two_words=True,
+            )
+            is True
+        )
 
     def test_accepts_when_hyphen_aware_fallback_passes_even_if_strict_fails(self, _patch):
-        _patch(_valid_backref_candidate,
-               initials_match=lambda *_a, **_k: False,
-               _initials_match_backref=lambda *_a, **_k: True)
+        _patch(
+            _valid_backref_candidate,
+            initials_match=lambda *_a, **_k: False,
+            _initials_match_backref=lambda *_a, **_k: True,
+        )
 
-        assert _valid_backref_candidate(
-            clean="Single sign-on",
-            acr_norm="SSO",
-            max_chars=200,
-            require_two_words=True,
-        ) is True
+        assert (
+            _valid_backref_candidate(
+                clean="Single sign-on",
+                acr_norm="SSO",
+                max_chars=200,
+                require_two_words=True,
+            )
+            is True
+        )
 
     def test_rejects_when_both_initials_matchers_fail(self, _patch):
-        _patch(_valid_backref_candidate,
-               initials_match=lambda *_a, **_k: False,
-               _initials_match_backref=lambda *_a, **_k: False)
+        _patch(
+            _valid_backref_candidate,
+            initials_match=lambda *_a, **_k: False,
+            _initials_match_backref=lambda *_a, **_k: False,
+        )
 
-        assert _valid_backref_candidate(
-            clean="Single sign-on",
-            acr_norm="SSO",
-            max_chars=200,
-            require_two_words=True,
-        ) is False
-
+        assert (
+            _valid_backref_candidate(
+                clean="Single sign-on",
+                acr_norm="SSO",
+                max_chars=200,
+                require_two_words=True,
+            )
+            is False
+        )
 
 
 def _cfg(
@@ -321,7 +354,6 @@ class TestDefsFromPicks:
 
 
 class TestDefsFromPicksIntegration:
-
     def test_end_to_end_pto_strips_trailing_punct_from_acr_surface(self):
         text = "Please turn over (PTO)."
         long = "Please turn over"
@@ -480,8 +512,10 @@ def _ed(acr: str, defn: str, *, a0=0, a1=3, d0=10, d1=20, conf=0.9) -> Extracted
         definition=defn,
         source="all_occ_scan_parenthetical",
         definition_confidence=conf,
-        acr_start=a0, acr_end=a1,
-        def_start=d0, def_end=d1,
+        acr_start=a0,
+        acr_end=a1,
+        def_start=d0,
+        def_end=d1,
         original_definition=defn,
     )
 

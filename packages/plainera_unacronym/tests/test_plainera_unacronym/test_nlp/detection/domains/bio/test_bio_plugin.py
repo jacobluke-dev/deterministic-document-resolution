@@ -10,9 +10,11 @@ from plainera_unacronym.nlp.detection.domains.bio.plugin import BioPlugin
 def patch_sink_and_logger(monkeypatch):
     # Silence DB/log I/O, but keep logs capturable if needed.
     class NullSink:
-        def __call__(self, *a, **k): pass
+        def __call__(self, *a, **k):
+            pass
 
-        def __getattr__(self, _): return lambda *a, **k: None
+        def __getattr__(self, _):
+            return lambda *a, **k: None
 
     monkeypatch.setattr(det, "sink", NullSink(), raising=True)
     logs = []
@@ -36,18 +38,14 @@ class TestBioAutodetect:
         # Some versions implement a sandbox wrapper; route to plugin.sniff in a safe way.
         monkeypatch.setattr(act, "_safe_sniff", lambda plug, t: plug.sniff(t), raising=True)
 
-        text = (
-            "We quantified mRNA for IL-6 after SARS-CoV-2 infection. "
-            "The 5′UTR also showed changes."
-        )
+        text = "We quantified mRNA for IL-6 after SARS-CoV-2 infection. " "The 5′UTR also showed changes."
         cfg = DetectorConfig()
         auto = autodetect_domains(text, cfg)
         assert "bio" in auto, f"Expected 'bio' in autodetected domains, got {auto}"
 
     def test_detector_merges_auto_domains_and_logs_added(self, patch_sink_and_logger, monkeypatch):
         # Force auto-detection to return {'bio'} where Detector will actually look:
-        monkeypatch.setattr(det, "autodetect_domains",
-                            lambda text, cfg: frozenset({"bio"}), raising=True)
+        monkeypatch.setattr(det, "autodetect_domains", lambda text, cfg: frozenset({"bio"}), raising=True)
 
         # Keep detection path minimal
         monkeypatch.setattr(det, "compile_pattern", lambda _cfg: object(), raising=True)
@@ -127,8 +125,9 @@ class TestBioAutodetect:
         plug = BioPlugin()
         cfg = DetectorConfig(enabled_domains=frozenset({"bio"}))
         # Override to make stats window tiny so context is missed.
-        object.__setattr__(cfg, "domain_cfg",
-                           {"bio": BioConfig(stats_window_chars=5, two_letter_keep=frozenset({"OR"}))})
+        object.__setattr__(
+            cfg, "domain_cfg", {"bio": BioConfig(stats_window_chars=5, two_letter_keep=frozenset({"OR"}))}
+        )
 
         text = "OR = 1.8 (95% CI 1.2–2.3)"
         s = text.index("OR")
@@ -137,7 +136,6 @@ class TestBioAutodetect:
 
 
 class TestExtraCandidates:
-
     def test_extra_candidates_respects_enabled_domains(self):
         plug = BioPlugin()
         text = "Measured IL-6 and IFN-γ in SARS-CoV-2 samples."
@@ -151,7 +149,6 @@ class TestExtraCandidates:
 
 
 class TestAutoDetectedDomains:
-
     def test_autodetect_domains_swallows_plugin_exceptions(self, monkeypatch):
         class BadPlug(BioPlugin):
             name = "bio"

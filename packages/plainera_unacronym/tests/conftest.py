@@ -18,9 +18,11 @@ def span() -> Callable[[str, str], Span]:
 
 
 class NullSink:
-    def __call__(self, *a, **k): pass
+    def __call__(self, *a, **k):
+        pass
 
-    def __getattr__(self, _): return lambda *a, **k: None
+    def __getattr__(self, _):
+        return lambda *a, **k: None
 
 
 @pytest.fixture(autouse=True)

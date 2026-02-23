@@ -147,7 +147,7 @@ class OccurrenceResolution:
     acronym: str
     start: int
     end: int
-    chosen_sense_id: Optional[str]
+    chosen_sense_id: str | None
     candidate_scores: dict[str, float]
     gap: float
     margin: float

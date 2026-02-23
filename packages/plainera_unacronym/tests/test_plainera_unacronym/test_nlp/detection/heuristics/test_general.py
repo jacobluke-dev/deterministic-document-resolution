@@ -58,12 +58,12 @@ def _patch_near(monkeypatch, left_gap: int, right_gap: int):
             dist += 1
         return i < n and dist <= right_gap
 
-    monkeypatch.setattr("plainera_unacronym.nlp.detection.heuristics.general._comma_near_left",
-                        fake_comma_near_left,
-                        raising=True)
-    monkeypatch.setattr("plainera_unacronym.nlp.detection.heuristics.general.exclam_near_right",
-                        fake_exclam_near_right,
-                        raising=True)
+    monkeypatch.setattr(
+        "plainera_unacronym.nlp.detection.heuristics.general._comma_near_left", fake_comma_near_left, raising=True
+    )
+    monkeypatch.setattr(
+        "plainera_unacronym.nlp.detection.heuristics.general.exclam_near_right", fake_exclam_near_right, raising=True
+    )
 
 
 @pytest.fixture(autouse=True)
@@ -81,6 +81,7 @@ def _extract_from_brackets(s: str) -> tuple[str, int]:
     start = len(pre)  # index of the first char of the token
     return text, start
 
+
 class TestAlphaLen:
     @pytest.mark.parametrize(
         "s, expected",
@@ -88,20 +89,20 @@ class TestAlphaLen:
             ("", 0),
             ("ABC", 3),
             ("A1B2C3", 3),
-            ("Hello, world!", 10),   # commas/space/exclamation ignored
-            ("R&D", 2),              # ampersand ignored
-            ("GPU/CPU", 6),          # slash ignored
-            ("MOVE-ON", 6),          # hyphen ignored
-            ("\n\t ", 0),            # whitespace only
-            ("🙂", 0),               # emoji not alpha
-            ("É", 1),                # composed accented letter
-            ("e\u0301", 1),          # 'e' + combining acute → only 'e' counts
-            ("CHAPÉU", 6),           # accented capitals
-            ("ΠΡΟΛΟΓΟΣ", 8),         # Greek
-            ("добро", 5),            # Cyrillic
-            ("漢字", 2),             # CJK ideographs are letters
-            ("ß", 1),                # sharp s
-            ("abc—def", 6),          # em dash ignored
+            ("Hello, world!", 10),  # commas/space/exclamation ignored
+            ("R&D", 2),  # ampersand ignored
+            ("GPU/CPU", 6),  # slash ignored
+            ("MOVE-ON", 6),  # hyphen ignored
+            ("\n\t ", 0),  # whitespace only
+            ("🙂", 0),  # emoji not alpha
+            ("É", 1),  # composed accented letter
+            ("e\u0301", 1),  # 'e' + combining acute → only 'e' counts
+            ("CHAPÉU", 6),  # accented capitals
+            ("ΠΡΟΛΟΓΟΣ", 8),  # Greek
+            ("добро", 5),  # Cyrillic
+            ("漢字", 2),  # CJK ideographs are letters
+            ("ß", 1),  # sharp s
+            ("abc—def", 6),  # em dash ignored
         ],
     )
     def test_various_strings(self, s, expected):
@@ -109,24 +110,30 @@ class TestAlphaLen:
 
 
 class TestStripTerminalPlural:
-    @pytest.mark.parametrize("surface,expected", [
-        ("GPUs", "GPU"),          # simple plural
-        ("CPU's", "CPU"),         # straight apostrophe
-        ("CPU’s", "CPU"),         # curly apostrophe
-        ("NDA’s", "NDA"),         # another curly case
-        ("X’s", "X"),             # single-letter stem still OK
-    ])
+    @pytest.mark.parametrize(
+        "surface,expected",
+        [
+            ("GPUs", "GPU"),  # simple plural
+            ("CPU's", "CPU"),  # straight apostrophe
+            ("CPU’s", "CPU"),  # curly apostrophe
+            ("NDA’s", "NDA"),  # another curly case
+            ("X’s", "X"),  # single-letter stem still OK
+        ],
+    )
     def test_strips_when_stem_is_all_caps(self, surface, expected):
         assert strip_terminal_plural(surface) == expected
 
-    @pytest.mark.parametrize("surface", [
-        "Apis",                   # stem not all-caps → unchanged
-        "cats",                   # lowercase word → unchanged
-        "123’s",                  # no cased letters in stem → unchanged
-        "GPU’s,",                 # trailing punctuation prevents match → unchanged
-        "GPUS",                   # endswith('S') (upper S) → unchanged
-        "CATS",                   # same: upper 'S' is not matched
-    ])
+    @pytest.mark.parametrize(
+        "surface",
+        [
+            "Apis",  # stem not all-caps → unchanged
+            "cats",  # lowercase word → unchanged
+            "123’s",  # no cased letters in stem → unchanged
+            "GPU’s,",  # trailing punctuation prevents match → unchanged
+            "GPUS",  # endswith('S') (upper S) → unchanged
+            "CATS",  # same: upper 'S' is not matched
+        ],
+    )
     def test_does_not_strip_in_other_cases(self, surface):
         assert strip_terminal_plural(surface) == surface
 
@@ -143,24 +150,27 @@ class TestStripTerminalPlural:
 
 
 class TestIsAllCapsWord:
-    @pytest.mark.parametrize("surface,allow,expected", [
-        ("ALPHA", "-&/._", True),          # simple all-caps, >=4 letters
-        ("GPU", "-&/._", False),           # too short (alpha_len=3)
-        ("Alpha", "-&/._", False),         # mixed case -> False
-        ("ALPHA1", "-&/._", False),        # digits disqualify
-        ("A.BCD", "-&/._", False),         # '.' in allow_chars -> disqualify
-        ("A.BCD", "", True),               # '.' not in allow_chars -> OK
-        ("MOVE-ON", "-&/._", False),       # '-' in allow_chars -> disqualify
-        ("MOVE-ON", "", True),             # '-' not listed -> OK (letters are all upper)
-        ("R&DCPU", "-&/._", False),        # '&' in allow_chars -> disqualify
-        ("RNDCPU", "-&/._", True),         # no separators, all upper, >=4
-        ("A_BCD", "-&/._", False),         # '_' in allow_chars -> disqualify
-        ("A_BCD", "", True),               # '_' not listed -> OK
-        ("ÉTUDE", "-&/._", True),          # Unicode uppercase letters
-        ("ÜBER", "-&/._", True),           # Unicode uppercase (German Umlauts)
-        ("CHAPÉU", "-&/._", True),         # Accented capitals
-        ("ßABC", "-&/._", False),          # 'ß' is not uppercase -> False
-    ])
+    @pytest.mark.parametrize(
+        "surface,allow,expected",
+        [
+            ("ALPHA", "-&/._", True),  # simple all-caps, >=4 letters
+            ("GPU", "-&/._", False),  # too short (alpha_len=3)
+            ("Alpha", "-&/._", False),  # mixed case -> False
+            ("ALPHA1", "-&/._", False),  # digits disqualify
+            ("A.BCD", "-&/._", False),  # '.' in allow_chars -> disqualify
+            ("A.BCD", "", True),  # '.' not in allow_chars -> OK
+            ("MOVE-ON", "-&/._", False),  # '-' in allow_chars -> disqualify
+            ("MOVE-ON", "", True),  # '-' not listed -> OK (letters are all upper)
+            ("R&DCPU", "-&/._", False),  # '&' in allow_chars -> disqualify
+            ("RNDCPU", "-&/._", True),  # no separators, all upper, >=4
+            ("A_BCD", "-&/._", False),  # '_' in allow_chars -> disqualify
+            ("A_BCD", "", True),  # '_' not listed -> OK
+            ("ÉTUDE", "-&/._", True),  # Unicode uppercase letters
+            ("ÜBER", "-&/._", True),  # Unicode uppercase (German Umlauts)
+            ("CHAPÉU", "-&/._", True),  # Accented capitals
+            ("ßABC", "-&/._", False),  # 'ß' is not uppercase -> False
+        ],
+    )
     def test_various(self, surface, allow, expected):
         assert is_all_caps_word(surface, allow) is expected
 
@@ -171,17 +181,20 @@ class TestIsAllCapsWord:
 
 
 class TestExclamNearRight:
-    @pytest.mark.parametrize("sample,expected", [
-        ("[IT]!", True),                # immediate
-        ("[IT]   !", True),             # spaces then !
-        ("[IT]!!", True),               # multiple !
-        ("[IT]！", True),               # full-width
-        ("[IT]‼ boom", True),           # double exclam glyph
-        ("[IT]. !", False),             # '.' before '!' blocks
-        ("[IT]? later!", False),        # '?' before '!' blocks
-        ("[IT]   , then !", True),      # comma doesn't block
-        ("[IT]", False),                # no exclam at all
-    ])
+    @pytest.mark.parametrize(
+        "sample,expected",
+        [
+            ("[IT]!", True),  # immediate
+            ("[IT]   !", True),  # spaces then !
+            ("[IT]!!", True),  # multiple !
+            ("[IT]！", True),  # full-width
+            ("[IT]‼ boom", True),  # double exclam glyph
+            ("[IT]. !", False),  # '.' before '!' blocks
+            ("[IT]? later!", False),  # '?' before '!' blocks
+            ("[IT]   , then !", True),  # comma doesn't block
+            ("[IT]", False),  # no exclam at all
+        ],
+    )
     def test_basics(self, sample, expected):
         text, end = _extract_from_brackets(sample)
         assert exclam_near_right(text, end) is expected
@@ -194,15 +207,18 @@ class TestExclamNearRight:
         text, end = _extract_from_brackets("[IT]\n!")
         assert exclam_near_right(text, end, stop_at_newline=False) is True
 
-    @pytest.mark.parametrize("max_scan,sample,expected", [
-        # distance = number of characters from end to first '!'
-        # "[IT] ab!" -> distance 3 (' ', 'a', 'b')
-        (5, "[IT] ab!", True),     # equal to max_scan passes (<=)
-        (2, "[IT] ab!", False),    # over budget
-        (2, "[IT]!", True),        # distance 0
-        (3, "[IT] !", True),       # distance 1 (space)
-        (1, "[IT]  !", False),     # distance 2
-    ])
+    @pytest.mark.parametrize(
+        "max_scan,sample,expected",
+        [
+            # distance = number of characters from end to first '!'
+            # "[IT] ab!" -> distance 3 (' ', 'a', 'b')
+            (5, "[IT] ab!", True),  # equal to max_scan passes (<=)
+            (2, "[IT] ab!", False),  # over budget
+            (2, "[IT]!", True),  # distance 0
+            (3, "[IT] !", True),  # distance 1 (space)
+            (1, "[IT]  !", False),  # distance 2
+        ],
+    )
     def test_max_scan(self, max_scan, sample, expected):
         text, end = _extract_from_brackets(sample)
         assert exclam_near_right(text, end, max_scan=max_scan) is expected
@@ -214,24 +230,28 @@ class TestExclamNearRight:
 
 
 class TestCommaNearLeft:
-    @pytest.mark.parametrize("sample,expected", [
-        ("Well, [ALRIGHTY] THEN!", True),              # direct comma
-        ("Well,    [ALRIGHTY] THEN!", True),           # many spaces after comma
-        ("Well ,  [ALRIGHTY] THEN!", True),            # spaces around comma still ok
-        ("Well,\n   [ALRIGHTY] THEN!", True),          # newline is whitespace → ok
-        ("Well [ALRIGHTY] THEN!", False),              # no comma at all
-        ("[ALRIGHTY] THEN!", False),                   # start of text
-        ("Well,) [ALRIGHTY] THEN!", False),            # closer immediately left → not skipped
-        ('Well, " [ALRIGHTY] THEN!', False),           # quote immediately left → not skipped
-    ])
+    @pytest.mark.parametrize(
+        "sample,expected",
+        [
+            ("Well, [ALRIGHTY] THEN!", True),  # direct comma
+            ("Well,    [ALRIGHTY] THEN!", True),  # many spaces after comma
+            ("Well ,  [ALRIGHTY] THEN!", True),  # spaces around comma still ok
+            ("Well,\n   [ALRIGHTY] THEN!", True),  # newline is whitespace → ok
+            ("Well [ALRIGHTY] THEN!", False),  # no comma at all
+            ("[ALRIGHTY] THEN!", False),  # start of text
+            ("Well,) [ALRIGHTY] THEN!", False),  # closer immediately left → not skipped
+            ('Well, " [ALRIGHTY] THEN!', False),  # quote immediately left → not skipped
+        ],
+    )
     def test_various(self, sample, expected):
         text, start = _extract_from_brackets(sample)
         assert _comma_near_left(text, start) is expected
 
+
 # TODO write _has_upper_after_with_fillers tests
 
-class TestIsInCapsInterjectionContext:
 
+class TestIsInCapsInterjectionContext:
     @staticmethod
     def _extract_span(s: str):
         """Use [ ... ] to mark (start, end). Return (text, surface, s, e)."""
@@ -290,21 +310,27 @@ class TestIsInCapsInterjectionContext:
             text, surface, s, e = self._extract_span(sample)
             assert is_in_caps_interjection_context(surface, text, s, e, _cfg) is False
 
-    @pytest.mark.parametrize("right_gap,sample,expected", [
-        (4, "Well, [MOVE] AYE!", True),  # 1 space + 3 letters = 4
-        (3, "Well, [MOVE] NOW!", False),  # dist = 1 + 3 = 4 > 3 → False
-        (4, "Well, [MOVE] NOW!", True),  # dist = 4 == right_gap → True
-    ])
+    @pytest.mark.parametrize(
+        "right_gap,sample,expected",
+        [
+            (4, "Well, [MOVE] AYE!", True),  # 1 space + 3 letters = 4
+            (3, "Well, [MOVE] NOW!", False),  # dist = 1 + 3 = 4 > 3 → False
+            (4, "Well, [MOVE] NOW!", True),  # dist = 4 == right_gap → True
+        ],
+    )
     def test_right_gap_enforced(self, monkeypatch, right_gap, sample, expected, _cfg):
         _patch_near(monkeypatch, left_gap=3, right_gap=right_gap)
         text, surface, s, e = self._extract_span(sample)
         assert is_in_caps_interjection_context(surface, text, s, e, _cfg) is expected
 
-    @pytest.mark.parametrize("left_gap,sample,expected", [
-        (3, "Well,   [MOVE] NOW!", True),  # 3 spaces after comma OK
-        (3, "Well,    [MOVE] NOW!", False),  # 4 spaces > 3
-        (4, "Well,    [MOVE] NOW!", True),  # 4 allowed
-    ])
+    @pytest.mark.parametrize(
+        "left_gap,sample,expected",
+        [
+            (3, "Well,   [MOVE] NOW!", True),  # 3 spaces after comma OK
+            (3, "Well,    [MOVE] NOW!", False),  # 4 spaces > 3
+            (4, "Well,    [MOVE] NOW!", True),  # 4 allowed
+        ],
+    )
     def test_left_gap_enforced(self, monkeypatch, left_gap, sample, expected, _cfg):
         _patch_near(monkeypatch, left_gap=left_gap, right_gap=10)
         text, surface, s, e = self._extract_span(sample)
@@ -327,12 +353,15 @@ class TestIsInCapsInterjectionContext:
         text, surface, s, e = self._extract_span("Well, [BRAVO] ÉTUDE!")
         assert is_in_caps_interjection_context(surface, text, s, e, _cfg) is True
 
-    @pytest.mark.parametrize("sample, expected", [
-        ("Well, [HELLO] I AM COOL!", True),
-        ("Well, [HELLO] I AM!", False),
-        ("Well, [ALRIGHTY] THEN!", True),
-        ("Well, [HELLO] YOU ARE cool!", True),  # mixed case breaks
-    ])
+    @pytest.mark.parametrize(
+        "sample, expected",
+        [
+            ("Well, [HELLO] I AM COOL!", True),
+            ("Well, [HELLO] I AM!", False),
+            ("Well, [ALRIGHTY] THEN!", True),
+            ("Well, [HELLO] YOU ARE cool!", True),  # mixed case breaks
+        ],
+    )
     def test_multi_word_shout(self, sample, expected, _cfg, monkeypatch):
         _patch_near(monkeypatch, left_gap=4, right_gap=40)
         text, surface, s, e = self._extract_span(sample)
@@ -340,7 +369,6 @@ class TestIsInCapsInterjectionContext:
 
 
 class TestIsInCapsInterjectionContextPrev:
-
     @staticmethod
     def _extract_span(s: str) -> tuple[str, int, int, str]:
         """
@@ -354,23 +382,29 @@ class TestIsInCapsInterjectionContextPrev:
         e = s + len(inside)
         return text, s, e, inside
 
-    @pytest.mark.parametrize("sample", [
-        "Well, ALRIGHTY [THEN]!",  # canonical
-        "Well,   ALRIGHTY   [THEN]!",  # extra spaces
-        "Well, ALRIGHTY [THEN]!!",  # multiple exclamations
-    ])
+    @pytest.mark.parametrize(
+        "sample",
+        [
+            "Well, ALRIGHTY [THEN]!",  # canonical
+            "Well,   ALRIGHTY   [THEN]!",  # extra spaces
+            "Well, ALRIGHTY [THEN]!!",  # multiple exclamations
+        ],
+    )
     def test_positive_cases(self, sample, _cfg):
         text, s, e, surface = self._extract_span(sample)
         assert is_in_caps_interjection_context_prev(surface, text, s, e, _cfg) is True
 
-    @pytest.mark.parametrize("sample", [
-        "Well ALRIGHTY [THEN]!",  # no comma near left of prev word
-        "Well, Alrighty [THEN]!",  # prev not ALL-CAPS
-        "Well, AHA [NOW]!",  # prev len < 4
-        "Well, ALRIGHTY [UP]!",  # surface len < 3 (second word too short)
-        "Well, ALRIGHTY [THEN]. Bang!",  # '.' before '!' → exclam_near_right False
-        "Well, ) ALRIGHTY [THEN]!",  # closer before prev (comma not nearest non-space)
-    ])
+    @pytest.mark.parametrize(
+        "sample",
+        [
+            "Well ALRIGHTY [THEN]!",  # no comma near left of prev word
+            "Well, Alrighty [THEN]!",  # prev not ALL-CAPS
+            "Well, AHA [NOW]!",  # prev len < 4
+            "Well, ALRIGHTY [UP]!",  # surface len < 3 (second word too short)
+            "Well, ALRIGHTY [THEN]. Bang!",  # '.' before '!' → exclam_near_right False
+            "Well, ) ALRIGHTY [THEN]!",  # closer before prev (comma not nearest non-space)
+        ],
+    )
     def test_negative_cases(self, sample, _cfg):
         text, s, e, surface = self._extract_span(sample)
         assert is_in_caps_interjection_context_prev(surface, text, s, e, _cfg) is False
@@ -389,19 +423,22 @@ class TestIsInCapsInterjectionContextPrev:
 
 
 class TestIsAllCapsHeading:
-    @pytest.mark.parametrize("sample, expected", [
-        ("\n[INTRODUCTION]\nBody", True),  # simple all-caps, >=6 letters
-        ("\n   [   HEADING   ]   \n", True),  # leading/trailing spaces
-        ("\n[API V2 OVERVIEW]\n", True),  # digits ignored, letters all caps
-        ("\n[End. The]\n", False),  # mixed case -> False
-        ("\n[FAQ]\n", False),  # <6 letters -> False
-        ("\n[----]\n", False),  # no letters -> False
-        ("\n[CHAPÉU]\n", True),  # Unicode uppercase letters
-        ("\n[ΠΡΟΛΟΓΟΣ]\n", True),  # Greek uppercase
-        ("Prev\n.. [NOT all CAPS]\nNext\n", False),  # mixed case long enough
-        ("# Intro\n[INTRODUCTION line continues]\n", False),  # selection mid-line still but contains lowercase
-        ("Last line with \n[OVERVIEW]\n(no trailing newlne)", True),  # \n \n
-    ])
+    @pytest.mark.parametrize(
+        "sample, expected",
+        [
+            ("\n[INTRODUCTION]\nBody", True),  # simple all-caps, >=6 letters
+            ("\n   [   HEADING   ]   \n", True),  # leading/trailing spaces
+            ("\n[API V2 OVERVIEW]\n", True),  # digits ignored, letters all caps
+            ("\n[End. The]\n", False),  # mixed case -> False
+            ("\n[FAQ]\n", False),  # <6 letters -> False
+            ("\n[----]\n", False),  # no letters -> False
+            ("\n[CHAPÉU]\n", True),  # Unicode uppercase letters
+            ("\n[ΠΡΟΛΟΓΟΣ]\n", True),  # Greek uppercase
+            ("Prev\n.. [NOT all CAPS]\nNext\n", False),  # mixed case long enough
+            ("# Intro\n[INTRODUCTION line continues]\n", False),  # selection mid-line still but contains lowercase
+            ("Last line with \n[OVERVIEW]\n(no trailing newlne)", True),  # \n \n
+        ],
+    )
     def test_various(self, sample: str, expected: bool):
         text, start, end = _extract_span(sample)
         assert is_all_caps_heading(text, start, end) is expected
@@ -428,12 +465,12 @@ class TestAtSentenceBoundary:
             ("Wait—^no", False),  # em dash is not a terminator
             ("Hello\n^World", False),  # newline alone isn't a boundary
             ('He said "hello" ^and left.', False),  # closer without terminator
-            ('He said: “Go.”^Then', True),  # curly closer right before next
-            ('Done! ”^Next', True),  # space + curly quote closer
-            ('Done! »^Next', True),  # guillemet closer
+            ("He said: “Go.”^Then", True),  # curly closer right before next
+            ("Done! ”^Next", True),  # space + curly quote closer
+            ("Done! »^Next", True),  # guillemet closer
             ("U.S.^Policy", True),  # dotted initialism, no space
             ("Hello\t\t^World", False),  # tabs as whitespace
-            ("Dog.     ^The", True)
+            ("Dog.     ^The", True),
         ],
     )
     def test_various(self, sample: str, expected: bool):
@@ -451,15 +488,18 @@ class TestAtSentenceBoundary:
         text, pos = _extract(sample)
         assert at_sentence_boundary(text, pos) is True
 
-    @pytest.mark.parametrize("sample", [
-        "End. ^The",
-        "End! ^The",
-        "End? ^The",
-        "End?! ^The",
-        "End!   ^The",
-        'End! ”^The',
-        'End? ) ”  ^The',
-    ])
+    @pytest.mark.parametrize(
+        "sample",
+        [
+            "End. ^The",
+            "End! ^The",
+            "End? ^The",
+            "End?! ^The",
+            "End!   ^The",
+            "End! ”^The",
+            "End? ) ”  ^The",
+        ],
+    )
     def test_true_cases(self, sample):
         text, pos = _extract(sample)
         assert at_sentence_boundary(text, pos)
