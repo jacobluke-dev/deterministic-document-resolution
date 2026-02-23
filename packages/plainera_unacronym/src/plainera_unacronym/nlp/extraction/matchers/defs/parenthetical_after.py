@@ -8,11 +8,12 @@ from plainera_unacronym.nlp.extraction.core.normalise import normalize_definitio
 from plainera_unacronym.nlp.extraction.matchers.common import is_mixed_case_acronym
 from plainera_unacronym.nlp.extraction.matchers.defs.common import (
     LocalDefMatch,
+    _acr_signature_for_initials,
     align_acronym_to_initials,
     build_initials_stream,
     expand_numeric_leading_window,
     first_alnum_char_upper,
-    get_cfg_consts, _acr_signature_for_initials,
+    get_cfg_consts,
 )
 
 

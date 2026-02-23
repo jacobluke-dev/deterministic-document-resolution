@@ -2,15 +2,12 @@ from dataclasses import replace
 from typing import Literal
 
 import numpy as np
-
-from plainera_unacronym.nlp.common.types import DetectorConfig
+from plainera_unacronym.nlp.common.types import AcronymSense, DetectorConfig, OccurrenceLite
 from plainera_unacronym.nlp.extraction.config import ExtractionConfig, Tier2Config  # adjust import if needed
+from plainera_unacronym.nlp.extraction.engine import stage_funcs as f
 from plainera_unacronym.nlp.extraction.engine.detect_flow import ExtractionFlow
 from plainera_unacronym.nlp.extraction.engine.state import FlowState
-from plainera_unacronym.nlp.extraction.engine import stage_funcs as f
 from plainera_unacronym.nlp.extraction.tiers import tier_2 as Tier2
-from plainera_unacronym.nlp.extraction.tiers import semantic as Semantic
-from plainera_unacronym.nlp.common.types import OccurrenceLite, AcronymSense
 from plainera_unacronym.nlp.extraction.tiers.types import Tier1OccurrenceRanking
 
 

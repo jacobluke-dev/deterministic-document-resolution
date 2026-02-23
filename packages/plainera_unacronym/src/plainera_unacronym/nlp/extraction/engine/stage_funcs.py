@@ -8,8 +8,11 @@ from plainera_unacronym.nlp.extraction.backref.extract import extract_sentence_b
 from plainera_unacronym.nlp.extraction.core.defs import dedupe_defs, defs_from_picks
 from plainera_unacronym.nlp.extraction.engine.stages import StageResult
 from plainera_unacronym.nlp.extraction.engine.state import FlowState
-from plainera_unacronym.nlp.extraction.senses.disambiguate import disambiguate_occurrences, choose_with_tiebreak, \
-    NEAR_TIE_GAP
+from plainera_unacronym.nlp.extraction.senses.disambiguate import (
+    NEAR_TIE_GAP,
+    choose_with_tiebreak,
+    disambiguate_occurrences,
+)
 from plainera_unacronym.nlp.extraction.senses.sense_build import build_senses
 from plainera_unacronym.nlp.extraction.strategies.harvest import extract_defs_all_occurrences
 from plainera_unacronym.nlp.extraction.strategies.pick_resolution import (
@@ -17,11 +20,13 @@ from plainera_unacronym.nlp.extraction.strategies.pick_resolution import (
     build_defs_index,
     patch_pick_provenance,
 )
-from plainera_unacronym.nlp.extraction.tiers.tier_2 import collect_tier2_inputs, apply_tier2_reranks, embed_for_tier2
-from plainera_unacronym.nlp.extraction.tiers.types import (Tier2OccurrenceRanking,
-                                                           Tier2Report,
-                                                           Tier2SkipReason,
-                                                           Tier1OccurrenceRanking)
+from plainera_unacronym.nlp.extraction.tiers.tier_2 import apply_tier2_reranks, collect_tier2_inputs, embed_for_tier2
+from plainera_unacronym.nlp.extraction.tiers.types import (
+    Tier1OccurrenceRanking,
+    Tier2OccurrenceRanking,
+    Tier2Report,
+    Tier2SkipReason,
+)
 
 
 def st_detect(s: FlowState) -> StageResult[FlowState]:
@@ -213,28 +218,28 @@ def st_finalise_picks(s: FlowState) -> StageResult[FlowState]:
 
 def st_tier1_build_senses(s: FlowState) -> StageResult[FlowState]:
     """
-        Tier-1 setup: build senses and lightweight occurrences for disambiguation.
+    Tier-1 setup: build senses and lightweight occurrences for disambiguation.
 
-        Constructs the Tier-1 disambiguation working set from the current extraction
-        state:
+    Constructs the Tier-1 disambiguation working set from the current extraction
+    state:
 
-        - Derives `s.disambig.tier1.senses_by_acronym` from `s.all_defs` via
-          `build_senses()`.
-        - Builds `s.disambig.tier1.sense_index` for O(1) lookup by `sense_id`.
-        - Projects detector occurrences (`s.det_res.occurrences`) into a minimal
-          `OccurrenceLite` list (`acronym`, `start_offset`, `end_offset`) suitable
-          for scoring and reranking stages.
+    - Derives `s.disambig.tier1.senses_by_acronym` from `s.all_defs` via
+      `build_senses()`.
+    - Builds `s.disambig.tier1.sense_index` for O(1) lookup by `sense_id`.
+    - Projects detector occurrences (`s.det_res.occurrences`) into a minimal
+      `OccurrenceLite` list (`acronym`, `start_offset`, `end_offset`) suitable
+      for scoring and reranking stages.
 
-        This stage does not score or choose senses; it only prepares data structures
-        consumed by subsequent Tier-1/Tier-2 stages.
+    This stage does not score or choose senses; it only prepares data structures
+    consumed by subsequent Tier-1/Tier-2 stages.
 
-        Args:
-            s: FlowState for the pipeline stage. Requires `s.det_res` and `s.all_defs`
-                to be populated.
+    Args:
+        s: FlowState for the pipeline stage. Requires `s.det_res` and `s.all_defs`
+            to be populated.
 
-        Returns:
-            StageResult containing the mutated FlowState and a short info string
-            summarising the number of senses and occurrences prepared.
+    Returns:
+        StageResult containing the mutated FlowState and a short info string
+        summarising the number of senses and occurrences prepared.
     """
     assert s.det_res is not None
 
@@ -247,9 +252,7 @@ def st_tier1_build_senses(s: FlowState) -> StageResult[FlowState]:
     return StageResult(s, s.last_info)
 
 
-def st_tier1_score_occurrences(
-    s: FlowState, *, window_chars: int, margin_threshold: float
-) -> StageResult[FlowState]:
+def st_tier1_score_occurrences(s: FlowState, *, window_chars: int, margin_threshold: float) -> StageResult[FlowState]:
     """
     Tier-1: score each occurrence against candidate senses and produce a provisional choice.
 
@@ -389,7 +392,7 @@ def st_tier2_semantic_rerank(
 
         s.last_info = f"tier2=applied({applied}) skipped({len(ranked2) - applied}) reasons={_fmt_reasons(reasons)}"
         return StageResult(s, s.last_info)
-    except Exception as exc:
+    except Exception:
         reasons["model_unavailable"] += len(eligible)
         t2.ranked = ranked2
         t2.report = Tier2Report(applied=0, skipped=len(ranked2), reasons=dict(reasons))
@@ -397,9 +400,7 @@ def st_tier2_semantic_rerank(
         return StageResult(s, s.last_info)
 
 
-def st_tiers_select_and_assemble(
-    s: FlowState, *, margin_threshold: float
-) -> StageResult[FlowState]:
+def st_tiers_select_and_assemble(s: FlowState, *, margin_threshold: float) -> StageResult[FlowState]:
     """
     Final selection + result assembly using Tier-1 rankings (optionally Tier-2 reordered scores).
 
@@ -461,8 +462,7 @@ def st_tiers_select_and_assemble(
     t2 = s.disambig.tier2
 
     tier2_by_key: dict[tuple[str, int, int], Tier2OccurrenceRanking] = {
-        (r2.occ.acronym, r2.occ.start, r2.occ.end): r2
-        for r2 in (t2.ranked or [])
+        (r2.occ.acronym, r2.occ.start, r2.occ.end): r2 for r2 in (t2.ranked or [])
     }
 
     resolutions: list[OccurrenceResolution] = []

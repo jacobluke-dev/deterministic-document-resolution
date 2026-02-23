@@ -1,12 +1,14 @@
 from __future__ import annotations
+
 import re
 from collections.abc import Iterable
 from dataclasses import dataclass, field
 from functools import cached_property
 from types import MappingProxyType
-from typing import Any, FrozenSet, Literal, Mapping, Optional, TypeAlias, cast, TYPE_CHECKING
+from typing import TYPE_CHECKING, Any, FrozenSet, Literal, Mapping, Optional, TypeAlias, cast
 
 from plainera_unacronym.nlp.common.constants_regex import ALLOW_CHARS, DottedMode
+
 if TYPE_CHECKING:
     from plainera_unacronym.nlp.extraction.tiers.types import Tier2OccurrenceRanking, Tier2Report
 

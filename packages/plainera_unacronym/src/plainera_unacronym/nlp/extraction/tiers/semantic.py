@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from functools import lru_cache
-from typing import Iterable, Sequence, Optional
+from typing import Iterable, Optional, Sequence
 
 import numpy as np
 from numpy.typing import NDArray
@@ -29,6 +29,7 @@ def _load_st_model(model_name: str, *, cache_folder: str | None = None):
         module import-light when Tier-2 is disabled.
     """
     from sentence_transformers import SentenceTransformer  # lazy import
+
     return SentenceTransformer(
         model_name,
         cache_folder=cache_folder,

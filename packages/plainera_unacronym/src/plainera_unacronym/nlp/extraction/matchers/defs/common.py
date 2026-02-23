@@ -445,10 +445,7 @@ def align_acronym_to_initials(
         # If the acronym has more letters than the candidate token window can possibly explain,
         # fall back to the "caps skeleton" (e.g. LaTeX->LTX, eBay->EB).
         alpha_len = sum(c.isalpha() for c in acr)
-        if tokens and alpha_len > len(tokens):
-            acr = _acr_signature_for_initials(acr)
-        # Keep your existing lowercase-prefix exception for mRNA/iOS
-        elif lowercase_prefix_exception and acr[0].islower():
+        if tokens and alpha_len > len(tokens) or lowercase_prefix_exception and acr[0].islower():
             acr = _acr_signature_for_initials(acr)
 
     if acr and lowercase_prefix_exception and is_mixed_case_acronym(acr):
@@ -996,7 +993,7 @@ def strip_inline_cue_prefix(snippet: str, cfg) -> tuple[str, int] | None:
     for cue in cues:
         m = re.match(rf"^\s*,?\s*(?:{cue})\s+", snippet, flags=re.IGNORECASE)
         if m:
-            return snippet[m.end():], m.end()
+            return snippet[m.end() :], m.end()
     return None
 
 
@@ -1122,10 +1119,31 @@ def build_kept_phrase(
     if tok_left > tok_right:
         raise ValueError("tok_left must be <= tok_right")
 
+    # 1) Identify "core" tokens we *must* keep (hits + numeric-leading)
+    core_idxs: list[int] = []
+    for idx in range(tok_left, tok_right + 1):
+        if idx in hit_tokens or _numeric_leading(tokens[idx], include_numeric_leading):
+            core_idxs.append(idx)
+
+    core_min = min(core_idxs) if core_idxs else None
+    core_max = max(core_idxs) if core_idxs else None
+
     kept: list[str] = []
     for idx in range(tok_left, tok_right + 1):
         tok = tokens[idx]
-        if idx in hit_tokens or tok.lower() in bridges or _numeric_leading(tokens[idx], include_numeric_leading):
+        low = tok.lower()
+
+        if idx in hit_tokens or _numeric_leading(tok, include_numeric_leading):
+            kept.append(tok)
+            continue
+
+        # 2) Bridges: keep only if they sit strictly between two core tokens
+        if (
+            core_min is not None
+            and core_max is not None
+            and core_min < idx < core_max
+            and low in bridges
+        ):
             kept.append(tok)
 
     if not kept:

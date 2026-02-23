@@ -181,7 +181,7 @@ class TestBuildKeptPhraseIntegration:
         )
         assert out == "Graphics Processing Unit"
 
-    def test_window_subset_keeps_only_qualifiers_inside_window(self):
+    def test_window_subset_drops_leading_bridge_when_only_one_core_token(self):
         tokens = ["Alpha", "of", "Beta", "Gamma"]
         out = build_kept_phrase(
             tokens,
@@ -191,5 +191,16 @@ class TestBuildKeptPhraseIntegration:
             bridges={"of"},
             include_numeric_leading=True,
         )
-        # Only indices 1..3 are considered; within that window keep "of" (bridge) and "Beta" (hit)
-        assert out == "of Beta"
+        assert out == "Beta"
+
+    def test_window_subset_keeps_bridge_between_two_core_tokens(self):
+        tokens = ["Alpha", "of", "Beta", "and", "Gamma"]
+        out = build_kept_phrase(
+            tokens,
+            tok_left=0,
+            tok_right=4,
+            hit_tokens={0, 4},
+            bridges={"of", "and"},
+            include_numeric_leading=True,
+        )
+        assert out == "Alpha of and Gamma"  # if both bridges are between the two core tokens

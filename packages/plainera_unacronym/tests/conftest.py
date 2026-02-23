@@ -1,7 +1,6 @@
 from typing import Callable
 
 import numpy as np
-
 import plainera_unacronym.nlp.detection.detector as det
 import pytest
 from plainera_unacronym.nlp.common.shared import normalize_acronym_key

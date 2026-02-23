@@ -5,7 +5,7 @@ from dataclasses import asdict, replace
 from typing import Literal
 
 import numpy as np
-import pytest
+import plainera_unacronym.nlp.extraction.tiers.tier_2 as t2
 from _pytest.python_api import approx
 from plainera_unacronym.nlp.common.types import (
     AcronymSense,
@@ -14,14 +14,11 @@ from plainera_unacronym.nlp.common.types import (
     Span,
 )
 from plainera_unacronym.nlp.execute import detect_and_extract
-
+from plainera_unacronym.nlp.extraction.config import ExtractionConfig, Tier2Config  # adjust imports to your tree
 from plainera_unacronym.nlp.extraction.core.defs import dedupe_defs
+from plainera_unacronym.nlp.extraction.engine import stage_funcs as f
 from plainera_unacronym.nlp.extraction.senses.disambiguate import choose_with_tiebreak, disambiguate_occurrences
 from plainera_unacronym.nlp.extraction.senses.sense_build import build_senses
-from plainera_unacronym.nlp.extraction.config import ExtractionConfig, Tier2Config  # adjust imports to your tree
-from plainera_unacronym.nlp.extraction.engine import stage_funcs as f
-import plainera_unacronym.nlp.extraction.tiers.tier_2 as t2
-
 
 # -----------------------
 # helpers
@@ -214,9 +211,7 @@ class TestDetectAndExtractE2ETier2AcronymWins:
             out = []
             for t in candidate_texts:
                 tt = t.lower()
-                if ("rest" in ctx or "endpoint" in ctx) and "application programming interface" in tt:
-                    out.append(0.95)
-                elif ("gmp" in ctx or "pharmaceutical" in ctx) and "active pharmaceutical ingredient" in tt:
+                if ("rest" in ctx or "endpoint" in ctx) and "application programming interface" in tt or ("gmp" in ctx or "pharmaceutical" in ctx) and "active pharmaceutical ingredient" in tt:
                     out.append(0.95)
                 else:
                     out.append(0.10)
@@ -243,9 +238,7 @@ class TestDetectAndExtractE2ETier2AcronymWins:
             out = []
             for t in candidate_texts:
                 tt = t.lower()
-                if ("hospital" in ctx or "trust" in ctx) and "national health service" in tt:
-                    out.append(0.97)
-                elif ("student" in ctx or "achievement" in ctx) and "national honor society" in tt:
+                if ("hospital" in ctx or "trust" in ctx) and "national health service" in tt or ("student" in ctx or "achievement" in ctx) and "national honor society" in tt:
                     out.append(0.97)
                 else:
                     out.append(0.20)

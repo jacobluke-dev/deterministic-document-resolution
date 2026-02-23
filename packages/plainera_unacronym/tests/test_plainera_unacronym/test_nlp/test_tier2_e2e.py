@@ -2,17 +2,16 @@
 
 from __future__ import annotations
 
-from dataclasses import replace
 import re
+from dataclasses import replace
 from typing import Any, Iterable
 
 import numpy as np
+import plainera_unacronym.nlp.extraction.tiers.tier_2 as t2
 import pytest
-
 from plainera_unacronym.nlp.extraction.config import ExtractionConfig, Tier2Config
 from plainera_unacronym.nlp.extraction.engine.detect_flow import ExtractionFlow
 from plainera_unacronym.nlp.extraction.engine.state import FlowState
-import plainera_unacronym.nlp.extraction.tiers.tier_2 as t2
 
 
 @pytest.fixture(autouse=True)

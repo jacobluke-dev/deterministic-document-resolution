@@ -1,13 +1,19 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
 from collections import Counter
-from typing import Sequence, Literal
+from dataclasses import dataclass
+from typing import Literal, Sequence
+
 import numpy as np
 
-from plainera_unacronym.nlp.extraction.tiers.semantic import embed_texts, cosine_sim01
-from plainera_unacronym.nlp.extraction.tiers.types import Tier1OccurrenceRanking, Tier2SkipReason, \
-    Tier2OccurrenceRanking, FloatVec, FloatMat
+from plainera_unacronym.nlp.extraction.tiers.semantic import cosine_sim01, embed_texts
+from plainera_unacronym.nlp.extraction.tiers.types import (
+    FloatMat,
+    FloatVec,
+    Tier1OccurrenceRanking,
+    Tier2OccurrenceRanking,
+    Tier2SkipReason,
+)
 
 
 @dataclass(frozen=True)
@@ -22,6 +28,7 @@ class _EligibleRerank:
         cand_ids: Candidate sense IDs in Tier-1 insertion order.
         cand_texts: Candidate text strings aligned 1:1 with `cand_ids`.
     """
+
     idx: int
     r1: Tier1OccurrenceRanking
     context: str
@@ -40,6 +47,7 @@ class _EmbeddingsBatch:
         ctx_mat: Context embedding matrix of shape (N_eligible, D).
         cand_row: Mapping from candidate text -> row index in `cand_mat`.
     """
+
     cand_texts: list[str]
     cand_mat: FloatMat
     ctx_mat: FloatMat
@@ -156,7 +164,6 @@ def collect_tier2_inputs(
         ranked2.append(_skip_tier2(r1, "model_unavailable"))
 
     return ranked2, eligible
-
 
 
 def embed_for_tier2(model_name: str, eligible: Sequence[_EligibleRerank]) -> _EmbeddingsBatch | None:

@@ -122,9 +122,7 @@ class ExtractionFlow:
 
         return Chain(
             [
-                Stage("detect",
-                      f.st_detect,
-                      lambda s: f"firsts={self._n_firsts(s)} dropped={len(s.cleanup_dropped)}"),
+                Stage("detect", f.st_detect, lambda s: f"firsts={self._n_firsts(s)} dropped={len(s.cleanup_dropped)}"),
                 Stage(
                     "post_detect_cleanup",
                     f.st_post_detect_cleanup,
@@ -173,30 +171,21 @@ class ExtractionFlow:
                 ),
                 Stage(
                     "tier1_score_occurrences",
-                    lambda s: f.st_tier1_score_occurrences(
-                        s,
-                        window_chars=_win(s),
-                        margin_threshold=_t1_margin(s)
-                    ),
+                    lambda s: f.st_tier1_score_occurrences(s, window_chars=_win(s), margin_threshold=_t1_margin(s)),
                     lambda s: s.last_info,
-                    trace_fields=("disambig.tier1.ranked",)
+                    trace_fields=("disambig.tier1.ranked",),
                 ),
                 Stage(
                     "tier2_semantic_rerank",
                     lambda s: f.st_tier2_semantic_rerank(
-                        s,
-                        window_chars=_t2_win(s),
-                        auto_margin_ceiling=_t2_ceiling(s)
+                        s, window_chars=_t2_win(s), auto_margin_ceiling=_t2_ceiling(s)
                     ),
                     lambda s: s.last_info,
-                    trace_fields=("disambig.tier2.report", "disambig.tier2.ranked")
+                    trace_fields=("disambig.tier2.report", "disambig.tier2.ranked"),
                 ),
                 Stage(
                     "tiers_select_and_assemble",
-                    lambda s: f.st_tiers_select_and_assemble(
-                        s,
-                        margin_threshold=_t2_select_margin(s)
-                    ),
+                    lambda s: f.st_tiers_select_and_assemble(s, margin_threshold=_t2_select_margin(s)),
                     lambda s: "ready",
                 ),
             ]

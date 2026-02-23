@@ -10,17 +10,18 @@ from plainera_unacronym.nlp.extraction.matchers.defs.common import (
     build_initials_stream,
     build_kept_phrase,
     expand_numeric_leading_window,
-    get_cfg_consts,
     first_alnum_char_upper,
+    get_cfg_consts,
 )
 from plainera_unacronym.nlp.extraction.matchers.defs.inline_after import scan_tokens
 from plainera_unacronym.nlp.extraction.matchers.numeric_matcher import consume_left_numeric_designator
 
-
 _CAMEL_RE = re.compile(r"[a-z][A-Z]")
+
 
 def _has_camelcase_token(tokens: list[str]) -> bool:
     return any(_CAMEL_RE.search(t.strip()) for t in tokens)
+
 
 def requires_compound_split_for_alignment(
     acr: str,
@@ -82,13 +83,11 @@ def requires_compound_split_for_alignment(
 
     # Count tokens that can contribute a letter initial.
     initial_bearing_tokens = sum(
-        1
-        for t in tokens
-        if t.lower() not in stopwords
-        and (first_alnum_char_upper(t) or "").isalpha()
+        1 for t in tokens if t.lower() not in stopwords and (first_alnum_char_upper(t) or "").isalpha()
     )
 
     return alpha_len > initial_bearing_tokens
+
 
 def needs_compound_split_for_parenthetical_before(
     acr: str,
@@ -119,10 +118,7 @@ def needs_compound_split_for_parenthetical_before(
     """
     mixed = bool(acr) and is_mixed
 
-    has_separators = any(
-        ("-" in t) or ("/" in t) or ("&" in t) or ("." in t)
-        for t in tokens
-    )
+    has_separators = any(("-" in t) or ("/" in t) or ("&" in t) or ("." in t) for t in tokens)
 
     must_split_to_fit = requires_compound_split_for_alignment(acr, tokens, stopwords)
 
