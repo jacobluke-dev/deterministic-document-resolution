@@ -440,6 +440,17 @@ def align_acronym_to_initials(
         An `AlignmentHit` if alignment succeeds, else None.
 
     """
+    mixed = bool(acr) and is_mixed_case_acronym(acr)
+    if mixed:
+        # If the acronym has more letters than the candidate token window can possibly explain,
+        # fall back to the "caps skeleton" (e.g. LaTeX->LTX, eBay->EB).
+        alpha_len = sum(c.isalpha() for c in acr)
+        if tokens and alpha_len > len(tokens):
+            acr = _acr_signature_for_initials(acr)
+        # Keep your existing lowercase-prefix exception for mRNA/iOS
+        elif lowercase_prefix_exception and acr[0].islower():
+            acr = _acr_signature_for_initials(acr)
+
     if acr and lowercase_prefix_exception and is_mixed_case_acronym(acr):
         acr = _acr_signature_for_initials(acr)
 
