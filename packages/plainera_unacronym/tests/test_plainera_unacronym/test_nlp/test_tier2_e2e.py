@@ -78,10 +78,7 @@ def _get(obj: Any, path: str) -> Any:
     for part in path.split("."):
         if cur is None:
             return None
-        if isinstance(cur, dict):
-            cur = cur.get(part)
-        else:
-            cur = getattr(cur, part, None)
+        cur = cur.get(part) if isinstance(cur, dict) else getattr(cur, part, None)
     return cur
 
 
@@ -186,7 +183,7 @@ def _find_sid_by_slug(state: FlowState, *, acr: str, contains: str) -> str:
         if not isinstance(scores, dict) or not scores:
             continue
 
-        for sid in scores.keys():
+        for sid in scores:
             if needle in _norm(sid):
                 return sid
 

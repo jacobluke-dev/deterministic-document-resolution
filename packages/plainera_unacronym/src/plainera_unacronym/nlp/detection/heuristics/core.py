@@ -517,13 +517,16 @@ def _passes_generic_gates(cfg: DetectorConfig, surface: str) -> bool:
     """
     _LOWER_PREFIX_BRAND_RE = re.compile(r"^[a-z]{1,2}[A-Z][A-Za-z0-9]*$")
 
-    clen = core_len_for_bounds(surface)
-    if clen < cfg.min_len or clen >= 15 or clen == 1:
+    core_len = core_len_for_bounds(surface)
+    if core_len < cfg.min_len or core_len >= 15 or core_len == 1:
         return False
 
-    if clen > cfg.max_len:
-        if not (cfg.enable_mixed_case and _has_lower_and_upper(surface) and clen <= max(cfg.max_len, 6)):
-            return False
+    surface_len = len(surface)
+    max_len = cfg.max_len
+    upper = max(max_len, 6)
+
+    if not cfg.enable_mixed_case and _has_lower_and_upper(surface) and max_len < surface_len <= upper:
+        return False
 
     req = cfg.require_caps_ratio
 

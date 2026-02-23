@@ -516,7 +516,8 @@ class TestDetectAndExtractE2EMixedCaseAcronyms:
 
     def test_all_lower_case_acronyms(self, picked_def):
         det, extr = detect_and_extract(
-            "But despite suffering a ruptured anterior cruciate ligament (ACL) in Switzerland in the last World Cup race before the Games."
+            "But despite suffering a ruptured anterior cruciate ligament (ACL) in Switzerland"
+            " in the last World Cup race before the Games."
         )
         assert picked_def(extr, "ACL") in {"anterior cruciate ligament"}, extr.picks.get("ACL")
 

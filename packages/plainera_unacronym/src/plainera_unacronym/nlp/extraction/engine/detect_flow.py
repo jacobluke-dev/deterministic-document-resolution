@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 from collections import Counter
-from typing import Optional
 
 from plainera_unacronym.nlp.common.types import DetectorConfig, DetectorResult, ExtractionResult
 from plainera_unacronym.nlp.extraction.config import ExtractionConfig
@@ -67,7 +66,7 @@ class ExtractionFlow:
             trace (bool): If True, capture structured trace events for selected stage fields.
             trace_filter (str | None): Optional regex filter applied to acronym keys when tracing.
         """
-        self.trace_events: Optional[list[TraceEvent]] = None
+        self.trace_events: list[TraceEvent] | None = None
         self.det_cfg = det_cfg or DetectorConfig()
         self.ext_cfg = ext_cfg or ExtractionConfig()
         self.window_left = window_left

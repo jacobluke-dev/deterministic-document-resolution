@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from functools import lru_cache
-from typing import Iterable, Optional, Sequence
+from typing import Iterable, Sequence
 
 import numpy as np
 from numpy.typing import NDArray
@@ -48,7 +48,7 @@ def _as_list(xs: Iterable[str]) -> list[str]:
     return list(xs)
 
 
-def embed_texts(model_name: str, texts: Sequence[str]) -> Optional[FloatMat]:
+def embed_texts(model_name: str, texts: Sequence[str]) -> FloatMat | None:
     """Embed a batch of texts using Sentence-Transformers.
 
     Encodes `texts` into a dense float32 embedding matrix and row-normalises the

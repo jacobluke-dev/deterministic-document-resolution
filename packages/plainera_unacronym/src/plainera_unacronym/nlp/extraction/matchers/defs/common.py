@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import re
 from dataclasses import dataclass
-from typing import Literal, Optional
+from typing import Literal
 
 from plainera_unacronym.nlp.common.constants_regex import BRIDGES_DEFAULT, DEFAULT_STOPWORDS, PUNCT_TRIM
 from plainera_unacronym.nlp.common.shared import collapse_ws, strip_trailing_punct_str
@@ -402,7 +402,7 @@ def align_acronym_to_initials(
     allow_upper_on_stop: bool,
     allow_lower_on_non_stop: bool,
     lowercase_prefix_exception: bool,
-) -> Optional[AlignmentHit]:
+) -> AlignmentHit | None:
     """Align an acronym string against an `InitialsStream`.
 
     This function aligns acronym characters (letters and/or numeric designators,
@@ -486,7 +486,7 @@ def _align_rtl_scan_wrapper(
     stream: InitialsStream,
     allow_upper_on_stop: bool,
     allow_lower_on_non_stop: bool,
-) -> Optional[AlignmentHit]:
+) -> AlignmentHit | None:
     """Align acronym targets to the stream using right-to-left scanning.
 
     This is a thin wrapper around `align_rtl_scan(...)` that converts the matched
@@ -535,7 +535,7 @@ def _align_ltr_min_window(
     allow_upper_on_stop: bool,
     allow_lower_on_non_stop: bool,
     lowercase_prefix_exception: bool,
-) -> Optional[AlignmentHit]:
+) -> AlignmentHit | None:
     """Align acronym letters to a initials stream using a minimal token-span strategy.
 
     Scans the stream left-to-right and tries to match `alignment_letters` in order.
@@ -567,8 +567,8 @@ def _align_ltr_min_window(
     """
     L = [c.upper() for c in alignment_letters]  # stream letters are uppercase
 
-    best_used: Optional[list[int]] = None
-    best_span: Optional[Span] = None  # (tok_left, tok_right)
+    best_used: list[int] | None = None
+    best_span: Span | None = None  # (tok_left, tok_right)
 
     for li in range(len(stream.letters)):
         if (len(stream.letters) - li) < len(L):
@@ -1138,12 +1138,7 @@ def build_kept_phrase(
             continue
 
         # 2) Bridges: keep only if they sit strictly between two core tokens
-        if (
-            core_min is not None
-            and core_max is not None
-            and core_min < idx < core_max
-            and low in bridges
-        ):
+        if core_min is not None and core_max is not None and core_min < idx < core_max and low in bridges:
             kept.append(tok)
 
     if not kept:
