@@ -13,12 +13,14 @@ def _cfg(**overrides):
         require_two_words=True,
     )
     base.update(overrides)
-    conf = NS(base_by_source={
-        "parenthetical": base["conf_parenthetical"],
-        "all_occ_scan_parenthetical": base["conf_parenthetical"],
-        "inline": base["conf_inline"],
-        "first_occurrence_anchored": 0.85,
-    })
+    conf = NS(
+        base_by_source={
+            "parenthetical": base["conf_parenthetical"],
+            "all_occ_scan_parenthetical": base["conf_parenthetical"],
+            "inline": base["conf_inline"],
+            "first_occurrence_anchored": 0.85,
+        }
+    )
     base["confidence"] = conf
     return NS(**base)
 
@@ -52,7 +54,9 @@ class TestExtractDefsAllOccurrencesUnit:
                     def_end=d1,
                     definition="Portable Document Format",
                 )
-            ] if snippet in (text[:acr1 + 1], text[:acr1]) else [],
+            ]
+            if snippet in (text[: acr1 + 1], text[:acr1])
+            else [],
             find_parenthetical_longform_after_acr=lambda right, cfg, acr=None: [],
             tighten_label_by_acronym=lambda raw, acr_up: f"TIGHT[{raw}|{acr_up}]",
         )
@@ -68,7 +72,7 @@ class TestExtractDefsAllOccurrencesUnit:
         # Tightener received the UPPER acronym
         assert item.definition == "TIGHT[Portable Document Format|PDF]"
         # def_start/def_end are absolute and slice the original text exactly
-        assert text[item.def_start:item.def_end] == "Portable Document Format"
+        assert text[item.def_start : item.def_end] == "Portable Document Format"
         # acr span mapped from occ
         assert (item.acr_start, item.acr_end) == (acr0, acr1)
         assert item.source == "all_occ_scan_parenthetical"
@@ -90,11 +94,13 @@ class TestExtractDefsAllOccurrencesUnit:
         def fake_after(right, cfg, acr=None):
             # right is text starting at acr1 when L=0 (big window)
             # so def_start is inner_start - acr1
-            return [NS(
-                def_start=inner_start - acr1,
-                def_end=inner_end - acr1,
-                definition=inner,
-            )]
+            return [
+                NS(
+                    def_start=inner_start - acr1,
+                    def_end=inner_end - acr1,
+                    definition=inner,
+                )
+            ]
 
         cfg = _cfg(window_chars=len(text))
         _patch(
@@ -109,7 +115,7 @@ class TestExtractDefsAllOccurrencesUnit:
         item = out[0]
         assert item.acronym == "GPU"
         assert item.definition == "Graphics Processing Unit"
-        assert text[item.def_start:item.def_end] == inner
+        assert text[item.def_start : item.def_end] == inner
         assert (item.acr_start, item.acr_end) == (acr0, acr1)
 
     def test_window_clamps_and_multiple_occs_accumulate(self, _patch):
@@ -206,7 +212,7 @@ class TestExtractDefsAllOccurrencesUnit:
         # both should map to the same absolute span and same original slice
         for item in out:
             assert (item.acr_start, item.acr_end) == (acr0, acr1)
-            assert text[item.def_start:item.def_end] == phrase
+            assert text[item.def_start : item.def_end] == phrase
             assert item.original_definition == phrase
             assert item.definition == phrase
             assert item.source == "all_occ_scan_parenthetical"
@@ -257,7 +263,7 @@ class TestExtractDefsAllOccurrencesUnit:
 
         # This is the whole point: absolute mapping must be correct when L != 0
         assert (item.def_start, item.def_end) == (abs_d0, abs_d1)
-        assert text[item.def_start:item.def_end] == phrase
+        assert text[item.def_start : item.def_end] == phrase
         assert item.original_definition == phrase
         assert (item.acr_start, item.acr_end) == (acr0, acr1)
 
@@ -288,14 +294,14 @@ class TestExtractDefsAllOccurrencesIntegration:
         assert pdf.original_definition == "Portable Document Format"
         # tightened label should still be the same canonical phrase
         assert pdf.definition == "Portable Document Format"
-        assert text[pdf.def_start:pdf.def_end] == "Portable Document Format"
+        assert text[pdf.def_start : pdf.def_end] == "Portable Document Format"
         assert (pdf.acr_start, pdf.acr_end) == (pdf0, pdf1)
         assert pdf.definition_confidence == pytest.approx(0.95)
 
         gpu = by_acr["GPU"]
         assert gpu.original_definition == "Graphics Processing Unit"
         assert gpu.definition == "Graphics Processing Unit"
-        assert text[gpu.def_start:gpu.def_end] == "Graphics Processing Unit"
+        assert text[gpu.def_start : gpu.def_end] == "Graphics Processing Unit"
         assert (gpu.acr_start, gpu.acr_end) == (gpu0, gpu1)
 
     def test_window_chars_limits_search_region(self):
@@ -317,9 +323,7 @@ class TestExtractDefsAllOccurrencesIntegration:
 
     def test_after_pattern_qae_parenthetical(self):
         # Use the “after ACR” pattern: QAE (Queen's Award for Enterprise)
-        text = (
-            "Winners of QAE (Queen's Award for Enterprise) were announced today."
-        )
+        text = "Winners of QAE (Queen's Award for Enterprise) were announced today."
         acr0 = text.index("QAE")
         acr1 = acr0 + 3  # end offset is exclusive by convention in the codebase
 
@@ -341,7 +345,7 @@ class TestExtractDefsAllOccurrencesIntegration:
         assert item.original_definition == expected_phrase
 
         # Span should tightly slice that phrase from the original text
-        assert text[item.def_start: item.def_end] == expected_phrase
+        assert text[item.def_start : item.def_end] == expected_phrase
 
         # Tightened label by acronym should keep the matched tokens; depending on bridges,
         # it may keep “for”. Accept either the full phrase or the pruned variant.
@@ -369,7 +373,7 @@ class TestExtractDefsAllOccurrencesIntegration:
 
         expected_phrase = "Queen's Award for Enterprise"
         # Tight span over the original text:
-        assert text[item.def_start:item.def_end] == expected_phrase
+        assert text[item.def_start : item.def_end] == expected_phrase
         # Original definition should match the parenthetical content (after normalization):
         assert item.original_definition == expected_phrase
 

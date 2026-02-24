@@ -1,4 +1,3 @@
-
 import re
 
 import plainera_unacronym.nlp.extraction.anchored.spans as mod
@@ -56,9 +55,7 @@ def _m_def_before(seg: str, def_text: str, acr: str) -> re.Match[str]:
     Build a minimal match object with groups 'def' and 'acr' spanning within `seg`.
     We use the same group names your function expects.
     """
-    pat = re.compile(
-        rf"(?P<def>{re.escape(def_text)})\s*\(\s*(?P<acr>{re.escape(acr)})\s*\)"
-    )
+    pat = re.compile(rf"(?P<def>{re.escape(def_text)})\s*\(\s*(?P<acr>{re.escape(acr)})\s*\)")
     m = pat.search(seg)
     assert m is not None
     return m
@@ -197,12 +194,9 @@ class TestCalcDefSpanInlineAfterUnit:
 
         _patch(
             mod._calc_def_span_inline_after,
-            find_inline_longform_after_acr=lambda snippet_arg,
-                                                  cfg_arg,
-                                                  acr,
-                                                  *,
-                                                  max_chars,
-                                                  require_initials_match: [loc],
+            find_inline_longform_after_acr=lambda snippet_arg, cfg_arg, acr, *, max_chars, require_initials_match: [
+                loc
+            ],
         )
 
         out = mod._calc_def_span_inline_after(

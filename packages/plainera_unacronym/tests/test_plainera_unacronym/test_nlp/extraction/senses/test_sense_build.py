@@ -17,6 +17,7 @@ class DummyDef:
 # Unit tests: _slug
 # ----------------------------
 
+
 class TestSlugUnit:
     @pytest.mark.parametrize(
         "s,expected",
@@ -39,13 +40,14 @@ class TestSlugUnit:
 # Unit tests: build_senses (patch deps)
 # ----------------------------
 
+
 class TestBuildSensesUnit:
     def test_groups_by_upper_acronym_and_merges_same_sid(self, _patch):
         # Patch only dependencies to keep this unit test deterministic.
         _patch(
             build_senses,
-            dedupe_defs=lambda xs: xs,            # identity
-            tighten_label=lambda s: s.strip(),    # deterministic label
+            dedupe_defs=lambda xs: xs,  # identity
+            tighten_label=lambda s: s.strip(),  # deterministic label
         )
 
         defs = [
@@ -122,12 +124,11 @@ class TestBuildSensesUnit:
         assert pdf.support == 1  # because dedupe collapses into one def before sense building
 
 
-
-
 # ----------------------------
 # Integration tests: build_senses + real tighten_label + real slugging
 # (patch dedupe_defs only, to avoid depending on dedupe semantics here)
 # ----------------------------
+
 
 class TestBuildSensesIntegration:
     def test_real_tighten_label_affects_sid(self, _patch):

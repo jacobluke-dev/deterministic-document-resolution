@@ -52,7 +52,6 @@ class TestExtraCandidates:
         assert hits == []
 
     def test_rna_like_word_boundary_excludes_nonword_suffix(self, monkeypatch, cfg):
-
         cfg2 = replace(cfg, rna_like=frozenset({"mRNA+", "miRNA"}))
         monkeypatch.setattr(rules, "bio_pattern", lambda: re.compile(r"(?P<bio>NO_MATCH)"), raising=True)
 

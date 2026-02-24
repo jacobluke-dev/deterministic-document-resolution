@@ -22,6 +22,7 @@ class TestHasNumericEvidenceIntegration:
     def test_mixed_tokens_any_numeric_leading_makes_true(self):
         assert has_numeric_evidence(["Alpha", "Beta", "3M", "Gamma"]) is True
 
+
 class TestHasNumericEvidenceUnit:
     def test_returns_false_when_no_tokens(self):
         assert has_numeric_evidence([]) is False
@@ -34,8 +35,8 @@ class TestHasNumericEvidenceUnit:
     def test_returns_true_when_any_token_has_non_alpha_initial(self, _patch):
         # Map specific tokens to initials
         mapping = {
-            "Alpha": "A",   # alpha => not evidence
-            "3M": "3",      # digit => evidence
+            "Alpha": "A",  # alpha => not evidence
+            "3M": "3",  # digit => evidence
             "Beta": "B",
         }
         _patch(has_numeric_evidence, first_alnum_char_upper=lambda tok: mapping.get(tok))
@@ -73,8 +74,8 @@ class TestHasNumericEvidenceUnit:
             ("9", True),
             ("A", False),
             ("z", False),
-            ("_", True),   # non-alpha counts as "numeric evidence" per current logic (not init.isalpha())
-            ("-", True),   # same here
+            ("_", True),  # non-alpha counts as "numeric evidence" per current logic (not init.isalpha())
+            ("-", True),  # same here
         ],
     )
     def test_non_alpha_initial_counts_as_evidence(self, _patch, init, expected):

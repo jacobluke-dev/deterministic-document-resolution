@@ -73,8 +73,9 @@ def _is_mixed_case_typo(acr: str) -> bool:
     upp = sum(c.isupper() for c in letters)
     low = sum(c.islower() for c in letters)
     if not (upp >= 3 and low == 1):
-        # Also treat strict alternation as suspicious at len>=4 (e.g., AbCd)
-        return _is_alternating_case(acr) and len(letters) >= 4
+        # Strict alternation is a strong OCR/typo signal at 4 letters (e.g. "AbCd"),
+        # but longer alternating stylised terms exist (e.g. "LaTeX"). Keep those.
+        return _is_alternating_case(acr) and len(letters) == 4
 
     if not letters[0].isupper():  # allow mRNA/iOS style
         return False

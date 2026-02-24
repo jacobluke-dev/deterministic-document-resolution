@@ -9,6 +9,7 @@ _ASCII_CAMEL_RE = re.compile(
     r"[A-Z]+(?=[A-Z][a-z0-9])"  # e.g., 'XML' in 'XMLHttp'
     r"|[A-Z]?[a-z]+[0-9]*"  # word with optional trailing digits, e.g., 'v1'
     r"|[0-9]+"  # standalone digits
+    r"|[A-Z]+(?![a-z0-9])"  # trailing caps, e.g. X in TeX, AI in OpenAI
 )
 
 LEXICAL_SPLITS = {

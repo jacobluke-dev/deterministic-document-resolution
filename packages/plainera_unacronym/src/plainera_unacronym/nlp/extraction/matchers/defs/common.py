@@ -1,12 +1,24 @@
+from __future__ import annotations
+
 import re
 from dataclasses import dataclass
-from typing import Literal, Optional
+from typing import Literal
 
 from plainera_unacronym.nlp.common.constants_regex import BRIDGES_DEFAULT, DEFAULT_STOPWORDS, PUNCT_TRIM
 from plainera_unacronym.nlp.common.shared import collapse_ws, strip_trailing_punct_str
 from plainera_unacronym.nlp.common.types import Span, as_str_set
 from plainera_unacronym.nlp.extraction import ExtractionConfig
 from plainera_unacronym.nlp.extraction.matchers.common import is_mixed_case_acronym, split_compound
+
+_SEG_RE = re.compile(
+    r"""
+    [A-Z]+(?=[A-Z][a-z]) |   # "HTTP" in "HTTPServer" style
+    [A-Z]?[a-z]+         |   # "La", "port", "electronic"
+    [A-Z]+               |   # "OS"
+    [0-9]+                   # digits
+    """,
+    re.VERBOSE,
+)
 
 
 class LocalDefMatch:
@@ -72,6 +84,29 @@ def get_cfg_consts(cfg: ExtractionConfig, max_char_default: int = 80) -> tuple[s
 
     max_chars = getattr(cfg, "max_phrase_chars", max_char_default)
     return bridges, stop, max_chars
+
+
+def _acr_signature_for_initials(acr: str) -> str:
+    """
+    Build an initials-style acronym used ONLY for alignment against long-form initials.
+
+    - Split into CamelCase / ALLCAPS segments
+    - Emit:
+        * all letters for ALLCAPS segments (OS -> O,S)
+        * first letter for mixed/lower segments (TeX -> T, Bay -> B, f -> F)
+    """
+    segs = _SEG_RE.findall("".join(ch for ch in acr if ch.isalnum()))
+    if not segs:
+        return acr
+
+    out: list[str] = []
+    for seg in segs:
+        if seg.isalpha() and seg.isupper() and len(seg) > 1:
+            out.extend(list(seg))  # OS -> O,S
+        else:
+            out.append(seg[0].upper())  # TeX -> T, f -> F, Bay -> B, La -> L
+
+    return "".join(out) or acr
 
 
 def build_initials_stream(
@@ -367,7 +402,7 @@ def align_acronym_to_initials(
     allow_upper_on_stop: bool,
     allow_lower_on_non_stop: bool,
     lowercase_prefix_exception: bool,
-) -> Optional[AlignmentHit]:
+) -> AlignmentHit | None:
     """Align an acronym string against an `InitialsStream`.
 
     This function aligns acronym characters (letters and/or numeric designators,
@@ -405,6 +440,17 @@ def align_acronym_to_initials(
         An `AlignmentHit` if alignment succeeds, else None.
 
     """
+    mixed = bool(acr) and is_mixed_case_acronym(acr)
+    if mixed:
+        # If the acronym has more letters than the candidate token window can possibly explain,
+        # fall back to the "caps skeleton" (e.g. LaTeX->LTX, eBay->EB).
+        alpha_len = sum(c.isalpha() for c in acr)
+        if tokens and alpha_len > len(tokens) or lowercase_prefix_exception and acr[0].islower():
+            acr = _acr_signature_for_initials(acr)
+
+    if acr and lowercase_prefix_exception and is_mixed_case_acronym(acr):
+        acr = _acr_signature_for_initials(acr)
+
     if not acr or not stream.letters:
         return None
 
@@ -440,7 +486,7 @@ def _align_rtl_scan_wrapper(
     stream: InitialsStream,
     allow_upper_on_stop: bool,
     allow_lower_on_non_stop: bool,
-) -> Optional[AlignmentHit]:
+) -> AlignmentHit | None:
     """Align acronym targets to the stream using right-to-left scanning.
 
     This is a thin wrapper around `align_rtl_scan(...)` that converts the matched
@@ -489,7 +535,7 @@ def _align_ltr_min_window(
     allow_upper_on_stop: bool,
     allow_lower_on_non_stop: bool,
     lowercase_prefix_exception: bool,
-) -> Optional[AlignmentHit]:
+) -> AlignmentHit | None:
     """Align acronym letters to a initials stream using a minimal token-span strategy.
 
     Scans the stream left-to-right and tries to match `alignment_letters` in order.
@@ -521,8 +567,8 @@ def _align_ltr_min_window(
     """
     L = [c.upper() for c in alignment_letters]  # stream letters are uppercase
 
-    best_used: Optional[list[int]] = None
-    best_span: Optional[Span] = None  # (tok_left, tok_right)
+    best_used: list[int] | None = None
+    best_span: Span | None = None  # (tok_left, tok_right)
 
     for li in range(len(stream.letters)):
         if (len(stream.letters) - li) < len(L):
@@ -1073,10 +1119,26 @@ def build_kept_phrase(
     if tok_left > tok_right:
         raise ValueError("tok_left must be <= tok_right")
 
+    # 1) Identify "core" tokens we *must* keep (hits + numeric-leading)
+    core_idxs: list[int] = []
+    for idx in range(tok_left, tok_right + 1):
+        if idx in hit_tokens or _numeric_leading(tokens[idx], include_numeric_leading):
+            core_idxs.append(idx)
+
+    core_min = min(core_idxs) if core_idxs else None
+    core_max = max(core_idxs) if core_idxs else None
+
     kept: list[str] = []
     for idx in range(tok_left, tok_right + 1):
         tok = tokens[idx]
-        if idx in hit_tokens or tok.lower() in bridges or _numeric_leading(tokens[idx], include_numeric_leading):
+        low = tok.lower()
+
+        if idx in hit_tokens or _numeric_leading(tok, include_numeric_leading):
+            kept.append(tok)
+            continue
+
+        # 2) Bridges: keep only if they sit strictly between two core tokens
+        if core_min is not None and core_max is not None and core_min < idx < core_max and low in bridges:
             kept.append(tok)
 
     if not kept:

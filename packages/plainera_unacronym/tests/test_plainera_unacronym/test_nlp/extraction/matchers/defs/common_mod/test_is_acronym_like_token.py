@@ -23,15 +23,15 @@ class TestIsAcronymLikeToken:
     @pytest.mark.parametrize(
         "tok",
         [
-            "",          # empty
-            "A",         # too short after trim
-            "a",         # too short / lowercase
-            "Pdf",       # has lowercase
-            "foo",       # all lowercase
-            "1234",      # no alpha chars
-            "....",      # trims to empty-ish / no alpha
-            "A.",        # length becomes < 2 after trim
-            "U.S.a",     # contains lowercase
+            "",  # empty
+            "A",  # too short after trim
+            "a",  # too short / lowercase
+            "Pdf",  # has lowercase
+            "foo",  # all lowercase
+            "1234",  # no alpha chars
+            "....",  # trims to empty-ish / no alpha
+            "A.",  # length becomes < 2 after trim
+            "U.S.a",  # contains lowercase
         ],
     )
     def test_false_for_non_acronym_like_tokens(self, tok):

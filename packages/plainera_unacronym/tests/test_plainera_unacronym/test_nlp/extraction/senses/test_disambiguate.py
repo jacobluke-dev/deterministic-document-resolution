@@ -21,14 +21,14 @@ class TestAsciiTokens:
             ("HELLO world", ["hello", "world"]),
             ("rock'n'roll", ["rock'n'roll"]),
             ("state-of-the-art", ["state-of-the-art"]),
-            ("James'", ["james'"]),          # trailing apostrophe kept
-            ("end-", ["end-"]),              # trailing hyphen kept
-            ("-dash", ["dash"]),             # leading hyphen not allowed
-            ("'tis", ["tis"]),               # leading apostrophe not allowed
+            ("James'", ["james'"]),  # trailing apostrophe kept
+            ("end-", ["end-"]),  # trailing hyphen kept
+            ("-dash", ["dash"]),  # leading hyphen not allowed
+            ("'tis", ["tis"]),  # leading apostrophe not allowed
             ("A1B2", ["a1b2"]),
             ("42", ["42"]),
-            ("snake_case", ["snake", "case"]),        # underscore splits
-            ("e.g.", ["e", "g"]),                      # dot splits
+            ("snake_case", ["snake", "case"]),  # underscore splits
+            ("e.g.", ["e", "g"]),  # dot splits
             ("email@example.com", ["email", "example", "com"]),
             ("O'Neill", ["o'neill"]),
             ("naïve café", ["na", "ve", "caf"]),  # non-ASCII chars split tokens
@@ -38,10 +38,9 @@ class TestAsciiTokens:
         assert _ascii_tokens(s) == expected
 
     def test_does_not_merge_across_whitespace_or_punct(self):
-        assert _ascii_tokens("a--b") == ["a--b"]          # hyphens allowed internally
-        assert _ascii_tokens("a - b") == ["a", "b"]       # spaces split
+        assert _ascii_tokens("a--b") == ["a--b"]  # hyphens allowed internally
+        assert _ascii_tokens("a - b") == ["a", "b"]  # spaces split
         assert _ascii_tokens("a,b;c") == ["a", "b", "c"]  # punctuation splits
-
 
 
 class TestCenter:
@@ -64,9 +63,9 @@ class TestCenter:
     @pytest.mark.parametrize(
         "s,e",
         [
-            (10 ** 12, 10 ** 12 + 2),  # very large even span
-            (-10 ** 12, -10 ** 12 + 1),  # very large odd span negative
-            (-10 ** 12, 10 ** 12),  # huge cross-zero span
+            (10**12, 10**12 + 2),  # very large even span
+            (-(10**12), -(10**12) + 1),  # very large odd span negative
+            (-(10**12), 10**12),  # huge cross-zero span
         ],
     )
     def test_large_values(self, s, e):
@@ -81,7 +80,6 @@ class TestCenter:
         s, e = 10**12, 10**12 + 2
         assert _center(s, e) == pytest.approx((s + e) / 2.0, rel=0, abs=0)
 
-
     @pytest.mark.parametrize("s,e", [(0, 10), (-4, 6), (2, 3), (-9, -7)])
     def test_midpoint_equidistant(self, s, e):
         m = _center(s, e)
@@ -90,7 +88,7 @@ class TestCenter:
 
 class TestMinDistanceToSpansUnit:
     def test_empty_spans_returns_sentinel(self):
-        assert _min_distance_to_spans(0.0, []) == 10 ** 9
+        assert _min_distance_to_spans(0.0, []) == 10**9
 
     @pytest.mark.parametrize(
         "pos,spans,expected",
@@ -119,9 +117,9 @@ class TestMinDistanceToSpansUnit:
         assert _min_distance_to_spans(-5.1, [(-6, -2)]) == 1
 
     def test_large_values(self):
-        spans = [(10 ** 12, 10 ** 12 + 2)]
+        spans = [(10**12, 10**12 + 2)]
         # center = 10**12 + 1; distance to pos center+0.9 → 0 floor
-        assert _min_distance_to_spans(10 ** 12 + 1.9, spans) == 0
+        assert _min_distance_to_spans(10**12 + 1.9, spans) == 0
 
     def test_tie_prefers_first_min_but_value_is_same(self):
         # centers at 0 and 2; pos=1 → both distance 1.0 -> floor 1
@@ -134,10 +132,10 @@ class TestMinDistanceToSpansUnit:
 
 def _ref_min_distance_to_centers(pos: float, spans: list[Span]) -> int:
     if not spans:
-        return 10 ** 9
+        return 10**9
     centers = [(_center(s, e)) for s, e in spans]
     d = min(abs(c - pos) for c in centers) if centers else math.inf
-    return 10 ** 9 if d is math.inf else int(d)
+    return 10**9 if d is math.inf else int(d)
 
 
 class TestMinDistanceToSpansIntegration:
@@ -206,21 +204,19 @@ class TestChooseWithTiebreakUnit:
         cand_scores = {"A": 0.51, "B": 0.50}
         senses = {
             "A": NS(def_spans=[(99, 101)]),  # far (center ~100)
-            "B": NS(def_spans=[(10, 12)]),   # near (center ~11)
+            "B": NS(def_spans=[(10, 12)]),  # near (center ~11)
         }
         sid, relative, gap = choose_with_tiebreak(occ, cand_scores, senses)
         assert sid == "B"
         assert gap == pytest.approx(0.01)
         assert relative == pytest.approx(0.0196078, abs=1e-7)
 
-
-
     def test_near_tie_distance_picks_first(self):
         occ = NS(start=50, end=52)  # center = 51
         cand_scores = {"A": 0.505, "B": 0.50}
         senses = {
-            "A": NS(def_spans=[(50, 52)]),     # near
-            "B": NS(def_spans=[(200, 220)]),   # far
+            "A": NS(def_spans=[(50, 52)]),  # near
+            "B": NS(def_spans=[(200, 220)]),  # far
         }
         sid, relative, gap = choose_with_tiebreak(occ, cand_scores, senses)
         assert sid == "A"
@@ -243,10 +239,10 @@ class TestChooseWithTiebreakUnit:
     def test_uses_center_of_occurrence(self):
         cand_scores = {"A": 0.51, "B": 0.50}
         senses = {
-            "A": NS(def_spans=[(0, 2)]),    # center 1
-            "B": NS(def_spans=[(8, 12)]),   # center 10
+            "A": NS(def_spans=[(0, 2)]),  # center 1
+            "B": NS(def_spans=[(8, 12)]),  # center 10
         }
-        sid1, _, _ = choose_with_tiebreak(NS(start=0, end=2), cand_scores, senses)    # center=1
+        sid1, _, _ = choose_with_tiebreak(NS(start=0, end=2), cand_scores, senses)  # center=1
         sid2, _, _ = choose_with_tiebreak(NS(start=9, end=11), cand_scores, senses)  # center=10
         assert sid1 == "A"
         assert sid2 == "B"
@@ -255,7 +251,7 @@ class TestChooseWithTiebreakUnit:
         occ = NS(start=0, end=2)
         cand_scores = {"A": 0.51, "B": 0.50}
         senses = {
-            "A": NS(def_spans=None),   # should be treated as []
+            "A": NS(def_spans=None),  # should be treated as []
             "B": NS(def_spans=[]),
         }
         sid, relative, gap = choose_with_tiebreak(occ, cand_scores, senses)
@@ -270,17 +266,17 @@ class TestChooseWithTiebreakIntegration:
         cand_probs = {"A": 0.505, "B": 0.500, "C": 0.10}
 
         senses = {
-            "A": NS(def_spans=[(0, 2)]),     # center 1
-            "B": NS(def_spans=[(18, 22)]),   # center 20
+            "A": NS(def_spans=[(0, 2)]),  # center 1
+            "B": NS(def_spans=[(18, 22)]),  # center 20
             "C": NS(def_spans=[(100, 120)]),
         }
 
         # Sweep the occurrence across the line and ensure winner flips as proximity changes
         # Near A → choose A; around mid (≈10.5), distances nearly equal → None; near B → choose B.
         trail = [
-            NS(start=0, end=2),     # center 1 (near A)
-            NS(start=6, end=16),    # center 11 (roughly mid)
-            NS(start=19, end=21),   # center 20 (near B)
+            NS(start=0, end=2),  # center 1 (near A)
+            NS(start=6, end=16),  # center 11 (roughly mid)
+            NS(start=19, end=21),  # center 20 (near B)
         ]
 
         winners = []
@@ -367,8 +363,8 @@ class TestDisambiguateOccurrencesUnit:
             text,
             occs,
             senses,
-            dist_weight=0.0,       # isolate overlap
-            overlap_weight=1.0,    # full weight on label overlap
+            dist_weight=0.0,  # isolate overlap
+            overlap_weight=1.0,  # full weight on label overlap
         )
         r = out[0]
         assert r.chosen_sense_id == "ema|european_medicines_agency"
@@ -392,7 +388,7 @@ class TestDisambiguateOccurrencesUnit:
                     sense_id="ema|medicines",
                     def_spans=[(6, 10)],  # center ~8
                     support=2,
-                    sense_confidence=0.9
+                    sense_confidence=0.9,
                 ),
                 AcronymSense(
                     acronym="EMA",
@@ -400,7 +396,7 @@ class TestDisambiguateOccurrencesUnit:
                     sense_id="ema|emergency",
                     def_spans=[(100, 110)],  # far away
                     support=2,
-                    sense_confidence=0.9
+                    sense_confidence=0.9,
                 ),
             ]
         }
@@ -409,7 +405,7 @@ class TestDisambiguateOccurrencesUnit:
             occs,
             senses,
             dist_weight=1.0,
-            overlap_weight=0.0,   # isolate distance
+            overlap_weight=0.0,  # isolate distance
         )
         r = out[0]
         assert r.chosen_sense_id == "ema|medicines"
@@ -425,19 +421,12 @@ class TestDisambiguateOccurrencesUnit:
             ]
         }
         # Pass senses_by_id=None to exercise the internal build
-        out = disambiguate_occurrences(
-            text, occs, senses, senses_by_id=None, dist_weight=1.0, overlap_weight=0.0
-        )
+        out = disambiguate_occurrences(text, occs, senses, senses_by_id=None, dist_weight=1.0, overlap_weight=0.0)
         assert len(out) == 1
         assert out[0].chosen_sense_id in {"acr|alpha_core_reader", "acr|advanced_cardiac_rehab"}
 
     def test_windowing_affects_overlap_tokens(self):
-        text = (
-            "x " * 100
-            + "United Kingdom Health Security Agency collaborates widely. "
-            + "x " * 100
-            + "UKHSA"
-        )
+        text = "x " * 100 + "United Kingdom Health Security Agency collaborates widely. " + "x " * 100 + "UKHSA"
         occ_start = len(text) - 5
         occs = [OccurrenceLite(acronym="UKHSA", start=occ_start, end=occ_start + 5)]
         senses = {
@@ -456,14 +445,10 @@ class TestDisambiguateOccurrencesUnit:
         sid = "ukhsa|united_kingdom_health_security_agency"
 
         # Tiny window → label tokens outside window → overlap≈0 → may return None
-        r_small = disambiguate_occurrences(
-            text, occs, senses, window_chars=20, dist_weight=0.0, overlap_weight=1.0
-        )[0]
+        r_small = disambiguate_occurrences(text, occs, senses, window_chars=20, dist_weight=0.0, overlap_weight=1.0)[0]
 
         # Large window → label tokens inside window → higher overlap
-        r_large = disambiguate_occurrences(
-            text, occs, senses, window_chars=400, dist_weight=0.0, overlap_weight=1.0
-        )[0]
+        r_large = disambiguate_occurrences(text, occs, senses, window_chars=400, dist_weight=0.0, overlap_weight=1.0)[0]
 
         small_score = r_small.candidate_scores.get(sid, 0.0)
         large_score = r_large.candidate_scores.get(sid, 0.0)
@@ -507,17 +492,20 @@ class TestDisambiguateOccurrencesUnit:
             senses={
                 "NLP": [
                     # Only ids matter because base_scores is patched; spans won’t help now anyway.
-                    mod.AcronymSense("NLP", "Natural language processing", "nlp|natural_language_processing", 0.9, [],
-                                     1),
+                    mod.AcronymSense(
+                        "NLP", "Natural language processing", "nlp|natural_language_processing", 0.9, [], 1
+                    ),
                     mod.AcronymSense("NLP", "Nice Lovely Plants", "nlp|nice_lovely_plants", 0.1, [], 1),
                 ]
             },
             sense_prior_weight=0.0,  # disable prior
             senses_by_id={
-                "nlp|natural_language_processing": mod.AcronymSense("NLP", "Natural language processing",
-                                                                    "nlp|natural_language_processing", 0.9, [], 1),
-                "nlp|nice_lovely_plants": mod.AcronymSense("NLP", "Nice Lovely Plants", "nlp|nice_lovely_plants", 0.1,
-                                                           [], 1),
+                "nlp|natural_language_processing": mod.AcronymSense(
+                    "NLP", "Natural language processing", "nlp|natural_language_processing", 0.9, [], 1
+                ),
+                "nlp|nice_lovely_plants": mod.AcronymSense(
+                    "NLP", "Nice Lovely Plants", "nlp|nice_lovely_plants", 0.1, [], 1
+                ),
             },
             window_chars=10,
             margin_threshold=0.10,
@@ -526,7 +514,6 @@ class TestDisambiguateOccurrencesUnit:
         assert out and out[0].chosen_sense_id is None
 
     def test_dynamic_prior_breaks_near_tie_in_favour_of_higher_confidence_sense(self, _patch):
-
         def fake_base_scores_for_occurrence(*_, **__):
             return {
                 "nlp|natural_language_processing": 0.50,
@@ -537,8 +524,9 @@ class TestDisambiguateOccurrencesUnit:
 
         # must be non-empty so disambiguate_occurrences doesn't short-circuit
         dummy_senses = [
-            NS(sense_id="nlp|natural_language_processing", definition="Natural language processing",
-               def_spans=[(0, 1)]),
+            NS(
+                sense_id="nlp|natural_language_processing", definition="Natural language processing", def_spans=[(0, 1)]
+            ),
             NS(sense_id="nlp|nice_lovely_plants", definition="Nice Lovely Plants", def_spans=[(0, 1)]),
         ]
 

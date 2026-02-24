@@ -1,4 +1,3 @@
-
 from plainera_unacronym.nlp.extraction.matchers.defs import find_parenthetical_longform_after_acr
 
 
@@ -63,7 +62,7 @@ class TestFindParentheticalLongformAfterAcrUnit:
         assert m.definition == "Foo Bar"
 
         # Indices hug the content (no inner padding)
-        assert snip[m.def_start:m.def_end] == raw.strip()
+        assert snip[m.def_start : m.def_end] == raw.strip()
 
         # Verify pipeline call args: we now feed the *tight* captured def
         assert seen["tighten_in"] == raw.strip()
@@ -104,7 +103,7 @@ class TestFindParentheticalLongformAfterAcrUnit:
             find_parenthetical_longform_after_acr,
             has_letter=lambda s: True,
             tighten_definition_span=lambda s: s,
-            normalize_definition=lambda s: s
+            normalize_definition=lambda s: s,
         )
         cfg = dummy_cfg()
         snip = "Portable Document Format"
@@ -141,10 +140,11 @@ class TestFindParentheticalLongformAfterAcrUnitInitialsPath:
         assert len(out) == 1
         m = out[0]
         assert m.definition == "Portable Document Format"
-        assert snip[m.def_start:m.def_end] == "Portable Document Format"
+        assert snip[m.def_start : m.def_end] == "Portable Document Format"
 
-    def test_alignment_fallback_when_upper_on_stop_disallowed_then_allowed(self, _patch, dummy_cfg, hit_cfg,
-                                                                           build_stream_seen):
+    def test_alignment_fallback_when_upper_on_stop_disallowed_then_allowed(
+        self, _patch, dummy_cfg, hit_cfg, build_stream_seen
+    ):
         calls = {"align": []}
 
         build_stream_fn, _ = build_stream_seen
@@ -261,7 +261,7 @@ class TestFindParentheticalLongformAfterAcrUnitKeptTokens:
         assert len(out) == 1
         m = out[0]
         assert m.definition == "3M Portable format"
-        assert snip[m.def_start:m.def_end] == "3M Portable format"
+        assert snip[m.def_start : m.def_end] == "3M Portable format"
 
 
 class TestFindParentheticalLongformAfterAcrUnitSpans:
@@ -290,22 +290,24 @@ class TestFindParentheticalLongformAfterAcrUnitSpans:
         out = find_parenthetical_longform_after_acr(snip, cfg, acr="AA", require_initials_match=True)
         assert len(out) == 1
         m = out[0]
-        assert snip[m.def_start:m.def_end] == "A A"
+        assert snip[m.def_start : m.def_end] == "A A"
         assert m.definition == "A A"
 
 
 class TestFindParentheticalLongformAfterAcrUnitMissingAcronymBehaviour:
     def test_require_initials_match_true_but_acr_none_currently_accepts_all(self, dummy_cfg):
         cfg = dummy_cfg()
-        out = find_parenthetical_longform_after_acr("(Portable Document Format)", cfg, acr=None,
-                                                    require_initials_match=True)
+        out = find_parenthetical_longform_after_acr(
+            "(Portable Document Format)", cfg, acr=None, require_initials_match=True
+        )
         assert len(out) == 1
         assert out[0].definition == "Portable Document Format"
 
     def test_require_initials_match_true_but_acr_empty_string_currently_accepts_all(self, dummy_cfg):
         cfg = dummy_cfg()
-        out = find_parenthetical_longform_after_acr("(Portable Document Format)", cfg, acr="",
-                                                    require_initials_match=True)
+        out = find_parenthetical_longform_after_acr(
+            "(Portable Document Format)", cfg, acr="", require_initials_match=True
+        )
         assert len(out) == 1
         assert out[0].definition == "Portable Document Format"
 
@@ -372,7 +374,7 @@ class TestFindLongformAfterAcrIntegration:
         assert len(out) == 1
         m = out[0]
         # Ensure the span points exactly to the definition characters within snippet
-        assert snippet[m.def_start:m.def_end] == raw_def
+        assert snippet[m.def_start : m.def_end] == raw_def
 
     def test_forward_form_pdf(self, dummy_cfg):
         cfg = dummy_cfg()
@@ -382,7 +384,7 @@ class TestFindLongformAfterAcrIntegration:
         assert len(out) == 1
         item = out[0]
         assert item.definition == "Portable Document Format"
-        assert snippet[item.def_start:item.def_end] == "Portable Document Format"
+        assert snippet[item.def_start : item.def_end] == "Portable Document Format"
 
     def test_whitespace_and_punct_cleaned(self, dummy_cfg):
         cfg = dummy_cfg()
@@ -431,11 +433,16 @@ class TestFindParentheticalLongformAfterAcrIntegrationEdgesCases:
             normalize_definition=lambda s: "",  # force failure
         )
         cfg = dummy_cfg()
-        assert find_parenthetical_longform_after_acr("(Portable Document Format)", cfg, acr="PDF",
-                                                     require_initials_match=False) == []
+        assert (
+            find_parenthetical_longform_after_acr(
+                "(Portable Document Format)", cfg, acr="PDF", require_initials_match=False
+            )
+            == []
+        )
 
-    def test_returns_empty_if_normalize_definition_fails_in_initials_path(self, _patch, dummy_cfg, hit_cfg,
-                                                                          build_stream_seen):
+    def test_returns_empty_if_normalize_definition_fails_in_initials_path(
+        self, _patch, dummy_cfg, hit_cfg, build_stream_seen
+    ):
         build_stream_fn, _ = build_stream_seen
 
         def fake_align(acr, stream, tokens, **kwargs):
@@ -454,5 +461,9 @@ class TestFindParentheticalLongformAfterAcrIntegrationEdgesCases:
         )
 
         cfg = dummy_cfg()
-        assert find_parenthetical_longform_after_acr("(Portable Document Format)", cfg, acr="PDF",
-                                                     require_initials_match=True) == []
+        assert (
+            find_parenthetical_longform_after_acr(
+                "(Portable Document Format)", cfg, acr="PDF", require_initials_match=True
+            )
+            == []
+        )

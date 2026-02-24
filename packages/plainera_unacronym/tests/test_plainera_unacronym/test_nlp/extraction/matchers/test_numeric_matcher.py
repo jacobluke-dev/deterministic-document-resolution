@@ -10,10 +10,10 @@ class TestConsumeLeftNumericDesignator:
     @pytest.mark.parametrize(
         "acr,tokens,tok_left,expected",
         [
-            ("", ["fifth", "generation"], 1, 1),          # not acr
-            ("GPU", ["fifth", "generation"], 1, 1),       # acr has no leading digits
-            ("5G", ["fifth", "generation"], 0, 0),        # tok_left <= 0
-            ("5G", [], 0, 0),                             # empty tokens; tok_left <= 0 hits first guard
+            ("", ["fifth", "generation"], 1, 1),  # not acr
+            ("GPU", ["fifth", "generation"], 1, 1),  # acr has no leading digits
+            ("5G", ["fifth", "generation"], 0, 0),  # tok_left <= 0
+            ("5G", [], 0, 0),  # empty tokens; tok_left <= 0 hits first guard
         ],
     )
     def test_guard_clauses(self, acr, tokens, tok_left, expected):
@@ -32,10 +32,10 @@ class TestConsumeLeftNumericDesignator:
     @pytest.mark.parametrize(
         "acr,tokens,tok_left,expected",
         [
-            ("5G", ["(5th)", "generation"], 1, 0),        # edge punct stripped -> "5th"
-            ("5G", ["'5th'", "generation"], 1, 0),        # edge punct stripped -> "5th"
-            ("5G", ["“5th”", "generation"], 1, 0),        # edge punct stripped -> "5th"
-            ("5G", ["5th-generation", "(5G)"], 1, 0),     # hyphen head -> "5th"
+            ("5G", ["(5th)", "generation"], 1, 0),  # edge punct stripped -> "5th"
+            ("5G", ["'5th'", "generation"], 1, 0),  # edge punct stripped -> "5th"
+            ("5G", ["“5th”", "generation"], 1, 0),  # edge punct stripped -> "5th"
+            ("5G", ["5th-generation", "(5G)"], 1, 0),  # hyphen head -> "5th"
         ],
     )
     def test_normalisation_prev_token(self, acr, tokens, tok_left, expected):
@@ -58,11 +58,9 @@ class TestConsumeLeftNumericDesignator:
             ("5G", ["5th", "generation"], 1, 0),
             ("12V", ["12th", "edition"], 1, 0),
             ("12V", ["12TH", "edition"], 1, 0),
-
             # plain numeric
             ("5G", ["5", "generation"], 1, 0),
             ("12V", ["12", "volt"], 1, 0),
-
             # multi-digit leading run (acr "12V" wants "12")
             ("12V", ["twelfth", "edition"], 1, 0),
         ],
@@ -85,7 +83,7 @@ class TestConsumeLeftNumericDesignator:
         [
             ("5G", ["fifth", "generation"], 1, 0),
             ("10G", ["tenth", "generation"], 1, 0),
-            ("5G", ["five", "generation"], 1, 0),         # cardinal mapping enabled in WORD_TO_DIGITS
+            ("5G", ["five", "generation"], 1, 0),  # cardinal mapping enabled in WORD_TO_DIGITS
         ],
     )
     def test_matches_word_mappings(self, acr, tokens, tok_left, expected):
@@ -104,7 +102,7 @@ class TestConsumeLeftNumericDesignator:
     @pytest.mark.parametrize(
         "acr,tokens,tok_left",
         [
-            ("5G", ["5th.", "Generation"], 1),            # '.' + capital => boundary => do not consume
+            ("5G", ["5th.", "Generation"], 1),  # '.' + capital => boundary => do not consume
         ],
     )
     def test_does_not_consume_when_trailing_dot_is_boundary(self, acr, tokens, tok_left):
@@ -119,7 +117,7 @@ class TestConsumeLeftNumericDesignator:
     @pytest.mark.parametrize(
         "acr,tokens,tok_left,expected",
         [
-            ("5G", ["5th.", "generation"], 1, 0),         # '.' + lowercase => not boundary => consume
+            ("5G", ["5th.", "generation"], 1, 0),  # '.' + lowercase => not boundary => consume
         ],
     )
     def test_consumes_when_trailing_dot_not_boundary(self, acr, tokens, tok_left, expected):

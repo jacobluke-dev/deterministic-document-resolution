@@ -12,10 +12,12 @@ from plainera_unacronym.nlp.detection.detector import (
 
 # ----- helpers -----
 
+
 @pytest.fixture
 def cfg_factory():
     def make(**overrides) -> DetectorConfig:
         return replace(DetectorConfig(), **overrides)
+
     return make
 
 
@@ -45,9 +47,7 @@ class TestDetectorUnit:
         d = Detector(cfg0, max_workers=1)
 
         # Case 1: adds new domain → returns REPLACED config
-        monkeypatch.setattr(det, "autodetect_domains",
-                            lambda text, cfg: frozenset({"finance", "bio"}),
-                            raising=True)
+        monkeypatch.setattr(det, "autodetect_domains", lambda text, cfg: frozenset({"finance", "bio"}), raising=True)
         out = d._with_auto_domains("some text mentioning markets")
         assert out is not d.cfg
         assert out.enabled_domains == frozenset({"bio", "finance"})
@@ -127,6 +127,7 @@ class TestDetectorUnit:
         monkeypatch.setattr(det, "iter_candidates_with", lambda *_: [("GPU", 0, 3)], raising=True)
 
         called = {"detect": 0}
+
         def fake_detect(self, text):
             called["detect"] += 1
             return SimpleNamespace(unique_acronyms={}, occurrences=[])
@@ -147,11 +148,16 @@ class TestDetectorUnit:
 
         # Fake pool that executes synchronously
         class FakeFuture:
-            def __init__(self, fn, args): self._fn, self._args = fn, args
-            def result(self): return self._fn(*self._args)
+            def __init__(self, fn, args):
+                self._fn, self._args = fn, args
+
+            def result(self):
+                return self._fn(*self._args)
 
         class FakePool:
-            def __init__(self): self.submitted = []
+            def __init__(self):
+                self.submitted = []
+
             def submit(self, fn, *args):
                 self.submitted.append((fn, args))
                 return FakeFuture(fn, args)
@@ -168,11 +174,9 @@ class TestDetectorUnit:
 
         monkeypatch.setattr(det, "_score_chunk_worker", fake_worker, raising=True)
         # normalize_key used for fallback
-        monkeypatch.setattr(det, "normalize_acronym_key",
-                            lambda acr,
-                                   allow,
-                                   dotted_mode=None: f"N[{acr}]",
-                            raising=True)
+        monkeypatch.setattr(
+            det, "normalize_acronym_key", lambda acr, allow, dotted_mode=None: f"N[{acr}]", raising=True
+        )
         monkeypatch.setattr(det, "message_logger", lambda *a, **k: None, raising=True)
         monkeypatch.setattr(det, "autodetect_domains", lambda *_: frozenset(), raising=True)
 
@@ -190,24 +194,28 @@ class TestDetectorUnit:
         monkeypatch.setattr(det, "iter_candidates_with", lambda *_: [("GPU", 0, 3)], raising=True)
 
         class FakeFuture:
-            def __init__(self, fn, args): self.fn, self.args = fn, args
+            def __init__(self, fn, args):
+                self.fn, self.args = fn, args
 
-            def result(self): return self.fn(*self.args)
+            def result(self):
+                return self.fn(*self.args)
 
         class FakePool:
-            def submit(self, fn, *args): return FakeFuture(fn, args)
+            def submit(self, fn, *args):
+                return FakeFuture(fn, args)
 
         monkeypatch.setattr(det, "ProcessPoolExecutor", lambda **kw: FakePool(), raising=True)
 
         # Worker returns an Occurrence with normalized_key=None
-        monkeypatch.setattr(det, "_score_chunk_worker",
-                            lambda *_: [Occurrence("GPU", 0, 3, 0.9, (0, 0), None, None)],  # key=None
-                            raising=True
-                            )
-        monkeypatch.setattr(det, "normalize_acronym_key",
-                            lambda acr, allow, dotted_mode=None: f"N[{acr}]",
-                            raising=True
-                            )
+        monkeypatch.setattr(
+            det,
+            "_score_chunk_worker",
+            lambda *_: [Occurrence("GPU", 0, 3, 0.9, (0, 0), None, None)],  # key=None
+            raising=True,
+        )
+        monkeypatch.setattr(
+            det, "normalize_acronym_key", lambda acr, allow, dotted_mode=None: f"N[{acr}]", raising=True
+        )
         monkeypatch.setattr(det, "message_logger", lambda *a, **k: None, raising=True)
         monkeypatch.setattr(det, "autodetect_domains", lambda *_: frozenset(), raising=True)
 
@@ -225,13 +233,16 @@ class TestDetectorUnit:
         class FakeFuture:
             def __init__(self, fn, args, should_fail=False):
                 self.fn, self.args, self.should_fail = fn, args, should_fail
+
             def result(self):
                 if self.should_fail:
                     raise RuntimeError("boom")
                 return self.fn(*self.args)
 
         class FakePool:
-            def __init__(self): self.i = 0
+            def __init__(self):
+                self.i = 0
+
             def submit(self, fn, *args):
                 self.i += 1
                 return FakeFuture(fn, args, should_fail=(self.i == 2))

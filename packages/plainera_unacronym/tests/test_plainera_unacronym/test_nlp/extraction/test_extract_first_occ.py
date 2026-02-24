@@ -17,11 +17,13 @@ def _cfg(**overrides):
         require_two_words=True,
     )
     base.update(overrides)
-    conf = NS(base_by_source={
-        "parenthetical": base["conf_parenthetical"],
-        "inline": base["conf_inline"],
-        "first_occurrence_anchored": 0.85,
-    })
+    conf = NS(
+        base_by_source={
+            "parenthetical": base["conf_parenthetical"],
+            "inline": base["conf_inline"],
+            "first_occurrence_anchored": 0.85,
+        }
+    )
     base["confidence"] = conf
     return NS(**base)
 
@@ -38,9 +40,7 @@ def _apply_for_acr(text: str, acr: str, cfg) -> list[tuple[str, float, str, str]
     return results
 
 
-
 class TestCompileAnchoredExact:
-
     def test_tuple_shape_and_flags(self):
         cfg = _cfg()
         out = compile_anchored_for_surface("PDF", cfg)
@@ -65,16 +65,21 @@ class TestCompileAnchoredExact:
         assert (pat.flags & re.IGNORECASE) == re.IGNORECASE
         assert (pat.flags & re.MULTILINE) == re.MULTILINE
         assert isinstance(base_conf, float)
-        assert kind in {"before_acr_paren", "def_after_direct", "def_before_direct", "paren_before_acr",
-                         "def_before", "def_after", "inline", "inline_before"}
+        assert kind in {
+            "before_acr_paren",
+            "def_after_direct",
+            "def_before_direct",
+            "paren_before_acr",
+            "def_before",
+            "def_after",
+            "inline",
+            "inline_before",
+        }
         assert strategy in {"direct_def", "helper_def_before", "helper_inline_after", "helper_def_after"}
 
     def test_parenthetical_fwd_and_rev_match(self):
         cfg = _cfg()
-        text = (
-            "Portable Document Format (PDF) is widely used.\n"
-            "Also PDF (Portable Document Format) appears later."
-        )
+        text = "Portable Document Format (PDF) is widely used.\n" "Also PDF (Portable Document Format) appears later."
         pats = compile_anchored_for_surface("PDF", cfg)
 
         fwd = next((p for p in pats if p.kind == "def_before"), None)
@@ -95,10 +100,7 @@ class TestCompileAnchoredExact:
 
     def test_inline_cues_match(self):
         cfg = _cfg()
-        text = (
-            "PDF, short for Portable Document Format, is common. "
-            "PDF stands for Portable Document Format."
-        )
+        text = "PDF, short for Portable Document Format, is common. " "PDF stands for Portable Document Format."
         inlines = [p for p in compile_anchored_for_surface("PDF", cfg) if p.kind == "inline"]
         assert len(inlines) == len(cfg.inline_cues)
 
@@ -334,14 +336,16 @@ class TestExtractNearFirstsUnit:
 
 def _cfg_near_firsts_integrated(**overrides):
     # Realistic default config (only fields used here matter)
-    return ExtractionConfig(**{
-        "inline_cues": (
-            r"short\s+for",
-            r"stands?\s+for",
-            r"is\s+(?:an\s+)?acronym\s+for",
-        ),
-        "max_phrase_chars": overrides.get("max_phrase_chars", 200)
-    })
+    return ExtractionConfig(
+        **{
+            "inline_cues": (
+                r"short\s+for",
+                r"stands?\s+for",
+                r"is\s+(?:an\s+)?acronym\s+for",
+            ),
+            "max_phrase_chars": overrides.get("max_phrase_chars", 200),
+        }
+    )
 
 
 class TestExtractNearFirstsIntegration:

@@ -54,9 +54,19 @@ poetry-info:
 fmt:
 	$(POETRY) run ruff format $(PKG) tests
 
-# Lint (and autofix simple issues)
-lint:
-	$(POETRY) run ruff check $(PKG) tests --fix
+# Format check (no changes)
+style:
+	$(POETRY) run ruff format --check $(PKG) tests
+	$(POETRY) run ruff check $(PKG) tests
+
+# Lint (CI-style: no changes)
+lint: style
+
+# Auto-fix (local dev): apply unsafe fixes, then reformat
+fix:
+	$(POETRY) run ruff format $(PKG) tests
+	$(POETRY) run ruff check $(PKG) tests --fix --unsafe-fixes
+	$(POETRY) run ruff format $(PKG) tests
 
 # Style check (no changes)
 style:
@@ -75,6 +85,10 @@ test:
 	  --cov-report=term \
 	  --cov-report=xml:coverage.xml \
 	  --cov-fail-under=$(COV_FAIL_UNDER)
+
+local-run:
+	make run-fix && make ci-local
+
 
 # Produce a combined HTML coverage report at repo root using the root venv,
 # even if some subprojects' tests fail.

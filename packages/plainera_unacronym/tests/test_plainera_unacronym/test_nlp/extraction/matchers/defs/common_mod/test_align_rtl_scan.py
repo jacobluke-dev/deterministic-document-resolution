@@ -1,4 +1,3 @@
-
 from plainera_unacronym.nlp.extraction.matchers.defs.common import (
     AlignmentHit,
     InitialsStream,
@@ -11,12 +10,15 @@ class TestAlignRtlScanWrapper:
     def test_returns_none_when_align_rtl_scan_returns_none(self, _patch):
         _patch(_align_rtl_scan_wrapper, align_rtl_scan=lambda *a, **k: None)
         stream = InitialsStream(letters=["A"], owners=[0], is_stop=[False])
-        assert _align_rtl_scan_wrapper(
-            ["A"],
-            stream=stream,
-            allow_upper_on_stop=False,
-            allow_lower_on_non_stop=False,
-        ) is None
+        assert (
+            _align_rtl_scan_wrapper(
+                ["A"],
+                stream=stream,
+                allow_upper_on_stop=False,
+                allow_lower_on_non_stop=False,
+            )
+            is None
+        )
 
     def test_builds_alignment_hit_from_used_positions(self, _patch):
         # pretend positions 0 and 2 were used
@@ -99,16 +101,13 @@ class TestAlignRtlScan:
     def test_lowercase_can_match_non_stop_when_allow_lower_on_non_stop_true(self):
         targets = ["m"]
         initials = ["M"]
-        assert (
-            align_rtl_scan(
-                targets,
-                initials,
-                [False],
-                allow_upper_on_stop=False,
-                allow_lower_on_non_stop=True,
-            )
-            == [0]
-        )
+        assert align_rtl_scan(
+            targets,
+            initials,
+            [False],
+            allow_upper_on_stop=False,
+            allow_lower_on_non_stop=True,
+        ) == [0]
 
     def test_greedy_scan_consumes_targets_from_right_to_left(self):
         # targets matched RTL: should match last 'A' then 'B' then 'A'

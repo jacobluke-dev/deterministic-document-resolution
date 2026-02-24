@@ -375,7 +375,18 @@ def rule_token_before_paren_suffix(
     dropped: list[DroppedOccurrence] = []
 
     for idx, a in enumerate(ordered):
-        if idx in drop_ids or not a.acronym.isupper():
+        a_clean = a.acronym.strip(PUNCT_TRIM)
+        letters = [c for c in a_clean if c.isalpha()]
+        upp = sum(c.isupper() for c in letters)
+        low = sum(c.islower() for c in letters)
+
+        # Keep the rule narrow: drop only ALLCAPS or mixed-case tokens with >=2 uppers
+        # (prevents dropping normal Title Case words like "Lamport").
+        if idx in drop_ids:
+            continue
+        if len(letters) < 2:
+            continue
+        if not (a_clean.isupper() or (upp >= 2 and low >= 1)):
             continue
 
         b = _find_paren_occurrence_after(text, a, by_start, max_ws=max_ws)

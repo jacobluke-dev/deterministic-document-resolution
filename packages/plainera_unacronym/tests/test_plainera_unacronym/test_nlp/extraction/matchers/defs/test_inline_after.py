@@ -1,4 +1,3 @@
-
 from plainera_unacronym.nlp.extraction.matchers.defs import find_inline_longform_after_acr
 
 
@@ -14,7 +13,7 @@ class TestFindInlineLongformAfterAcrIntegrationFastPath:
         assert len(out) == 1
         m = out[0]
         assert m.definition == "alpha beta gamma delta epsilon zeta"
-        assert snippet[m.def_start:m.def_end] == "alpha beta gamma delta epsilon zeta"
+        assert snippet[m.def_start : m.def_end] == "alpha beta gamma delta epsilon zeta"
         assert m.raw == "alpha beta gamma delta epsilon zeta"
 
     def test_fast_path_stops_on_clause_boundary_token(self, dummy_cfg):
@@ -23,7 +22,7 @@ class TestFindInlineLongformAfterAcrIntegrationFastPath:
         out = find_inline_longform_after_acr(snippet, cfg, acr="X", require_initials_match=False)
         assert len(out) == 1
         m = out[0]
-        assert snippet[m.def_start:m.def_end] == "alpha beta."
+        assert snippet[m.def_start : m.def_end] == "alpha beta."
         assert m.raw == "alpha beta."
         assert m.definition == "alpha beta"
 
@@ -40,7 +39,6 @@ class TestFindInlineLongformAfterAcrIntegrationFastPath:
 
 
 class TestFindInlineLongformAfterAcrUnitGatesAndCue:
-
     def test_global_tail_gate_blocks(self, _patch, dummy_cfg):
         cfg = dummy_cfg(max_phrase_chars=10)
 
@@ -83,8 +81,10 @@ class TestFindInlineLongformAfterAcrUnitGatesAndCue:
             strip_inline_cue_prefix=lambda s, cfg: None,  # no cue => not our pattern
         )
 
-        assert find_inline_longform_after_acr(" - Portable Document Format", cfg, acr="PDF",
-                                              require_initials_match=True) == []
+        assert (
+            find_inline_longform_after_acr(" - Portable Document Format", cfg, acr="PDF", require_initials_match=True)
+            == []
+        )
 
 
 class TestFindInlineLongformAfterAcrUnitAlignmentAndFallback:
@@ -259,8 +259,10 @@ class TestFindInlineLongformAfterAcrUnitAlignmentAndFallback:
             first_alnum_char_upper=lambda tok: tok[0].upper() if tok else None,
         )
 
-        assert find_inline_longform_after_acr("RAWTOOLONG token2 token3", cfg, acr="RTT",
-                                              require_initials_match=True) == []
+        assert (
+            find_inline_longform_after_acr("RAWTOOLONG token2 token3", cfg, acr="RTT", require_initials_match=True)
+            == []
+        )
 
     def test_disp_gate_blocks_when_too_long(self, _patch, dummy_cfg, hit_cfg):
         cfg = dummy_cfg(max_phrase_chars=10)
@@ -295,12 +297,13 @@ class TestFindInlineLongformAfterAcrUnitAlignmentAndFallback:
             first_alnum_char_upper=lambda tok: tok[0].upper() if tok else None,
         )
 
-        assert find_inline_longform_after_acr("Portable Document Format", cfg, acr="PDF",
-                                              require_initials_match=True) == []
+        assert (
+            find_inline_longform_after_acr("Portable Document Format", cfg, acr="PDF", require_initials_match=True)
+            == []
+        )
 
 
 class TestFindInlineLongformAfterAcrUnitSearchCapAndOffsets:
-
     def test_respects_max_chars_search_cap(self, _patch, dummy_cfg, hit_cfg):
         cfg = dummy_cfg(max_phrase_chars=50)
 
@@ -379,7 +382,7 @@ class TestFindInlineLongformAfterAcrUnitSearchCapAndOffsets:
         out = find_inline_longform_after_acr(snippet, cfg, acr="PDF", require_initials_match=True)
         assert len(out) == 1
         m = out[0]
-        assert snippet[m.def_start:m.def_end] == "Portable Document Format"
+        assert snippet[m.def_start : m.def_end] == "Portable Document Format"
 
 
 class TestFindInlineLongformAfterAcrUnitWindowingAndFailureModes:
@@ -422,7 +425,7 @@ class TestFindInlineLongformAfterAcrUnitWindowingAndFailureModes:
         assert len(out) == 1
         m = out[0]
         # Span should include from start of Alpha to end of Gamma (because kept_idx[-1] == 2)
-        assert snippet[m.def_start:m.def_end] == "Alpha Beta Gamma"
+        assert snippet[m.def_start : m.def_end] == "Alpha Beta Gamma"
         assert m.definition == "Alpha Gamma"
 
     def test_returns_empty_when_no_tokens_after_cue(self, _patch, dummy_cfg):
@@ -473,8 +476,10 @@ class TestFindInlineLongformAfterAcrUnitWindowingAndFailureModes:
 
         # kept_idx[0] would crash; this test asserts your function should return []
         # If it currently crashes, that’s a bug worth fixing (guard kept_idx).
-        assert find_inline_longform_after_acr("Portable Document Format", cfg, acr="PDF",
-                                              require_initials_match=True) == []
+        assert (
+            find_inline_longform_after_acr("Portable Document Format", cfg, acr="PDF", require_initials_match=True)
+            == []
+        )
 
     def test_returns_empty_when_phrase_from_indices_empty(self, _patch, dummy_cfg, hit_cfg):
         cfg = dummy_cfg(max_phrase_chars=200)
@@ -506,8 +511,10 @@ class TestFindInlineLongformAfterAcrUnitWindowingAndFailureModes:
             first_alnum_char_upper=lambda tok: tok[0].upper() if tok else None,
         )
 
-        assert find_inline_longform_after_acr("Portable Document Format", cfg, acr="PDF",
-                                              require_initials_match=True) == []
+        assert (
+            find_inline_longform_after_acr("Portable Document Format", cfg, acr="PDF", require_initials_match=True)
+            == []
+        )
 
     def test_returns_empty_when_tighten_or_normalize_returns_falsy(self, _patch, dummy_cfg, hit_cfg):
         cfg = dummy_cfg(max_phrase_chars=200)
@@ -539,8 +546,10 @@ class TestFindInlineLongformAfterAcrUnitWindowingAndFailureModes:
             first_alnum_char_upper=lambda tok: tok[0].upper() if tok else None,
         )
 
-        assert find_inline_longform_after_acr("Portable Document Format", cfg, acr="PDF",
-                                              require_initials_match=True) == []
+        assert (
+            find_inline_longform_after_acr("Portable Document Format", cfg, acr="PDF", require_initials_match=True)
+            == []
+        )
 
 
 class TestFindInlineLongformAfterAcrUnitConfigKeys:

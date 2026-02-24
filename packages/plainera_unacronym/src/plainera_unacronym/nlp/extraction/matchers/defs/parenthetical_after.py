@@ -8,6 +8,7 @@ from plainera_unacronym.nlp.extraction.core.normalise import normalize_definitio
 from plainera_unacronym.nlp.extraction.matchers.common import is_mixed_case_acronym
 from plainera_unacronym.nlp.extraction.matchers.defs.common import (
     LocalDefMatch,
+    _acr_signature_for_initials,
     align_acronym_to_initials,
     build_initials_stream,
     expand_numeric_leading_window,
@@ -100,19 +101,26 @@ def find_parenthetical_longform_after_acr(  # noqa: C901
 
     # ---- choose window (i, j) and hit_tokens ----
     if acr and require_initials_match:
+        mc = bool(acr) and is_mixed_case_acronym(acr)
         needs_compound_split = any(("-" in t) or ("/" in t) or ("&" in t) or ("." in t) for t in tokens)
 
         stream = build_initials_stream(
             tokens,
             stopwords=stop,
             scan="ltr",
-            expand_allcaps_tokens=is_mixed_case_acronym(acr),
-            split_compounds=needs_compound_split,
-            treat_acronym_tokens_as_multi_letter=needs_compound_split,
+            expand_allcaps_tokens=mc,
+            # when acronym is mixed-case, allow camel-ish tokens like "TeX" to contribute multiple letters
+            split_compounds=needs_compound_split or mc,
+            treat_acronym_tokens_as_multi_letter=needs_compound_split or mc,
         )
 
+        # Use a signature for alignment for any mixed-case acronym (LaTeX, TfL, eBay, iOS, mRNA…)
+        acr_for_align = acr
+        if acr and any(c.islower() for c in acr) and any(c.isupper() for c in acr):
+            acr_for_align = _acr_signature_for_initials(acr)  # your segment-aware signature
+
         hit = align_acronym_to_initials(
-            acr,
+            acr_for_align,
             stream,
             tokens=tokens,
             stopwords=stop,
@@ -123,7 +131,7 @@ def find_parenthetical_longform_after_acr(  # noqa: C901
         )
         if hit is None:
             hit = align_acronym_to_initials(
-                acr,
+                acr_for_align,
                 stream,
                 tokens=tokens,
                 stopwords=stop,

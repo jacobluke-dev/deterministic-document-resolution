@@ -1,4 +1,3 @@
-
 from plainera_unacronym.nlp.extraction.matchers.defs.common import _numeric_leading
 
 
@@ -24,7 +23,6 @@ class TestNumericLeadingUnit:
         # but keeping this here as a guard for “non-alpha” behaviour:
         _patch(_numeric_leading, first_alnum_char_upper=lambda _t: "7")
         assert _numeric_leading("__7zip", include_numeric_leading=True) is True
-
 
 
 class TestNumericLeadingIntegration:

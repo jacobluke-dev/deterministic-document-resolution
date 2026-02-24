@@ -1,11 +1,16 @@
+from __future__ import annotations
+
 import re
 from collections.abc import Iterable
 from dataclasses import dataclass, field
 from functools import cached_property
 from types import MappingProxyType
-from typing import Any, FrozenSet, Literal, Mapping, Optional, TypeAlias, cast
+from typing import TYPE_CHECKING, Any, Literal, Mapping, TypeAlias, cast
 
 from plainera_unacronym.nlp.common.constants_regex import ALLOW_CHARS, DottedMode
+
+if TYPE_CHECKING:
+    from plainera_unacronym.nlp.extraction.tiers.types import Tier2OccurrenceRanking, Tier2Report
 
 SCHEMA_VERSION = "1.1.0"
 
@@ -142,7 +147,7 @@ class OccurrenceResolution:
     acronym: str
     start: int
     end: int
-    chosen_sense_id: Optional[str]
+    chosen_sense_id: str | None
     candidate_scores: dict[str, float]
     gap: float
     margin: float
@@ -182,7 +187,7 @@ class DetectorConfig:
     enable_mixed_case: bool = True
     dotted_display: DottedMode = "strip"  # "strip" | "preserve"
     require_caps_ratio_mixed: float = 0.5
-    enabled_domains: FrozenSet[str] = frozenset()
+    enabled_domains: frozenset[str] = frozenset()
     domain_cfg: Mapping[str, Any] = field(default_factory=dict)
     debug_anomalies: bool = False  # set to true if we want to run  message logger in dev / live envs
 
@@ -285,7 +290,7 @@ class ExtractionResult:
     """
 
     # map normalized_key -> pick (nearest in-text definition) or None if not found
-    picks: dict[str, Optional[InTextPick]]
+    picks: dict[str, InTextPick | None]
     # all definition locations considered (anchored-window matches if no global run,
     # or full global matches if we did the fallback)
     definitions: list[ExtractedDefinition]
@@ -295,10 +300,12 @@ class ExtractionResult:
     missing_keys: tuple[str, ...]
 
     senses_by_acronym: dict[str, list[AcronymSense]] = field(default_factory=dict)
-    sense_index: dict[str, AcronymSense] = field(default_factory=dict)  # sense_id -> sense
+    sense_index: Mapping[str, AcronymSense] = field(default_factory=dict)  # sense_id -> sense
     resolutions: list[OccurrenceResolution] = field(default_factory=list)
     ambiguous_keys: tuple[str, ...] = field(default_factory=tuple)  # acronyms with >1 senses
     undecided: list[OccurrenceResolution] = field(default_factory=list)  # chosen_sense_id is None
+    tier2_report: Tier2Report | None = None
+    tier2_ranked: tuple[Tier2OccurrenceRanking, ...] = ()
 
 
 class OccurrenceBuildError(Exception):

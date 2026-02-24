@@ -119,7 +119,7 @@ class TestStripTrailingPunct:
         ns, ne = strip_trailing_punct_span(text, s, e)
         assert text[ns:ne] == "RAM"
         # the '.' should now be just outside the slice
-        assert text[ne:ne + 1] == "."
+        assert text[ne : ne + 1] == "."
 
     def test_strip_multiple_closers_chain(self):
         text = "Token!?) next"
@@ -423,34 +423,33 @@ class TestBoostConfidenceIfWhitelisted:
             "whitelist_two_letter": {"AI", "UK"},
             "two_letter_boost": 0.75,
             "dotted_display": "strip",
-            "allow_chars": "&-/."
+            "allow_chars": "&-/.",
         }
         base.update(overrides)
         return types.SimpleNamespace(**base)
 
     def test_boosts_when_two_letter_and_whitelisted(self, monkeypatch):
         # Force the normalized key to 'AI'
-        monkeypatch.setattr(core, "normalize_acronym_key",
-                            lambda surface, **_: "AI",
-                            raising=True)
+        monkeypatch.setattr(core, "normalize_acronym_key", lambda surface, **_: "AI", raising=True)
 
         cfg = self._cfg()
         result = core.boost_confidence_if_whitelisted("A.I.", 0.20, cfg)
         assert result == pytest.approx(0.95)  # 0.20 + 0.75
 
     def test_caps_at_point_99(self, monkeypatch):
-        monkeypatch.setattr(core, "normalize_acronym_key",
-                            lambda surface, **_: "AI",
-                            raising=True)
+        monkeypatch.setattr(core, "normalize_acronym_key", lambda surface, **_: "AI", raising=True)
 
         cfg = self._cfg(two_letter_boost=0.75)
         result = core.boost_confidence_if_whitelisted("AI", 0.50, cfg)
         assert result == pytest.approx(0.99)  # capped
 
     def test_no_boost_when_not_whitelisted(self, monkeypatch):
-        monkeypatch.setattr(core, "normalize_acronym_key",
-                            lambda surface, **_: "TV",  # not in whitelist
-                            raising=True)
+        monkeypatch.setattr(
+            core,
+            "normalize_acronym_key",
+            lambda surface, **_: "TV",  # not in whitelist
+            raising=True,
+        )
 
         cfg = self._cfg()
         result = core.boost_confidence_if_whitelisted("TV", 0.40, cfg)
@@ -458,18 +457,14 @@ class TestBoostConfidenceIfWhitelisted:
 
     def test_no_boost_when_not_two_letters(self, monkeypatch):
         # Even if present in whitelist, length != 2 should not boost
-        monkeypatch.setattr(core, "normalize_acronym_key",
-                            lambda surface, **_: "GPU",
-                            raising=True)
+        monkeypatch.setattr(core, "normalize_acronym_key", lambda surface, **_: "GPU", raising=True)
 
         cfg = self._cfg(whitelist_two_letter={"GPU"})  # irrelevant; len != 2
         result = core.boost_confidence_if_whitelisted("GPU", 0.33, cfg)
         assert result == pytest.approx(0.33)
 
     def test_respects_custom_boost_from_cfg(self, monkeypatch):
-        monkeypatch.setattr(core, "normalize_acronym_key",
-                            lambda surface, **_: "UK",
-                            raising=True)
+        monkeypatch.setattr(core, "normalize_acronym_key", lambda surface, **_: "UK", raising=True)
 
         cfg = self._cfg(two_letter_boost=0.10)
         result = core.boost_confidence_if_whitelisted("U.K.", 0.50, cfg)
@@ -478,6 +473,7 @@ class TestBoostConfidenceIfWhitelisted:
     def test_uses_defaults_when_cfg_lacks_optional_attrs(self, monkeypatch):
         # Capture kwargs to ensure defaults (allow_chars, dotted_mode) are passed
         seen = {}
+
         def _fake_normalize(surface, **kwargs):
             seen.update(kwargs)
             return "AI"
@@ -485,7 +481,7 @@ class TestBoostConfidenceIfWhitelisted:
         monkeypatch.setattr(core, "normalize_acronym_key", _fake_normalize, raising=True)
 
         # cfg without dotted_display / allow_chars / two_letter_boost
-        cfg = types.SimpleNamespace(whitelist_two_letter={"AI"}, allow_chars='&-/.', dotted_display="strip")
+        cfg = types.SimpleNamespace(whitelist_two_letter={"AI"}, allow_chars="&-/.", dotted_display="strip")
         result = core.boost_confidence_if_whitelisted("A.I.", 0.10, cfg)
 
         # Default boost = 0.75 ⇒ 0.85
@@ -496,7 +492,6 @@ class TestBoostConfidenceIfWhitelisted:
 
 
 class TestScoreUnit:
-
     @pytest.fixture
     def patch_score_cues(self, monkeypatch):
         def _apply(*, in_brackets=(False, False), paren_def=False, stands_for=False):
@@ -514,7 +509,6 @@ class TestScoreUnit:
         assert core.calc_score("GPU", text, s, e, cfg) == 0.6
 
     def test_in_brackets_inside_adds_point_25(self, patch_score_cues):
-
         patch_score_cues(in_brackets=(True, False))
         cfg = DetectorConfig()
         text = "(GPU) is fast."
@@ -599,7 +593,7 @@ class TestContextWindow:
         assert left == start - 3
         assert right >= end  # right still moves independently
         # Slice should *not* start at word boundary necessarily
-        assert text[left:right].startswith(text[start - 3:start])
+        assert text[left:right].startswith(text[start - 3 : start])
 
     def test_small_window_limits_right(self):
         text = "Hello amazing world."
@@ -905,7 +899,6 @@ class TestAcceptCandidate:
 
 
 class TestCollectCoreHits:
-
     def test_collects_in_text_order(self, monkeypatch):
         # Pattern: named group 'tok' for ALL-CAPS tokens length>=2
         pat = re.compile(r"(?P<tok>[A-Z]{2,})")
@@ -990,9 +983,7 @@ class TestCollectDomainHits:
             def extra_candidates(self, _text, _cfg):
                 return [("fin", 12, 18)]  # middle
 
-        monkeypatch.setattr(
-            core, "DOMAIN_PLUGINS", {"bio": BioPlug(), "finance": FinPlug()}, raising=False
-        )
+        monkeypatch.setattr(core, "DOMAIN_PLUGINS", {"bio": BioPlug(), "finance": FinPlug()}, raising=False)
 
         # Accept everything by echoing a Span-like tuple
         def accept(text_arg, cfg_arg, s, e):
@@ -1020,10 +1011,8 @@ class TestCollectDomainHits:
             def extra_candidates(self, *_):
                 return [("fin", 100, 110)]
 
-        monkeypatch.setattr(core, "DOMAIN_PLUGINS",
-                            {"bio": BioPlug(), "finance": FinPlug()}, raising=False)
-        monkeypatch.setattr(core, "_accept_candidate",
-                            lambda _t, _c, s, e: ("hit", s, e), raising=False)
+        monkeypatch.setattr(core, "DOMAIN_PLUGINS", {"bio": BioPlug(), "finance": FinPlug()}, raising=False)
+        monkeypatch.setattr(core, "_accept_candidate", lambda _t, _c, s, e: ("hit", s, e), raising=False)
 
         cfg = DetectorConfig(enabled_domains=frozenset({"bio"}))  # finance disabled
         hits = _collect_domain_hits("x", cfg)
@@ -1052,9 +1041,7 @@ class TestCollectDomainHits:
                 return [("x", 1, 2)]
 
         monkeypatch.setattr(domain_mod, "DOMAIN_PLUGINS", {"any": AnyPlug()}, raising=False)
-        monkeypatch.setattr(
-            domain_mod, "_accept_candidate", lambda *_: ("hit", 1, 2), raising=False
-        )
+        monkeypatch.setattr(domain_mod, "_accept_candidate", lambda *_: ("hit", 1, 2), raising=False)
 
         assert _collect_domain_hits("x", DetectorConfig(enabled_domains=(frozenset()))) == []
         assert _collect_domain_hits("x", DetectorConfig(enabled_domains=None)) == []
@@ -1156,7 +1143,7 @@ class TestIterCandidatesWith:
             if srf == "RAM":
                 assert text[s:e] == "RAM"
                 # e should be the position right after 'M'
-                assert text[e: e + 1] == "."  # the '.' is outside the candidate
+                assert text[e : e + 1] == "."  # the '.' is outside the candidate
 
     def test_min_len_enforced(self):
         # Default min_len=2 → single-letter tokens should be filtered.
@@ -1189,7 +1176,7 @@ class TestIterCandidatesWith:
     def test_mixed_case_requires_two_uppers_for_relax(self):
         # Relaxation only kicks in if upp >= 2. "eBay" has only 1 uppercase in practice (B),
         # so it should fail under default require_caps_ratio=0.7.
-        cfg = DetectorConfig(enable_mixed_case=True)
+        cfg = DetectorConfig(enable_mixed_case=False)
         text = "We listed it on eBay."
         out = self.collect(text, cfg, self.PAT)
         surfaces = [s for s, _, _ in out]

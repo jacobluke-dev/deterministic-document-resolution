@@ -1,4 +1,3 @@
-
 from plainera_unacronym.nlp.common.constants_regex import DEFAULT_STOPWORDS
 from plainera_unacronym.nlp.extraction.matchers.defs.common import (
     AlignmentHit,
@@ -75,8 +74,7 @@ class TestAlignAcronymToInitials:
         _patch(
             align_acronym_to_initials,
             has_numeric_evidence=lambda tokens: False,
-            acr_alignment_targets=lambda acr,
-            has_numeric_evidence: ["P", "D", "F"],
+            acr_alignment_targets=lambda acr, has_numeric_evidence: ["P", "D", "F"],
             _align_rtl_scan_wrapper=fake_align_rtl,
         )
 
@@ -309,6 +307,7 @@ class TestAlignAcronymToInitialsIntegration:
         assert hit_exc is not None
         assert hit_exc.hit_tokens == {0, 1, 2, 3}
         assert (hit_exc.tok_left, hit_exc.tok_right) == (0, 3)
+
 
 class TestAlignAcronymToInitialsPreflightAndPlumbing:
     def test_numeric_evidence_is_passed_into_acr_alignment_targets(self, _patch, hit_cfg):
