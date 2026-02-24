@@ -13,12 +13,9 @@ from plainera_unacronym.nlp.extraction.senses.disambiguate import choose_with_ti
 
 
 def S(acr: str, sid: str, definition: str, spans: list[Span]):
-    return AcronymSense(acronym=acr,
-                        definition=definition,
-                        sense_id=sid,
-                        def_spans=spans,
-                        support=1,
-                        sense_confidence=1)
+    return AcronymSense(
+        acronym=acr, definition=definition, sense_id=sid, def_spans=spans, support=1, sense_confidence=1
+    )
 
 
 def _get_attr_any(obj, names: list[str]):
@@ -43,6 +40,7 @@ def _margin(res) -> float:
 # -------------------------------------------------------------------
 # choose_with_tiebreak integration tests
 # -------------------------------------------------------------------
+
 
 class TestChooseWithTiebreak:
     def test_returns_none_when_no_candidates(self):
@@ -74,11 +72,9 @@ class TestChooseWithTiebreak:
         }
         cand = {"s1": 0.50, "s2": 0.43}  # diff=0.07 > 0.06 => no distance tiebreak
 
-        chosen, rel_margin, abs_margin = choose_with_tiebreak(occ,
-                                                              cand,
-                                                              senses_by_id,
-                                                              margin_threshold=0.20,
-                                                              near_tie_margin=0.06)
+        chosen, rel_margin, abs_margin = choose_with_tiebreak(
+            occ, cand, senses_by_id, margin_threshold=0.20, near_tie_margin=0.06
+        )
         assert chosen is None
         assert abs_margin == pytest.approx(0.50 - 0.43, rel=0, abs=1e-9)
         assert rel_margin == pytest.approx(0.14)
@@ -87,7 +83,7 @@ class TestChooseWithTiebreak:
         occ = OccurrenceLite("NLP", 100, 103)
         senses_by_id = {
             "near": S("NLP", "near", "Near Sense", [(100, 102)]),
-            "far":  S("NLP", "far", "Far Sense",  [(50, 52)]),
+            "far": S("NLP", "far", "Far Sense", [(50, 52)]),
         }
         cand = {"near": 0.50, "far": 0.47}  # diff=0.03 => engage distance tiebreak
 
@@ -110,6 +106,7 @@ class TestChooseWithTiebreak:
 # disambiguate_occurrences integration tests
 # -------------------------------------------------------------------
 
+
 class TestDisambiguateOccurrences:
     def test_unknown_acronym_returns_ambiguous_resolution(self):
         text = "Nothing to see here."
@@ -127,7 +124,7 @@ class TestDisambiguateOccurrences:
         occs = [OccurrenceLite("PDF", 40, 43)]
 
         s_near = S("PDF", "near", "Portable Document Format", [(40, 43)])
-        s_far  = S("PDF", "far",  "Personal Data File",      [(0, 3)])
+        s_far = S("PDF", "far", "Personal Data File", [(0, 3)])
         senses = {"PDF": [s_near, s_far]}
 
         out = disambiguate_occurrences(text, occs, senses, margin_threshold=0.10)
@@ -140,7 +137,7 @@ class TestDisambiguateOccurrences:
         occs = [OccurrenceLite("NLP", text.index("NLP"), text.index("NLP") + 3)]
 
         s_good = S("NLP", "s1", "natural language processing", [])
-        s_bad  = S("NLP", "s2", "nice lovely plants", [])
+        s_bad = S("NLP", "s2", "nice lovely plants", [])
         senses = {"NLP": [s_good, s_bad]}
 
         out = disambiguate_occurrences(text, occs, senses, window_chars=50, margin_threshold=0.10)
@@ -152,7 +149,7 @@ class TestDisambiguateOccurrences:
         occ_pos = text.index("NLP")
         occs = [OccurrenceLite("NLP", occ_pos, occ_pos + 3)]
 
-        s1 = S("NLP", "a", "alpha beta",  [(occ_pos - 2, occ_pos + 2)])
+        s1 = S("NLP", "a", "alpha beta", [(occ_pos - 2, occ_pos + 2)])
         s2 = S("NLP", "b", "gamma delta", [(occ_pos - 3, occ_pos + 1)])
         senses = {"NLP": [s1, s2]}
 
@@ -160,7 +157,6 @@ class TestDisambiguateOccurrences:
         assert len(out) == 1
         assert _chosen_id(out[0]) is None
         assert set(_scores(out[0]).keys()) == {"a", "b"}
-
 
     def test_multiple_occurrences_switch_between_senses_and_can_be_ambiguous(self):
         s1 = "The European Medicines Agency (EMA) set guidance. "
@@ -203,8 +199,7 @@ class TestDisambiguateOccurrences:
             ]
         }
 
-        out = disambiguate_occurrences(text, occs, senses, dist_weight=1.0, overlap_weight=0.0,
-                                       margin_threshold=0.10)
+        out = disambiguate_occurrences(text, occs, senses, dist_weight=1.0, overlap_weight=0.0, margin_threshold=0.10)
 
         assert len(out) == 3
         assert out[0].chosen_sense_id == "ema|medicines"
@@ -223,20 +218,22 @@ class TestDisambiguateOccurrences:
         occs = [OccurrenceLite("ABC", i1, i1 + 3), OccurrenceLite("ABC", i2, i2 + 3), OccurrenceLite("ABC", i3, i3 + 3)]
         senses_A_first = {
             "ABC": [
-                AcronymSense("ABC",
-                             "Alpha Beta Council",
-                             "abc|alpha_beta_council",
-                             1,
-                             [(text.index("Org A"),
-                               text.index("Org A") + 5)],
-                             1),
-                AcronymSense("ABC",
-                             "Applied Business Consortium",
-                             "abc|applied_business_consortium",
-                             2,
-                             [(text.index("Org B"),
-                               text.index("Org B") + 5)],
-                             1),
+                AcronymSense(
+                    "ABC",
+                    "Alpha Beta Council",
+                    "abc|alpha_beta_council",
+                    1,
+                    [(text.index("Org A"), text.index("Org A") + 5)],
+                    1,
+                ),
+                AcronymSense(
+                    "ABC",
+                    "Applied Business Consortium",
+                    "abc|applied_business_consortium",
+                    2,
+                    [(text.index("Org B"), text.index("Org B") + 5)],
+                    1,
+                ),
             ]
         }
         senses_B_first = {"ABC": list(reversed(senses_A_first["ABC"]))}
@@ -260,16 +257,14 @@ class TestDisambiguateOccurrences:
             ]
         }
 
-        out = disambiguate_occurrences(
-            text, occs, senses, dist_weight=1.0, overlap_weight=0.0, margin_threshold=0.10
-        )
+        out = disambiguate_occurrences(text, occs, senses, dist_weight=1.0, overlap_weight=0.0, margin_threshold=0.10)
         # Near tie on probs, distance decides; alpha is nearer (50 vs 53)
         assert out[0].chosen_sense_id == "acr|alpha"
 
         # And now the margin should indeed be small (< 0.10)
         assert 0.0 <= out[0].margin < 0.10
 
-    #TODO coming later span normalisation isn't currently supported
+    # TODO coming later span normalisation isn't currently supported
     # def test_handles_reversed_span_endpoints(self):
     #     text = "Zeta Corp (ZC) operates globally. Later, ZC is referenced again."
     #     occs = [

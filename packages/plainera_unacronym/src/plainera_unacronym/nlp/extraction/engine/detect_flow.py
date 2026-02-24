@@ -1,5 +1,6 @@
+from __future__ import annotations
+
 from collections import Counter
-from typing import Optional
 
 from plainera_unacronym.nlp.common.types import DetectorConfig, DetectorResult, ExtractionResult
 from plainera_unacronym.nlp.extraction.config import ExtractionConfig
@@ -65,7 +66,7 @@ class ExtractionFlow:
             trace (bool): If True, capture structured trace events for selected stage fields.
             trace_filter (str | None): Optional regex filter applied to acronym keys when tracing.
         """
-        self.trace_events: Optional[list[TraceEvent]] = None
+        self.trace_events: list[TraceEvent] | None = None
         self.det_cfg = det_cfg or DetectorConfig()
         self.ext_cfg = ext_cfg or ExtractionConfig()
         self.window_left = window_left
@@ -90,18 +91,33 @@ class ExtractionFlow:
 
         # compute disambig knobs once here (engine concern)
         def _win(s: FlowState) -> int:
-            return (
-                self._ovr_win
-                if self._ovr_win is not None
-                else getattr(getattr(s.ext_cfg, "disambig", s.det_cfg), "window_chars", 320)
-            )
+            if self._ovr_win is not None:
+                return self._ovr_win
+            dis = getattr(s.ext_cfg, "disambig", None)
+            return int(getattr(dis, "window_chars", 320))
+
+        def _t2_win(s: FlowState) -> int:
+            t2 = getattr(s.ext_cfg, "tier2", None)
+            v = getattr(t2, "context_window_chars", None)
+            return int(v) if v is not None else _win(s)
 
         def _margin(s: FlowState) -> float:
-            return (
-                self._ovr_margin
-                if self._ovr_margin is not None
-                else getattr(getattr(s.ext_cfg, "disambig", None), "margin_threshold", 0.20)
-            )
+            if self._ovr_margin is not None:
+                return self._ovr_margin
+            dis = getattr(s.ext_cfg, "disambig", None)
+            return float(getattr(dis, "margin_threshold", 0.20))
+
+        def _t1_margin(s: FlowState) -> float:
+            dis = getattr(s.ext_cfg, "disambig", None)
+            return float(getattr(dis, "margin_threshold", 0.20))
+
+        def _t2_ceiling(s: FlowState) -> float:
+            t2 = getattr(s.ext_cfg, "tier2", None)
+            return float(getattr(t2, "auto_margin_ceiling", 0.75))
+
+        def _t2_select_margin(s: FlowState) -> float:
+            t2 = getattr(s.ext_cfg, "tier2", None)
+            return float(getattr(t2, "select_margin_threshold", _margin(s)))
 
         return Chain(
             [
@@ -148,10 +164,27 @@ class ExtractionFlow:
                     trace_fields=("picks",),
                 ),
                 Stage(
-                    "senses_disambiguate",
-                    lambda s: f.st_senses_and_assemble(
-                        s, disambig_window_chars=_win(s), disambig_margin_threshold=_margin(s)
+                    "tier1_build_senses",
+                    f.st_tier1_build_senses,
+                    lambda s: s.last_info,
+                ),
+                Stage(
+                    "tier1_score_occurrences",
+                    lambda s: f.st_tier1_score_occurrences(s, window_chars=_win(s), margin_threshold=_t1_margin(s)),
+                    lambda s: s.last_info,
+                    trace_fields=("disambig.tier1.ranked",),
+                ),
+                Stage(
+                    "tier2_semantic_rerank",
+                    lambda s: f.st_tier2_semantic_rerank(
+                        s, window_chars=_t2_win(s), auto_margin_ceiling=_t2_ceiling(s)
                     ),
+                    lambda s: s.last_info,
+                    trace_fields=("disambig.tier2.report", "disambig.tier2.ranked"),
+                ),
+                Stage(
+                    "tiers_select_and_assemble",
+                    lambda s: f.st_tiers_select_and_assemble(s, margin_threshold=_t2_select_margin(s)),
                     lambda s: "ready",
                 ),
             ]

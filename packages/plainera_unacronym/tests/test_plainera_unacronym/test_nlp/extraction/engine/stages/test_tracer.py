@@ -111,10 +111,28 @@ class TestTracerUnit:
 
     def test_filter_regex_applies_to_item_acronym_for_defs(self):
         defs = [
-            SimpleNamespace(acronym="EMA", definition="x", original_definition="x", acr_start=0, acr_end=1, def_start=0,
-                            def_end=1, confidence=0.9, source="all_occ_scan_parenthetical"),
-            SimpleNamespace(acronym="NLP", definition="y", original_definition="y", acr_start=0, acr_end=1, def_start=0,
-                            def_end=1, confidence=0.9, source="all_occ_scan_parenthetical"),
+            SimpleNamespace(
+                acronym="EMA",
+                definition="x",
+                original_definition="x",
+                acr_start=0,
+                acr_end=1,
+                def_start=0,
+                def_end=1,
+                confidence=0.9,
+                source="all_occ_scan_parenthetical",
+            ),
+            SimpleNamespace(
+                acronym="NLP",
+                definition="y",
+                original_definition="y",
+                acr_start=0,
+                acr_end=1,
+                def_start=0,
+                def_end=1,
+                confidence=0.9,
+                source="all_occ_scan_parenthetical",
+            ),
         ]
         t = Tracer(filter_regex=r"^EMA$")
         out = t._snap_value(defs)
@@ -142,8 +160,18 @@ class TestTracerUnit:
     def test_snapshot_normalises_values_via_snap_value(self):
         picks = {"ema": SimpleNamespace(definition="European Medicines Agency")}
         defs = [
-            SimpleNamespace(acronym="EMA", definition="x", original_definition="x", acr_start=0, acr_end=1, def_start=0,
-                            def_end=1, confidence=0.9, source="all_occ_scan_parenthetical")]
+            SimpleNamespace(
+                acronym="EMA",
+                definition="x",
+                original_definition="x",
+                acr_start=0,
+                acr_end=1,
+                def_start=0,
+                def_end=1,
+                confidence=0.9,
+                source="all_occ_scan_parenthetical",
+            )
+        ]
         state = DummyState(picks=picks, anchored_defs=defs)
 
         t = Tracer()

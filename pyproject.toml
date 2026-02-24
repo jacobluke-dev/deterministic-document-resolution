@@ -23,6 +23,7 @@ plainera-testkit = {path = "packages/plainera_testkit", develop = true}
 plainera-observability = { path = "packages/plainera_observability", develop = true, extras = ["fastapi"] }
 unacronym-api = { path = "services/unacronym_api", develop = true}
 asyncpg = "^0.30.0"
+numpy = "^2.4.2"
 
 [tool.poetry.group.dev.dependencies]
 pytest = "^8.3.0"

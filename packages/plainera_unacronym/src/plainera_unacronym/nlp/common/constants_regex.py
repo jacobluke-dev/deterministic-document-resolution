@@ -84,9 +84,30 @@ WORDS_FUNCTION: Final[frozenset[str]] = frozenset(DEFAULT_WORDS_SHARED | NAMED_S
 
 DEFAULT_STOPWORDS: Final[frozenset[str]] = WORDS_FUNCTION
 
-# Bridges are words we keep inside spans for readability
-BRIDGES_DEFAULT: Final[frozenset[str]] = WORDS_FUNCTION  # includes "&" already via DEFAULT_WORDS_SHARED
-
+# Keep readability connectors, drop determiners and citation-y bits.
+BRIDGES_DEFAULT: Final[frozenset[str]] = frozenset(
+    {
+        "of",
+        "and",
+        "for",
+        "to",
+        "in",
+        "on",
+        "with",
+        "&",
+        "per",
+        "de",
+        "la",
+        "le",
+        "du",
+        "des",
+        "del",
+        "da",
+        "di",
+        "von",
+        "und",
+    }
+)
 
 # Legacy exports (keep them to avoid breaking imports)
 LINKERS: Final[set[str]] = set(WORDS_FUNCTION)  # historically a set

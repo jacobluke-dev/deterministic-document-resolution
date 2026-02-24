@@ -1,4 +1,3 @@
-
 from types import SimpleNamespace
 
 from plainera_unacronym.nlp.extraction.engine.stages import Stage, StageReport, StageResult, Tracer

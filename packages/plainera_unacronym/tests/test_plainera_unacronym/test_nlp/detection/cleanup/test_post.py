@@ -1,4 +1,3 @@
-
 from plainera_unacronym.nlp.common.types import DetectorResult
 from plainera_unacronym.nlp.detection.cleanup.post import post_detect_cleanup
 
@@ -8,7 +7,7 @@ class TestPostCleanup:
         text = "We measured mRNA expression."
 
         occ_mrna = occ(cfg, "mRNA", 12, 16)
-        occ_rna  = occ(cfg, "RNA", 13, 16)  # contained, strict suffix
+        occ_rna = occ(cfg, "RNA", 13, 16)  # contained, strict suffix
 
         det = DetectorResult(
             unique_acronyms={
@@ -25,9 +24,7 @@ class TestPostCleanup:
         assert "RNA" not in {fo.acronym for fo in cleaned.unique_acronyms.values()}
         assert any(d.acronym == "RNA" and d.rule == "contained_suffix" for d in dropped), dropped
 
-
     def test_cleanup_does_not_drop_when_not_suffix_even_if_contained(self, cfg, occ, fo):
-
         text = "Token ABCD appears."
 
         # Contained span, but not suffix relationship -> should be retained
@@ -47,9 +44,7 @@ class TestPostCleanup:
         assert {o.acronym for o in cleaned.occurrences} == {"ABCD", "BC"}
         assert dropped == []
 
-
     def test_cleanup_drops_token_before_paren_suffix_messenger_rna_mrna(self, cfg, occ, fo):
-
         text = "messenger RNA (mRNA) has been developed,"
 
         occ_rna = occ(cfg, "RNA", 10, 13, conf=0.6)
@@ -70,7 +65,6 @@ class TestPostCleanup:
         assert any(d.acronym == "RNA" and d.rule == "token_before_paren_suffix" for d in dropped), dropped
 
     def test_cleanup_drops_rna_inside_parens_after_left_mrna(self, cfg, occ, fo):
-
         text = "We measured mRNA (RNA) expression."
 
         # mRNA followed by parens containing RNA; drop RNA inside parens.
@@ -90,9 +84,7 @@ class TestPostCleanup:
         assert {o.acronym for o in cleaned.occurrences} == {"mRNA"}
         assert any(d.acronym == "RNA" and d.rule == "inside_paren_suffix_of_left" for d in dropped), dropped
 
-
     def test_cleanup_does_not_drop_mixed_inside_parens_if_not_allcaps(self, cfg, occ, fo):
-
         text = "We measured mRNA (rNa) expression."
 
         occ_mrna = occ(cfg, "mRNA", 12, 16)
@@ -112,9 +104,7 @@ class TestPostCleanup:
         assert {o.acronym for o in cleaned.occurrences} == {"mRNA", "rNa"}
         assert dropped == []
 
-
     def test_cleanup_drops_shorter_suffix_when_same_end_offset_end_suffix_micro(self, cfg, occ, fo):
-
         text = "We measured mRNA expression."
 
         # Same end offset (16), different starts. Shorter "RNA" is suffix of "mRNA" => drop RNA.
@@ -136,9 +126,7 @@ class TestPostCleanup:
         # This assertion keeps the test robust while still validating the intended behaviour.
         assert any(d.acronym == "RNA" and d.rule in {"contained_suffix", "end_suffix_micro"} for d in dropped), dropped
 
-
     def test_cleanup_drops_mixed_case_typo_internal_blip(self, cfg, occ, fo):
-
         text = "We measured ABCdE levels."
 
         # letters=ABCDE with one lowercase 'd' in the middle -> should drop (len>=4, mostly upper, blip)
@@ -157,9 +145,7 @@ class TestPostCleanup:
         assert cleaned.unique_acronyms == {}
         assert any(d.acronym == "ABCdE" and d.rule == "drop_mixed_case_typo" for d in dropped), dropped
 
-
     def test_cleanup_does_not_drop_known_3char_mixed_case_like_tfl(self, cfg, occ, fo):
-
         text = "We travelled via TfL today."
 
         occ_ok = occ(cfg, "TfL", 17, 20)
@@ -174,9 +160,7 @@ class TestPostCleanup:
         assert {o.acronym for o in cleaned.occurrences} == {"TfL"}
         assert dropped == []
 
-
     def test_cleanup_recomputes_firsts_from_keptoccurrences_earliest_wins(self, cfg, occ, fo):
-
         text = "mRNA appears. Later, mRNA appears again."
 
         occ1 = occ(cfg, "mRNA", 0, 4, conf=0.7)

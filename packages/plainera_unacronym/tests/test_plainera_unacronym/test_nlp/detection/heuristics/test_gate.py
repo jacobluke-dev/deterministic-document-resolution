@@ -88,10 +88,7 @@ class TestBioSignalScore:
         assert is_strong is True
 
     def test_combined_signals(self):
-        text = (
-            "Abstract. mRNA quantified via RT-qPCR; OD260 noted; 95% CI reported. "
-            "H7N9 was monitored."
-        )
+        text = "Abstract. mRNA quantified via RT-qPCR; OD260 noted; 95% CI reported. " "H7N9 was monitored."
         score, reasons, is_strong = bio_signal_score(text)
         # sections(1) + rna(5) + pcr(2) + units(1) + stats(2) + virus(5) = 16
         assert score == 16
@@ -100,7 +97,6 @@ class TestBioSignalScore:
 
 
 class TestShouldEnableBio:
-
     def test_default_false_when_low_signal(self):
         ok, reasons = should_enable_bio("PCR only.")  # score=2
         assert ok is False

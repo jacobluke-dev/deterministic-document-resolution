@@ -1,4 +1,3 @@
-
 from plainera_unacronym.nlp.extraction.backref.spans import best_span_by_initials, find_span_index, sent_spans
 
 
@@ -19,9 +18,7 @@ class TestBestSpanByInitials:
         assert best_span_by_initials("g-p_u", sent, max_chars=200) == "Graphics Processing Unit"
 
     def test_prefers_shortest_token_window_when_multiple_candidates_exist(self):
-        sent = (
-            "Portable Document Format appears, but later Portable Digital Format also appears."
-        )
+        sent = "Portable Document Format appears, but later Portable Digital Format also appears."
         # Candidates:
         # - "Portable Document Format" (3 tokens)
         # - "Portable Digital Format" (3 tokens)
@@ -103,7 +100,7 @@ class TestSentSpansUnit:
         # Spans should be strictly increasing and within bounds
         assert spans[0][0] == 0
         assert spans[-1][1] == len(text)
-        for (a, b) in spans:
+        for a, b in spans:
             assert 0 <= a < b <= len(text)
 
     def test_no_split_without_whitespace_after_punct(self):

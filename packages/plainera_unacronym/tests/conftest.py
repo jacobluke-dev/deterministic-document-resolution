@@ -1,9 +1,11 @@
 from typing import Callable
 
+import numpy as np
 import plainera_unacronym.nlp.detection.detector as det
 import pytest
 from plainera_unacronym.nlp.common.shared import normalize_acronym_key
 from plainera_unacronym.nlp.common.types import DetectorConfig, FirstOccurrence, Occurrence, Span
+from plainera_unacronym.nlp.extraction import ExtractionConfig
 
 
 @pytest.fixture
@@ -16,9 +18,11 @@ def span() -> Callable[[str, str], Span]:
 
 
 class NullSink:
-    def __call__(self, *a, **k): pass
+    def __call__(self, *a, **k):
+        pass
 
-    def __getattr__(self, _): return lambda *a, **k: None
+    def __getattr__(self, _):
+        return lambda *a, **k: None
 
 
 @pytest.fixture(autouse=True)
@@ -87,7 +91,6 @@ def picked_def():
     return _picked_def
 
 
-
 @pytest.fixture
 def cfg() -> DetectorConfig:
     return DetectorConfig()
@@ -101,6 +104,7 @@ def fo():
         k = normalize_acronym_key(acr, cfg.allow_chars, dotted_mode=cfg.dotted_display)
         assert k
         return FirstOccurrence(acronym=acr, start_offset=s, end_offset=e, occurrence_confidence=conf, normalized_key=k)
+
     return _fo
 
 
@@ -117,4 +121,31 @@ def occ():
             normalized_key=k,
             reasons=None,
         )
+
     return _occ
+
+
+@pytest.fixture
+def cfg_integrated():
+    def _cfg_integrated(require_two_words=True, max_chars=200):
+        return (
+            DetectorConfig(),
+            ExtractionConfig(
+                inline_cues=(r"short\s+for", r"stands?\s+for", r"is\s+(?:an\s+)?acronym\s+for"),
+                max_phrase_chars=max_chars,
+                require_two_words=require_two_words,
+            ),
+        )
+
+    return _cfg_integrated
+
+
+@pytest.fixture(autouse=True)
+def _mock_tier2_embeddings(monkeypatch):
+    from plainera_unacronym.nlp.extraction.tiers import semantic as Semantic
+
+    class _FakeModel:
+        def encode(self, texts, show_progress_bar=False, normalize_embeddings=False):
+            return np.zeros((len(texts), 8), dtype=np.float32)
+
+    monkeypatch.setattr(Semantic, "_load_st_model", lambda *a, **k: _FakeModel(), raising=True)

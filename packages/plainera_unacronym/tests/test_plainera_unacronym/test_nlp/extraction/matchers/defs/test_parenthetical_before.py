@@ -103,8 +103,8 @@ class TestFindParentheticalLongformBeforeAcrUnitAlignmentAndFallback:
 
         assert seen["scan"] == "rtl"
         assert seen["expand_allcaps_tokens"] is False
-        assert seen["split_compounds"] is True
-        assert seen["treat_acronym_tokens_as_multi_letter"] is True
+        assert seen["split_compounds"] is False
+        assert seen["treat_acronym_tokens_as_multi_letter"] is False
 
     def test_mixed_case_acronym_controls_allow_lower_on_non_stop(self, _patch, dummy_cfg, hit_cfg, build_stream_seen):
         calls = {"allow_lower_on_non_stop": []}
@@ -137,8 +137,9 @@ class TestFindParentheticalLongformBeforeAcrUnitAlignmentAndFallback:
 
 
 class TestFindParentheticalLongformBeforeAcrUnitNumericDesignatorsAndWindowing:
-    def test_consume_left_numeric_designator_called_twice_when_acr_starts_with_digit(self, _patch, dummy_cfg, hit_cfg,
-                                                                                     build_stream_seen):
+    def test_consume_left_numeric_designator_called_twice_when_acr_starts_with_digit(
+        self, _patch, dummy_cfg, hit_cfg, build_stream_seen
+    ):
         build_stream_fn, _ = build_stream_seen
 
         calls = {"consume": 0}

@@ -78,6 +78,17 @@ def compile_pattern(cfg: DetectorConfig) -> re.Pattern[str]:
     # - allow trailing digits (optional)
     lower_prefix_mixed = r"(?:[a-z]{1,2}[A-Z]{2,}[A-Za-z0-9]*)"
 
+    # 6b) lower-prefix brand-style camel, e.g. eBay, iPhone, eBook
+    # - 1-2 lowercase letters
+    # - 1 uppercase letter
+    # - then 1+ lowercase letters (prevents matching "eBPF" which is handled by lower_prefix_mixed)
+    # - optional trailing alnum
+    lower_prefix_brand = r"(?:[a-z]{1,2}[A-Z][a-z]+[A-Za-z0-9]*)"
+
+    # 6c)
+    # Upper-prefix mixed-case, e.g. LaTeX, PowerBI, OpenAI (if you want), iPhoneOS-style variants
+    upper_prefix_mixed = r"(?:[A-Z][a-z]{1,}[A-Z][A-Za-z0-9]*)"
+
     # 7)
     # ALL-CAPS (or alnum) with an optional short lowercase suffix (e.g. PDFs, GPUs, NHSs).
     # Keep suffix short to avoid normal words; 1–3 is usually enough.
@@ -91,6 +102,8 @@ def compile_pattern(cfg: DetectorConfig) -> re.Pattern[str]:
     if cfg.enable_mixed_case:
         branches.append(camel_uc)
         branches.append(lower_prefix_mixed)
+        branches.append(upper_prefix_mixed)
+        branches.append(lower_prefix_brand)
 
     # Word boundaries prevent matching inside longer identifiers/words.
     # The branches themselves include internal punctuation; \b only applies at edges.
@@ -394,6 +407,13 @@ def _has_lower_and_upper(tok: str) -> bool:
     return any(c.islower() for c in tok if c.isalpha()) and any(c.isupper() for c in tok if c.isalpha())
 
 
+def _is_lower_prefix_brand(surface: str) -> bool:
+    # eBay, iOS, xAPI, mDNS, etc.
+    # 1–2 lowercase prefix, then exactly 1 uppercase, then at least 1 more alnum
+    # (keeps it narrow; avoids normal words)
+    return bool(re.match(r"^[a-z]{1,2}[A-Z][A-Za-z0-9]+$", surface))
+
+
 def _accept_candidate(text: str, cfg: DetectorConfig, s: int, e: int) -> TextSpanTuple | None:
     """
     Apply standard gating to a raw (s, e) match and return an accepted span.
@@ -495,15 +515,36 @@ def _passes_generic_gates(cfg: DetectorConfig, surface: str) -> bool:
     Returns:
         bool: True if the generic gates pass; False otherwise.
     """
+    _LOWER_PREFIX_BRAND_RE = re.compile(r"^[a-z]{1,2}[A-Z][A-Za-z0-9]*$")
+
     clen = core_len_for_bounds(surface)
-    if clen < cfg.min_len or clen > cfg.max_len or clen >= 15 or clen == 1:
+
+    # hard guards
+    if clen < cfg.min_len or clen >= 15 or clen == 1:
+        return False
+
+    enable_mixed = getattr(cfg, "enable_mixed_case", False)
+
+    # max_len is enforced for everyone *except* a small mixed-case allowance
+    if clen > cfg.max_len and not (
+        enable_mixed
+        and _has_lower_and_upper(surface)  # true mixed-case only
+        and clen <= max(cfg.max_len, 6)  # tiny spillover only
+    ):
         return False
 
     req = cfg.require_caps_ratio
-    if cfg.enable_mixed_case and _has_lower_and_upper(surface):
+    if enable_mixed and _has_lower_and_upper(surface):
         upp = sum(1 for ch in surface if ch.isalpha() and ch.isupper())
+
         if upp >= 2:
             req = min(req, cfg.require_caps_ratio_mixed)
+
+        # NEW: allow lower-prefix brand tokens like eBay/iOS-style when only 1 upper
+        elif upp == 1 and _LOWER_PREFIX_BRAND_RE.match(surface):
+            # Keep this conservative: brand tokens should not need 0.7 caps ratio.
+            # 0.25 is enough for eBay (1/4). If you want stricter, use 0.3.
+            req = min(req, 0.25)
 
     return caps_ratio(surface) >= req
 

@@ -62,10 +62,10 @@ class TestAdjustEndForTrailingDotUnit:
     @pytest.mark.parametrize(
         "text,s,e",
         [
-            ("NASA.", -1, 4),   # negative start
-            ("NASA.", 0, -1),   # negative end
+            ("NASA.", -1, 4),  # negative start
+            ("NASA.", 0, -1),  # negative end
             ("NASA.", 0, 999),  # end out of bounds
-            ("NASA.", 3, 2),    # s >= end_for_occ (invalid slice)
+            ("NASA.", 3, 2),  # s >= end_for_occ (invalid slice)
         ],
     )
     def test_raises_on_bad_offsets(self, text, s, e):
@@ -194,7 +194,7 @@ class TestBuildOccurrenceFromMatch:
         surface = "N.A.S.A"
         e = s + len(surface)  # 7, so text[e] is the trailing '.'
         assert cfg.dotted_display == "preserve"
-        assert text[e] == ".", (e, text, text[e - 2:e + 2])
+        assert text[e] == ".", (e, text, text[e - 2 : e + 2])
 
         occ, display_key = _build_occurrence_from_match(cfg, text, surface, s, e, conf=0.7)
 
@@ -204,7 +204,6 @@ class TestBuildOccurrenceFromMatch:
         assert occ.end_offset == e + 1  # == 8
 
     def test_returns_occurrence_and_display_key_tuple(self, _patch):
-
         cfg = _TestCfg(dotted_display="strip")
         text = "API."
         surface = "API"
@@ -212,7 +211,7 @@ class TestBuildOccurrenceFromMatch:
         _patch(
             _build_occurrence_from_match,
             normalize_acronym_key=lambda base, allow_chars, dotted_mode=None: f"{base.lower()}::{dotted_mode}",
-            context_window=lambda text, s, e, w: (1, 2)
+            context_window=lambda text, s, e, w: (1, 2),
         )
 
         occ, key = _build_occurrence_from_match(cfg, text, surface, s, e, conf=0.5)
@@ -230,9 +229,7 @@ class TestBuildOccurrenceFromMatch:
 
         # strip mode → do NOT include trailing dot; plural stripped before normalisation
         cfg_strip = DetectorConfig(dotted_display="strip")
-        occ_s, key_s = _build_occurrence_from_match(
-            cfg_strip, text, text[s_gpu:e_gpu], s_gpu, e_gpu, conf=0.91
-        )
+        occ_s, key_s = _build_occurrence_from_match(cfg_strip, text, text[s_gpu:e_gpu], s_gpu, e_gpu, conf=0.91)
 
         assert isinstance(occ_s, Occurrence)
         assert occ_s.acronym == "GPU"  # plural removed
@@ -243,9 +240,7 @@ class TestBuildOccurrenceFromMatch:
 
         # preserve mode → removes trailing dot in surface & end_offset
         cfg_pres = DetectorConfig(dotted_display="preserve")
-        occ_p, key_p = _build_occurrence_from_match(
-            cfg_pres, text, text[s_gpu:e_gpu], s_gpu, e_gpu, conf=0.91
-        )
+        occ_p, key_p = _build_occurrence_from_match(cfg_pres, text, text[s_gpu:e_gpu], s_gpu, e_gpu, conf=0.91)
         assert occ_p.acronym == "GPU"  # dot not included
         assert occ_p.end_offset == e_gpu + 1
         assert occ_p.normalized_key == key_p
@@ -256,8 +251,10 @@ class TestBuildOccurrenceFromMatch:
         l_s, r_s = occ_s.context_window
         l_p, r_p = occ_p.context_window
         n = len(text)
-        for left, right, strt, end in [(l_s, r_s, occ_s.start_offset, occ_s.end_offset),
-                                       (l_p, r_p, occ_p.start_offset, occ_p.end_offset)]:
+        for left, right, strt, end in [
+            (l_s, r_s, occ_s.start_offset, occ_s.end_offset),
+            (l_p, r_p, occ_p.start_offset, occ_p.end_offset),
+        ]:
             assert 0 <= left < right <= n
             assert left <= strt < end <= right
 
@@ -305,7 +302,7 @@ class TestBuildOccurrenceFromMatch:
 
 
 class TestScoreChunkWorkerUnit:
-    def test_drops_blacklisted_candidates(self,  _patch):
+    def test_drops_blacklisted_candidates(self, _patch):
         """
         If blacklist_context_drop(...) returns True, the candidate must be skipped.
         """
@@ -341,11 +338,14 @@ class TestScoreChunkWorkerUnit:
             )
             calls["build"].append(surface)
             return occ, surface
-        _patch(_score_chunk_worker,
-               blacklist_context_drop=fake_blacklist,
-               score=fake_score,
-               threshold_len=fake_threshold_len,
-               _build_occurrence_from_match=fake_build)
+
+        _patch(
+            _score_chunk_worker,
+            blacklist_context_drop=fake_blacklist,
+            score=fake_score,
+            threshold_len=fake_threshold_len,
+            _build_occurrence_from_match=fake_build,
+        )
 
         out = _score_chunk_worker(cfg, text="GPU and API", cands=cands)
         # Only "API" should pass through
@@ -376,11 +376,13 @@ class TestScoreChunkWorkerUnit:
         def fake_build(cfg_, text, surface, s, e, conf):
             return Occurrence(surface, s, e, conf, (0, 0), surface, None), surface
 
-        _patch(_score_chunk_worker,
-               blacklist_context_drop=fake_blacklist,
-               score=fake_score,
-               threshold_len=fake_threshold_len,
-               _build_occurrence_from_match=fake_build)
+        _patch(
+            _score_chunk_worker,
+            blacklist_context_drop=fake_blacklist,
+            score=fake_score,
+            threshold_len=fake_threshold_len,
+            _build_occurrence_from_match=fake_build,
+        )
 
         out = _score_chunk_worker(cfg, text="AI & R&D", cands=cands)
         # Only "R&D" should survive at equality
@@ -407,11 +409,13 @@ class TestScoreChunkWorkerUnit:
         def fake_build(cfg_, text, surface, s, e, conf):
             return Occurrence(surface, s, e, conf, (0, 0), surface, None), surface
 
-        _patch(_score_chunk_worker,
-               blacklist_context_drop=fake_blacklist,
-               calc_score=fake_score,
-               threshold_len=fake_threshold_len,
-               _build_occurrence_from_match=fake_build)
+        _patch(
+            _score_chunk_worker,
+            blacklist_context_drop=fake_blacklist,
+            calc_score=fake_score,
+            threshold_len=fake_threshold_len,
+            _build_occurrence_from_match=fake_build,
+        )
 
         out = _score_chunk_worker(cfg, text="A B C", cands=cands)
         assert [o.acronym for o in out] == ["A", "C"]
