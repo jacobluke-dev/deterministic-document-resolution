@@ -25,7 +25,6 @@ def detect_and_extract(
 
     state = FlowState(text=text, det_cfg=flow.det_cfg, ext_cfg=flow.ext_cfg)
 
-    # IMPORTANT: run the chain on *this* state
     state, reports = flow.build_chain().run(state, tracer=flow._tracer)
 
     assert state.det_res is not None and state.extr is not None
