@@ -1,12 +1,12 @@
 from __future__ import annotations
 
-import  pytest
 import json
-from dataclasses import asdict, replace
 import re
-import numpy as np
+from dataclasses import asdict, replace
 from typing import Any, Iterable, Literal
 
+import numpy as np
+import plainera_unacronym.nlp.extraction.tiers.tier_2 as t2
 from _pytest.python_api import approx
 from plainera_unacronym.nlp.common.types import (
     AcronymSense,
@@ -14,17 +14,14 @@ from plainera_unacronym.nlp.common.types import (
     OccurrenceLite,
     Span,
 )
-
 from plainera_unacronym.nlp.execute import detect_and_extract
+from plainera_unacronym.nlp.extraction.config import ExtractionConfig, Tier2Config
 from plainera_unacronym.nlp.extraction.core.defs import dedupe_defs
 from plainera_unacronym.nlp.extraction.engine import stage_funcs as f
-from plainera_unacronym.nlp.extraction.senses.disambiguate import choose_with_tiebreak, disambiguate_occurrences
-from plainera_unacronym.nlp.extraction.senses.sense_build import build_senses
-
-import plainera_unacronym.nlp.extraction.tiers.tier_2 as t2
-from plainera_unacronym.nlp.extraction.config import ExtractionConfig, Tier2Config
 from plainera_unacronym.nlp.extraction.engine.detect_flow import ExtractionFlow
 from plainera_unacronym.nlp.extraction.engine.state import FlowState
+from plainera_unacronym.nlp.extraction.senses.disambiguate import choose_with_tiebreak, disambiguate_occurrences
+from plainera_unacronym.nlp.extraction.senses.sense_build import build_senses
 
 # -----------------------
 # helpers
@@ -854,8 +851,8 @@ class TestTier2E2e:
         # Use a deliberately small disambiguation context window in this test.
         # The document has two nearby sections with different meanings for the same acronym (API). With a large window,
         # the sliced context can include keywords from *both* sections (“HTTP/REST” and “GMP/assay/purity”), which makes
-        # the fake keyword-bucket embeddings ambiguous and can destabilise reranking. Keeping the window small keeps each
-        # occurrence’s context local to its section so Tier-2 can separate senses deterministically.
+        # the fake keyword-bucket embeddings ambiguous and can destabilise reranking. Keeping the window small keeps
+        # each occurrence’s context local to its section so Tier-2 can separate senses deterministically.
 
         _, extr, _, state = _run_flow(text, ext_cfg=ext_cfg, disambig_window_chars=50)
 
