@@ -1,7 +1,8 @@
 from __future__ import annotations
 
-from contextlib import asynccontextmanager
-from typing import Any, AsyncGenerator
+from contextlib import AbstractContextManager, asynccontextmanager
+from types import TracebackType
+from typing import Any, AsyncGenerator, Literal
 
 from fastapi import FastAPI
 from fastapi.exceptions import RequestValidationError
@@ -16,22 +17,56 @@ from public_api.api.routers.errors import map_length_validation_to_413
 from public_api.api.routers.health import router as health_router
 from public_api.api.routers.resolve import router as resolve_router
 from public_api.core.logging import configure_logging
-from public_api.core.settings import AppSettings, app_settings
+from public_api.core.settings import AppSettings, app_settings, db_settings
 
 __version__ = "0.1.0"
 
+
+class _NullDBSession(AbstractContextManager[Any]):
+    """A context manager that fails on entry (used when DB is disabled)."""
+
+    def __enter__(self) -> Any:
+        raise RuntimeError("Database is disabled (DATABASE_DISABLED=true).")
+
+    def __exit__(
+        self,
+        exc_type: type[BaseException] | None,
+        exc: BaseException | None,
+        tb: TracebackType | None,
+    ) -> Literal[False]:
+        return False
+
+
+class _NullDBManager:
+    """DBManager stand-in used when DATABASE_DISABLED=true.
+
+    Keeps dependency signatures stable while making DB-backed features no-op.
+    """
+
+    def select_one_dict(self, *args: Any, **kwargs: Any) -> dict[str, Any] | None:
+        return None
+
+    def session(self) -> AbstractContextManager[Any]:
+        return _NullDBSession()
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncGenerator[None, Any]:
-    # init
-    state = app.state  # noqa: ignore[assignment]
+    state = app.state
+
+    if db_settings.DATABASE_DISABLED:
+        state.dbm = _NullDBManager()
+        yield
+        return
+
     dbm = make_dbm(test_mode=False)
-    state.dbm = dbm  # noqa: ignore[index]  # AppState["dbm"]
+    state.dbm = dbm
     try:
         yield
     finally:
-        # dispose cleanly
-        engine: Engine = dbm.engine  # noqa: ignore[attr-defined]
+        engine: Engine = dbm.engine
         engine.dispose()
+
 
 def create_app(settings: AppSettings | None = None) -> FastAPI:
     settings = settings or app_settings
@@ -64,5 +99,6 @@ def create_app(settings: AppSettings | None = None) -> FastAPI:
 
     app.include_router(health_router)
     app.include_router(resolve_router)
+
     app.add_exception_handler(RequestValidationError, map_length_validation_to_413)
     return app

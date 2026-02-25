@@ -37,7 +37,7 @@ app_settings = AppSettings()
 
 class DatabaseSettings(BaseSettings):
     APP_ENV: str = "local"
-    AUTH_DISABLED: bool = False
+    DATABASE_DISABLED: bool = False
     # Keep strict validation but avoid editor nags by allowing None and failing explicitly
     DATABASE_URL: AnyUrl | None = None
     DB_SCHEMA: str = "unacronym"
@@ -55,7 +55,7 @@ class DatabaseSettings(BaseSettings):
             return str(self.DATABASE_URL)  # cast for SQLAlchemy
         raise RuntimeError(
             f"DATABASE_URL missing. Expected in {ENV_PATH}. "
-            "set AUTH_DISABLED=true only if no DB is used."
+            "set DATABASE_DISABLED=true only if no DB is used."
         )
 
 db_settings = DatabaseSettings()
