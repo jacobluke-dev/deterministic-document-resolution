@@ -59,7 +59,7 @@ def main(force: bool = False) -> None:
                 s.flush()
             else:
                 existing.definition = defn
-                existing.source = src
+                existing.provenance = src
 
             # Idempotent alias insert (case-sensitive; adjust if you want CI uniqueness)
             existing_aliases = {a.alias for a in getattr(existing, "aliases", [])}
