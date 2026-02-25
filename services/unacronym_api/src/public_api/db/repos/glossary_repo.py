@@ -2,34 +2,43 @@ from __future__ import annotations
 
 from typing import Any
 
+from sqlalchemy import func, select
+
+from public_api.db.models import GlossaryEntry
+
 
 class GlossaryRepository:
-    """
-    Thin repository wrapper around the existing DBManager.
+    """Read-only glossary access.
 
-    Notes:
-      - Keeps table/criteria details out of routers/services.
-      - Uses the same selection semantics as your current implementation to avoid surprises.
-      - Returns raw dict row data (service maps into GlossaryMatch).
+    Uses a SQLAlchemy query via DBManager.session() to guarantee a
+    case-insensitive match regardless of DBManager's criteria syntax.
     """
 
-    def __init__(self, *, dbm: Any, table_fqn: str = "glossary_entries") -> None:
+    def __init__(self, *, dbm: Any) -> None:
         self._dbm = dbm
-        self._table = table_fqn
 
     def get(self, *, acronym: str) -> dict[str, Any] | None:
         if self._dbm is None:
             return None
 
         try:
-            ac = acronym.lower()
-
-            row = self._dbm.select_one_dict(
-                table_fqn=self._table,
-                columns=["acronym", "definition", "source"],
-                criteria=[("acronym", "", ac)],
-            )
-            return row or None
+            with self._dbm.session() as s:
+                row = (
+                    s.execute(
+                        select(GlossaryEntry)
+                        .where(func.lower(GlossaryEntry.acronym) == acronym.lower())
+                        .limit(1)
+                    )
+                    .scalars()
+                    .first()
+                )
+                if row is None:
+                    return None
+                return {
+                    "acronym": row.acronym,
+                    "definition": row.definition,
+                    "source": row.source,
+                }
         except Exception:
-            # Fail closed (no glossary enrichment) rather than taking down /v1/resolve.
+            # Fail closed: no enrichment rather than breaking /v1/resolve
             return None

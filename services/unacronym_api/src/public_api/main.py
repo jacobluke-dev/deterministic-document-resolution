@@ -23,7 +23,7 @@ __version__ = "0.1.0"
 
 
 class _NullDBManager:
-    """DBManager stand-in used when AUTH_DISABLED=true.
+    """DBManager stand-in used when DATABASE_DISABLED=true.
 
     Keeps dependency signatures stable while making DB-backed features no-op.
     """
@@ -32,14 +32,14 @@ class _NullDBManager:
         return None
 
     def session(self):
-        raise RuntimeError("Database is disabled (AUTH_DISABLED=true).")
+        raise RuntimeError("Database is disabled (DATABASE_DISABLED=true).")
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncGenerator[None, Any]:
     state = app.state  # noqa: ignore[assignment]
 
-    if db_settings.AUTH_DISABLED:
+    if db_settings.DATABASE_DISABLED:
         state.dbm = _NullDBManager()
         try:
             yield

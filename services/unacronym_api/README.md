@@ -22,7 +22,7 @@ Common commands (see `make help`):
 | DATABASE_URL                | `postgresql+psycopg://user:pass@localhost:5432/unacronym` | **secret** | **secret** | Postgres DSN                   |
 | MAX_BODY_BYTES              | `2000000`                            | `1000000`        | `1000000`        | Request body limit             |
 | RESOLVE_TIMEOUT_MS          | `2000`                               | `2000`           | `2000`           | Resolver timeout               |
-| AUTH_DISABLED               | `true`                               | `false`          | `false`          | Disable auth (dev only)        |
+| DATABASE_DISABLED               | `true`                               | `false`          | `false`          | Disable auth (dev only)        |
 | API_KEY_HEADER              | `X-API-Key`                          | `X-API-Key`      | `X-API-Key`      | API key header                 |
 | SENTRY_DSN                  | _empty_                              | **secret**       | **secret**       | Error monitoring               |
 | ENABLE_DOCS                 | `true`                               | `true`           | `false`          | Swagger/Redoc availability     |
