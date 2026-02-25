@@ -181,7 +181,9 @@ api:
     POSTGRES_DB: "unacronym"
     POSTGRES_USER: "unacronym"
     POSTGRES_PASSWORD: "test-password"
-    DATABASE_URL: "postgresql+psycopg://unacronym:test-password@db:5432/unacronym"
+    TEST_DB_URL: "postgresql+psycopg://unacronym:test-password@db:5432/unacronym"
+    DATABASE_URL_SYNC: "postgresql+psycopg://unacronym:test-password@db:5432/unacronym"
+    DATABASE_URL: "postgresql+asyncpg://unacronym:test-password@db:5432/unacronym"
     APP_ENV: "test"
     DATABASE_DISABLED: "false"
   rules:
