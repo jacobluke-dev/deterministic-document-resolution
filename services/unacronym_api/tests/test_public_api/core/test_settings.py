@@ -17,7 +17,7 @@ class TestAppSettings:
         for k in ("APP_ENV","PORT","LOG_LEVEL","CORS_ORIGINS","MAX_BODY_BYTES",
                   "ENABLE_DOCS","REQUEST_TIMEOUT_MS","DEFAULT_LOCALE",
                   "DEFAULT_WINDOW_CHARS","MAX_INFLIGHT","SENTRY_DSN",
-                  "RUN_DB_MIGRATIONS","DATABASE_URL","DB_SCHEMA","AUTH_DISABLED"):
+                  "RUN_DB_MIGRATIONS","DATABASE_URL","DB_SCHEMA","DATABASE_DISABLED"):
             monkeypatch.delenv(k, raising=False)
         if env:
             for k, v in env.items():
@@ -64,7 +64,7 @@ class TestDatabaseSettings:
             "dotenv",
             types.SimpleNamespace(load_dotenv=lambda *a, **k: False),
         )
-        for k in ("DATABASE_URL","DB_SCHEMA","APP_ENV","AUTH_DISABLED"):
+        for k in ("DATABASE_URL","DB_SCHEMA","APP_ENV","DATABASE_DISABLED"):
             monkeypatch.delenv(k, raising=False)
         if env:
             for k, v in env.items():
@@ -76,7 +76,7 @@ class TestDatabaseSettings:
         settings = self._reload(monkeypatch)
         ds = settings.db_settings
         assert ds.APP_ENV == "local"
-        assert ds.AUTH_DISABLED is False
+        assert ds.DATABASE_DISABLED is False
         assert ds.DB_SCHEMA == "unacronym"
         # Naming convention has expected keys
         for k in ("ix","uq","ck","fk","pk"):

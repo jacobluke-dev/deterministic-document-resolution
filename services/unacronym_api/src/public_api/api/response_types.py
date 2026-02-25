@@ -1,7 +1,9 @@
-# services/public_api/src/public_api/api/openapi.py
+
 from __future__ import annotations
 
 from typing import Any, Mapping, MutableMapping, TypeAlias
+
+from observability.config import REQ_ID_HEADER
 
 from public_api.schemas.error import ErrorResponse
 
@@ -17,7 +19,7 @@ COMMON_ERROR_RESPONSES: Mapping[int | str, dict[str, Any]] = {
 
 # Success headers spec can attach to 200/201/etc.
 SUCCESS_HEADERS_SPEC: dict[str, Any] = {
-    "X-Request-Id": {"description": "Echoed or generated correlation id.", "schema": {"type": "string"}},
+    REQ_ID_HEADER: {"description": "Echoed or generated correlation id.", "schema": {"type": "string"}},
     "X-Input-Bytes": {"description": "Parsed request body size in bytes.", "schema": {"type": "integer"}},
     "X-Body-Limit-Bytes": {"description": "Current configured body size limit.", "schema": {"type": "integer"}},
     "X-RateLimit-Limit": {"description": "Requests allowed in window.", "schema": {"type": "integer"}},
@@ -26,6 +28,7 @@ SUCCESS_HEADERS_SPEC: dict[str, Any] = {
 }
 
 ResponsesSpec: TypeAlias = dict[int | str, dict[str, Any]]
+
 
 def build_responses(
     *,
@@ -44,9 +47,7 @@ def build_responses(
         A fresh dict suitable for `responses=...` in a route decorator.
     """
     resp: MutableMapping[int | str, dict[str, Any]] = dict(COMMON_ERROR_RESPONSES)
-    # Add/override extra errors if provided
     if extra_errors:
         resp.update(extra_errors)
-    # Add success entry with headers
     resp[success_status] = {"headers": dict(success_headers or {})}
     return dict(resp)

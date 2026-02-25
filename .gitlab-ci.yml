@@ -183,7 +183,7 @@ api:
     POSTGRES_PASSWORD: "test-password"
     DATABASE_URL: "postgresql+psycopg://unacronym:test-password@db:5432/unacronym"
     APP_ENV: "test"
-    AUTH_DISABLED: "false"
+    DATABASE_DISABLED: "false"
   rules:
     - if: $CI_PIPELINE_SOURCE == "merge_request_event" && $CI_MERGE_REQUEST_DRAFT == "true"
       when: never

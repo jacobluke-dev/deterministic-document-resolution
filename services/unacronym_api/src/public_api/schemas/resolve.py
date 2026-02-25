@@ -1,6 +1,8 @@
-from typing import Optional
+from __future__ import annotations
 
-from pydantic import Field, confloat, conint, constr
+import math
+
+from pydantic import Field, confloat, conint, constr, field_validator
 
 from public_api.schemas.base import BaseSchema
 from public_api.schemas.glossary import AcronymBlock
@@ -8,21 +10,19 @@ from public_api.schemas.glossary import AcronymBlock
 
 class ResolveMeta(BaseSchema):
     processing_ms: int
-    model_version: str = Field(
-        ..., description="plainera-core version used for processing."
-    )
+    model_version: str = Field(..., description="plainera-core version used for processing.")
     input_chars: int
 
 
 class ResolveOptions(BaseSchema):
     locale: str = Field(
         "en-GB",
-        description="Locale hint for heuristics. ISO BCP‑47 tag. Supported: en-GB, en-US.",
+        description="Locale hint for heuristics. ISO BCP-47 tag. Supported: en-GB, en-US.",
     )
-    window_chars: conint(ge=0) = Field( # type: ignore[valid-type]
+    window_chars: conint(ge=0) = Field(  # type: ignore[valid-type]
         120, description="Context window size used in responses."
     )
-    max_definitions_per_acronym: conint(ge=1, le=20) = Field( # type: ignore[valid-type]
+    max_definitions_per_acronym: conint(ge=1, le=20) = Field(  # type: ignore[valid-type]
         5, description="Maximum candidate definitions to return per acronym."
     )
     include_glossary_enrichment: bool = Field(
@@ -32,15 +32,24 @@ class ResolveOptions(BaseSchema):
     return_occurrences: bool = Field(
         True, description="If true, include all {start,end} positions."
     )
-    min_confidence: confloat(ge=0.0, le=1.0) = Field( # type: ignore[valid-type]
+    min_confidence: confloat(ge=0.0, le=1.0) = Field(  # type: ignore[valid-type]
         0.0, description="Drop candidates below this confidence threshold."
     )
 
+    @field_validator("min_confidence")
+    @classmethod
+    def _finite_min_confidence(cls, v: float) -> float:
+        # Pydantic range checks do not reliably exclude NaN.
+        if not math.isfinite(float(v)):
+            raise ValueError("min_confidence must be a finite number.")
+        return v
+
+
 class ResolveRequest(BaseSchema):
-    text: constr(min_length=1, max_length=100_000) = Field( # type: ignore[valid-type]
+    text: constr(min_length=1, max_length=100_000) = Field(  # type: ignore[valid-type]
         ..., description="Raw document content. Max length 100,000 characters."
     )
-    options: Optional[ResolveOptions] = None
+    options: ResolveOptions | None = None
 
     class Config:
         json_schema_extra = {
@@ -56,7 +65,7 @@ class ResolveRequest(BaseSchema):
                         "min_confidence": 0.0,
                     },
                 },
-                { "text": "" },  # invalid: shown in negative tests
+                {"text": ""},  # invalid: shown in negative tests
             ]
         }
 
