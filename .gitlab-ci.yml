@@ -178,14 +178,22 @@ api:
       alias: db
       command: [ "postgres", "-c", "log_statement=none" ]
   variables:
-    POSTGRES_DB: "unacronym"
-    POSTGRES_USER: "unacronym"
-    POSTGRES_PASSWORD: "test-password"
-    TEST_DB_URL: "postgresql+psycopg://unacronym:test-password@db:5432/unacronym"
-    DATABASE_URL_SYNC: "postgresql+psycopg://unacronym:test-password@db:5432/unacronym"
-    DATABASE_URL: "postgresql+asyncpg://unacronym:test-password@db:5432/unacronym"
-    APP_ENV: "test"
-    DATABASE_DISABLED: "false"
+      POSTGRES_DB: "unacronym"
+      POSTGRES_USER: "unacronym"
+      POSTGRES_PASSWORD: "test-password"
+
+      # Alembic must use sync URL
+      DATABASE_URL: "postgresql+psycopg://unacronym:test-password@db:5432/unacronym"
+
+      # For packages that insist on both being present
+      DATABASE_URL_SYNC: "postgresql+psycopg://unacronym:test-password@db:5432/unacronym"
+      TEST_DB_URL: "postgresql+psycopg://unacronym:test-password@db:5432/unacronym"
+
+      # Optional: if your app/tests want an async URL, provide it separately
+      DATABASE_URL_ASYNC: "postgresql+asyncpg://unacronym:test-password@db:5432/unacronym"
+
+      APP_ENV: "test"
+      DATABASE_DISABLED: "false"
   rules:
     - if: $CI_PIPELINE_SOURCE == "merge_request_event" && $CI_MERGE_REQUEST_DRAFT == "true"
       when: never
