@@ -18,6 +18,10 @@ def main(force: bool = False) -> None:
         sys.stderr.write("Refusing to seed: APP_ENV != local. Use --force to override.\n")
         sys.exit(2)
 
+    if db_settings.DATABASE_DISABLED:
+        sys.stderr.write("Refusing to seed: DATABASE_DISABLED=true.\n")
+        sys.exit(2)
+
     # NOTE:
     # - Keep these mostly "paren-regex friendly" for current /v1/resolve demo.
     # - Avoid punctuation-heavy acronyms like "R&D" unless/until UN-70 pipeline integration is live.
