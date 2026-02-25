@@ -267,14 +267,21 @@ class DBManager:
         """
         where = None
         params: dict[str, Any] = {}
-        if criteria:
-            parts = []
-            for i, (col, op, val) in enumerate(criteria):
+
+        crit = list(criteria) if criteria else []
+        if crit:
+            parts: list[str] = []
+            for i, (col, joiner, val) in enumerate(crit):
                 key = f"p{i}"
                 parts.append(f'"{col}" = :{key}')
                 params[key] = val
-                if i < len(list(criteria)) - 1:
-                    parts.append(op)
+
+                if i < len(crit) - 1:
+                    j = (joiner or "AND").strip().upper()
+                    if j not in {"AND", "OR"}:
+                        raise ValueError(f"Invalid criteria joiner: {joiner!r} (expected AND/OR)")
+                    parts.append(j)
+
             where = " ".join(parts)
 
         rows = self.select_rows(table_fqn, columns, where=where, params=params)
