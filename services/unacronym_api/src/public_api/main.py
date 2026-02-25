@@ -17,21 +17,43 @@ from public_api.api.routers.health import router as health_router
 from public_api.api.routers.resolve import router as resolve_router
 from public_api.core.logging import configure_logging
 from public_api.core.settings import AppSettings, app_settings
+from public_api.core.settings import db_settings
 
 __version__ = "0.1.0"
 
+
+class _NullDBManager:
+    """DBManager stand-in used when AUTH_DISABLED=true.
+
+    Keeps dependency signatures stable while making DB-backed features no-op.
+    """
+
+    def select_one_dict(self, *args, **kwargs):
+        return None
+
+    def session(self):
+        raise RuntimeError("Database is disabled (AUTH_DISABLED=true).")
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncGenerator[None, Any]:
-    # init
     state = app.state  # noqa: ignore[assignment]
+
+    if db_settings.AUTH_DISABLED:
+        state.dbm = _NullDBManager()
+        try:
+            yield
+        finally:
+            return
+
     dbm = make_dbm(test_mode=False)
-    state.dbm = dbm  # noqa: ignore[index]  # AppState["dbm"]
+    state.dbm = dbm  # noqa: ignore[index]
     try:
         yield
     finally:
-        # dispose cleanly
         engine: Engine = dbm.engine  # noqa: ignore[attr-defined]
         engine.dispose()
+
 
 def create_app(settings: AppSettings | None = None) -> FastAPI:
     settings = settings or app_settings
@@ -64,5 +86,6 @@ def create_app(settings: AppSettings | None = None) -> FastAPI:
 
     app.include_router(health_router)
     app.include_router(resolve_router)
+
     app.add_exception_handler(RequestValidationError, map_length_validation_to_413)
     return app
