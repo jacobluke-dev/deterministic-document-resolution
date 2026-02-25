@@ -54,7 +54,7 @@ def main(force: bool = False) -> None:
             )
 
             if existing is None:
-                existing = GlossaryEntry(acronym=acro, definition=defn, source=src)
+                existing = GlossaryEntry(acronym=acro, definition=defn, provenance=src)
                 s.add(existing)
                 s.flush()
             else:

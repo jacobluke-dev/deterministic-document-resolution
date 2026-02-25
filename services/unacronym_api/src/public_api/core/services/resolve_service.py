@@ -186,7 +186,7 @@ class ResolveService:
             return start, end
         # Fall back to index access for e.g. Span dataclass with __iter__
         try:
-            a, b = span  # type: ignore[misc]
+            a, b = span
             return int(a), int(b)
         except Exception as exc:
             raise TypeError(f"Unrecognised span type: {type(span)!r} -> {span!r}") from exc
@@ -245,8 +245,8 @@ class ResolveService:
             }
 
             bucket = defs_by_ac.setdefault(ac, [])
-            key = (cand["text"], cand["start"], cand["end"])
-            if not any((x["text"], x["start"], x["end"]) == key for x in bucket):
+            dedupe_key = (cand["text"], cand["start"], cand["end"])
+            if not any((x["text"], x["start"], x["end"]) == dedupe_key for x in bucket):
                 bucket.append(cand)
 
         # ---- sort + trim, keeping pick first ----
