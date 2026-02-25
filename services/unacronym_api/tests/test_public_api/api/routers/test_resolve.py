@@ -13,7 +13,6 @@ def _get_fastapi_app_from_client(client):
     transport = getattr(client, "_transport", None)
     if transport is None:
         raise RuntimeError("client._transport missing")
-    # httpx versions vary: try both
     return getattr(transport, "app", None) or getattr(transport, "_app", None)
 
 
@@ -22,33 +21,50 @@ class TestV1Resolve:
     def seed_for_this_class(self, session_factory):
         # minimal deterministic seed used by multiple tests here
         with session_factory() as s:
-            # Upsert-ish for idempotence across parametrized runs
             if not s.query(GlossaryEntry).filter_by(acronym="MPS").first():
-                s.add(GlossaryEntry(
-                    acronym="MPS",
-                    definition="Metropolitan Police Service, the territorial police force for Greater London.",
-                    source="test",
-                ))
+                s.add(
+                    GlossaryEntry(
+                        acronym="MPS",
+                        definition="Metropolitan Police Service.",
+                        source="test",
+                    )
+                )
             if not s.query(GlossaryEntry).filter_by(acronym="ABC").first():
-                s.add(GlossaryEntry(
-                    acronym="ABC",
-                    definition="Alpha Beta Charlie.",
-                    source="test",
-                ))
+                s.add(
+                    GlossaryEntry(
+                        acronym="ABC",
+                        definition="Alpha Beta Charlie.",
+                        source="test",
+                    )
+                )
             s.commit()
         yield
 
     @pytest.mark.anyio
-    async def test_happy_path(self, client):
-        payload = {"text": "The Metropolitan Police Service (MPS) operates in London."}
+    async def test_happy_path_includes_glossary(self, client):
+        payload = {
+            "text": "The Metropolitan Police Service (MPS) operates in London.",
+            "options": {"include_glossary_enrichment": True},
+        }
         r = await client.post("/v1/resolve", json=payload)
         assert r.status_code == 200
+
         body = r.json()
         assert "acronyms" in body and "meta" in body
         assert body["meta"]["input_chars"] == len(payload["text"])
+
+        # headers
         assert r.headers.get("X-Request-Id")
         assert int(r.headers["X-Input-Bytes"]) > 0
         assert int(r.headers["X-Body-Limit-Bytes"]) > 0
+
+        # glossary
+        blocks = body["acronyms"]
+        assert len(blocks) == 1
+        assert blocks[0]["acronym"] == "MPS"
+        assert blocks[0]["glossary"] is not None
+        assert blocks[0]["glossary"]["matches"]
+        assert "Metropolitan Police Service" in blocks[0]["glossary"]["matches"][0]["definition"]
 
     @pytest.mark.anyio
     async def test_empty_text_422(self, client):
@@ -99,26 +115,27 @@ class TestV1Resolve:
         body = resp.json()
         meta = dict(body.get("meta", {}))
         # Strip fields that can vary run-to-run
-        for k in ("processing_ms", "created_at"):
-            meta.pop(k, None)
+        meta.pop("processing_ms", None)
         body["meta"] = meta
         return body
 
     @pytest.mark.anyio
     async def test_deterministic_output(self, client):
-        payload = {"text": "Alpha (ABC). Another (ABC)."}
+        payload = {
+            "text": "Alpha (ABC). Another (ABC).",
+            "options": {"include_glossary_enrichment": True},
+        }
         r1 = await client.post("/v1/resolve", json=payload)
         r2 = await client.post("/v1/resolve", json=payload)
+        assert r1.status_code == 200
+        assert r2.status_code == 200
         assert self._stable_json(r1) == self._stable_json(r2)
 
     @pytest.mark.anyio
     async def test_overloaded(self, client):
         class DummySemaphore:
-            def __init__(self):
-                self._value = 0
-
-            def locked(self): return True
-        from public_api.core import deps as deps_mod
+            def locked(self):
+                return True
 
         app = _get_fastapi_app_from_client(client)
         app.dependency_overrides[deps_mod.get_semaphore] = lambda: DummySemaphore()

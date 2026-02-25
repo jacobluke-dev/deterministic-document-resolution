@@ -130,3 +130,6 @@ release: ## Tag & push (VERSION=vX.Y.Z). Generates/updates CHANGELOG.md (simple)
 hooks:
 	pre-commit install
 	pre-commit install -t pre-push
+
+update_snapshots:
+	UPDATE_SNAPSHOTS=1 pytest -q services/unacronym_api/tests

@@ -1,0 +1,589 @@
+{
+  "components": {
+    "schemas": {
+      "AcronymBlock": {
+        "properties": {
+          "acronym": {
+            "description": "Surface form exactly as detected (no lowercasing).",
+            "title": "Acronym",
+            "type": "string"
+          },
+          "definitions": {
+            "description": "Candidate definitions for this acronym (ranked by confidence).",
+            "items": {
+              "$ref": "#/components/schemas/Definition"
+            },
+            "title": "Definitions",
+            "type": "array"
+          },
+          "first_occurrence": {
+            "$ref": "#/components/schemas/Span",
+            "description": "First occurrence offsets in Python-slice semantics (end exclusive)."
+          },
+          "glossary": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/GlossaryBlock"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Curated matches present when enrichment is enabled/available."
+          },
+          "occurrences": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/Span"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "All occurrences when return_occurrences=true.",
+            "title": "Occurrences"
+          }
+        },
+        "required": [
+          "acronym",
+          "first_occurrence"
+        ],
+        "title": "AcronymBlock",
+        "type": "object"
+      },
+      "Definition": {
+        "properties": {
+          "confidence": {
+            "description": "0\u20131 confidence score for this definition.",
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "title": "Confidence",
+            "type": "number"
+          },
+          "end": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "End offset (exclusive).",
+            "title": "End"
+          },
+          "source": {
+            "$ref": "#/components/schemas/DefinitionSource",
+            "description": "Origin of the definition: extracted|glossary."
+          },
+          "start": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Start offset of definition text if found in source text.",
+            "title": "Start"
+          },
+          "text": {
+            "description": "Expanded form of the acronym.",
+            "title": "Text",
+            "type": "string"
+          }
+        },
+        "required": [
+          "text",
+          "confidence",
+          "source"
+        ],
+        "title": "Definition",
+        "type": "object"
+      },
+      "DefinitionSource": {
+        "enum": [
+          "extracted",
+          "glossary"
+        ],
+        "title": "DefinitionSource",
+        "type": "string"
+      },
+      "ErrorBody": {
+        "properties": {
+          "code": {
+            "$ref": "#/components/schemas/ErrorCode",
+            "description": "Stable machine-readable enum."
+          },
+          "details": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Structured diagnostics (limit, actual, etc.).",
+            "title": "Details"
+          },
+          "message": {
+            "description": "Human-readable error.",
+            "title": "Message",
+            "type": "string"
+          }
+        },
+        "required": [
+          "code",
+          "message"
+        ],
+        "title": "ErrorBody",
+        "type": "object"
+      },
+      "ErrorCode": {
+        "enum": [
+          "BAD_REQUEST",
+          "PAYLOAD_TOO_LARGE",
+          "UNSUPPORTED_MEDIA_TYPE",
+          "UNPROCESSABLE_ENTITY",
+          "TOO_MANY_REQUESTS",
+          "INTERNAL_ERROR",
+          "SERVICE_UNAVAILABLE"
+        ],
+        "title": "ErrorCode",
+        "type": "string"
+      },
+      "ErrorResponse": {
+        "properties": {
+          "error": {
+            "$ref": "#/components/schemas/ErrorBody"
+          }
+        },
+        "required": [
+          "error"
+        ],
+        "title": "ErrorResponse",
+        "type": "object"
+      },
+      "GlossaryBlock": {
+        "properties": {
+          "matches": {
+            "items": {
+              "$ref": "#/components/schemas/GlossaryMatch"
+            },
+            "title": "Matches",
+            "type": "array"
+          }
+        },
+        "title": "GlossaryBlock",
+        "type": "object"
+      },
+      "GlossaryMatch": {
+        "properties": {
+          "confidence": {
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "title": "Confidence",
+            "type": "number"
+          },
+          "definition": {
+            "title": "Definition",
+            "type": "string"
+          },
+          "domain": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Domain tag if known, else null.",
+            "title": "Domain"
+          },
+          "lang": {
+            "description": "ISO language tag.",
+            "maxLength": 10,
+            "minLength": 2,
+            "title": "Lang",
+            "type": "string"
+          },
+          "source": {
+            "const": "system",
+            "default": "system",
+            "title": "Source",
+            "type": "string"
+          }
+        },
+        "required": [
+          "definition",
+          "lang",
+          "confidence"
+        ],
+        "title": "GlossaryMatch",
+        "type": "object"
+      },
+      "HealthCheckResponse": {
+        "properties": {
+          "status": {
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "status"
+        ],
+        "title": "HealthCheckResponse",
+        "type": "object"
+      },
+      "ResolveMeta": {
+        "properties": {
+          "input_chars": {
+            "title": "Input Chars",
+            "type": "integer"
+          },
+          "model_version": {
+            "description": "plainera-core version used for processing.",
+            "title": "Model Version",
+            "type": "string"
+          },
+          "processing_ms": {
+            "title": "Processing Ms",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "processing_ms",
+          "model_version",
+          "input_chars"
+        ],
+        "title": "ResolveMeta",
+        "type": "object"
+      },
+      "ResolveOptions": {
+        "properties": {
+          "include_glossary_enrichment": {
+            "default": true,
+            "description": "If true, attempt curated joins from repository (read-only).",
+            "title": "Include Glossary Enrichment",
+            "type": "boolean"
+          },
+          "locale": {
+            "default": "en-GB",
+            "description": "Locale hint for heuristics. ISO BCP-47 tag. Supported: en-GB, en-US.",
+            "title": "Locale",
+            "type": "string"
+          },
+          "max_definitions_per_acronym": {
+            "default": 5,
+            "description": "Maximum candidate definitions to return per acronym.",
+            "maximum": 20.0,
+            "minimum": 1.0,
+            "title": "Max Definitions Per Acronym",
+            "type": "integer"
+          },
+          "min_confidence": {
+            "default": 0.0,
+            "description": "Drop candidates below this confidence threshold.",
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "title": "Min Confidence",
+            "type": "number"
+          },
+          "return_occurrences": {
+            "default": true,
+            "description": "If true, include all {start,end} positions.",
+            "title": "Return Occurrences",
+            "type": "boolean"
+          },
+          "window_chars": {
+            "default": 120,
+            "description": "Context window size used in responses.",
+            "minimum": 0.0,
+            "title": "Window Chars",
+            "type": "integer"
+          }
+        },
+        "title": "ResolveOptions",
+        "type": "object"
+      },
+      "ResolveRequest": {
+        "examples": [
+          {
+            "options": {
+              "include_glossary_enrichment": true,
+              "locale": "en-GB",
+              "max_definitions_per_acronym": 5,
+              "min_confidence": 0.0,
+              "return_occurrences": true,
+              "window_chars": 120
+            },
+            "text": "The Metropolitan Police Service (MPS) operates in London."
+          },
+          {
+            "text": ""
+          }
+        ],
+        "properties": {
+          "options": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ResolveOptions"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "text": {
+            "description": "Raw document content. Max length 100,000 characters.",
+            "maxLength": 100000,
+            "minLength": 1,
+            "title": "Text",
+            "type": "string"
+          }
+        },
+        "required": [
+          "text"
+        ],
+        "title": "ResolveRequest",
+        "type": "object"
+      },
+      "ResolveResponse": {
+        "examples": [
+          {
+            "acronyms": [
+              {
+                "acronym": "MPS",
+                "definitions": [
+                  {
+                    "confidence": 0.96,
+                    "end": 31,
+                    "source": "extracted",
+                    "start": 4,
+                    "text": "Metropolitan Police Service"
+                  }
+                ],
+                "first_occurrence": {
+                  "end": 37,
+                  "start": 34
+                },
+                "glossary": {
+                  "matches": [
+                    {
+                      "confidence": 0.99,
+                      "definition": "Metropolitan Police Service",
+                      "lang": "en",
+                      "source": "system"
+                    }
+                  ]
+                },
+                "occurrences": [
+                  {
+                    "end": 37,
+                    "start": 34
+                  }
+                ]
+              }
+            ],
+            "meta": {
+              "input_chars": 68,
+              "model_version": "plainera-core@1.0.0",
+              "processing_ms": 12
+            }
+          }
+        ],
+        "properties": {
+          "acronyms": {
+            "items": {
+              "$ref": "#/components/schemas/AcronymBlock"
+            },
+            "title": "Acronyms",
+            "type": "array"
+          },
+          "meta": {
+            "$ref": "#/components/schemas/ResolveMeta"
+          }
+        },
+        "required": [
+          "meta"
+        ],
+        "title": "ResolveResponse",
+        "type": "object"
+      },
+      "Span": {
+        "properties": {
+          "end": {
+            "description": "End offset (exclusive).",
+            "title": "End",
+            "type": "integer"
+          },
+          "start": {
+            "description": "Start offset (inclusive).",
+            "title": "Start",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "start",
+          "end"
+        ],
+        "title": "Span",
+        "type": "object"
+      }
+    }
+  },
+  "info": {
+    "title": "Unacronym API",
+    "version": "0.1.0"
+  },
+  "openapi": "3.1.0",
+  "paths": {
+    "/v1/resolve": {
+      "post": {
+        "description": "Detect acronyms, propose definitions, and (optionally) enrich from a curated glossary. Offsets use Python-slice semantics (end exclusive). Supported locales: en-GB, en-US. Idempotent: does not mutate server state. Content-Encoding: gzip supported.",
+        "operationId": "resolve_acronyms_v1_resolve_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ResolveRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResolveResponse"
+                }
+              }
+            },
+            "description": "Successful Response",
+            "headers": {
+              "X-Body-Limit-Bytes": {
+                "description": "Current configured body size limit.",
+                "schema": {
+                  "type": "integer"
+                }
+              },
+              "X-Input-Bytes": {
+                "description": "Parsed request body size in bytes.",
+                "schema": {
+                  "type": "integer"
+                }
+              },
+              "X-RateLimit-Limit": {
+                "description": "Requests allowed in window.",
+                "schema": {
+                  "type": "integer"
+                }
+              },
+              "X-RateLimit-Remaining": {
+                "description": "Remaining in current window.",
+                "schema": {
+                  "type": "integer"
+                }
+              },
+              "X-RateLimit-Reset": {
+                "description": "Epoch seconds until window resets.",
+                "schema": {
+                  "type": "integer"
+                }
+              },
+              "X-Request-ID": {
+                "description": "Echoed or generated correlation id.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Content Too Large"
+          },
+          "415": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unsupported Media Type"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unprocessable Content"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Too Many Requests"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Service Unavailable"
+          }
+        },
+        "summary": "Resolve acronyms in raw text",
+        "tags": [
+          "Resolve"
+        ]
+      }
+    }
+  }
+}
