@@ -4,18 +4,17 @@ import asyncio
 import time
 from dataclasses import dataclass
 from importlib import metadata
-from typing import Any, Iterable
+from typing import Any, Iterable, Protocol
 
 import anyio
 from fastapi import status
-
 from plainera_unacronym.nlp.common.types import DetectorResult, ExtractionResult
 from plainera_unacronym.nlp.execute import detect_and_extract
+
 from public_api.db.repos.glossary_repo import GlossaryRepository
 from public_api.schemas.error import ErrorCode
 from public_api.schemas.resolve import ResolveOptions, ResolveRequest, ResolveResponse
 
-from typing import Protocol
 
 class _SpanLike(Protocol):
     start: int

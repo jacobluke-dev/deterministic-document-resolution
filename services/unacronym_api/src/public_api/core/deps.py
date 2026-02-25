@@ -9,7 +9,6 @@ from plainera_core.db_manager.connection import DBManager
 from sqlalchemy.orm import Session
 
 from public_api.core.factory import create_resolver
-from public_api.core.providers import AcronymResolverLike
 from public_api.core.services.resolve_service import ResolveService
 from public_api.core.settings import app_settings
 from public_api.db.repos.glossary_repo import GlossaryRepository

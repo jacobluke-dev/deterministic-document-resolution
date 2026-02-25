@@ -22,7 +22,7 @@ class GlossaryEntry(BaseWithTimestamps):
     # It is NOT a security boundary (public vs tenant) and must not be used as such.
     provenance: Mapped[str | None] = mapped_column(String(128), nullable=True)
 
-    aliases: Mapped[list["AcronymAlias"]] = relationship(
+    aliases: Mapped[list[AcronymAlias]] = relationship(
         "AcronymAlias",
         back_populates="entry",
         cascade="all, delete-orphan",
