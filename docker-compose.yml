@@ -3,6 +3,9 @@ services:
     environment:
       DB_HOST: localhost
       DATABASE_URL: postgresql+psycopg://unacronym:test-password@db:5432/unacronym
+      DATABASE_URL_SYNC: postgresql+psycopg://unacronym:test-password@db:5432/unacronym
+      DATABASE_URL_ASYNC: postgresql+asyncpg://unacronym:test-password@db:5432/unacronym
+      WATCHFILES_FORCE_POLLING: "true"
     build:
       context: .
       dockerfile: services/unacronym_api/Dockerfile
@@ -17,6 +20,9 @@ services:
       - ./services/unacronym_api/alembic.ini:/app/services/unacronym_api/alembic.ini:ro
       - ./services/unacronym_api/migrations:/app/services/unacronym_api/migrations
       - ./services/unacronym_api/src:/app/src
+    command: [ "uvicorn", "--app-dir", "/app/src", "public_api.main:create_app", "--factory",
+               "--host", "0.0.0.0", "--port", "8000",
+               "--reload", "--reload-dir", "/app/src" ]
 
   db:
     image: postgres:15-alpine

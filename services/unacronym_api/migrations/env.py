@@ -31,9 +31,14 @@ Base.metadata.naming_convention = {
     "pk": "pk_%(table_name)s",
 }
 
-url = _normalize(os.getenv("DATABASE_URL") or config.get_main_option("sqlalchemy.url"))
+# --- URL selection (prefer sync for Alembic) ---
+url = _normalize(
+    os.getenv("DATABASE_URL_SYNC")
+    or os.getenv("DATABASE_URL")
+    or config.get_main_option("sqlalchemy.url")
+)
 if not url:
-    raise RuntimeError("No database URL. set DATABASE_URL or sqlalchemy.url")
+    raise RuntimeError("No database URL. set DATABASE_URL_SYNC or DATABASE_URL or sqlalchemy.url")
 config.set_main_option("sqlalchemy.url", url)
 
 SCHEMA = "unacronym"
@@ -61,7 +66,11 @@ def _include_object(obj, name, type_, reflected, compare_to):
 
 
 def run_migrations_offline() -> None:
-    url_offline = _normalize(config.get_main_option("sqlalchemy.url") or os.getenv("DATABASE_URL"))
+    url_offline = _normalize(
+        os.getenv("DATABASE_URL_SYNC")
+        or os.getenv("DATABASE_URL")
+        or config.get_main_option("sqlalchemy.url")
+    )
     if not url_offline:
         raise RuntimeError("No DB URL for offline migrations.")
 

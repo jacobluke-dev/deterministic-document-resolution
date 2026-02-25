@@ -68,7 +68,7 @@ class TestSelectRowsColumns:
         with dbm.engine.begin() as c:
             c.exec_driver_sql("DELETE FROM glossary_entries WHERE acronym = 'QWE'")
             c.exec_driver_sql(
-                "INSERT INTO glossary_entries (acronym, definition, source) "
+                "INSERT INTO glossary_entries (acronym, definition, provenance) "
                 "VALUES ('QWE','Q W E','cols_test')"
             )
         yield
@@ -76,7 +76,7 @@ class TestSelectRowsColumns:
     def test_select_specific_columns_are_quoted(self, dbm):
         rows = dbm.select_rows(
             "glossary_entries",
-            columns=["acronym", "source"],
+            columns=["acronym", "provenance"],
             where='"acronym" = :a',
             params={"a": "QWE"},
         )
@@ -93,13 +93,13 @@ class TestInsertAndSelect:
     def test_insert_row_then_select_rows(self, dbm):
         dbm.insert_row(
             table_fqn="glossary_entries",
-            columns=["acronym", "definition", "source"],
+            columns=["acronym", "definition", "provenance"],
             values=["XYZ", "X Y Zed", "insert_test"],
         )
 
         rows = dbm.select_rows(
             table_fqn="glossary_entries",
-            columns=["acronym", "definition", "source"],
+            columns=["acronym", "definition", "provenance"],
             where='"acronym" = :acr',
             params={"acr": "XYZ"},
         )
@@ -109,7 +109,7 @@ class TestInsertAndSelect:
     def test_select_rows_all_columns_star(self, dbm):
         dbm.insert_row(
             "glossary_entries",
-            ["acronym", "definition", "source"],
+            ["acronym", "definition", "provenance"],
             ["ZZZ", "Last letters", "insert_test_2"],
         )
         rows = dbm.select_rows("glossary_entries", columns=None, where='"acronym" = :a', params={"a": "ZZZ"})
@@ -122,11 +122,11 @@ class TestSelectOneDict:
         with dbm.engine.begin() as conn:
             conn.exec_driver_sql("DELETE FROM glossary_entries WHERE acronym IN ('ABC2','ABC3')")
             conn.exec_driver_sql(
-                "INSERT INTO glossary_entries (acronym, definition, source) "
+                "INSERT INTO glossary_entries (acronym, definition, provenance) "
                 "VALUES ('ABC2','Alpha Beta Charlie 2','seed')"
             )
             conn.exec_driver_sql(
-                "INSERT INTO glossary_entries (acronym, definition, source) "
+                "INSERT INTO glossary_entries (acronym, definition, provenance) "
                 "VALUES ('ABC3','Alpha Beta Charlie 3','seed3')"
             )
         yield
@@ -134,28 +134,28 @@ class TestSelectOneDict:
     def test_select_one_dict_simple_criteria(self, dbm):
         out = dbm.select_one_dict(
             table_fqn="glossary_entries",
-            columns=["acronym", "definition", "source"],
+            columns=["acronym", "definition", "provenance"],
             criteria=[("acronym", "", "ABC2")],
         )
         assert out == {
             "acronym": "ABC2",
             "definition": "Alpha Beta Charlie 2",
-            "source": "seed",
+            "provenance": "seed",
         }
 
     def test_select_one_dict_multiple_criteria_and(self, dbm):
         out = dbm.select_one_dict(
             "glossary_entries",
-            ["acronym", "definition", "source"],
-            criteria=[("acronym", "AND", "ABC3"), ("source", "", "seed3")],
+            ["acronym", "definition", "provenance"],
+            criteria=[("acronym", "AND", "ABC3"), ("provenance", "", "seed3")],
         )
         assert out["acronym"] == "ABC3"
-        assert out["source"] == "seed3"
+        assert out["provenance"] == "seed3"
 
     def test_select_one_dict_not_found_returns_none(self, dbm):
         out = dbm.select_one_dict(
             "glossary_entries",
-            ["acronym", "definition", "source"],
+            ["acronym", "definition", "provenance"],
             criteria=[("acronym", "", "DOES_NOT_EXIST")],
         )
         assert out is None
@@ -167,7 +167,7 @@ class TestUpdateTouchUpdatedAt:
         with dbm.engine.begin() as conn:
             conn.exec_driver_sql("DELETE FROM glossary_entries WHERE acronym = 'TTS'")
             conn.exec_driver_sql(
-                "INSERT INTO glossary_entries (acronym, definition, source) "
+                "INSERT INTO glossary_entries (acronym, definition, provenance) "
                 "VALUES ('TTS','Text To Speech','seed')"
             )
         yield
@@ -175,7 +175,7 @@ class TestUpdateTouchUpdatedAt:
     def _get(self, dbm, acr: str):
         return dbm.select_one_dict(
             table_fqn="glossary_entries",
-            columns=["acronym", "definition", "source", "updated_at"],
+            columns=["acronym", "definition", "provenance", "updated_at"],
             criteria=[("acronym", "", acr)],
         )
 
@@ -236,11 +236,11 @@ class TestExecuteSqlFile:
     def test_execute_sql_file_runs_statements_from_disk(self, tmp_path: Path, dbm):
         # Arrange: write a small DML script
         sql = """
-              INSERT INTO glossary_entries (acronym, definition, source)
+              INSERT INTO glossary_entries (acronym, definition, provenance)
               VALUES ('SQLF', 'From file', 'file_seed');
 
               UPDATE glossary_entries
-              SET source = 'file_update'
+              SET provenance = 'file_update'
               WHERE acronym = 'SQLF'; \
               """
         p = tmp_path / "seed.sql"
@@ -252,10 +252,10 @@ class TestExecuteSqlFile:
         # Assert
         row = dbm.select_one_dict(
             "glossary_entries",
-            ["acronym", "definition", "source"],
+            ["acronym", "definition", "provenance"],
             criteria=[("acronym", "", "SQLF")],
         )
-        assert row == {"acronym": "SQLF", "definition": "From file", "source": "file_update"}
+        assert row == {"acronym": "SQLF", "definition": "From file", "provenance": "file_update"}
 
 
 class TestUpdateRow:
@@ -265,7 +265,7 @@ class TestUpdateRow:
         with dbm.engine.begin() as conn:
             conn.exec_driver_sql("DELETE FROM glossary_entries WHERE acronym = 'ABC'")
             conn.exec_driver_sql(
-                "INSERT INTO glossary_entries (acronym, definition, source) "
+                "INSERT INTO glossary_entries (acronym, definition, provenance) "
                 "VALUES ('ABC','Alpha Beta Charlie','init')"
             )
         yield
@@ -273,7 +273,7 @@ class TestUpdateRow:
     def _get(self, dbm, acr: str):
         return dbm.select_one_dict(
             table_fqn="glossary_entries",
-            columns=["acronym", "definition", "source", "updated_at"],
+            columns=["acronym", "definition", "provenance", "updated_at"],
             criteria=[("acronym", "", acr)],
         )
 
@@ -289,43 +289,43 @@ class TestUpdateRow:
         # Assert
         row = self._get(dbm, "ABC")
         assert row["definition"] == "Alpha · Beta · Charlie"
-        assert row["source"] == "init"  # unchanged
+        assert row["provenance"] == "init"  # unchanged
 
     def test_update_multiple_columns(self, dbm):
         dbm.update_row(
             table_fqn="glossary_entries",
-            updates={"definition": "Alpha Beta Charlie (updated)", "source": "test"},
+            updates={"definition": "Alpha Beta Charlie (updated)", "provenance": "test"},
             where='"acronym" = :acr',
             params={"acr": "ABC"},
             touch_updated_at=False,
         )
         row = self._get(dbm, "ABC")
         assert row["definition"] == "Alpha Beta Charlie (updated)"
-        assert row["source"] == "test"
+        assert row["provenance"] == "test"
 
     def test_kwargs_path_for_decorator(self, dbm):
         # Ensures require_allowed_table handles keyword args (no IndexError)
         dbm.update_row(
             table_fqn="glossary_entries",
-            updates={"source": "kw"},
+            updates={"provenance": "kw"},
             where='"acronym" = :acr',
             params={"acr": "ABC"},
             touch_updated_at=False,
         )
         row = self._get(dbm, "ABC")
-        assert row["source"] == "kw"
+        assert row["provenance"] == "kw"
 
     def test_where_clause_parameters(self, dbm):
         # Wrong WHERE → no change
         dbm.update_row(
             "glossary_entries",
-            {"source": "should_not_apply"},
+            {"provenance": "should_not_apply"},
             where='"acronym" = :acr',
             params={"acr": "NOPE"},
             touch_updated_at=False,
         )
         row = self._get(dbm, "ABC")
-        assert row["source"] == "init"
+        assert row["provenance"] == "init"
 
     def test_noop_updates_is_valid_sql(self, dbm):
         # Some callers may end up with an empty dict; can assert it raises
@@ -333,10 +333,10 @@ class TestUpdateRow:
         # code and assert raises here. For now, we simulate a tiny update.
         dbm.update_row(
             "glossary_entries",
-            {"source": "noop-check"},
+            {"provenance": "noop-check"},
             where='"acronym" = :acr',
             params={"acr": "ABC"},
             touch_updated_at=False,
         )
         row = self._get(dbm, "ABC")
-        assert row["source"] == "noop-check"
+        assert row["provenance"] == "noop-check"

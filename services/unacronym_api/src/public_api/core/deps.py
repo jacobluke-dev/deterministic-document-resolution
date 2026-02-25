@@ -9,7 +9,6 @@ from plainera_core.db_manager.connection import DBManager
 from sqlalchemy.orm import Session
 
 from public_api.core.factory import create_resolver
-from public_api.core.providers import AcronymResolverLike
 from public_api.core.services.resolve_service import ResolveService
 from public_api.core.settings import app_settings
 from public_api.db.repos.glossary_repo import GlossaryRepository
@@ -45,17 +44,6 @@ class AppContainer:
 
 container = AppContainer()
 
-
-def get_resolver() -> AcronymResolverLike:
-    """Provide the global resolver instance.
-
-    Used as a FastAPI dependency to inject the application’s
-    resolver into request handlers.
-
-    Returns:
-        The singleton resolver created at startup.
-    """
-    return container.resolver
 
 
 def get_semaphore() -> Semaphore | None:
@@ -142,7 +130,6 @@ def get_glossary_repo(
 
 
 def get_resolve_service(
-    resolver: Annotated[AcronymResolverLike, Depends(get_resolver)],
     semaphore: Annotated[Semaphore | None, Depends(get_semaphore)],
     glossary_repo: Annotated[GlossaryRepository, Depends(get_glossary_repo)],
     timeout_ms: Annotated[int, Depends(get_request_timeout_ms)],
@@ -156,7 +143,6 @@ def get_resolve_service(
     resolver, semaphore, timeout) cleanly via `app.dependency_overrides`.
 
     Args:
-        resolver: Acronym resolver implementation injected via `get_resolver()`.
         semaphore: Optional concurrency limiter injected via `get_semaphore()`.
         glossary_repo: Glossary repository injected via `get_glossary_repo()`.
         timeout_ms: Request timeout in milliseconds injected via `get_request_timeout_ms()`.
@@ -165,7 +151,6 @@ def get_resolve_service(
         ResolveService: Fully configured service instance for `/v1/resolve`.
     """
     return ResolveService(
-        resolver=resolver,
         glossary_repo=glossary_repo,
         semaphore=semaphore,
         request_timeout_ms=timeout_ms,

@@ -34,10 +34,11 @@ class GlossaryRepository:
                 )
                 if row is None:
                     return None
+
                 return {
                     "acronym": row.acronym,
                     "definition": row.definition,
-                    "source": row.source,
+                    "provenance": row.provenance,
                 }
         except Exception:
             # Fail closed: no enrichment rather than breaking /v1/resolve

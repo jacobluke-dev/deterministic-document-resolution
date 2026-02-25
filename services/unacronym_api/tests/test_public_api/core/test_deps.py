@@ -42,15 +42,6 @@ class TestAppContainer:
         assert sem._value == 3  # CPython detail but fine for us
 
 
-class TestGetResolver:
-    def test_returns_same_resolver_instance(self):
-        def stub():
-            return DummyResolver()
-
-        deps = _reload_deps(0, stub)
-        assert deps.get_resolver() is deps.container.resolver
-
-
 class TestGetSemaphore:
     def test_returns_none_when_disabled(self):
         def stub():
@@ -81,10 +72,8 @@ class TestAppContainerIntegration:
         deps = importlib.reload(deps_mod)
 
         # sanity checks: resolver exists, semaphore set to 1
-        assert deps.container.resolver is not None
         sem = deps.container.semaphore
         assert isinstance(sem, Semaphore)
         assert getattr(sem, "_value", None) == 1
         # dependency functions hand back the same instances
-        assert deps.get_resolver() is deps.container.resolver
         assert deps.get_semaphore() is sem

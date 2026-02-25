@@ -38,13 +38,16 @@ def emit(
     """Synchronous: completes the DB write before returning. Use in sync code."""
     payload = _make_payload(event, level, logger_type, **fields)
 
-    if db_sink is not None:
-        if hasattr(db_sink, "enqueue"):
-            # Pure sync sink
-            db_sink.enqueue(payload)
-        elif hasattr(db_sink, "enqueue_async"):
-            # Sink is async; run it to completion (blocking this thread)
-            asyncio.run(db_sink.enqueue_async(payload))
+    try:
+        if db_sink is not None:
+            if hasattr(db_sink, "enqueue"):
+                db_sink.enqueue(payload)
+            elif hasattr(db_sink, "enqueue_async"):
+                asyncio.run(db_sink.enqueue_async(payload))
+    except Exception as e:
+        # Never let logging break the app
+        logger.warning("db_sink failed: %r", e)
+
     logger.log(STD_LEVEL[LogLevel(level) if isinstance(level, int) else level], json.dumps(payload))
 
 
@@ -59,10 +62,13 @@ async def emit_async(
     """Asynchronous: await the DB write. Use inside async functions."""
     payload = _make_payload(event, level, logger_type, **fields)
 
-    if db_sink is not None:
-        if hasattr(db_sink, "enqueue_async"):
-            await db_sink.enqueue_async(payload)
-        elif hasattr(db_sink, "enqueue"):
-            # Sink is sync; run it in a thread so we don't block the loop
-            await asyncio.to_thread(db_sink.enqueue, payload)
+    try:
+        if db_sink is not None:
+            if hasattr(db_sink, "enqueue_async"):
+                await db_sink.enqueue_async(payload)
+            elif hasattr(db_sink, "enqueue"):
+                await asyncio.to_thread(db_sink.enqueue, payload)
+    except Exception as e:
+        logger.warning("db_sink failed: %r", e)
+
     logger.log(STD_LEVEL[LogLevel(level) if isinstance(level, int) else level], json.dumps(payload))

@@ -1,6 +1,8 @@
+from __future__ import annotations
+
 import asyncio
 from functools import lru_cache
-from typing import Any, Awaitable, Protocol, Type
+from typing import Any, Awaitable, Callable, Protocol
 
 from plainera_unacronym.db.models.logger import PackageLogger
 from public_api.db.models import Logger
@@ -22,7 +24,7 @@ class SqlAlchemyModelSink:
     Async sink (use inside async code; awaited by emit_async / decorator).
     """
 
-    def __init__(self, sessionmaker: async_sessionmaker[AsyncSession], model: Type[Any], mapper: MapperFn):
+    def __init__(self, sessionmaker: async_sessionmaker[AsyncSession], model: type[Any], mapper: MapperFn):
         self._Session = sessionmaker
         self._model = model
         self._map = mapper
@@ -38,7 +40,7 @@ class SyncSqlAlchemyModelSink:
     Sync sink (call from plain sync code; no event loop needed).
     """
 
-    def __init__(self, url: str, model: Type[Any], mapper: MapperFn):
+    def __init__(self, url: str, model: type[Any], mapper: MapperFn):
         # Use psycopg (sync) URL, e.g. postgresql+psycopg://...
         self._engine = create_engine(url, pool_pre_ping=True, future=True)
         self._Session = sessionmaker(self._engine, expire_on_commit=False)
@@ -70,11 +72,11 @@ class UniversalSink:
 
 
 @lru_cache(maxsize=None)
-def _mapper_for(model: Type[Any], default_logger_type: str) -> MapperFn:
+def _mapper_for(model: type[Any], default_logger_type: str) -> MapperFn:
     return make_logger_mapper(model, default_logger_type=default_logger_type)
 
 
-_SINK_REGISTRY: dict[str, tuple[Type[Any], MapperFn]] = {
+_SINK_REGISTRY: dict[str, tuple[type[Any], MapperFn]] = {
     "logger": (Logger, _mapper_for(Logger, "api")),
     "package_logger": (PackageLogger, _mapper_for(PackageLogger, "package")),
 }
@@ -89,7 +91,7 @@ def make_sink(sessionmaker: async_sessionmaker[AsyncSession], name: str) -> SqlA
     return SqlAlchemyModelSink(sessionmaker, model, mapper)
 
 
-def register_sink(name: str, model: Type[Any], mapper: MapperFn) -> None:
+def register_sink(name: str, model: type[Any], mapper: MapperFn) -> None:
     """
     Optional extension point at runtime/tests.
     """
@@ -122,7 +124,7 @@ class CompositeSink:
     """
 
     def __init__(self):
-        self._sinks = {}
+        self._sinks: list[DbSink] = []
 
     def enqueue(self, payload: dict[str, Any]) -> None:
         """Forward a log payload to all configured sinks.
@@ -163,14 +165,14 @@ class RouterSink:
         # goes only to ConsoleSink
 
     Args:
-        routes (list[tuple[Predicate, DbSink]]): A list of (predicate, sink)
+        _routes (list[tuple[Predicate, DbSink]]): A list of (predicate, sink)
             pairs. ``predicate`` is a callable that takes a payload dict
             and returns a boolean. ``sink`` is any sink with an ``enqueue``
             method.
     """
 
     def __init__(self):
-        self._routes = {}
+        self._routes: list[tuple[Callable[[dict[str, Any]], bool], DbSink]] = []
 
     def enqueue(self, payload: dict[str, Any]) -> None:
         """Forward a log payload to sinks whose predicates match.
