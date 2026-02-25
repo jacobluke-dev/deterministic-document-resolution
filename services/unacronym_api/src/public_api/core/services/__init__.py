@@ -1,3 +1,3 @@
-from public_api.core.services.resolve_service import ResolveService, ResolveError
+from public_api.core.services.resolve_service import ResolveError, ResolveService
 
 __all__ = ["ResolveService", "ResolveError"]

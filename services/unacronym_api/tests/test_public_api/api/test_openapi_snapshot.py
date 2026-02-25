@@ -4,7 +4,6 @@ from typing import Any
 
 import pytest
 
-
 SNAP_DIR = Path(__file__).parent / "_snapshots"
 
 SNAP_FILE = SNAP_DIR / "openapi.resolve.v1.json"

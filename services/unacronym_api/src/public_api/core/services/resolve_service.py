@@ -11,11 +11,11 @@ from typing import Any, Iterable
 
 from fastapi import status
 
+from public_api.core.providers import AcronymResolverLike
 from public_api.db.repos.glossary_repo import GlossaryRepository
 from public_api.schemas.error import ErrorCode
 from public_api.schemas.resolve import ResolveOptions, ResolveRequest, ResolveResponse
 from public_api.types import DefinitionCandidateLike
-
 
 ACRO_PAREN_PATTERN = re.compile(r"\(([A-Z][A-Z0-9]{1,9})\)")  # simple + deterministic
 
@@ -73,7 +73,7 @@ class ResolveService:
     def __init__(
         self,
         *,
-        resolver: Any,
+        resolver: AcronymResolverLike,
         glossary_repo: GlossaryRepository,
         semaphore: Any | None,
         request_timeout_ms: int,
@@ -84,8 +84,25 @@ class ResolveService:
         self._timeout_s = max(0.001, request_timeout_ms / 1000.0)
 
     async def resolve(self, payload: ResolveRequest) -> ResolveResponse:
+        """
+        Resolve acronyms for the given request payload and return the API response model.
+
+        This method is intentionally kept as orchestration-only; the work is delegated to
+        helper methods for validation, overload checks, enrichment and mapping.
+        """
         started = time.perf_counter()
 
+        opts, lang = self._validate_and_prepare(payload)
+        self._raise_if_overloaded()
+
+        matches = list(ACRO_PAREN_PATTERN.finditer(payload.text))
+        blocks = await self._build_acronym_blocks(payload.text, matches, opts, lang)
+
+        return self._build_response(payload.text, blocks, started)
+
+    @staticmethod
+    def _validate_and_prepare(payload: ResolveRequest) -> tuple[ResolveOptions, str]:
+        """Validate semantic constraints and return normalised options + language."""
         # Semantic validation: whitespace-only -> 422
         if not payload.text.strip():
             raise ResolveError(
@@ -95,6 +112,7 @@ class ResolveService:
                 details={"hint": "Provide non-empty 'text'"},
             )
 
+        # Prefer 413 for oversize rather than a FastAPI/Pydantic 422
         if TEXT_MAX_LEN is not None and len(payload.text) > int(TEXT_MAX_LEN):
             raise ResolveError(
                 http_status=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
@@ -105,8 +123,10 @@ class ResolveService:
 
         opts = payload.options or ResolveOptions.model_validate({})
         lang = _lang_from_locale(opts.locale)
+        return opts, lang
 
-        # Overload: avoid private attr reads; `locked()` is enough for asyncio.Semaphore semantics.
+    def _raise_if_overloaded(self) -> None:
+        """Raise 503 if a global concurrency limiter is saturated."""
         if self._semaphore is not None and getattr(self._semaphore, "locked", lambda: False)():
             raise ResolveError(
                 http_status=status.HTTP_503_SERVICE_UNAVAILABLE,
@@ -115,60 +135,20 @@ class ResolveService:
                 details={"reason": "OVERLOADED"},
             )
 
-        # Detect acronyms by deterministic paren rule; preserve order by first occurrence.
-        matches = list(ACRO_PAREN_PATTERN.finditer(payload.text))
-        seen: set[str] = set()
+    async def _build_acronym_blocks(
+        self,
+        text: str,
+        matches: list[Any],
+        opts: ResolveOptions,
+        lang: str,
+    ) -> list[dict[str, Any]]:
+        """Build response blocks for each unique acronym in first-occurrence order."""
         blocks: list[dict[str, Any]] = []
+        seen: set[str] = set()
 
-        for m in matches:
-            ac = m.group(1)
-            if ac in seen:
-                continue
-            seen.add(ac)
-
-            first_occ = {"start": m.start(1), "end": m.end(1)}
-
-            # Occurrences (optional)
-            occs = [{"start": mm.start(1), "end": mm.end(1)} for mm in matches if mm.group(1) == ac]
-            occs.sort(key=lambda s: (s["start"], s["end"]))
-
-            # Glossary enrichment (schema: acronyms[].glossary.matches)
-            glossary_block: dict[str, Any] | None = None
-            if opts.include_glossary_enrichment:
-                row = self._glossary_repo.get(acronym=ac)
-                if row and (row.get("definition") or ""):
-                    glossary_block = {
-                        "matches": [
-                            {
-                                "definition": row.get("definition") or "",
-                                "domain": None,
-                                "lang": lang,
-                                "confidence": 1.0,
-                                "source": "system",
-                            }
-                        ]
-                    }
-
-            # Resolver candidates -> acronyms[].definitions
-            results = await self._call_resolver(ac, top_k=opts.max_definitions_per_acronym)
-
-            definitions: list[dict[str, Any]] = []
-            for c in results:
-                score = float(getattr(c, "score", 0.0))
-                if score < float(opts.min_confidence):
-                    continue
-                definitions.append(
-                    {
-                        "text": getattr(c, "text", ""),
-                        "start": max(0, first_occ["start"] - int(opts.window_chars)),
-                        "end": first_occ["end"],
-                        "confidence": score,
-                        "source": "extracted",
-                    }
-                )
-
-            # Deterministic definition ordering
-            definitions.sort(key=lambda d: (-float(d["confidence"]), str(d["text"])))
+        for ac, first_occ, occs in self.iter_unique_acronyms(matches, seen):
+            glossary_block = self._maybe_glossary_block(ac, lang, opts)
+            definitions = await self._definitions_for(ac, first_occ, opts)
 
             block: dict[str, Any] = {
                 "acronym": ac,
@@ -182,6 +162,82 @@ class ResolveService:
 
             blocks.append(block)
 
+        return blocks
+
+    @staticmethod
+    def iter_unique_acronyms(
+        matches: list[Any],
+        seen: set[str],
+    ) -> Iterable[tuple[str, dict[str, int], list[dict[str, int]]]]:
+        """Yield (acronym, first_occurrence_span, sorted_occurrences) for each unique acronym."""
+        for m in matches:
+            ac = m.group(1)
+            if ac in seen:
+                continue
+            seen.add(ac)
+
+            first_occ = {"start": m.start(1), "end": m.end(1)}
+            occs = [{"start": mm.start(1), "end": mm.end(1)} for mm in matches if mm.group(1) == ac]
+            occs.sort(key=lambda s: (s["start"], s["end"]))
+
+            yield ac, first_occ, occs
+
+    def _maybe_glossary_block(self, ac: str, lang: str, opts: ResolveOptions) -> dict[str, Any] | None:
+        """Return the glossary enrichment block if enabled and present."""
+        if not opts.include_glossary_enrichment:
+            return None
+
+        row = self._glossary_repo.get(acronym=ac)
+        if not row or not (row.get("definition") or ""):
+            return None
+
+        return {
+            "matches": [
+                {
+                    "definition": row.get("definition") or "",
+                    "domain": None,
+                    "lang": lang,
+                    "confidence": 1.0,
+                    "source": "system",
+                }
+            ]
+        }
+
+    async def _definitions_for(
+        self,
+        ac: str,
+        first_occ: dict[str, int],
+        opts: ResolveOptions,
+    ) -> list[dict[str, Any]]:
+        """Call the resolver and map candidates into API definition objects."""
+        results = await self._call_resolver(ac, top_k=opts.max_definitions_per_acronym)
+
+        definitions: list[dict[str, Any]] = []
+        for c in results:
+            score = float(getattr(c, "score", 0.0))
+            if score < float(opts.min_confidence):
+                continue
+            definitions.append(
+                {
+                    "text": getattr(c, "text", ""),
+                    "start": max(0, first_occ["start"] - int(opts.window_chars)),
+                    "end": first_occ["end"],
+                    "confidence": score,
+                    "source": "extracted",
+                }
+            )
+
+        # Deterministic ordering
+        definitions.sort(key=lambda d: (-float(d["confidence"]), str(d["text"])))
+        return definitions
+
+    @staticmethod
+    def _build_response(
+        text: str,
+        blocks: list[dict[str, Any]],
+        started: float,
+    ) -> ResolveResponse:
+        """Construct the final ResolveResponse with meta."""
         processing_ms = int((time.perf_counter() - started) * 1000)
 
         return ResolveResponse.model_validate(
@@ -190,7 +246,7 @@ class ResolveService:
                 "meta": {
                     "processing_ms": processing_ms,
                     "model_version": _plainera_core_version(),
-                    "input_chars": len(payload.text),
+                    "input_chars": len(text),
                 },
             }
         )
@@ -200,8 +256,11 @@ class ResolveService:
 
         async def _invoke() -> Iterable[DefinitionCandidateLike]:
             res = self._resolver.resolve(Acronym(text=acronym), top_k=top_k)
+
             if inspect.isawaitable(res):
-                return await res
+                out = await res
+                return out
+
             return res
 
         try:

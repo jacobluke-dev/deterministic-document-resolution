@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import math
-from typing import Optional
 
 from pydantic import Field, confloat, conint, constr, field_validator
 
@@ -50,7 +49,7 @@ class ResolveRequest(BaseSchema):
     text: constr(min_length=1, max_length=100_000) = Field(  # type: ignore[valid-type]
         ..., description="Raw document content. Max length 100,000 characters."
     )
-    options: Optional[ResolveOptions] = None
+    options: ResolveOptions | None = None
 
     class Config:
         json_schema_extra = {

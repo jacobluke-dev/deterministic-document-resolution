@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import time
+from typing import Annotated
 
 from fastapi import APIRouter, Depends, Response
 from starlette.responses import JSONResponse
@@ -40,7 +41,7 @@ def _error_json(err: ResolveError) -> JSONResponse:
 async def resolve_acronyms(
     payload: ResolveRequest,
     response: Response,
-    svc: ResolveService = Depends(get_resolve_service),
+    svc: Annotated[ResolveService, Depends(get_resolve_service)],
 ) -> ResolveResponse | JSONResponse:
     started = time.perf_counter()
 
