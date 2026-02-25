@@ -46,17 +46,6 @@ class AppContainer:
 container = AppContainer()
 
 
-def get_resolver() -> AcronymResolverLike:
-    """Provide the global resolver instance.
-
-    Used as a FastAPI dependency to inject the application’s
-    resolver into request handlers.
-
-    Returns:
-        The singleton resolver created at startup.
-    """
-    return container.resolver
-
 
 def get_semaphore() -> Semaphore | None:
     """Provide the global concurrency semaphore.
@@ -142,7 +131,6 @@ def get_glossary_repo(
 
 
 def get_resolve_service(
-    resolver: Annotated[AcronymResolverLike, Depends(get_resolver)],
     semaphore: Annotated[Semaphore | None, Depends(get_semaphore)],
     glossary_repo: Annotated[GlossaryRepository, Depends(get_glossary_repo)],
     timeout_ms: Annotated[int, Depends(get_request_timeout_ms)],
@@ -156,7 +144,6 @@ def get_resolve_service(
     resolver, semaphore, timeout) cleanly via `app.dependency_overrides`.
 
     Args:
-        resolver: Acronym resolver implementation injected via `get_resolver()`.
         semaphore: Optional concurrency limiter injected via `get_semaphore()`.
         glossary_repo: Glossary repository injected via `get_glossary_repo()`.
         timeout_ms: Request timeout in milliseconds injected via `get_request_timeout_ms()`.
@@ -165,7 +152,6 @@ def get_resolve_service(
         ResolveService: Fully configured service instance for `/v1/resolve`.
     """
     return ResolveService(
-        resolver=resolver,
         glossary_repo=glossary_repo,
         semaphore=semaphore,
         request_timeout_ms=timeout_ms,
