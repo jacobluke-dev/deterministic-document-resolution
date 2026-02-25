@@ -1,24 +1,25 @@
-# services/unacronym_api/src/public_api/core/services/resolve_service.py
 from __future__ import annotations
 
 import asyncio
-import inspect
-import re
 import time
 from dataclasses import dataclass
 from importlib import metadata
 from typing import Any, Iterable
 
+import anyio
 from fastapi import status
 
-from public_api.core.providers import AcronymResolverLike
+from plainera_unacronym.nlp.common.types import DetectorResult, ExtractionResult
+from plainera_unacronym.nlp.execute import detect_and_extract
 from public_api.db.repos.glossary_repo import GlossaryRepository
 from public_api.schemas.error import ErrorCode
 from public_api.schemas.resolve import ResolveOptions, ResolveRequest, ResolveResponse
-from public_api.types import DefinitionCandidateLike
 
-ACRO_PAREN_PATTERN = re.compile(r"\(([A-Z][A-Z0-9]{1,9})\)")  # simple + deterministic
+from typing import Protocol
 
+class _SpanLike(Protocol):
+    start: int
+    end: int
 
 def _extract_max_len(model: type[ResolveRequest], field: str) -> int | None:
     """
@@ -73,32 +74,13 @@ class ResolveService:
     def __init__(
         self,
         *,
-        resolver: AcronymResolverLike,
         glossary_repo: GlossaryRepository,
         semaphore: Any | None,
         request_timeout_ms: int,
     ) -> None:
-        self._resolver = resolver
         self._glossary_repo = glossary_repo
         self._semaphore = semaphore
         self._timeout_s = max(0.001, request_timeout_ms / 1000.0)
-
-    async def resolve(self, payload: ResolveRequest) -> ResolveResponse:
-        """
-        Resolve acronyms for the given request payload and return the API response model.
-
-        This method is intentionally kept as orchestration-only; the work is delegated to
-        helper methods for validation, overload checks, enrichment and mapping.
-        """
-        started = time.perf_counter()
-
-        opts, lang = self._validate_and_prepare(payload)
-        self._raise_if_overloaded()
-
-        matches = list(ACRO_PAREN_PATTERN.finditer(payload.text))
-        blocks = await self._build_acronym_blocks(payload.text, matches, opts, lang)
-
-        return self._build_response(payload.text, blocks, started)
 
     @staticmethod
     def _validate_and_prepare(payload: ResolveRequest) -> tuple[ResolveOptions, str]:
@@ -134,35 +116,6 @@ class ResolveService:
                 message="Service unavailable.",
                 details={"reason": "OVERLOADED"},
             )
-
-    async def _build_acronym_blocks(
-        self,
-        text: str,
-        matches: list[Any],
-        opts: ResolveOptions,
-        lang: str,
-    ) -> list[dict[str, Any]]:
-        """Build response blocks for each unique acronym in first-occurrence order."""
-        blocks: list[dict[str, Any]] = []
-        seen: set[str] = set()
-
-        for ac, first_occ, occs in self.iter_unique_acronyms(matches, seen):
-            glossary_block = self._maybe_glossary_block(ac, lang, opts)
-            definitions = await self._definitions_for(ac, first_occ, opts)
-
-            block: dict[str, Any] = {
-                "acronym": ac,
-                "first_occurrence": first_occ,
-                "definitions": definitions,
-            }
-            if opts.return_occurrences:
-                block["occurrences"] = occs
-            if glossary_block is not None:
-                block["glossary"] = glossary_block
-
-            blocks.append(block)
-
-        return blocks
 
     @staticmethod
     def iter_unique_acronyms(
@@ -203,34 +156,6 @@ class ResolveService:
             ]
         }
 
-    async def _definitions_for(
-        self,
-        ac: str,
-        first_occ: dict[str, int],
-        opts: ResolveOptions,
-    ) -> list[dict[str, Any]]:
-        """Call the resolver and map candidates into API definition objects."""
-        results = await self._call_resolver(ac, top_k=opts.max_definitions_per_acronym)
-
-        definitions: list[dict[str, Any]] = []
-        for c in results:
-            score = float(getattr(c, "score", 0.0))
-            if score < float(opts.min_confidence):
-                continue
-            definitions.append(
-                {
-                    "text": getattr(c, "text", ""),
-                    "start": max(0, first_occ["start"] - int(opts.window_chars)),
-                    "end": first_occ["end"],
-                    "confidence": score,
-                    "source": "extracted",
-                }
-            )
-
-        # Deterministic ordering
-        definitions.sort(key=lambda d: (-float(d["confidence"]), str(d["text"])))
-        return definitions
-
     @staticmethod
     def _build_response(
         text: str,
@@ -251,36 +176,233 @@ class ResolveService:
             }
         )
 
-    async def _call_resolver(self, acronym: str, *, top_k: int) -> Iterable[DefinitionCandidateLike]:
-        from plainera_core.core.domain import Acronym
-
-        async def _invoke() -> Iterable[DefinitionCandidateLike]:
-            res = self._resolver.resolve(Acronym(text=acronym), top_k=top_k)
-
-            if inspect.isawaitable(res):
-                out = await res
-                return out
-
-            return res
-
+    @staticmethod
+    def _span_start_end(span: Any) -> tuple[int, int]:
+        # Supports tuple-like spans (start, end) and object spans with attributes.
+        if isinstance(span, tuple) and len(span) == 2:
+            return int(span[0]), int(span[1])
+        start = getattr(span, "start", None)
+        end = getattr(span, "end", None)
+        if isinstance(start, int) and isinstance(end, int):
+            return start, end
+        # Fall back to index access for e.g. Span dataclass with __iter__
         try:
-            if self._semaphore is not None:
-                async with self._semaphore:
-                    return await asyncio.wait_for(_invoke(), timeout=self._timeout_s)
-            return await asyncio.wait_for(_invoke(), timeout=self._timeout_s)
+            a, b = span  # type: ignore[misc]
+            return int(a), int(b)
+        except Exception as exc:
+            raise TypeError(f"Unrecognised span type: {type(span)!r} -> {span!r}") from exc
+
+    def _build_definitions_by_acronym(
+        self,
+        *,
+        extr: ExtractionResult,
+        opts: ResolveOptions,
+    ) -> dict[str, list[dict[str, Any]]]:
+        """
+        Build acronym -> definitions list.
+
+        Ordering rule:
+          1) Pick (winner) first, if present.
+          2) Remaining candidates from extr.definitions, sorted by (-confidence, text).
+        """
+        defs_by_ac: dict[str, list[dict[str, Any]]] = {}
+
+        # ---- (1) winners from picks (consumer-facing) ----
+        for key, p in extr.picks.items():
+            if p is None:
+                continue
+
+            conf = float(p.definition_confidence)
+            if conf < float(opts.min_confidence):
+                continue
+
+            ds, de = self._span_start_end(p.def_span)
+
+            defs_by_ac.setdefault(key, []).append(
+                {
+                    "text": p.definition,
+                    "start": ds,
+                    "end": de,
+                    "confidence": conf,
+                    "source": "extracted",
+                    "_is_pick": True,  # internal marker for stable ordering
+                }
+            )
+
+        # ---- (2) ledger evidence (debug/trace ledger) ----
+        for d in extr.definitions:
+            ac = d.acronym
+            conf = float(d.definition_confidence)
+            if conf < float(opts.min_confidence):
+                continue
+
+            cand = {
+                "text": d.definition,
+                "start": int(d.def_start),
+                "end": int(d.def_end),
+                "confidence": conf,
+                "source": "extracted",
+                "_is_pick": False,
+            }
+
+            bucket = defs_by_ac.setdefault(ac, [])
+            key = (cand["text"], cand["start"], cand["end"])
+            if not any((x["text"], x["start"], x["end"]) == key for x in bucket):
+                bucket.append(cand)
+
+        # ---- sort + trim, keeping pick first ----
+        max_k = int(opts.max_definitions_per_acronym)
+        for ac, items in defs_by_ac.items():
+            # pick first; rest sorted by confidence desc then text asc
+            items.sort(key=lambda x: (not x["_is_pick"], -float(x["confidence"]), str(x["text"])))
+            if max_k > 0:
+                defs_by_ac[ac] = items[:max_k]
+            # strip internal marker
+            for x in defs_by_ac[ac]:
+                x.pop("_is_pick", None)
+
+        return defs_by_ac
+
+    def _map_pipeline_to_blocks(
+        self,
+        *,
+        det_res: DetectorResult,
+        extr: ExtractionResult,
+        opts: ResolveOptions,
+        lang: str,
+    ) -> list[dict[str, Any]]:
+        """
+        Map pipeline outputs into public API AcronymBlock objects.
+
+        Source of truth:
+          - Occurrences come from `det_res.occurrences`.
+          - Definition candidates come from `extr.definitions`.
+          - Glossary enrichment remains separate under `glossary.matches`.
+
+        Determinism:
+          - Acronym blocks ordered by first occurrence (start_offset), tie-break by acronym text.
+          - Occurrences ordered by (start, end).
+          - Definitions ordered by (-confidence, definition text), trimmed to max_definitions_per_acronym.
+        """
+        # --- occurrences: surface acronym -> list[Span]
+        occ_by_ac: dict[str, list[dict[str, int]]] = {}
+        first_by_ac: dict[str, dict[str, int]] = {}
+
+        # Use detector occurrences (surface form preserved)
+        for o in det_res.occurrences:
+            ac = o.acronym
+            occ_by_ac.setdefault(ac, []).append({"start": o.start_offset, "end": o.end_offset})
+
+        # Sort + compute first occurrence
+        for ac, occs in occ_by_ac.items():
+            occs.sort(key=lambda s: (s["start"], s["end"]))
+            first_by_ac[ac] = occs[0]
+
+        # --- winners from picks: surface acronym -> list[Definition]
+        defs_by_ac = self._build_definitions_by_acronym(extr=extr, opts=opts)
+
+
+        # --- build blocks in deterministic order (first occurrence, then acronym)
+        acronyms_sorted = sorted(
+            first_by_ac.keys(),
+            key=lambda acr_sor: (first_by_ac[acr_sor]["start"], acr_sor),
+        )
+
+        blocks: list[dict[str, Any]] = []
+        for ac in acronyms_sorted:
+            first_occ = first_by_ac[ac]
+            occs = occ_by_ac.get(ac, [])
+
+            glossary_block = self._maybe_glossary_block(ac, lang, opts)
+
+            block: dict[str, Any] = {
+                "acronym": ac,
+                "first_occurrence": {"start": first_occ["start"], "end": first_occ["end"]},
+                "definitions": defs_by_ac.get(ac, []),
+            }
+
+            if opts.return_occurrences:
+                block["occurrences"] = occs
+
+            if glossary_block is not None:
+                block["glossary"] = glossary_block
+
+            blocks.append(block)
+
+        return blocks
+
+    async def resolve(self, payload: ResolveRequest) -> ResolveResponse:
+        """
+        Resolve acronyms in the given input text using the full Unacronym pipeline.
+
+        This method is the request-scoped orchestration entrypoint for `/v1/resolve`.
+        It performs light request validation and overload checks, runs the core
+        detection + extraction pipeline once for the full text, maps the pipeline
+        outputs into the public API schema, and returns a `ResolveResponse`.
+
+        Behaviour:
+          - Whitespace-only text is rejected in `_validate_and_prepare` (422).
+          - Oversize text is rejected in `_validate_and_prepare` (413).
+          - If a global semaphore is saturated, `_raise_if_overloaded` raises (503).
+          - The pipeline is executed off the event loop in a worker thread.
+          - The overall request is bounded by `self._timeout_s`; timeout returns 503
+            with a `timeout_ms` detail.
+          - Glossary enrichment (if enabled) is applied during mapping, without
+            persisting anything to the database (read-only lookup only).
+
+        Args:
+            payload: Validated request object containing the raw `text` and optional
+                `ResolveOptions` (e.g. `window_chars`, `min_confidence`,
+                `include_glossary_enrichment`).
+
+        Returns:
+            ResolveResponse: API response containing:
+              - `acronyms`: list of `AcronymBlock` objects (occurrences + candidate
+                definitions + optional glossary matches)
+              - `meta`: processing time and model version metadata
+
+        Raises:
+            ResolveError: Wrapped API errors with an HTTP status and `ErrorCode`:
+              - 503 SERVICE_UNAVAILABLE when the pipeline times out or fails
+                unexpectedly (uniform error body; no internal details leaked).
+        """
+        started = time.perf_counter()
+
+        opts, lang = self._validate_and_prepare(payload)
+        self._raise_if_overloaded()
+
+        # Run the full pipeline once. It’s CPU-ish, so do it off the event loop.
+        try:
+            det_res, extr = await asyncio.wait_for(
+                anyio.to_thread.run_sync(
+                    lambda: detect_and_extract(
+                        payload.text,
+                        det_cfg=None,  # optionally wire real configs here
+                        ext_cfg=None,  # optionally wire real configs here
+                        window_left=int(opts.window_chars),
+                        window_right=int(opts.window_chars),
+                        return_reports=False,
+                        trace=False,
+                        return_state=False,
+                    )
+                ),
+                timeout=self._timeout_s,
+            )
         except asyncio.TimeoutError as exc:
             raise ResolveError(
                 http_status=status.HTTP_503_SERVICE_UNAVAILABLE,
                 code=ErrorCode.SERVICE_UNAVAILABLE,
                 message="Resolution timed out.",
-                details={"timeout_ms": int(self._timeout_s * 1000), "acronym": acronym},
+                details={"timeout_ms": int(self._timeout_s * 1000)},
             ) from exc
-        except ResolveError:
-            raise
         except Exception as exc:
             raise ResolveError(
                 http_status=status.HTTP_503_SERVICE_UNAVAILABLE,
                 code=ErrorCode.SERVICE_UNAVAILABLE,
                 message="Resolution failed.",
-                details={"acronym": acronym, "reason": str(exc)},
+                details={"reason": str(exc)},
             ) from exc
+
+        blocks = self._map_pipeline_to_blocks(det_res=det_res, extr=extr, opts=opts, lang=lang)
+
+        return self._build_response(payload.text, blocks, started)
