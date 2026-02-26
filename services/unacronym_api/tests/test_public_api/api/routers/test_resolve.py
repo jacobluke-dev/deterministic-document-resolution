@@ -3,10 +3,10 @@ from typing import Any
 import pytest
 from httpx import Response
 from public_api.api.routers import resolve as resolve_mod
-from public_api.db.models import GlossaryEntry
-from public_api.schemas.error import ErrorCode
 from public_api.core import deps_auth as deps_auth_mod
 from public_api.core.auth.api_keys import Principal
+from public_api.db.models import GlossaryEntry
+from public_api.schemas.error import ErrorCode
 
 
 def _get_fastapi_app_from_client(client):

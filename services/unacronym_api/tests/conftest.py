@@ -80,8 +80,8 @@ def _apply_migrations_once(engine_factory):
 
 @pytest_asyncio.fixture
 async def client(engine_factory, session_factory, monkeypatch):
-    from sqlalchemy import text
     from public_api.core.auth.api_keys import generate_key, hash_secret
+    from sqlalchemy import text
     key_id, secret, full = generate_key("test")
     key_hash = hash_secret(secret, scheme="argon2id")
 

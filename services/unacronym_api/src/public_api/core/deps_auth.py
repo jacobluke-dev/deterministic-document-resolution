@@ -8,6 +8,7 @@ from typing import Annotated, Any
 import anyio
 from fastapi import Depends, Header, HTTPException
 
+from public_api.cli.api_keys import parse_hash_scheme
 from public_api.core.auth.api_keys import Principal, fetch_key_record, parse_api_key, update_last_used, verify_secret
 from public_api.core.deps import get_dbm
 from public_api.core.deps_settings import get_settings
@@ -55,7 +56,7 @@ async def require_api_key(
     # Local-only bypass
     if settings.AUTH_DISABLED and settings.APP_ENV == "local":
         logger.warning("AUTH_DISABLED=true in local; skipping API key auth.")
-        return Principal(key_id="dev", prefix="dev", user_id=None, scopes=())
+        return Principal(key_id=90909090, prefix="dev", user_id=None, scopes=())
 
     allow = {
         p.strip()
@@ -74,7 +75,7 @@ async def require_api_key(
     if rec is None or rec.prefix != parsed.prefix:
         raise _unauthenticated_exc()
 
-    scheme = settings.API_KEY_HASH_SCHEME
+    scheme = parse_hash_scheme(settings.API_KEY_HASH_SCHEME or "argon2id")
     ok = await anyio.to_thread.run_sync(
         partial(verify_secret, parsed.secret, rec.key_hash, scheme=scheme)
     )
@@ -82,7 +83,7 @@ async def require_api_key(
         raise _unauthenticated_exc()
 
     principal = Principal(
-        key_id=rec.id,  # or parsed.key_id — pick ONE semantic and stick to it
+        key_id=rec.id,
         prefix=rec.prefix,
         user_id=rec.user_id,
         scopes=tuple(rec.scopes or ()),

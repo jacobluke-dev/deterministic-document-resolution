@@ -5,15 +5,16 @@ from types import TracebackType
 from typing import Any, AsyncGenerator, Literal
 
 from fastapi import FastAPI
-from fastapi.exceptions import RequestValidationError, HTTPException
+from fastapi.exceptions import RequestValidationError
 from observability.http.body_limit import BodySizeLimitMiddleware
 from observability.http.request_id import RequestIDMiddleware
 from observability.logger.access_middleware import access_middleware
 from plainera_core.db_manager.factory import make_dbm
 from sqlalchemy.engine import Engine
+from starlette.exceptions import HTTPException
 from starlette.middleware.cors import CORSMiddleware
 
-from public_api.api.routers.errors import map_length_validation_to_413, map_http_exception
+from public_api.api.routers.errors import map_http_exception, map_length_validation_to_413
 from public_api.api.routers.health import router as health_router
 from public_api.api.routers.resolve import router as resolve_router
 from public_api.core.logging import configure_logging

@@ -1,7 +1,7 @@
 from fastapi import Request
 from fastapi.exception_handlers import request_validation_exception_handler
-from fastapi.exceptions import RequestValidationError, HTTPException
-from starlette.responses import JSONResponse
+from fastapi.exceptions import HTTPException, RequestValidationError
+from starlette.responses import JSONResponse, Response
 from starlette.status import HTTP_401_UNAUTHORIZED, HTTP_403_FORBIDDEN
 
 from public_api.schemas.error import ErrorBody, ErrorCode, ErrorResponse
@@ -35,14 +35,22 @@ async def map_length_validation_to_413(
     # Not a RequestValidationError: re-raise to let FastAPI’s global machinery handle it
     raise exc
 
-async def map_http_exception(request: Request, exc: HTTPException) -> JSONResponse:
+async def map_http_exception(request: Request, exc: Exception) -> Response:
     """
-    Map FastAPI HTTPException into our canonical ErrorResponse envelope.
+    Map HTTP exceptions into our canonical ErrorResponse envelope.
 
     - 401 -> UNAUTHENTICATED
     - 403 -> FORBIDDEN
     - Everything else -> pass-through (best-effort)
+
+    Notes:
+      - Signature accepts `Exception` to satisfy Starlette's handler typing.
+      - Non-HTTP exceptions should not normally reach this handler; they are
+        defensively mapped to a generic 500 response.
     """
+    if not isinstance(exc, HTTPException):
+        return JSONResponse(status_code=500, content={"detail": "Internal Server Error"})
+
     if exc.status_code == HTTP_401_UNAUTHORIZED:
         body = ErrorResponse(
             error=ErrorBody(

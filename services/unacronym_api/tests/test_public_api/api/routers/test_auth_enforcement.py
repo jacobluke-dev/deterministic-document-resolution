@@ -5,9 +5,8 @@ from datetime import datetime, timezone
 from typing import Any
 
 import pytest
-from sqlalchemy import text
-
 from public_api.core.auth.api_keys import generate_key, hash_secret
+from sqlalchemy import text
 
 
 def _utcnow() -> datetime:

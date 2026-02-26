@@ -1,5 +1,4 @@
 import pytest
-
 from public_api.core.auth.api_keys import parse_api_key
 
 

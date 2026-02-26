@@ -1,8 +1,7 @@
 import argparse
 from dataclasses import dataclass
 from datetime import datetime, timezone
-
-from sqlalchemy import text
+from typing import Literal
 
 from plainera_core.db_manager.factory import make_dbm
 from public_api.core.auth.api_keys import (
@@ -11,6 +10,7 @@ from public_api.core.auth.api_keys import (
     parse_api_key,
 )
 from public_api.core.settings import app_settings
+from sqlalchemy import text
 
 
 def _now() -> datetime:
@@ -71,6 +71,22 @@ def _parse_key_ref(value: str) -> _KeyRef:
     return _KeyRef(key_id=value, prefix=None)
 
 
+HashScheme = Literal["argon2id", "bcrypt"]
+
+
+def parse_hash_scheme(value: str | None) -> HashScheme:
+    """
+    Normalise API key hash scheme configuration to a supported literal.
+
+    Accepts a potentially-untrusted string (e.g. from env/config) and returns a
+    supported scheme identifier, defaulting to "argon2id".
+    """
+    v = (value or "argon2id").strip().lower()
+    if v in ("argon2id", "bcrypt"):
+        return v  # type: ignore[return-value]
+    raise ValueError(f"Unsupported API_KEY_HASH_SCHEME: {value!r}")
+
+
 def cmd_create(args: argparse.Namespace) -> None:
     """
     Create a new API key and persist its hash to the database.
@@ -97,7 +113,7 @@ def cmd_create(args: argparse.Namespace) -> None:
     dbm = make_dbm(test_mode=False)
 
     key_id, secret, full = generate_key(args.prefix)
-    scheme = app_settings.API_KEY_HASH_SCHEME or "argon2id"
+    scheme = parse_hash_scheme(app_settings.API_KEY_HASH_SCHEME or "argon2id")
     key_hash = hash_secret(secret, scheme=scheme)
 
     stmt = text(
@@ -234,18 +250,18 @@ def main(argv: list[str] | None = None) -> None:
     p = argparse.ArgumentParser(prog="api-keys")
     sub = p.add_subparsers(dest="cmd", required=True)
 
-    c = sub.add_parser("create")
-    c.add_argument("--prefix", default="test")
-    c.add_argument("--name", default=None)
-    c.add_argument("--scopes", nargs="*", default=[])
-    c.set_defaults(func=cmd_create)
+    c_parser = sub.add_parser("create")
+    c_parser.add_argument("--prefix", default="test")
+    c_parser.add_argument("--name", default=None)
+    c_parser.add_argument("--scopes", nargs="*", default=[])
+    c_parser.set_defaults(func=cmd_create)
 
-    l = sub.add_parser("list")
-    l.set_defaults(func=cmd_list)
+    l_parser = sub.add_parser("list")
+    l_parser.set_defaults(func=cmd_list)
 
-    r = sub.add_parser("revoke")
-    r.add_argument("key", help="key_id or full key string (uak_...)")
-    r.set_defaults(func=cmd_revoke)
+    r_parser = sub.add_parser("revoke")
+    r_parser.add_argument("key", help="key_id or full key string (uak_...)")
+    r_parser.set_defaults(func=cmd_revoke)
 
     rot = sub.add_parser("rotate")
     rot.add_argument("key", help="old key_id or full key string (uak_...)")
