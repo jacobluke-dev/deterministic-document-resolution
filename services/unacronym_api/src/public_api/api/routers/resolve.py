@@ -8,12 +8,13 @@ from starlette.responses import JSONResponse
 
 from public_api.api.response_types import build_responses
 from public_api.core.deps import get_resolve_service
+from public_api.core.deps_auth import require_api_key
 from public_api.core.services.resolve_service import ResolveError, ResolveService
 from public_api.core.settings import app_settings
 from public_api.schemas.error import ErrorBody, ErrorResponse
 from public_api.schemas.resolve import ResolveRequest, ResolveResponse
 
-router = APIRouter(prefix="/v1", tags=["Resolve"])
+router = APIRouter(prefix="/v1", tags=["Resolve"], dependencies=[Depends(require_api_key)])
 
 
 def _error_json(err: ResolveError) -> JSONResponse:

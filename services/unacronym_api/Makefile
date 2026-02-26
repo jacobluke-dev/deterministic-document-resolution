@@ -133,3 +133,28 @@ hooks:
 
 update_snapshots:
 	UPDATE_SNAPSHOTS=1 pytest -q services/unacronym_api/tests
+
+# --- API key management ---------------------------------------------
+
+API_KEYS_CMD := python -m public_api.cli.api_keys
+
+api-key-create: ## Create an API key (prints full key once). Usage: make api-key-create prefix=test name="local dev" scopes="scope1 scope2"
+	@$(API_KEYS_CMD) create \
+		--prefix "$(or $(prefix),test)" \
+		$(if $(name),--name "$(name)",) \
+		$(if $(scopes),--scopes $(scopes),)
+
+api-key-list: ## List API keys
+	@$(API_KEYS_CMD) list
+
+api-key-revoke: ## Revoke an API key. Usage: make api-key-revoke key=<key_id_or_full_key>
+	@if [ -z "$(key)" ]; then echo "Missing key=. Usage: make api-key-revoke key=<key_id_or_full_key>"; exit 2; fi
+	@$(API_KEYS_CMD) revoke "$(key)"
+
+api-key-rotate: ## Rotate an API key. Usage: make api-key-rotate key=<old_key_id_or_full_key> prefix=test revoke_old=1
+	@if [ -z "$(key)" ]; then echo "Missing key=. Usage: make api-key-rotate key=<old_key_id_or_full_key> [prefix=test] [revoke_old=1]"; exit 2; fi
+	@$(API_KEYS_CMD) rotate "$(key)" \
+		--prefix "$(or $(prefix),test)" \
+		$(if $(name),--name "$(name)",) \
+		$(if $(scopes),--scopes $(scopes),) \
+		$(if $(revoke_old),--revoke-old,)
