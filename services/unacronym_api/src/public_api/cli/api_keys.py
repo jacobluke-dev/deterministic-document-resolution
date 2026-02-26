@@ -1,27 +1,64 @@
-from __future__ import annotations
-
 import argparse
+from dataclasses import dataclass
 from datetime import datetime, timezone
 
 from sqlalchemy import text
 
 from plainera_core.db_manager.factory import make_dbm
-from public_api.core.auth.api_keys import generate_key, hash_secret
+from public_api.core.auth.api_keys import (
+    generate_key,
+    hash_secret,
+    parse_api_key,
+)
+from public_api.core.settings import app_settings
 
 
 def _now() -> datetime:
     return datetime.now(timezone.utc)
 
 
+def _allow_prefixes() -> set[str]:
+    raw = app_settings.API_KEY_PREFIX_ALLOWLIST or "live,test"
+    return {p.strip() for p in raw.split(",") if p.strip()}
+
+
+@dataclass(frozen=True)
+class _KeyRef:
+    """Normalised reference to an API key record."""
+    key_id: str
+    prefix: str | None = None
+
+
+def _parse_key_ref(value: str) -> _KeyRef:
+    """
+    Accept either:
+      - key_id (e.g. 'xgX3UcuD0rkA')
+      - full key string (e.g. 'uak_test_xgX3UcuD0rkA_....')
+    """
+    allow = _allow_prefixes()
+    parsed = parse_api_key(value, allow_prefixes=allow)
+    if parsed is not None:
+        return _KeyRef(key_id=parsed.key_id, prefix=parsed.prefix)
+    return _KeyRef(key_id=value, prefix=None)
+
+
 def cmd_create(args: argparse.Namespace) -> None:
+    allow = _allow_prefixes()
+    if args.prefix not in allow:
+        raise SystemExit(f"Invalid --prefix '{args.prefix}'. Allowed: {', '.join(sorted(allow))}")
+
     dbm = make_dbm(test_mode=False)
+
     key_id, secret, full = generate_key(args.prefix)
-    key_hash = hash_secret(secret, scheme="argon2id")
+    scheme = app_settings.API_KEY_HASH_SCHEME or "argon2id"
+    key_hash = hash_secret(secret, scheme=scheme)
 
     stmt = text(
         """
-        INSERT INTO unacronym.api_keys (key_id, key_hash, name, prefix, scopes, is_active, created_at)
-        VALUES (:key_id, :key_hash, :name, :prefix, :scopes, true, now())
+        INSERT INTO unacronym.api_keys
+          (key_id, key_hash, name, prefix, scopes, is_active, created_at)
+        VALUES
+          (:key_id, :key_hash, :name, :prefix, :scopes, true, now())
         """
     )
 
@@ -61,26 +98,34 @@ def cmd_list(_: argparse.Namespace) -> None:
 
 
 def cmd_revoke(args: argparse.Namespace) -> None:
+    ref = _parse_key_ref(args.key)
+
     dbm = make_dbm(test_mode=False)
     stmt = text(
         """
         UPDATE unacronym.api_keys
-        SET is_active = false
+        SET is_active = false,
+            expires_at = COALESCE(expires_at, now())
         WHERE key_id = :key_id
         """
     )
     with dbm.session() as s:
-        s.execute(stmt, {"key_id": args.key_id})
+        res = s.execute(stmt, {"key_id": ref.key_id})
         s.commit()
-    print(f"revoked {args.key_id}")
+
+    # res.rowcount is driver-dependent but usually works for UPDATE
+    print(f"revoked {ref.key_id}")
 
 
 def cmd_rotate(args: argparse.Namespace) -> None:
-    # Create a new key then optionally revoke old
+    old = _parse_key_ref(args.key)
+
+    # Create new key first
     args_create = argparse.Namespace(prefix=args.prefix, name=args.name, scopes=args.scopes)
     cmd_create(args_create)
+
     if args.revoke_old:
-        cmd_revoke(argparse.Namespace(key_id=args.revoke_old))
+        cmd_revoke(argparse.Namespace(key=old.key_id))
 
 
 def main(argv: list[str] | None = None) -> None:
@@ -97,14 +142,15 @@ def main(argv: list[str] | None = None) -> None:
     l.set_defaults(func=cmd_list)
 
     r = sub.add_parser("revoke")
-    r.add_argument("key_id")
+    r.add_argument("key", help="key_id or full key string (uak_...)")
     r.set_defaults(func=cmd_revoke)
 
     rot = sub.add_parser("rotate")
+    rot.add_argument("key", help="old key_id or full key string (uak_...)")
     rot.add_argument("--prefix", default="test")
     rot.add_argument("--name", default=None)
     rot.add_argument("--scopes", nargs="*", default=[])
-    rot.add_argument("--revoke-old", default=None)
+    rot.add_argument("--revoke-old", action="store_true", help="revoke the old key after creating a new one")
     rot.set_defaults(func=cmd_rotate)
 
     args = p.parse_args(argv)
