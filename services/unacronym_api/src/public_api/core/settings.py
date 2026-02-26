@@ -27,6 +27,13 @@ class AppSettings(BaseSettings):
 
     RUN_DB_MIGRATIONS: bool = True
 
+    AUTH_DISABLED: bool = False
+    API_KEY_PREFIX_ALLOWLIST: str = "live,test"
+    API_KEY_HASH_SCHEME: str = "argon2id"  # argon2id|bcrypt
+    API_KEY_CACHE_TTL_SECONDS: int = 60
+    API_KEY_LAST_USED_ASYNC: bool = True
+
+
     @property
     def cors_origins(self) -> list[str]:
         raw = (self.CORS_ORIGINS or "").strip()

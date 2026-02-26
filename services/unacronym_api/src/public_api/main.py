@@ -11,9 +11,10 @@ from observability.http.request_id import RequestIDMiddleware
 from observability.logger.access_middleware import access_middleware
 from plainera_core.db_manager.factory import make_dbm
 from sqlalchemy.engine import Engine
+from starlette.exceptions import HTTPException
 from starlette.middleware.cors import CORSMiddleware
 
-from public_api.api.routers.errors import map_length_validation_to_413
+from public_api.api.routers.errors import map_http_exception, map_length_validation_to_413
 from public_api.api.routers.health import router as health_router
 from public_api.api.routers.resolve import router as resolve_router
 from public_api.core.logging import configure_logging
@@ -101,4 +102,7 @@ def create_app(settings: AppSettings | None = None) -> FastAPI:
     app.include_router(resolve_router)
 
     app.add_exception_handler(RequestValidationError, map_length_validation_to_413)
+    app.add_exception_handler(HTTPException, map_http_exception)
+    app.state.settings = settings
+
     return app

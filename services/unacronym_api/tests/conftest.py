@@ -15,6 +15,9 @@ from public_api.core.settings import AppSettings, db_settings
 from public_api.main import create_app
 from test_kit.fixtures import TestDBManager
 
+os.environ.setdefault("APP_ENV", "test")
+os.environ.setdefault("AUTH_DISABLED", "false")
+os.environ.setdefault("ENVIRONMENT", "TEST")
 
 @pytest.fixture
 def anyio_backend():
@@ -77,6 +80,22 @@ def _apply_migrations_once(engine_factory):
 
 @pytest_asyncio.fixture
 async def client(engine_factory, session_factory, monkeypatch):
+    from public_api.core.auth.api_keys import generate_key, hash_secret
+    from sqlalchemy import text
+    key_id, secret, full = generate_key("test")
+    key_hash = hash_secret(secret, scheme="argon2id")
+
+    with session_factory() as s:
+        s.execute(
+            text(
+                """
+                INSERT INTO unacronym.api_keys (key_id, key_hash, prefix, scopes, is_active, created_at)
+                VALUES (:key_id, :key_hash, :prefix, '{}'::text[], true, now())
+                """
+            ),
+            {"key_id": key_id, "key_hash": key_hash, "prefix": "test"},
+        )
+        s.commit()
     # Ensure anything that reads env gets a valid DSN (not strictly required once we patch make_dbm)
     os.environ["DATABASE_URL"] = engine_factory.url.render_as_string(hide_password=False)
 
@@ -86,7 +105,7 @@ async def client(engine_factory, session_factory, monkeypatch):
         lambda test_mode=False: TestDBManager(
             engine=engine_factory,
             session_factory=session_factory,
-            allowed_tables={"glossary_entries", "acronym_aliases"},
+            allowed_tables={"glossary_entries", "acronym_aliases", "api_keys"}
         ),
         raising=False,
     )
@@ -97,7 +116,38 @@ async def client(engine_factory, session_factory, monkeypatch):
     app.dependency_overrides[deps.get_dbm] = lambda: TestDBManager(
         engine=engine_factory,
         session_factory=session_factory,
-        allowed_tables={"glossary_entries", "acronym_aliases"},
+        allowed_tables={"glossary_entries", "acronym_aliases", "api_keys"},
+    )
+
+    transport = ASGITransport(app=app)
+    async with AsyncClient(
+        transport=transport,
+        base_url="http://testserver",
+        headers={"X-API-Key": full},
+    ) as ac:
+        yield ac
+
+
+@pytest_asyncio.fixture
+async def client_no_auth(engine_factory, session_factory, monkeypatch):
+    os.environ["DATABASE_URL"] = engine_factory.url.render_as_string(hide_password=False)
+
+    monkeypatch.setattr(
+        "public_api.main.make_dbm",
+        lambda test_mode=False: TestDBManager(
+            engine=engine_factory,
+            session_factory=session_factory,
+            allowed_tables={"glossary_entries", "acronym_aliases", "api_keys"},
+        ),
+        raising=False,
+    )
+
+    app = create_app(settings=AppSettings(RUN_DB_MIGRATIONS=False, ENABLE_DOCS=False))
+
+    app.dependency_overrides[deps.get_dbm] = lambda: TestDBManager(
+        engine=engine_factory,
+        session_factory=session_factory,
+        allowed_tables={"glossary_entries", "acronym_aliases", "api_keys"},
     )
 
     transport = ASGITransport(app=app)

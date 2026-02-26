@@ -7,6 +7,8 @@ from public_api.schemas.base import BaseSchema
 
 
 class ErrorCode(str, Enum):
+    FORBIDDEN = "FORBIDDEN"
+    UNAUTHENTICATED = "UNAUTHENTICATED"
     BAD_REQUEST = "BAD_REQUEST"
     PAYLOAD_TOO_LARGE = "PAYLOAD_TOO_LARGE"
     UNSUPPORTED_MEDIA_TYPE = "UNSUPPORTED_MEDIA_TYPE"

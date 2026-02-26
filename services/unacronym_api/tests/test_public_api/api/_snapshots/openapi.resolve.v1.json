@@ -147,6 +147,8 @@
       },
       "ErrorCode": {
         "enum": [
+          "FORBIDDEN",
+          "UNAUTHENTICATED",
           "BAD_REQUEST",
           "PAYLOAD_TOO_LARGE",
           "UNSUPPORTED_MEDIA_TYPE",
@@ -449,6 +451,24 @@
       "post": {
         "description": "Detect acronyms, propose definitions, and (optionally) enrich from a curated glossary. Offsets use Python-slice semantics (end exclusive). Supported locales: en-GB, en-US. Idempotent: does not mutate server state. Content-Encoding: gzip supported.",
         "operationId": "resolve_acronyms_v1_resolve_post",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "X-API-Key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Api-Key"
+            }
+          }
+        ],
         "requestBody": {
           "content": {
             "application/json": {
