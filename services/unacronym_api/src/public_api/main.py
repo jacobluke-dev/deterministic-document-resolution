@@ -102,4 +102,6 @@ def create_app(settings: AppSettings | None = None) -> FastAPI:
 
     app.add_exception_handler(RequestValidationError, map_length_validation_to_413)
     app.add_exception_handler(HTTPException, map_http_exception)
+    app.state.settings = settings
+
     return app

@@ -15,6 +15,9 @@ from public_api.core.settings import AppSettings, db_settings
 from public_api.main import create_app
 from test_kit.fixtures import TestDBManager
 
+os.environ.setdefault("APP_ENV", "test")
+os.environ.setdefault("AUTH_DISABLED", "false")
+os.environ.setdefault("ENVIRONMENT", "TEST")
 
 @pytest.fixture
 def anyio_backend():
