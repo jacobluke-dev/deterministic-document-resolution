@@ -14,10 +14,27 @@ from public_api.core.settings import app_settings
 
 
 def _now() -> datetime:
+    """
+    Return the current UTC time as a timezone-aware `datetime`.
+
+    Centralises "now" so timestamps are consistent and easy to patch in tests.
+
+    Returns:
+      A timezone-aware UTC `datetime`.
+    """
     return datetime.now(timezone.utc)
 
 
 def _allow_prefixes() -> set[str]:
+    """
+    Compute the allowed API key prefixes from application settings.
+
+    Uses `API_KEY_PREFIX_ALLOWLIST` when configured; otherwise defaults to
+    `{"live", "test"}`. Whitespace is trimmed and empty entries are ignored.
+
+    Returns:
+      A set of allowed key prefixes.
+    """
     raw = app_settings.API_KEY_PREFIX_ALLOWLIST or "live,test"
     return {p.strip() for p in raw.split(",") if p.strip()}
 
@@ -31,9 +48,21 @@ class _KeyRef:
 
 def _parse_key_ref(value: str) -> _KeyRef:
     """
-    Accept either:
-      - key_id (e.g. 'xgX3UcuD0rkA')
-      - full key string (e.g. 'uak_test_xgX3UcuD0rkA_....')
+    Normalise a CLI key reference into a `key_id` (+ optional prefix).
+
+    Accepts either a raw `key_id` (e.g. "xgX3UcuD0rkA") or a full API key string
+    (e.g. "uak_test_xgX3UcuD0rkA_..."). If a full key is provided, it is parsed
+    and validated against the allowed prefix set.
+
+    Args:
+      value: A raw key id or a full API key string.
+
+    Returns:
+      A `_KeyRef` containing the key id and (when parseable) the prefix.
+
+    Notes:
+      - If parsing fails, the input is treated as a raw key id.
+      - Prefix allowlisting is enforced only when the value looks like a full key.
     """
     allow = _allow_prefixes()
     parsed = parse_api_key(value, allow_prefixes=allow)
@@ -43,6 +72,24 @@ def _parse_key_ref(value: str) -> _KeyRef:
 
 
 def cmd_create(args: argparse.Namespace) -> None:
+    """
+    Create a new API key and persist its hash to the database.
+
+    Validates the requested prefix, generates a new key (id + secret), hashes the
+    secret using the configured scheme, inserts a new `api_keys` record, and
+    prints the full key string exactly once for the operator to copy.
+
+    Args:
+      args: CLI arguments namespace containing `prefix`, `name`, and `scopes`.
+
+    Raises:
+      SystemExit: If `args.prefix` is not in the allowed prefix set.
+
+    Notes:
+      - The printed key is the only time the secret is available; it cannot be
+        recovered from the stored hash.
+      - `scopes` defaults to an empty list and is stored as provided.
+    """
     allow = _allow_prefixes()
     if args.prefix not in allow:
         raise SystemExit(f"Invalid --prefix '{args.prefix}'. Allowed: {', '.join(sorted(allow))}")
@@ -79,6 +126,20 @@ def cmd_create(args: argparse.Namespace) -> None:
 
 
 def cmd_list(_: argparse.Namespace) -> None:
+    """
+    List API keys from the database in a human-readable format.
+
+    Loads key metadata (id, prefix, active flag, created/last_used/expires times)
+    and prints one tab-separated line per key, ordered by most-recent creation.
+
+    Args:
+      _: Unused CLI args namespace (accepted for argparse compatibility).
+
+    Notes:
+      - Output is intended for operator inspection and scripting; the format is
+        stable-ish but not a public contract.
+      - This command does not reveal any secret material.
+    """
     dbm = make_dbm(test_mode=False)
     stmt = text(
         """
@@ -98,6 +159,21 @@ def cmd_list(_: argparse.Namespace) -> None:
 
 
 def cmd_revoke(args: argparse.Namespace) -> None:
+    """
+    Revoke an API key by marking it inactive and setting an expiry timestamp.
+
+    Accepts either a raw `key_id` or a full key string; normalises to a key id,
+    then updates the corresponding record to `is_active=false` and sets
+    `expires_at` to `now()` if it was previously unset.
+
+    Args:
+      args: CLI arguments namespace containing `key` (key_id or full key string).
+
+    Notes:
+      - This is an idempotent-ish operation: re-revoking a key will keep it
+        inactive and preserve the earliest `expires_at` once set.
+      - The update is performed by `key_id` only; prefix is not required.
+    """
     ref = _parse_key_ref(args.key)
 
     dbm = make_dbm(test_mode=False)
@@ -110,14 +186,27 @@ def cmd_revoke(args: argparse.Namespace) -> None:
         """
     )
     with dbm.session() as s:
-        res = s.execute(stmt, {"key_id": ref.key_id})
+        s.execute(stmt, {"key_id": ref.key_id})
         s.commit()
 
-    # res.rowcount is driver-dependent but usually works for UPDATE
     print(f"revoked {ref.key_id}")
 
 
 def cmd_rotate(args: argparse.Namespace) -> None:
+    """
+    Rotate an API key by creating a replacement and optionally revoking the old.
+
+    Creates a new key using the provided prefix/name/scopes, prints the new full
+    key string, and (optionally) revokes the old key if `--revoke-old` is set.
+
+    Args:
+      args: CLI arguments namespace containing the old `key` plus new key options.
+
+    Notes:
+      - The new key is created before revoking the old key to reduce downtime.
+      - Revocation targets the old key by `key_id` even if the user provided a
+        full key string.
+    """
     old = _parse_key_ref(args.key)
 
     # Create new key first
@@ -129,6 +218,19 @@ def cmd_rotate(args: argparse.Namespace) -> None:
 
 
 def main(argv: list[str] | None = None) -> None:
+    """
+    CLI entrypoint for managing API keys (create/list/revoke/rotate).
+
+    Defines argparse subcommands and dispatches to the relevant command handler.
+    Intended for operator use in secure environments.
+
+    Args:
+      argv: Optional argument vector (defaults to `sys.argv[1:]` via argparse).
+
+    Notes:
+      - `create` prints a full key once; treat stdout as sensitive.
+      - Database connectivity is provided via `make_dbm(test_mode=False)`.
+    """
     p = argparse.ArgumentParser(prog="api-keys")
     sub = p.add_subparsers(dest="cmd", required=True)
 
