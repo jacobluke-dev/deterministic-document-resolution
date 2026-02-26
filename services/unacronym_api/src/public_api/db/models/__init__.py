@@ -7,9 +7,11 @@ from .acronym_alias import AcronymAlias
 
 # Eager imports so SQLAlchemy sees everything in the registry
 from .glossary_entry import GlossaryEntry
+from .api_key import ApiKey
 from .logger import Logger
 
 __all__ = [
+    "ApiKey",
     "Base",
     "BaseWithTimestamps",
     "GlossaryEntry",

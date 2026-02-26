@@ -1,4 +1,5 @@
 import json
+import os
 from pathlib import Path
 from typing import Any
 
@@ -41,8 +42,12 @@ async def test_openapi_snapshot(client):
     slim = _extract_resolve_spec(spec)
 
     SNAP_DIR.mkdir(parents=True, exist_ok=True)
-    print("SNAP_DIR:", SNAP_DIR)
-    print("SNAP_FILE:", SNAP_FILE)
+    update = os.getenv("UPDATE_SNAPSHOTS") == "1"
+
+    if update or not SNAP_FILE.exists():
+        SNAP_FILE.write_text(json.dumps(slim, indent=2, sort_keys=True), encoding="utf-8")
+        if not update:
+            pytest.fail(f"Created snapshot at {SNAP_FILE}. Re-run tests.")
 
     if not SNAP_FILE.exists():
         SNAP_FILE.write_text(json.dumps(slim, indent=2, sort_keys=True), encoding="utf-8")

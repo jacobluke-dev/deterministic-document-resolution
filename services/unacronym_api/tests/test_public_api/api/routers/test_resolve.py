@@ -5,6 +5,8 @@ from httpx import Response
 from public_api.api.routers import resolve as resolve_mod
 from public_api.db.models import GlossaryEntry
 from public_api.schemas.error import ErrorCode
+from public_api.core import deps_auth as deps_auth_mod
+from public_api.core.auth.api_keys import Principal
 
 
 def _get_fastapi_app_from_client(client):
@@ -139,6 +141,9 @@ class TestV1Resolve:
 
         app = _get_fastapi_app_from_client(client)
         app.dependency_overrides[deps_mod.get_semaphore] = lambda: DummySemaphore()
+        app.dependency_overrides[deps_auth_mod.require_api_key] = lambda: Principal(
+            key_id="test", prefix="test", user_id=None, scopes=()
+        )
         try:
             r = await client.post("/v1/resolve", json={"text": "Foo (BAR)"})
             assert r.status_code == 503
