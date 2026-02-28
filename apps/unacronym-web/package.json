@@ -5,9 +5,10 @@
   "scripts": {
     "dev": "next dev -H 0.0.0.0 -p 3000",
     "dev:turbopack": "next dev --turbopack",
+    "lint": "eslint .",
+    "test": "vitest run",
     "build": "next build",
-    "start": "next start",
-    "lint": "next lint"
+    "start": "node apps/unacronym-web/server.js"
   },
   "dependencies": {
     "@headlessui/react": "^2.2.4",
@@ -38,6 +39,8 @@
     "@eslint/eslintrc": "^3",
     "@opennextjs/cloudflare": "^1.14.8",
     "@tailwindcss/postcss": "^4.1.10",
+    "@testing-library/jest-dom": "^6.9.1",
+    "@testing-library/react": "^16.3.2",
     "@types/js-cookie": "^3.0.6",
     "@types/node": "^20",
     "@types/react": "^18.3.23",
