@@ -8,11 +8,13 @@ COV_FAIL_UNDER ?= 80
 
 
 # Submodules and steps
-SUBDIRS := \
+PY_SUBDIRS := \
     packages/plainera_core \
     packages/plainera_observability \
     packages/plainera_unacronym \
     services/unacronym_api
+
+APP_SUBDIRS := apps/unacronym-web
 
 STEPS := install lint typecheck test build
 
@@ -95,7 +97,7 @@ local-run:
 coverage-html: install
 	@rm -rf htmlcov .coverage .coverage.* 2>/dev/null || true
 	@root_py="$(VENV_BIN)/python"; \
-	for d in $(SUBDIRS); do \
+	for d in $(PY_SUBDIRS); do \
 	  name=$$(basename $$d); \
 	  echo ""; echo "==> $$d (relative source)"; \
 	  ( cd $$d && \
@@ -119,17 +121,21 @@ clean:
 	rm -rf .pytest_cache .mypy_cache .ruff_cache htmlcov .coverage coverage.xml dist build
 
 # Run all tasks locally like CI (lint, typecheck, test, build)
-ci-local: bootstrap ## Simulate CI locally across all packages using root venv
+ci-local: bootstrap ## Simulate CI locally across all packages/apps
 	@set -e; \
-	for d in $(SUBDIRS); do \
+	for d in $(PY_SUBDIRS); do \
 	  echo ""; echo "==> $$d: ci-local"; \
 	  $(MAKE) -C $$d ci-local RUN="$(VENV_BIN)/python -m"; \
+	done; \
+	for d in $(APP_SUBDIRS); do \
+	  echo ""; echo "==> $$d: ci-local"; \
+	  $(MAKE) -C $$d ci-local; \
 	done; \
 	echo ""; echo "✅ Monorepo CI local complete"
 
 run-%:
 	@set -e; \
-	for d in $(SUBDIRS); do \
+	for d in $(PY_SUBDIRS); do \
 		echo ""; echo "==> $$d: $*"; \
 		if $(MAKE) -C $$d -n $* >/dev/null 2>&1; then \
 			$(MAKE) -C $$d $*; \

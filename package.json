@@ -1,0 +1,5 @@
+{
+  "name": "unacronym-monorepo",
+  "private": true,
+  "packageManager": "pnpm@10.30.3"
+}
