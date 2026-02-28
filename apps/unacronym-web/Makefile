@@ -2,6 +2,10 @@ SHELL := /usr/bin/env bash
 
 .PHONY: dev install lint typecheck test build start ci-local
 
+NEXT_PUBLIC_API_BASE_URL ?= http://api:8000
+NEXT_PUBLIC_ENV ?= local
+NEXT_PUBLIC_ENABLE_ANALYTICS ?= false
+
 dev:
 	pnpm dev
 
@@ -22,10 +26,13 @@ typecheck:
 
 test:
 	corepack enable
-	pnpm test
+	pnpm test -- --reporter=verbose
 
 build:
 	corepack enable
+	NEXT_PUBLIC_API_BASE_URL="$(NEXT_PUBLIC_API_BASE_URL)" \
+	NEXT_PUBLIC_ENV="$(NEXT_PUBLIC_ENV)" \
+	NEXT_PUBLIC_ENABLE_ANALYTICS="$(NEXT_PUBLIC_ENABLE_ANALYTICS)" \
 	pnpm build
 
 ci-local: install lint typecheck test build
