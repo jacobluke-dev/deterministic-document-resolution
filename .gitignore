@@ -34,3 +34,6 @@ pytest-results.xml
 
 # local comparison file
 output.json
+
+node_modules/
+.pnpm-store/
