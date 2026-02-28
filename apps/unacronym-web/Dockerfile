@@ -30,7 +30,7 @@ RUN corepack enable && pnpm -C apps/unacronym-web build
 
 FROM node:20-alpine AS runner
 WORKDIR /app
-ENV NODE_ENV=production
+ENV NODE_ENV=local
 
 COPY --from=builder /repo/apps/unacronym-web/.next/standalone ./
 COPY --from=builder /repo/apps/unacronym-web/.next/static ./.next/static
