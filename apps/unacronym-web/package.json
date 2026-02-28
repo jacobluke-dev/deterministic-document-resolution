@@ -6,8 +6,8 @@
     "dev": "next dev -H 0.0.0.0 -p 3000",
     "dev:turbopack": "next dev --turbopack",
     "lint": "eslint .",
-    "test": "vitest run",
-    "build": "next build",
+    "test": "NODE_ENV=test vitest run",
+    "build": "NODE_ENV=production next build",
     "start": "node apps/unacronym-web/server.js"
   },
   "dependencies": {

@@ -278,4 +278,4 @@ web:
     - pnpm -C apps/unacronym-web lint
     - pnpm -C apps/unacronym-web exec tsc -p tsconfig.json --noEmit
     - pnpm -C apps/unacronym-web test
-    - NODE_ENV=production pnpm -C apps/unacronym-web build
+    - pnpm -C apps/unacronym-web build
