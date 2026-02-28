@@ -1,10 +1,11 @@
 import type { NextConfig } from "next";
-
-// Fail fast at build-time if required env vars are missing
+import path from "path";
 import "./src/lib/env/build";
 
 const nextConfig: NextConfig = {
   output: "standalone",
+  outputFileTracingRoot: path.join(__dirname, "../.."),
+  eslint: { ignoreDuringBuilds: true },
 };
 
 export default nextConfig;

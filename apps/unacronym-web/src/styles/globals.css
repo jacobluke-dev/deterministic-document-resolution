@@ -1,4 +1,6 @@
-@import "../../node_modules/.pnpm/tailwindcss@4.2.1/node_modules/tailwindcss/dist/lib.d.mts";
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
 
 :root {
   --background: #ffffff;

@@ -25,8 +25,8 @@ services:
                "--reload", "--reload-dir", "/app/src" ]
   web:
     build:
-      context: ./apps/unacronym-web
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: apps/unacronym-web/Dockerfile
       args:
         NEXT_PUBLIC_API_BASE_URL: ${NEXT_PUBLIC_API_BASE_URL:-http://api:8000}
         NEXT_PUBLIC_ENV: ${NEXT_PUBLIC_ENV:-local}
