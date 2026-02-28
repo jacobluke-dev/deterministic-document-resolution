@@ -26,14 +26,14 @@ typecheck:
 
 test:
 	corepack enable
-	pnpm test -- --reporter=verbose
+	NODE_ENV=test pnpm test -- --reporter=verbose
 
 build:
 	corepack enable
 	NEXT_PUBLIC_API_BASE_URL="$(NEXT_PUBLIC_API_BASE_URL)" \
 	NEXT_PUBLIC_ENV="$(NEXT_PUBLIC_ENV)" \
 	NEXT_PUBLIC_ENABLE_ANALYTICS="$(NEXT_PUBLIC_ENABLE_ANALYTICS)" \
-	pnpm build
+	NODE_ENV=production pnpm build
 
 ci-local: install lint typecheck test build
 	@echo "✅ unacronym-web OK"
