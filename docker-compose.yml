@@ -23,6 +23,20 @@ services:
     command: [ "uvicorn", "--app-dir", "/app/src", "public_api.main:create_app", "--factory",
                "--host", "0.0.0.0", "--port", "8000",
                "--reload", "--reload-dir", "/app/src" ]
+  web:
+    build:
+      context: ./apps/unacronym-web
+      dockerfile: Dockerfile
+      args:
+        NEXT_PUBLIC_API_BASE_URL: ${NEXT_PUBLIC_API_BASE_URL}
+        NEXT_PUBLIC_ENV: ${NEXT_PUBLIC_ENV}
+        NEXT_PUBLIC_ENABLE_ANALYTICS: ${NEXT_PUBLIC_ENABLE_ANALYTICS}
+    environment:
+      UNACRONYM_API_KEY: ${UNACRONYM_API_KEY}
+    ports:
+      - "3000:3000"
+    depends_on:
+      - api
 
   db:
     image: postgres:15-alpine
