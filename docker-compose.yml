@@ -28,15 +28,17 @@ services:
       context: ./apps/unacronym-web
       dockerfile: Dockerfile
       args:
-        NEXT_PUBLIC_API_BASE_URL: ${NEXT_PUBLIC_API_BASE_URL}
-        NEXT_PUBLIC_ENV: ${NEXT_PUBLIC_ENV}
-        NEXT_PUBLIC_ENABLE_ANALYTICS: ${NEXT_PUBLIC_ENABLE_ANALYTICS}
+        NEXT_PUBLIC_API_BASE_URL: ${NEXT_PUBLIC_API_BASE_URL:-http://api:8000}
+        NEXT_PUBLIC_ENV: ${NEXT_PUBLIC_ENV:-local}
+        NEXT_PUBLIC_ENABLE_ANALYTICS: ${NEXT_PUBLIC_ENABLE_ANALYTICS:-false}
     environment:
-      UNACRONYM_API_KEY: ${UNACRONYM_API_KEY}
+      UNACRONYM_API_KEY: ${UNACRONYM_API_KEY:-devkey}
     ports:
       - "3000:3000"
     depends_on:
       - api
+    env_file:
+      - ./apps/unacronym-web/.env.unacronym-web
 
   db:
     image: postgres:15-alpine
