@@ -125,9 +125,9 @@ export default function DemoPage() {
     <>
       <Toaster position="top-right"/>
 
-      <div className="mx-auto max-w-7xl p-4">
+      <div className="mx-auto max-w-8xl p-4">
         <div className="mb-4">
-          <h1 className="text-xl font-semibold text-gray-100">Demo</h1>
+          <h1 className="text-xl font-semibold text-gray-100">Demo Page do not paste any confidential data in here please.</h1>
           <p className="text-sm text-white">
             Paste text → Resolve → inspect deterministic offsets & sources.
           </p>

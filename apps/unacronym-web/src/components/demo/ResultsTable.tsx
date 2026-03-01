@@ -4,7 +4,7 @@ import React from "react";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { ProgressBar } from "@/components/ui/ProgressBar";
-import type { ResolveItem } from "@/lib/api/types";
+import type { ResolveRow } from "@/lib/api/mapper";
 
 function clamp01(v: number) {
   if (!Number.isFinite(v)) return 0;
@@ -23,9 +23,9 @@ export function ResultsTable({
   onCopyRow,
 }: {
   text: string;
-  items: ResolveItem[];
+  items: ResolveRow[];
   onSelectOccurrence: (o: { start: number; end: number }) => void;
-  onCopyRow: (row: ResolveItem) => void;
+  onCopyRow: (row: ResolveRow) => void;
 }) {
   const [openKey, setOpenKey] = React.useState<string | null>(null);
 
@@ -80,12 +80,10 @@ export function ResultsTable({
                   <td className="px-3 py-2">
                     <div className="flex items-center gap-2">
                       <Badge variant={row.source === "glossary" ? "accent" : "neutral"}>
-                        {row.source ?? "—"}
+                        {row.source}
                       </Badge>
-                      {row.glossary_source ? (
-                        <span className="text-xs text-gray-600" title={row.glossary_source}>
-                          {row.glossary_source}
-                        </span>
+                      {row.glossaryLabel ? (
+                        <span className="text-xs text-gray-600">{row.glossaryLabel}</span>
                       ) : null}
                     </div>
                   </td>

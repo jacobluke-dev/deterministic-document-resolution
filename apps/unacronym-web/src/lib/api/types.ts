@@ -41,7 +41,7 @@ export type GlossaryBlock = {
 export type AcronymBlock = {
   acronym: string;
   first_occurrence: Span;
-  definitions?: Definition[]; // API says required in schema examples, but be defensive
+  definitions?: Definition[] | null;
   occurrences?: Span[] | null;
   glossary?: GlossaryBlock | null;
 };
