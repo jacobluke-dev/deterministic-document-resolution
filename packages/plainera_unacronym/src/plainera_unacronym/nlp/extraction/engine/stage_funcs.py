@@ -393,7 +393,7 @@ def st_tier2_semantic_rerank(
         s.last_info = f"tier2=skipped(nothing_eligible) reasons={_fmt_reasons(reasons)}"
         return StageResult(s, s.last_info)
     try:
-        batch = embed_for_tier2(model_name, eligible)
+        batch = embed_for_tier2(eligible, tier2_model=s.tier2_model, model_name=model_name)
         if batch is None:
             raise RuntimeError("model_unavailable")
 

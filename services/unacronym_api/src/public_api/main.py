@@ -14,6 +14,7 @@ from sqlalchemy.engine import Engine
 from starlette.exceptions import HTTPException
 from starlette.middleware.cors import CORSMiddleware
 
+from plainera_unacronym.nlp.extraction.tiers.semantic import _load_st_model
 from public_api.api.routers.errors import map_http_exception, map_length_validation_to_413
 from public_api.api.routers.health import router as health_router
 from public_api.api.routers.resolve import router as resolve_router
@@ -55,6 +56,16 @@ class _NullDBManager:
 async def lifespan(app: FastAPI) -> AsyncGenerator[None, Any]:
     state = app.state
 
+    # ---- Tier-2 model (startup) ----
+    if app_settings.TIER2_ENABLED:
+        state.tier2_model = _load_st_model(
+            app_settings.TIER2_MODEL_NAME,
+            cache_folder=app_settings.HF_CACHE_DIR,
+        )
+    else:
+        state.tier2_model = None
+
+    # ---- DBM (startup) ----
     if db_settings.DATABASE_DISABLED:
         state.dbm = _NullDBManager()
         yield

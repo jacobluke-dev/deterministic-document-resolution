@@ -1,5 +1,7 @@
+from __future__ import annotations
+
 from dataclasses import dataclass, field
-from typing import Optional
+from typing import Optional, Any
 
 from plainera_unacronym.nlp.common.types import (
     DetectorConfig,
@@ -30,6 +32,7 @@ class FlowState:
     backref_defs: list[ExtractedDefinition] = field(default_factory=list)
     all_defs: list[ExtractedDefinition] = field(default_factory=list)
 
+    tier2_model: Any | None = None
     coverage: float = 0.0
     missing_keys: tuple[str, ...] = ()
 

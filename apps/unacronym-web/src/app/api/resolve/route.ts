@@ -3,8 +3,13 @@ import type {ResolveRequest, ResolveResponse} from "@/lib/api/types";
 
 export const runtime = "nodejs"; // keep it node for env + SDK compatibility (edge later if you want)
 
-function jsonError(status: number, message: string, details?: unknown) {
-  return NextResponse.json({message, details}, {status});
+function normaliseStatus(x: unknown, fallback = 502): number {
+  const n = typeof x === "number" ? x : Number(x);
+  return Number.isFinite(n) && n >= 200 && n <= 599 ? n : fallback;
+}
+
+function jsonError(status: unknown, message: string, details?: unknown) {
+  return NextResponse.json({ message, details }, { status: normaliseStatus(status) });
 }
 
 export async function POST(req: Request) {
@@ -72,13 +77,12 @@ export async function POST(req: Request) {
       const txt = await resp.text().catch(() => "");
       return jsonError(resp.status, "Request failed.", txt || undefined);
     }
-    const json = await resp.json();
-    console.log("UPSTREAM RESOLVE RESPONSE (truncated):", JSON.stringify(json).slice(0, 2000));
-    return NextResponse.json(json);
-
     const data = (await resp.json()) as ResolveResponse;
-    return NextResponse.json(data);
+    return NextResponse.json(data, { status: resp.status });
   } catch (e) {
-    return jsonError(0, "Network error: could not reach the API.", String(e));
-  }
+  return jsonError(502, "Network error: could not reach the API.", {
+    upstreamBase,
+    error: e instanceof Error ? e.message : String(e),
+  });
+}
 }

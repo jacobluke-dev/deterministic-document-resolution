@@ -133,6 +133,7 @@ def get_resolve_service(
     semaphore: Annotated[Semaphore | None, Depends(get_semaphore)],
     glossary_repo: Annotated[GlossaryRepository, Depends(get_glossary_repo)],
     timeout_ms: Annotated[int, Depends(get_request_timeout_ms)],
+    request: Request,
 ) -> ResolveService:
     """
     Provide a request-scoped ResolveService.
@@ -154,4 +155,5 @@ def get_resolve_service(
         glossary_repo=glossary_repo,
         semaphore=semaphore,
         request_timeout_ms=timeout_ms,
+        tier2_model=request.app.state.tier2_model
     )

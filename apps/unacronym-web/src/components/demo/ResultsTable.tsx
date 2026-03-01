@@ -104,7 +104,7 @@ export function ResultsTable({
                 {isOpen ? (
                   <tr className="border-t bg-gray-50">
                     <td colSpan={6} className="px-3 py-3">
-                      <div className="text-xs text-gray-600 mb-2">Occurrences</div>
+                      <div className="text-md text-gray-600 mb-2">Occurrences</div>
                       {row.occurrences?.length ? (
                         <div className="flex flex-wrap gap-2">
                           {row.occurrences.map((o, idx) => {
@@ -112,7 +112,7 @@ export function ResultsTable({
                             return (
                               <button
                                 key={idx}
-                                className="rounded border bg-white px-2 py-1 text-xs hover:bg-gray-100"
+                                className="rounded border text-gray-700 bg-white px-2 py-1"
                                 onClick={() => onSelectOccurrence({ start: o.start, end: o.end })}
                                 title={`"${snip}" (end-exclusive)`}
                               >

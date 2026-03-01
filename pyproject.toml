@@ -25,6 +25,7 @@ unacronym-api = { path = "services/unacronym_api", develop = true}
 asyncpg = "^0.30.0"
 numpy = "^2.4.2"
 reportlab = "^4.4.10"
+sentence-transformers = "^5.2.3"
 
 [tool.poetry.group.dev.dependencies]
 pytest = "^8.3.0"

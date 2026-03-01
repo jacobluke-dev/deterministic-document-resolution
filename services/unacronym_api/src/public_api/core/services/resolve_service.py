@@ -76,10 +76,12 @@ class ResolveService:
         glossary_repo: GlossaryRepository,
         semaphore: Any | None,
         request_timeout_ms: int,
+        tier2_model: Any | None,
     ) -> None:
         self._glossary_repo = glossary_repo
         self._semaphore = semaphore
         self._timeout_s = max(0.001, request_timeout_ms / 1000.0)
+        self._tier2_model = tier2_model
 
     @staticmethod
     def _validate_and_prepare(payload: ResolveRequest) -> tuple[ResolveOptions, str]:
@@ -378,6 +380,7 @@ class ResolveService:
                         payload.text,
                         det_cfg=None,  # optionally wire real configs here
                         ext_cfg=None,  # optionally wire real configs here
+                        tier2_model=self._tier2_model,
                         window_left=int(opts.window_chars),
                         window_right=int(opts.window_chars),
                         return_reports=False,

@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from collections import Counter
 from dataclasses import dataclass
-from typing import Literal, Sequence
+from typing import Literal, Sequence, Any
 
 import numpy as np
 
@@ -167,7 +167,12 @@ def collect_tier2_inputs(
     return ranked2, eligible
 
 
-def embed_for_tier2(model_name: str, eligible: Sequence[_EligibleRerank]) -> _EmbeddingsBatch | None:
+def embed_for_tier2(
+    eligible: Sequence[_EligibleRerank],
+    *,
+    tier2_model: Any | None = None,
+    model_name: str | None = None,
+) -> _EmbeddingsBatch | None:
     """
     Embed all unique candidate texts and all eligible contexts in two batches.
 
@@ -187,17 +192,23 @@ def embed_for_tier2(model_name: str, eligible: Sequence[_EligibleRerank]) -> _Em
         ctx_texts.append(e.context)
 
     cand_texts = sorted(uniq_cands)  # determinism
-    cand_mat = embed_texts(model_name, cand_texts)
-    ctx_mat = embed_texts(model_name, ctx_texts)
+
+    cand_mat = embed_texts(cand_texts, model=tier2_model, model_name=model_name)
+    ctx_mat = embed_texts(ctx_texts, model=tier2_model, model_name=model_name)
 
     if cand_mat is None or ctx_mat is None:
         return None
 
-    cand_mat = np.asarray(cand_mat)
-    ctx_mat = np.asarray(ctx_mat)
+    cand_mat = np.asarray(cand_mat, dtype=np.float32)
+    ctx_mat = np.asarray(ctx_mat, dtype=np.float32)
 
     cand_row = {txt: idx for idx, txt in enumerate(cand_texts)}
-    return _EmbeddingsBatch(cand_texts=cand_texts, cand_mat=cand_mat, ctx_mat=ctx_mat, cand_row=cand_row)
+    return _EmbeddingsBatch(
+        cand_texts=cand_texts,
+        cand_mat=cand_mat,
+        ctx_mat=ctx_mat,
+        cand_row=cand_row,
+    )
 
 
 def apply_tier2_reranks(
