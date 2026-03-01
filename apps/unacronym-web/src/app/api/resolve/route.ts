@@ -1,10 +1,10 @@
-import { NextResponse } from "next/server";
-import type { ResolveRequest, ResolveResponse } from "@/lib/api/types";
+import {NextResponse} from "next/server";
+import type {ResolveRequest, ResolveResponse} from "@/lib/api/types";
 
 export const runtime = "nodejs"; // keep it node for env + SDK compatibility (edge later if you want)
 
 function jsonError(status: number, message: string, details?: unknown) {
-  return NextResponse.json({ message, details }, { status });
+  return NextResponse.json({message, details}, {status});
 }
 
 export async function POST(req: Request) {
@@ -20,7 +20,25 @@ export async function POST(req: Request) {
   if (!text) return jsonError(422, "Please paste some text.");
 
   const upstreamBase = process.env.UNACRONYM_API_BASE_URL || process.env.NEXT_PUBLIC_API_BASE_URL; // prefer server-only var
-  const apiKey = process.env.UNACRONYM_API_KEY;
+
+  const serverKey = process.env.UNACRONYM_API_KEY;
+  const env = process.env.NEXT_PUBLIC_ENV ?? "local";
+
+// Optional per-request override from demo UI
+  const overrideKey = req.headers.get("x-unacronym-api-key") ?? undefined;
+
+  const apiKey =
+    env === "local" && overrideKey?.trim()
+      ? overrideKey.trim()
+      : serverKey;
+
+  if (!apiKey) {
+    return NextResponse.json(
+      {message: "Server misconfigured: missing API key."},
+      {status: 500},
+    );
+  }
+
 
   if (!upstreamBase) return jsonError(500, "Server misconfigured: missing API base URL.");
   if (!apiKey) return jsonError(500, "Server misconfigured: missing API key.");
@@ -54,6 +72,9 @@ export async function POST(req: Request) {
       const txt = await resp.text().catch(() => "");
       return jsonError(resp.status, "Request failed.", txt || undefined);
     }
+    const json = await resp.json();
+    console.log("UPSTREAM RESOLVE RESPONSE (truncated):", JSON.stringify(json).slice(0, 2000));
+    return NextResponse.json(json);
 
     const data = (await resp.json()) as ResolveResponse;
     return NextResponse.json(data);

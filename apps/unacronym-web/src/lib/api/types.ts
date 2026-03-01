@@ -1,35 +1,58 @@
+// src/lib/api/types.ts
+
 export type ResolveOptions = {
-  locale?: string; // "en-GB"
-  return_occurrences?: boolean;
+  locale?: "en-GB" | "en-US";
+  window_chars?: number;
+  max_definitions_per_acronym?: number;
   include_glossary_enrichment?: boolean;
+  return_occurrences?: boolean;
+  min_confidence?: number;
 };
 
 export type ResolveRequest = {
   text: string;
-  options?: ResolveOptions;
+  options?: ResolveOptions | null;
 };
 
-// Adjust these to match your OpenAPI schema
-export type ResolveOccurrence = {
-  start: number;
-  end: number; // end-exclusive
-  // optional fields depending on API
-  context_left?: string;
-  context_right?: string;
+export type Span = { start: number; end: number };
+
+export type DefinitionSource = "extracted" | "glossary";
+
+export type Definition = {
+  text: string;
+  start: number | null;
+  end: number | null;
+  confidence: number; // 0..1
+  source: DefinitionSource;
 };
 
-export type ResolveItem = {
+export type GlossaryMatch = {
+  definition: string;
+  domain: string | null;
+  lang: string;
+  confidence: number;
+  source?: "system";
+};
+
+export type GlossaryBlock = {
+  matches: GlossaryMatch[];
+};
+
+export type AcronymBlock = {
   acronym: string;
-  definition?: string | null;
-  confidence?: number | null; // 0..1
-  source?: "extracted" | "glossary" | string;
-  // “primary” first occurrence
-  start: number;
-  end: number; // end-exclusive
-  occurrences?: ResolveOccurrence[];
-  glossary_source?: string | null; // e.g., "Internal glossary v3" / doc id / citation pointer
+  first_occurrence: Span;
+  definitions?: Definition[]; // API says required in schema examples, but be defensive
+  occurrences?: Span[] | null;
+  glossary?: GlossaryBlock | null;
+};
+
+export type ResolveMeta = {
+  processing_ms: number;
+  model_version: string;
+  input_chars: number;
 };
 
 export type ResolveResponse = {
-  items: ResolveItem[];
+  acronyms: AcronymBlock[];
+  meta: ResolveMeta;
 };

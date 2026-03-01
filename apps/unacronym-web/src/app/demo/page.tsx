@@ -1,31 +1,23 @@
 "use client";
 
 import React from "react";
-import toast, { Toaster } from "react-hot-toast";
+import toast, {Toaster} from "react-hot-toast";
 
-import { Panel } from "@/components/ui/Panel";
-import { Button } from "@/components/ui/Button";
-import { Skeleton } from "@/components/ui/Skeleton";
-import { Toggle } from "@/components/ui/Toggle";
-import { Modal } from "@/components/ui/Modal";
+import {Panel} from "@/components/ui/Panel";
+import {Button} from "@/components/ui/Button";
+import {Skeleton} from "@/components/ui/Skeleton";
+import {Toggle} from "@/components/ui/Toggle";
+import {Modal} from "@/components/ui/Modal";
 
-import { resolveText } from "@/lib/api/client";
-import type { ResolveRequest, ResolveItem } from "@/lib/api/types";
-import { ResultsTable } from "@/components/demo/ResultsTable";
+import {resolveText} from "@/lib/api/client";
+import type {ResolveRequest} from "@/lib/api/types";
+import {ResultsTable} from "@/components/demo/ResultsTable";
 import FormTextarea from "@/components/form/FormTextArea";
-
-type UiState =
-  | { kind: "idle" }
-  | { kind: "loading" }
-  | { kind: "success"; items: ResolveItem[] }
-  | { kind: "error"; message: string; technical?: unknown };
+import {ResolveRow, toResolveRows} from "@/lib/api/mapper";
 
 const LS_KEY = "unacronym.demo.text";
 const LS_REMEMBER = "unacronym.demo.remember";
 
-function sortByFirstOccurrence(items: ResolveItem[]) {
-  return [...items].sort((a, b) => (a.start ?? 0) - (b.start ?? 0));
-}
 
 export default function DemoPage() {
   const [remember, setRemember] = React.useState<boolean>(() => {
@@ -39,7 +31,11 @@ export default function DemoPage() {
     return r ? window.localStorage.getItem(LS_KEY) ?? "" : "";
   });
 
-  const [ui, setUi] = React.useState<UiState>({ kind: "idle" });
+
+  const [apiKey, setApiKey] = React.useState("");
+  const [useApiKey, setUseApiKey] = React.useState(false);
+
+  const [ui, setUi] = React.useState<UiState>({kind: "idle"});
 
   const [showTech, setShowTech] = React.useState(false);
   const [techDetails, setTechDetails] = React.useState<unknown>(null);
@@ -47,6 +43,12 @@ export default function DemoPage() {
   const [selected, setSelected] = React.useState<{ start: number; end: number } | null>(null);
 
   const abortRef = React.useRef<AbortController | null>(null);
+
+  type UiState =
+    | { kind: "idle" }
+    | { kind: "loading" }
+    | { kind: "success"; rows: ResolveRow[] }
+    | { kind: "error"; message: string; technical?: unknown };
 
   React.useEffect(() => {
     if (typeof window === "undefined") return;
@@ -63,13 +65,13 @@ export default function DemoPage() {
 
     if (!trimmed) {
       toast.error("Please paste some text.");
-      setUi({ kind: "error", message: "Please paste some text." });
+      setUi({kind: "error", message: "Please paste some text."});
       return;
     }
 
     if (tooLarge) {
       toast.error("Input too large (limit: 100,000 characters).");
-      setUi({ kind: "error", message: "Input too large (limit: 100,000 characters)." });
+      setUi({kind: "error", message: "Input too large (limit: 100,000 characters)."});
       return;
     }
 
@@ -78,7 +80,7 @@ export default function DemoPage() {
     abortRef.current = ac;
 
     setSelected(null);
-    setUi({ kind: "loading" });
+    setUi({kind: "loading"});
 
     const req: ResolveRequest = {
       text: trimmed,
@@ -90,17 +92,17 @@ export default function DemoPage() {
     };
 
     try {
-      const data = await resolveText(req, ac.signal);
-      const items = sortByFirstOccurrence(data.items ?? []);
+      const data = await resolveText(req, ac.signal, useApiKey ? apiKey : undefined);
 
-      setUi({ kind: "success", items });
-      toast.success(`${items.length} acronym(s) found.`);
+      const rows = toResolveRows(data.acronyms ?? []).sort((a, b) => a.start - b.start);
+      setUi({kind: "success", rows});
+      toast.success(`${rows.length} acronym(s) found.`);
 
       const live = document.getElementById("results-live-region");
-      if (live) live.textContent = `${items.length} acronyms found.`;
+      if (live) live.textContent = `${rows.length} acronyms found.`;
     } catch (e: any) {
       const message = e?.message ?? "Request failed.";
-      setUi({ kind: "error", message, technical: e?.details ?? e });
+      setUi({kind: "error", message, technical: e?.details ?? e});
       setTechDetails(e?.details ?? e);
       toast.error(message);
     }
@@ -117,27 +119,48 @@ export default function DemoPage() {
     toast.success("Copied to clipboard.");
   }
 
-  const resultsCount = ui.kind === "success" ? ui.items.length : 0;
+  const resultsCount = ui.kind === "success" ? ui.rows.length : 0;
 
   return (
     <>
-      <Toaster position="top-right" />
+      <Toaster position="top-right"/>
 
       <div className="mx-auto max-w-7xl p-4">
         <div className="mb-4">
-          <h1 className="text-xl font-semibold text-gray-900">Demo</h1>
-          <p className="text-sm text-gray-600">
+          <h1 className="text-xl font-semibold text-gray-100">Demo</h1>
+          <p className="text-sm text-white">
             Paste text → Resolve → inspect deterministic offsets & sources.
           </p>
         </div>
+        <div className="mb-3 flex flex-col gap-2 bg-white rounded-lg border">
+          <label className="flex items-center gap-2 text-sm text-gray-800">
+            <input
+              type="checkbox"
+              checked={useApiKey}
+              onChange={(e) => setUseApiKey(e.target.checked)}
+              className="h-4 w-4"
+            />
+            Provide API key (local/dev only)
+          </label>
 
+          {useApiKey ? (
+            <input
+              type="password"
+              value={apiKey}
+              onChange={(e) => setApiKey(e.target.value)}
+              placeholder="Paste API key…"
+              className="w-full rounded-md border px-3 py-2 text-sm shadow-sm"
+              autoComplete="off"
+            />
+          ) : null}
+        </div>
         <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
           <Panel
             title="Input"
             subtitle="Up to 100,000 characters"
             right={
               <div className="flex items-center gap-3">
-                <Toggle checked={remember} onChange={setRemember} label="Remember input" />
+                <Toggle checked={remember} onChange={setRemember} label="Remember input"/>
                 <Button variant="secondary" onClick={onLoadSample}>
                   Load sample
                 </Button>
@@ -164,7 +187,7 @@ export default function DemoPage() {
                 variant="secondary"
                 onClick={() => {
                   abortRef.current?.abort();
-                  setUi({ kind: "idle" });
+                  setUi({kind: "idle"});
                 }}
                 disabled={ui.kind !== "loading"}
               >
@@ -175,9 +198,9 @@ export default function DemoPage() {
                 <Button
                   variant="secondary"
                   onClick={() => {
-                    if (ui.kind === "success") copyJson(ui.items);
+                    if (ui.kind === "success") copyJson(ui.rows);
                   }}
-                  disabled={ui.kind !== "success" || ui.items.length === 0}
+                  disabled={ui.kind !== "success" || ui.rows.length === 0}
                 >
                   Copy all
                 </Button>
@@ -200,15 +223,15 @@ export default function DemoPage() {
           <Panel
             title="Results"
             subtitle={ui.kind === "loading" ? "Loading…" : ui.kind === "success" ? `${resultsCount} found` : "—"}
-            right={<span id="results-live-region" className="sr-only" aria-live="polite" />}
+            right={<span id="results-live-region" className="sr-only" aria-live="polite"/>}
           >
             {ui.kind === "loading" ? (
               <div className="space-y-2">
-                <Skeleton className="h-10 w-full" />
-                <Skeleton className="h-10 w-full" />
-                <Skeleton className="h-10 w-full" />
+                <Skeleton className="h-10 w-full"/>
+                <Skeleton className="h-10 w-full"/>
+                <Skeleton className="h-10 w-full"/>
               </div>
-            ) : ui.kind === "success" && ui.items.length === 0 ? (
+            ) : ui.kind === "success" && ui.rows.length === 0 ? (
               <div className="rounded-md border p-4 text-sm text-gray-800">
                 <div className="font-medium">No acronyms found</div>
                 <div className="mt-1 text-gray-600">Try a longer passage, or use “Load sample”.</div>
@@ -216,7 +239,7 @@ export default function DemoPage() {
             ) : ui.kind === "success" ? (
               <ResultsTable
                 text={text}
-                items={ui.items}
+                items={ui.rows}
                 onSelectOccurrence={(o) => setSelected(o)}
                 onCopyRow={(row) => copyJson(row)}
               />
