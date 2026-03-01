@@ -1,0 +1,18 @@
+FROM node:20-alpine
+
+WORKDIR /repo
+
+COPY pnpm-lock.yaml pnpm-workspace.yaml package.json ./
+COPY apps/unacronym-web/package.json apps/unacronym-web/package.json
+
+RUN corepack enable && pnpm -C apps/unacronym-web install
+
+# Copy source last (so deps layer caches well)
+COPY apps/unacronym-web apps/unacronym-web
+
+WORKDIR /repo/apps/unacronym-web
+
+ENV NEXT_TELEMETRY_DISABLED=1
+EXPOSE 3000
+
+CMD ["pnpm","dev","--","-H","0.0.0.0","-p","3000"]
