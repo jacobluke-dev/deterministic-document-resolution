@@ -14,7 +14,6 @@ import type {ResolveRequest} from "@/lib/api/types";
 import {ResultsTable} from "@/components/demo/ResultsTable";
 import FormTextarea from "@/components/form/FormTextArea";
 import {ResolveRow, toResolveRows} from "@/lib/api/mapper";
-import {isResolveClientError} from "@/utils/errors";
 
 const LS_KEY = "unacronym.demo.text";
 const LS_REMEMBER = "unacronym.demo.remember";
@@ -103,17 +102,10 @@ export default function DemoPage() {
 
       const live = document.getElementById("results-live-region");
       if (live) live.textContent = `${rows.length} acronyms found.`;
-    } catch (e: unknown) {
-      if (e instanceof DOMException && e.name === "AbortError") {
-        setUi({kind: "idle"});
-        return;
-      }
-
-      const message = isResolveClientError(e) ? e.message : "Request failed.";
-      const details = isResolveClientError(e) ? e.details : e;
-
-      setUi({kind: "error", message, technical: details});
-      setTechDetails(details);
+    } catch (e: any) {
+      const message = e?.message ?? "Request failed.";
+      setUi({kind: "error", message, technical: e?.details ?? e});
+      setTechDetails(e?.details ?? e);
       toast.error(message);
     }
   }
@@ -137,35 +129,34 @@ export default function DemoPage() {
 
       <div className="mx-auto max-w-8xl p-4">
         <div className="mb-4">
-          <h1 className="text-xl font-semibold text-gray-100">Demo Page do not paste any confidential data in here
-            please.</h1>
+          <h1 className="text-xl font-semibold text-gray-100">Demo Page do not paste any confidential data in here please.</h1>
           <p className="text-sm text-white">
             Paste text → Resolve → inspect deterministic offsets & sources.
           </p>
         </div>
-        {isLocal ?
-          <div className="mb-3 flex flex-col gap-2 bg-white rounded-lg border">
-            <label className="flex items-center gap-2 text-sm text-gray-800">
-              <input
-                type="checkbox"
-                checked={useApiKey}
-                onChange={(e) => setUseApiKey(e.target.checked)}
-                className="h-4 w-4"
-              />
-              Provide API key (local/dev only)
-            </label>
+        { isLocal ?
+        <div className="mb-3 flex flex-col gap-2 bg-white rounded-lg border">
+          <label className="flex items-center gap-2 text-sm text-gray-800">
+            <input
+              type="checkbox"
+              checked={useApiKey}
+              onChange={(e) => setUseApiKey(e.target.checked)}
+              className="h-4 w-4"
+            />
+            Provide API key (local/dev only)
+          </label>
 
-            {useApiKey ? (
-              <input
-                type="password"
-                value={apiKey}
-                onChange={(e) => setApiKey(e.target.value)}
-                placeholder="Paste API key…"
-                className="w-full rounded-md border px-3 py-2 text-sm shadow-sm"
-                autoComplete="off"
-              />
-            ) : null}
-          </div> : null
+          {useApiKey ? (
+            <input
+              type="password"
+              value={apiKey}
+              onChange={(e) => setApiKey(e.target.value)}
+              placeholder="Paste API key…"
+              className="w-full rounded-md border px-3 py-2 text-sm shadow-sm"
+              autoComplete="off"
+            />
+          ) : null}
+        </div> : null
         }
         <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
           <Panel

@@ -1,11 +1,3 @@
 module.exports = {
   extends: ["next/core-web-vitals", "next/typescript"],
-  overrides: [
-    {
-      files: ["next-env.d.ts"],
-      rules: {
-        "@typescript-eslint/triple-slash-reference": "off",
-      },
-    },
-  ],
 };
