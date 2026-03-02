@@ -1,6 +1,7 @@
 // src/components/Footer/Footer.tsx
 import Link from "next/link";
-import { getApiBaseUrl } from "@/src/Utils/getApiBaseUrl";
+import {getApiBaseUrl} from "@/utils/getApiBaseUrl";
+
 
 type Page = {
   slug: string;
