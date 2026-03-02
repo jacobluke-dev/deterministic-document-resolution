@@ -1,5 +1,11 @@
 import type { ResolveRequest, ResolveResponse } from "@/lib/api/types";
 
+export type ResolveClientError = {
+  status: number;
+  message: string;
+  details?: unknown;
+};
+
 export async function resolveText(
   req: ResolveRequest,
   signal?: AbortSignal,
@@ -11,17 +17,42 @@ export async function resolveText(
     headers["x-unacronym-api-key"] = apiKeyOverride.trim();
   }
 
-  const resp = await fetch("/api/resolve", {
-    method: "POST",
-    headers,
-    body: JSON.stringify(req),
-    signal,
-  });
+  let resp: Response;
+  try {
+    resp = await fetch("/api/resolve", {
+      method: "POST",
+      headers,
+      body: JSON.stringify(req),
+      signal,
+    });
+  } catch (e) {
+    // network error / CORS / proxy died
+    const err: ResolveClientError = {
+      status: 0,
+      message: "Network error: could not reach the server.",
+      details: e instanceof Error ? e.message : String(e),
+    };
+    throw err;
+  }
 
   if (!resp.ok) {
-    const payload = await resp.json().catch(() => null);
-    const message = payload?.message ?? "Request failed.";
-    const err = { status: resp.status, message, details: payload?.details };
+    const contentType = resp.headers.get("content-type") ?? "";
+    const payload =
+      contentType.includes("application/json")
+        ? await resp.json().catch(() => null)
+        : await resp.text().catch(() => null);
+
+    const message =
+      typeof payload === "object" && payload && "message" in payload
+        ? (payload as any).message
+        : "Request failed.";
+
+    const details =
+      typeof payload === "object" && payload && "details" in payload
+        ? (payload as any).details
+        : payload || undefined;
+
+    const err: ResolveClientError = { status: resp.status, message, details };
     throw err;
   }
 
