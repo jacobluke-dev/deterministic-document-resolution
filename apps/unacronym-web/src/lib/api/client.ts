@@ -1,17 +1,13 @@
-import type { ResolveRequest, ResolveResponse } from "@/lib/api/types";
+import type {ResolveRequest, ResolveResponse} from "@/lib/api/types";
+import {ErrorEnvelope, isErrorEnvelope, ResolveClientError} from "@/utils/errors";
 
-export type ResolveClientError = {
-  status: number;
-  message: string;
-  details?: unknown;
-};
 
 export async function resolveText(
   req: ResolveRequest,
   signal?: AbortSignal,
   apiKeyOverride?: string,
 ): Promise<ResolveResponse> {
-  const headers: Record<string, string> = { "content-type": "application/json" };
+  const headers: Record<string, string> = {"content-type": "application/json"};
 
   if (apiKeyOverride?.trim()) {
     headers["x-unacronym-api-key"] = apiKeyOverride.trim();
@@ -42,17 +38,19 @@ export async function resolveText(
         ? await resp.json().catch(() => null)
         : await resp.text().catch(() => null);
 
-    const message =
-      typeof payload === "object" && payload && "message" in payload
-        ? (payload as any).message
-        : "Request failed.";
+    const message = (() => {
+      if (!isErrorEnvelope(payload)) return "Request failed.";
+      const m = (payload as ErrorEnvelope).message;
+      return typeof m === "string" && m.trim() ? m : "Request failed.";
+    })();
 
-    const details =
-      typeof payload === "object" && payload && "details" in payload
-        ? (payload as any).details
-        : payload || undefined;
+    const details = (() => {
+      if (!isErrorEnvelope(payload)) return payload || undefined;
+      const d = (payload as ErrorEnvelope).details;
+      return d ?? payload ?? undefined;
+    })();
 
-    const err: ResolveClientError = { status: resp.status, message, details };
+    const err: ResolveClientError = {status: resp.status, message, details};
     throw err;
   }
 
