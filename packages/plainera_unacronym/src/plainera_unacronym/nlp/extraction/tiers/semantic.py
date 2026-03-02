@@ -61,8 +61,9 @@ def embed_texts(
     result so that dot products equal cosine similarity.
 
     Args:
-        model_name: Sentence-Transformers model identifier to load.
         texts: Sequence of input strings to embed.
+        model: Sentence-Transformers model to load.
+        model_name: Sentence-Transformers model identifier to load.
 
     Returns:
         A float32 matrix of shape [N, D] (where N == len(texts)) with each row
@@ -84,7 +85,8 @@ def embed_texts(
 
             model = SentenceTransformer(model_name)
 
-        embs = model.encode(texts, show_progress_bar=False, normalize_embeddings=True)
+        sentences = list(texts)
+        embs = model.encode(sentences=sentences, show_progress_bar=False, normalize_embeddings=True)
         return np.asarray(embs, dtype=np.float32)
     except Exception:
         return None

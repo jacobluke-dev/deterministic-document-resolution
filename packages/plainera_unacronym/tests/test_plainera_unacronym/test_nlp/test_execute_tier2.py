@@ -44,9 +44,14 @@ def _tier2_cfg(*, mode: Literal["off", "auto", "on"], weight: float = 0.5) -> Ex
             mode=mode,
             model_name="fake-model",
             weight=weight,
-            # only_when_undecided=True,  # if you have it
+            context_window_chars=80,  # ✅ key line: Tier-2 context slice window
         ),
     )
+
+# Make Tier-2 enabled, but it should never apply (single candidate in Tier-1)
+def fake_sims_for_context_and_candidates(*, model_name, context, candidate_texts):
+    # Would apply if called; we expect it not to be called.
+    raise AssertionError("Tier-2 sims should not be requested for single-candidate cases")
 
 
 def _stage_info(reports, name: str) -> str:
@@ -58,6 +63,18 @@ def _last_res(extr, acr: str):
     assert xs, f"no resolutions for {acr}"
     return xs[-1]
 
+def _res_after(extr, acr: str, after: int):
+    xs = [r for r in extr.resolutions if r.acronym.upper() == acr.upper() and r.start > after]
+    assert xs, f"no {acr} resolution after pos={after}"
+    return min(xs, key=lambda r: r.start)  # first after boundary
+
+
+def _res_near(extr, acr: str, anchor: int, *, max_delta: int = 200):
+    xs = [r for r in extr.resolutions if r.acronym.upper() == acr.upper()]
+    assert xs, f"no resolutions for {acr}"
+    best = min(xs, key=lambda r: abs(r.start - anchor))
+    assert abs(best.start - anchor) <= max_delta, (anchor, best)
+    return best
 
 # -----------------------
 # Tier-2 E2E: contracts
@@ -105,11 +122,6 @@ class TestDetectAndExtractE2ETier2Contracts:
         """
         text = "European Medicines Agency (EMA) issued guidance. EMA guidance was updated."
 
-        # Make Tier-2 enabled, but it should never apply (single candidate in Tier-1)
-        def fake_sims_for_context_and_candidates(*, model_name, context, candidate_texts):
-            # Would apply if called; we expect it not to be called.
-            raise AssertionError("Tier-2 sims should not be requested for single-candidate cases")
-
         _patch(f.st_tier2_semantic_rerank, sims_for_context_and_candidates=fake_sims_for_context_and_candidates)
 
         _det, extr, reports = detect_and_extract(text, ext_cfg=_tier2_cfg(mode="on"), return_reports=True)
@@ -150,7 +162,7 @@ class TestDetectAndExtractE2ETier2AcronymWins:
         baseline = last0.chosen_sense_id
 
         # Tier-2 enabled with deterministic semantic sims
-        def _fake_embed_texts(model_name: str, texts: list[str], *_, **__) -> np.ndarray:
+        def _fake_embed_texts(texts, *, model=None, model_name=None, **_kw) -> np.ndarray:
             """
             Deterministic tiny embedding:
             - dimension 0 = "kernel/graphics/device" semantics
@@ -203,67 +215,104 @@ class TestDetectAndExtractE2ETier2AcronymWins:
         # If this is flaky, keep only the positive assertion above.
         assert last1.chosen_sense_id != baseline or "graphics_processing_unit" in baseline
 
-    def test_tier2_api_programming_interface_vs_active_pharmaceutical_ingredient(self, _patch):
-        text = (
-            "Application Programming Interface (API) defines endpoints and contracts. "
-            "Some filler words. " * 15 + "Active Pharmaceutical Ingredient (API) must be controlled under GMP. "
-            "Our API exposes a REST endpoint for searching."
-        )
+    def test_tier2_api_programming_interface_vs_active_pharmaceutical_ingredient(self, monkeypatch):
+        import plainera_unacronym.nlp.extraction.tiers.tier_2 as t2
 
-        def fake_sims_for_context_and_candidates(*, model_name, context, candidate_texts):
-            ctx = context.lower()
-            out = []
-            for t in candidate_texts:
-                tt = t.lower()
-                if (
-                    ("rest" in ctx or "endpoint" in ctx)
-                    and "application programming interface" in tt
-                    or ("gmp" in ctx or "pharmaceutical" in ctx)
-                    and "active pharmaceutical ingredient" in tt
-                ):
-                    out.append(0.95)
-                else:
-                    out.append(0.10)
+        def fake_embed_texts(texts, *, model=None, model_name=None, **_kw):
+            xs = list(texts)
+            out = np.zeros((len(xs), 2), dtype=np.float32)
+
+            for i, t in enumerate(xs):
+                s = str(t).lower()
+
+                # Candidate texts -> one-hot
+                if "application programming interface" in s:
+                    out[i, 0] = 1.0
+                    continue
+                if "active pharmaceutical ingredient" in s:
+                    out[i, 1] = 1.0
+                    continue
+
+                # Context cues
+                if "rest" in s or "endpoint" in s or "http" in s:
+                    out[i, 0] = 1.0
+                if "gmp" in s or "pharmaceutical" in s or "assay" in s or "purity" in s:
+                    out[i, 1] = 1.0
+
+                if out[i].sum() == 0:
+                    out[i, 0] = 1e-6
+
             return out
 
-        _patch(f.st_tier2_semantic_rerank, sims_for_context_and_candidates=fake_sims_for_context_and_candidates)
+        monkeypatch.setattr(t2, "embed_texts", fake_embed_texts, raising=True)
 
-        _det, extr, reports = detect_and_extract(text, ext_cfg=_tier2_cfg(mode="on", weight=1), return_reports=True)
-        last = _last_res(extr, "API")
-        assert last.chosen_sense_id is not None
-        assert "application_programming_interface" in last.chosen_sense_id, last
-        assert "applied(" in _stage_info(reports, "tier2_semantic_rerank")
-
-    def test_tier2_nhs_health_service_vs_honour_society(self, _patch):
         text = (
-            "National Health Service (NHS) publishes guidance for hospitals. "
-            "Some filler. " * 10 + "National Honor Society (NHS) recognises student achievement in the US. "
-            "The NHS hospital trust updated policy."
+            "Application Programming Interface (API) defines endpoints and contracts.\n"
+            + ("filler " * 250) + "\n"
+            + "Active Pharmaceutical Ingredient (API) must be controlled under GMP.\n"
+            + ("morefiller " * 250) + "\n"
+            + "Our API exposes a REST endpoint for searching.\n"
         )
 
-        def fake_sims_for_context_and_candidates(*, model_name, context, candidate_texts):
-            ctx = context.lower()
-            out = []
-            for t in candidate_texts:
-                tt = t.lower()
-                if (
-                    ("hospital" in ctx or "trust" in ctx)
-                    and "national health service" in tt
-                    or ("student" in ctx or "achievement" in ctx)
-                    and "national honor society" in tt
-                ):
-                    out.append(0.97)
-                else:
-                    out.append(0.20)
+        pharma_anchor = text.index("Active Pharmaceutical Ingredient (API)")
+        rest_anchor = text.index("Our API exposes")
+
+        ext_cfg = replace(
+            ExtractionConfig(),
+            tier2=Tier2Config(mode="on", weight=1, model_name="fake-model", context_window_chars=120),
+        )
+
+        _det, extr, reports = detect_and_extract(text, ext_cfg=ext_cfg, return_reports=True, tier2_model=object())
+        info = next(r.info for r in reports if r.name == "tier2_semantic_rerank")
+        assert "applied(" in info, info
+
+        r_pharma = _res_near(extr, "API", pharma_anchor)
+        assert "active_pharmaceutical_ingredient" in r_pharma.chosen_sense_id
+
+        r_rest = _res_near(extr, "API", rest_anchor)
+        assert "application_programming_interface" in r_rest.chosen_sense_id
+
+    def test_tier2_nhs_can_pick_honour_society_when_context_mentions_students(self, monkeypatch):
+        import plainera_unacronym.nlp.extraction.tiers.tier_2 as t2
+
+        def fake_embed_texts(texts, *, model=None, model_name=None, **_kw):
+            xs = list(texts)
+            out = np.zeros((len(xs), 2), dtype=np.float32)
+            for i, t in enumerate(xs):
+                s = str(t).lower()
+                if "national health service" in s:
+                    out[i, 0] = 1.0
+                    continue
+                if "national honor society" in s or "national honour society" in s:
+                    out[i, 1] = 1.0
+                    continue
+                if "student" in s or "achievement" in s or "awards" in s:
+                    out[i, 1] = 1.0
+                if out[i].sum() == 0:
+                    out[i, 0] = 1e-6
             return out
 
-        _patch(f.st_tier2_semantic_rerank, sims_for_context_and_candidates=fake_sims_for_context_and_candidates)
+        monkeypatch.setattr(t2, "embed_texts", fake_embed_texts, raising=True)
 
-        _det, extr, reports = detect_and_extract(text, ext_cfg=_tier2_cfg(mode="on", weight=1), return_reports=True)
-        last = _last_res(extr, "NHS")
-        assert last.chosen_sense_id is not None
-        assert "national_health_service" in last.chosen_sense_id, last
-        assert "applied(" in _stage_info(reports, "tier2_semantic_rerank")
+        text = (
+            "NHS (National Health Service) publishes guidance.\n"
+            + ("filler " * 200) + "\n"  # ensure contexts don't overlap
+            + "Student achievement: NHS (National Honor Society) recognises awards.\n"
+        )
+
+        honor_anchor = text.index("Student achievement: NHS")
+
+        ext_cfg = replace(
+            ExtractionConfig(),
+            tier2=Tier2Config(mode="on", weight=1, model_name="fake-model", context_window_chars=80),
+        )
+
+        _det, extr, reports = detect_and_extract(text, ext_cfg=ext_cfg, return_reports=True, tier2_model=object())
+        info = next(r.info for r in reports if r.name == "tier2_semantic_rerank")
+        assert "applied(" in info, info
+
+        r_honor = _res_near(extr, "NHS", honor_anchor)
+        assert "national_honor_society" in r_honor.chosen_sense_id
 
 
 class TestDetectAndExtractIntegrationEdgeCases:
@@ -592,10 +641,11 @@ class TestDisambiguationE2EConfidenceContract:
 # ----------------------------
 
 
-def _fake_embed_texts(model_name: str, texts: list[str], *_, **__) -> np.ndarray:
+def _fake_embed_texts(texts, *, model=None, model_name=None, **_kw) -> np.ndarray:
     """
     Deterministic, fast "embeddings" for tests.
-    Encodes texts into a tiny keyword-feature vector so cosine similarity is meaningful.
+
+        Encodes texts into a tiny keyword-feature vector so cosine similarity is meaningful.
     """
     # Grouped features: doesn't require literal word overlap between context and definition,
     # only "same bucket" activation (e.g. GMP/purity aligns with pharmaceutical).
@@ -832,7 +882,9 @@ class TestTier2E2e:
 
     def test_tier2_e2e_resolves_api_by_section_context(self, _patch) -> None:
         _patch_tier2_embed(_patch)
-        assert t2.embed_for_tier2.__globals__["embed_texts"]("fake", ["a", "b"]).shape[0] == 2
+        assert t2.embed_for_tier2.__globals__["embed_texts"](["a", "b"],
+                                                             model=object(),
+                                                             model_name="fake").shape[0] == 2
 
         ext_cfg = replace(
             ExtractionConfig(),

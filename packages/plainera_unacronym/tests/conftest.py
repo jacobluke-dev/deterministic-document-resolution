@@ -142,10 +142,12 @@ def cfg_integrated():
 
 @pytest.fixture(autouse=True)
 def _mock_tier2_embeddings(monkeypatch):
-    from plainera_unacronym.nlp.extraction.tiers import semantic as Semantic
+    import plainera_unacronym.nlp.extraction.tiers.tier_2 as t2
 
-    class _FakeModel:
-        def encode(self, texts, show_progress_bar=False, normalize_embeddings=False):
-            return np.zeros((len(texts), 8), dtype=np.float32)
+    def _fast_embed_texts(texts, *, model=None, model_name=None, **_kw):
+        xs = list(texts)
+        # shape doesn't matter much as long as consistent + non-empty
+        return np.zeros((len(xs), 8), dtype=np.float32)
 
-    monkeypatch.setattr(Semantic, "_load_st_model", lambda *a, **k: _FakeModel(), raising=True)
+    # This is the real seam Tier-2 uses now
+    monkeypatch.setattr(t2, "embed_texts", _fast_embed_texts, raising=True)
