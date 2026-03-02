@@ -98,7 +98,7 @@ class TestSrTier2SemanticRerank:
             )
         ]
 
-        def fake_embed_texts(_model_name, texts):
+        def fake_embed_texts(texts, *, model=None, model_name=None):
             vecs = []
             for t in texts:
                 if "Graphics Processing Unit" in t:

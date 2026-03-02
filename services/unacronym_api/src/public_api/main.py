@@ -10,6 +10,7 @@ from observability.http.body_limit import BodySizeLimitMiddleware
 from observability.http.request_id import RequestIDMiddleware
 from observability.logger.access_middleware import access_middleware
 from plainera_core.db_manager.factory import make_dbm
+from plainera_unacronym.nlp.extraction.tiers.semantic import _load_st_model
 from sqlalchemy.engine import Engine
 from starlette.exceptions import HTTPException
 from starlette.middleware.cors import CORSMiddleware
@@ -55,6 +56,16 @@ class _NullDBManager:
 async def lifespan(app: FastAPI) -> AsyncGenerator[None, Any]:
     state = app.state
 
+    # ---- Tier-2 model (startup) ----
+    if app_settings.TIER2_ENABLED:
+        state.tier2_model = _load_st_model(
+            app_settings.TIER2_MODEL_NAME,
+            cache_folder=app_settings.HF_CACHE_DIR,
+        )
+    else:
+        state.tier2_model = None
+
+    # ---- DBM (startup) ----
     if db_settings.DATABASE_DISABLED:
         state.dbm = _NullDBManager()
         yield

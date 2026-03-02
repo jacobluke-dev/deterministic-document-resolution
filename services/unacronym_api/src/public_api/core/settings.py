@@ -33,6 +33,10 @@ class AppSettings(BaseSettings):
     API_KEY_CACHE_TTL_SECONDS: int = 60
     API_KEY_LAST_USED_ASYNC: bool = True
 
+    TIER2_ENABLED: bool = True
+    TIER2_MODEL_NAME: str = ''
+    HF_CACHE_DIR: str = ''
+
 
     @property
     def cors_origins(self) -> list[str]:

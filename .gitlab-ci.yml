@@ -16,14 +16,18 @@ variables:
   POETRY_VIRTUALENVS_IN_PROJECT: "true"
   PIP_DISABLE_PIP_VERSION_CHECK: "1"
   PNPM_HOME: "$CI_PROJECT_DIR/.pnpm"
-
+  PNPM_STORE_DIR: "$CI_PROJECT_DIR/.pnpm-store"
 cache:
   key: "$CI_COMMIT_REF_SLUG"
   paths:
     - .cache/pip
     - .cache/pypoetry
     - .venv  # speeds subsequent jobs
-    - .pnpm
+    - .pnpm-store/
+    - .pnpm/
+    - .cache/pip
+    - .cache/pypoetry
+    - .venv
 
 # ---------- common before_script (copy into each job) ----------
 # Note: we do NOT call `poetry env use` anymore.
@@ -273,6 +277,7 @@ web:
     - node --version
     - corepack enable
     - pnpm --version
+    - pnpm config set store-dir "$PNPM_STORE_DIR"
   script:
     - pnpm -C apps/unacronym-web install --frozen-lockfile
     - pnpm -C apps/unacronym-web lint
