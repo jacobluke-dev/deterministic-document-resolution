@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from collections import Counter
 from dataclasses import dataclass
-from typing import Literal, Sequence, Any
+from typing import Any, Literal, Sequence
 
 import numpy as np
 

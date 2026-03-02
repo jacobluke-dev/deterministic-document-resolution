@@ -81,6 +81,7 @@ def embed_texts(
                 return None
             # last-resort fallback (keeps library usable standalone)
             from sentence_transformers import SentenceTransformer
+
             model = SentenceTransformer(model_name)
 
         embs = model.encode(texts, show_progress_bar=False, normalize_embeddings=True)
