@@ -49,15 +49,21 @@ def _as_list(xs: Iterable[str]) -> list[str]:
     return list(xs)
 
 
-def embed_texts(model_name: str, texts: Sequence[str]) -> FloatMat | None:
+def embed_texts(
+    texts: Sequence[str],
+    *,
+    model: Any | None = None,
+    model_name: str | None = None,
+) -> FloatMat | None:
     """Embed a batch of texts using Sentence-Transformers.
 
     Encodes `texts` into a dense float32 embedding matrix and row-normalises the
     result so that dot products equal cosine similarity.
 
     Args:
-        model_name: Sentence-Transformers model identifier to load.
         texts: Sequence of input strings to embed.
+        model: Sentence-Transformers model to load.
+        model_name: Sentence-Transformers model identifier to load.
 
     Returns:
         A float32 matrix of shape [N, D] (where N == len(texts)) with each row
@@ -71,11 +77,17 @@ def embed_texts(model_name: str, texts: Sequence[str]) -> FloatMat | None:
           failure non-fatal to the overall pipeline.
     """
     try:
-        model = _load_st_model(model_name)
-        # sentence-transformers returns numpy by default on CPU
-        embs = model.encode(texts, show_progress_bar=False, normalize_embeddings=True)
-        embs = np.asarray(embs, dtype=np.float32)
-        return embs
+        if model is None:
+            if not model_name:
+                return None
+            # last-resort fallback (keeps library usable standalone)
+            from sentence_transformers import SentenceTransformer
+
+            model = SentenceTransformer(model_name)
+
+        sentences = list(texts)
+        embs = model.encode(sentences=sentences, show_progress_bar=False, normalize_embeddings=True)
+        return np.asarray(embs, dtype=np.float32)
     except Exception:
         return None
 

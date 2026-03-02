@@ -7,6 +7,7 @@ def detect_and_extract(
     *,
     det_cfg=None,
     ext_cfg=None,
+    tier2_model=None,
     window_left: int = 320,
     window_right: int = 280,
     return_reports: bool = False,
@@ -29,6 +30,7 @@ def detect_and_extract(
             (`DetectorConfig()`) is used.
         ext_cfg: Optional `ExtractionConfig` override. If None, the flow default
             (`ExtractionConfig()`) is used.
+        tier2_model: Optional `Tier2Model` override. If None, the flow default
         window_left: Number of characters to include to the left of each first
             occurrence when building the anchored extraction window.
         window_right: Number of characters to include to the right of each first
@@ -89,7 +91,7 @@ def detect_and_extract(
         trace_filter=trace_filter,
     )
 
-    state = FlowState(text=text, det_cfg=flow.det_cfg, ext_cfg=flow.ext_cfg)
+    state = FlowState(text=text, det_cfg=flow.det_cfg, ext_cfg=flow.ext_cfg, tier2_model=tier2_model)
 
     state, reports = flow.build_chain().run(state, tracer=flow._tracer)
 

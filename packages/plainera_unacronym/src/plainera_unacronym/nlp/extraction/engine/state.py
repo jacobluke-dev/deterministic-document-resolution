@@ -1,5 +1,7 @@
+from __future__ import annotations
+
 from dataclasses import dataclass, field
-from typing import Optional
+from typing import Any
 
 from plainera_unacronym.nlp.common.types import (
     DetectorConfig,
@@ -20,9 +22,9 @@ class FlowState:
     ext_cfg: ExtractionConfig
     last_info: str = ""
 
-    det_res: Optional[DetectorResult] = None
+    det_res: DetectorResult | None = None
     cleanup_dropped: list[DroppedOccurrence] = field(default_factory=list)
-    picks: dict[str, Optional[InTextPick]] = field(default_factory=dict)
+    picks: dict[str, InTextPick | None] = field(default_factory=dict)
 
     anchored_defs: list[ExtractedDefinition] = field(default_factory=list)
     harvested_defs: list[ExtractedDefinition] = field(default_factory=list)
@@ -30,9 +32,10 @@ class FlowState:
     backref_defs: list[ExtractedDefinition] = field(default_factory=list)
     all_defs: list[ExtractedDefinition] = field(default_factory=list)
 
+    tier2_model: Any | None = None
     coverage: float = 0.0
     missing_keys: tuple[str, ...] = ()
 
     disambig: DisambigWork = field(default_factory=DisambigWork, repr=False)
 
-    extr: Optional[ExtractionResult] = None
+    extr: ExtractionResult | None = None
