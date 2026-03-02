@@ -155,5 +155,5 @@ def get_resolve_service(
         glossary_repo=glossary_repo,
         semaphore=semaphore,
         request_timeout_ms=timeout_ms,
-        tier2_model=request.app.state.tier2_model
+        tier2_model=getattr(request.app.state, "tier2_model", None),
     )
