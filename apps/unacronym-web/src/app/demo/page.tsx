@@ -20,6 +20,13 @@ const LS_REMEMBER = "unacronym.demo.remember";
 
 
 export default function DemoPage() {
+
+  type UiState =
+    | { kind: "idle" }
+    | { kind: "loading" }
+    | { kind: "success"; rows: ResolveRow[] }
+    | { kind: "error"; message: string; technical?: unknown };
+
   const [remember, setRemember] = React.useState<boolean>(() => {
     if (typeof window === "undefined") return false;
     return window.localStorage.getItem(LS_REMEMBER) === "1";
@@ -36,6 +43,7 @@ export default function DemoPage() {
   const [useApiKey, setUseApiKey] = React.useState(false);
 
   const [ui, setUi] = React.useState<UiState>({kind: "idle"});
+  const isLocal = process.env.NEXT_PUBLIC_ENV === "local";
 
   const [showTech, setShowTech] = React.useState(false);
   const [techDetails, setTechDetails] = React.useState<unknown>(null);
@@ -43,12 +51,6 @@ export default function DemoPage() {
   const [selected, setSelected] = React.useState<{ start: number; end: number } | null>(null);
 
   const abortRef = React.useRef<AbortController | null>(null);
-
-  type UiState =
-    | { kind: "idle" }
-    | { kind: "loading" }
-    | { kind: "success"; rows: ResolveRow[] }
-    | { kind: "error"; message: string; technical?: unknown };
 
   React.useEffect(() => {
     if (typeof window === "undefined") return;
@@ -132,6 +134,7 @@ export default function DemoPage() {
             Paste text → Resolve → inspect deterministic offsets & sources.
           </p>
         </div>
+        { isLocal ?
         <div className="mb-3 flex flex-col gap-2 bg-white rounded-lg border">
           <label className="flex items-center gap-2 text-sm text-gray-800">
             <input
@@ -153,7 +156,8 @@ export default function DemoPage() {
               autoComplete="off"
             />
           ) : null}
-        </div>
+        </div> : null
+        }
         <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
           <Panel
             title="Input"

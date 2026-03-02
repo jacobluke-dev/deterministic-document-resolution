@@ -9,7 +9,7 @@ function normaliseStatus(x: unknown, fallback = 502): number {
 }
 
 function jsonError(status: unknown, message: string, details?: unknown) {
-  return NextResponse.json({ message, details }, { status: normaliseStatus(status) });
+  return NextResponse.json({message, details}, {status: normaliseStatus(status)});
 }
 
 export async function POST(req: Request) {
@@ -59,13 +59,13 @@ export async function POST(req: Request) {
   };
 
   try {
-    // If you want to use your generated OpenAPI SDK, do it here instead.
+    // If we want to use our generated OpenAPI SDK, do it here instead.
     // Keeping it plain fetch avoids SDK coupling while UN-21 stabilises.
     const resp = await fetch(`${upstreamBase.replace(/\/$/, "")}/v1/resolve`, {
       method: "POST",
       headers: {
         "content-type": "application/json",
-        "x-api-key": apiKey,
+        "X-API-Key": apiKey,
       },
       body: JSON.stringify(payload),
     });
@@ -74,15 +74,26 @@ export async function POST(req: Request) {
     if (resp.status === 413) return jsonError(413, "Input too large (request limit exceeded).");
     if (resp.status === 422) return jsonError(422, "Please paste some text.");
     if (!resp.ok) {
-      const txt = await resp.text().catch(() => "");
-      return jsonError(resp.status, "Request failed.", txt || undefined);
+      const contentType = resp.headers.get("content-type") ?? "";
+      let details: unknown = undefined;
+
+      if (contentType.includes("application/json")) {
+        details = await resp.json().catch(() => undefined);
+      } else {
+        const txt = await resp.text().catch(() => "");
+        details = txt || undefined;
+      }
+
+      return jsonError(resp.status, "Request failed.", details);
     }
+
+    // success
     const data = (await resp.json()) as ResolveResponse;
-    return NextResponse.json(data, { status: resp.status });
+    return NextResponse.json(data, {status: resp.status});
   } catch (e) {
-  return jsonError(502, "Network error: could not reach the API.", {
-    upstreamBase,
-    error: e instanceof Error ? e.message : String(e),
-  });
-}
+    return jsonError(502, "Network error: could not reach the API.", {
+      upstreamBase,
+      error: e instanceof Error ? e.message : String(e),
+    });
+  }
 }
