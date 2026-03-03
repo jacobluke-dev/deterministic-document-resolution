@@ -12,7 +12,7 @@ SQLAlchemy = ">=2.0.43,<2.1"
 python-dotenv = "^1.0"
 plainera-observability = { path = "../plainera_observability", develop = true }
 numpy="2.4.2"
-sentence-transformers = "^2.2"
+sentence-transformers = "^5.2.3"
 
 
 [tool.poetry.group.dev.dependencies]
