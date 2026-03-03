@@ -80,11 +80,7 @@ def embed_texts(
         if model is None:
             if not model_name:
                 return None
-            # last-resort fallback (keeps library usable standalone)
-            from sentence_transformers import SentenceTransformer
-
-            model = SentenceTransformer(model_name)
-
+            model = _load_st_model(model_name)
         sentences = list(texts)
         embs = model.encode(sentences=sentences, show_progress_bar=False, normalize_embeddings=True)
         return np.asarray(embs, dtype=np.float32)

@@ -6,13 +6,18 @@ authors = ["Jacob Bickerstaff"]
 
 packages = [{ include = "plainera_unacronym", from = "src" }]
 
+[tool.poetry.group.ml]
+optional = true
+
+[tool.poetry.group.ml.dependencies]
+sentence-transformers = { version = "^5.2.3", markers = "python_version < '3.15'" }
+
 [tool.poetry.dependencies]
 python = "^3.13"
 SQLAlchemy = ">=2.0.43,<2.1"
 python-dotenv = "^1.0"
 plainera-observability = { path = "../plainera_observability", develop = true }
 numpy="2.4.2"
-sentence-transformers = "^2.2"
 
 
 [tool.poetry.group.dev.dependencies]

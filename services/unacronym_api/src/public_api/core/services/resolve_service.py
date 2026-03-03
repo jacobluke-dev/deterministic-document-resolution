@@ -11,6 +11,8 @@ from fastapi import status
 from plainera_unacronym.nlp.common.types import DetectorResult, ExtractionResult
 from plainera_unacronym.nlp.execute import detect_and_extract
 
+from public_api.core.auth.chunking import make_chunks, merge_blocks, shift_blocks
+from public_api.core.settings import app_settings
 from public_api.db.repos.glossary_repo import GlossaryRepository
 from public_api.schemas.error import ErrorCode
 from public_api.schemas.resolve import ResolveOptions, ResolveRequest, ResolveResponse
@@ -332,6 +334,24 @@ class ResolveService:
 
         return blocks
 
+    async def _run_pipeline(self, text: str, opts: ResolveOptions) -> tuple[DetectorResult, ExtractionResult]:
+        return await asyncio.wait_for(
+            anyio.to_thread.run_sync(
+                lambda: detect_and_extract(
+                    text,
+                    det_cfg=None,
+                    ext_cfg=None,
+                    tier2_model=self._tier2_model,
+                    window_left=int(opts.window_chars),
+                    window_right=int(opts.window_chars),
+                    return_reports=False,
+                    trace=False,
+                    return_state=False,
+                )
+            ),
+            timeout=self._timeout_s,
+        )
+
     async def resolve(self, payload: ResolveRequest) -> ResolveResponse:
         """
         Resolve acronyms in the given input text using the full Unacronym pipeline.
@@ -373,38 +393,59 @@ class ResolveService:
         self._raise_if_overloaded()
 
         # Run the full pipeline once. It’s CPU-ish, so do it off the event loop.
-        try:
-            det_res, extr = await asyncio.wait_for(
-                anyio.to_thread.run_sync(
-                    lambda: detect_and_extract(
-                        payload.text,
-                        det_cfg=None,  # optionally wire real configs here
-                        ext_cfg=None,  # optionally wire real configs here
-                        tier2_model=self._tier2_model,
-                        window_left=int(opts.window_chars),
-                        window_right=int(opts.window_chars),
-                        return_reports=False,
-                        trace=False,
-                        return_state=False,
-                    )
-                ),
-                timeout=self._timeout_s,
-            )
-        except asyncio.TimeoutError as exc:
-            raise ResolveError(
-                http_status=status.HTTP_503_SERVICE_UNAVAILABLE,
-                code=ErrorCode.SERVICE_UNAVAILABLE,
-                message="Resolution timed out.",
-                details={"timeout_ms": int(self._timeout_s * 1000)},
-            ) from exc
-        except Exception as exc:
-            raise ResolveError(
-                http_status=status.HTTP_503_SERVICE_UNAVAILABLE,
-                code=ErrorCode.SERVICE_UNAVAILABLE,
-                message="Resolution failed.",
-                details={"reason": str(exc)},
-            ) from exc
+        text = payload.text
 
-        blocks = self._map_pipeline_to_blocks(det_res=det_res, extr=extr, opts=opts, lang=lang)
+        # Small inputs: unchanged behaviour
+        if (not app_settings.CHUNKING_ENABLED) or (len(text) <= app_settings.CHUNK_THRESHOLD_CHARS):
+            try:
+                det_res, extr = await self._run_pipeline(text, opts)
+            except asyncio.TimeoutError as exc:
+                raise ResolveError(
+                    http_status=status.HTTP_503_SERVICE_UNAVAILABLE,
+                    code=ErrorCode.SERVICE_UNAVAILABLE,
+                    message="Resolution timed out.",
+                    details={"timeout_ms": int(self._timeout_s * 1000)},
+                ) from exc
+            except Exception as exc:
+                raise ResolveError(
+                    http_status=status.HTTP_503_SERVICE_UNAVAILABLE,
+                    code=ErrorCode.SERVICE_UNAVAILABLE,
+                    message="Resolution failed.",
+                    details={"reason": str(exc)},
+                ) from exc
 
-        return self._build_response(payload.text, blocks, started)
+            blocks = self._map_pipeline_to_blocks(det_res=det_res, extr=extr, opts=opts, lang=lang)
+            return self._build_response(text, blocks, started)
+
+        # Large inputs: chunked mode
+        chunks = make_chunks(
+            text,
+            chunk_size=int(app_settings.CHUNK_SIZE_CHARS),
+            overlap=int(app_settings.CHUNK_OVERLAP_CHARS),
+        )
+
+        all_blocks: list[list[dict[str, Any]]] = []
+
+        for ch in chunks:
+            try:
+                det_res, extr = await self._run_pipeline(ch.text, opts)
+            except asyncio.TimeoutError as exc:
+                raise ResolveError(
+                    http_status=status.HTTP_503_SERVICE_UNAVAILABLE,
+                    code=ErrorCode.SERVICE_UNAVAILABLE,
+                    message="Resolution timed out.",
+                    details={"timeout_ms": int(self._timeout_s * 1000), "chunk": {"start": ch.start, "end": ch.end}},
+                ) from exc
+            except Exception as exc:
+                raise ResolveError(
+                    http_status=status.HTTP_503_SERVICE_UNAVAILABLE,
+                    code=ErrorCode.SERVICE_UNAVAILABLE,
+                    message="Resolution failed.",
+                    details={"reason": str(exc), "chunk": {"start": ch.start, "end": ch.end}},
+                ) from exc
+
+            blocks = self._map_pipeline_to_blocks(det_res=det_res, extr=extr, opts=opts, lang=lang)
+            all_blocks.append(shift_blocks(blocks, ch.start))
+
+        merged = merge_blocks(all_blocks)
+        return self._build_response(text, merged, started)
