@@ -117,7 +117,7 @@ unacronym:
   before_script:
     - python --version
     - pip install "poetry==$POETRY_VERSION"
-    - poetry install --with dev
+    - poetry install --with dev --without ml
     - export VENV_BIN="$(poetry env info --path)/bin"
     # Wait for DB to be ready
     - |
