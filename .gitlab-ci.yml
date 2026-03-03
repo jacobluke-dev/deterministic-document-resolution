@@ -34,7 +34,7 @@ cache:
     - python --version
     - pip install "poetry==$POETRY_VERSION"
     - poetry config cache-dir "$POETRY_CACHE_DIR"
-    - poetry install --with dev --without ml
+    - poetry install --with dev --without ml -vvv --sync
     - export VENV_BIN="$(poetry env info --path)/bin"
 
 core:
@@ -61,7 +61,7 @@ core:
     - python --version
     - pip install "poetry==$POETRY_VERSION"
     - poetry config cache-dir "$POETRY_CACHE_DIR"
-    - poetry install --with dev --without ml
+    - poetry install --with dev --without ml -vvv --sync
     - export VENV_BIN="$(poetry env info --path)/bin"
   script:
     # Wait for the DB (TCP probe; no psycopg import needed)
@@ -98,7 +98,7 @@ unacronym:
       alias: db
       command: [ "postgres", "-c", "log_statement=none" ]
   variables:
-    POETRY_VERSION: "1.8.3"
+    POETRY_VERSION: "2.1.4"
     POETRY_VIRTUALENVS_IN_PROJECT: "true"
     PIP_DISABLE_PIP_VERSION_CHECK: "1"
     # Single source for DB; use it for sync
@@ -121,7 +121,7 @@ unacronym:
     - python --version
     - pip install "poetry==$POETRY_VERSION"
     - poetry config cache-dir "$POETRY_CACHE_DIR"
-    - poetry install --with dev --without ml
+    - poetry install --with dev --without ml -vvv --sync
     - export VENV_BIN="$(poetry env info --path)/bin"
     # Wait for DB to be ready
     - |
