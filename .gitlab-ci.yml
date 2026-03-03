@@ -18,13 +18,10 @@ variables:
   PNPM_HOME: "$CI_PROJECT_DIR/.pnpm"
   PNPM_STORE_DIR: "$CI_PROJECT_DIR/.pnpm-store"
 cache:
-  key: "$CI_COMMIT_REF_SLUG"
+  key:
+    files:
+      - poetry.lock
   paths:
-    - .cache/pip
-    - .cache/pypoetry
-    - .venv  # speeds subsequent jobs
-    - .pnpm-store/
-    - .pnpm/
     - .cache/pip
     - .cache/pypoetry
     - .venv
