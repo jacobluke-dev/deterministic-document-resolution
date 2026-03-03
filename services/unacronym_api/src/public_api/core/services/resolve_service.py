@@ -10,9 +10,9 @@ import anyio
 from fastapi import status
 from plainera_unacronym.nlp.common.types import DetectorResult, ExtractionResult
 from plainera_unacronym.nlp.execute import detect_and_extract
-from public_api.core.auth.chunking import make_chunks, shift_blocks, merge_blocks
-from public_api.core.settings import app_settings
 
+from public_api.core.auth.chunking import make_chunks, merge_blocks, shift_blocks
+from public_api.core.settings import app_settings
 from public_api.db.repos.glossary_repo import GlossaryRepository
 from public_api.schemas.error import ErrorCode
 from public_api.schemas.resolve import ResolveOptions, ResolveRequest, ResolveResponse
