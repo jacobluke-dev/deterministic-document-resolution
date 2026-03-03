@@ -15,15 +15,17 @@ variables:
   # Use a single in-project venv at repo root
   POETRY_VIRTUALENVS_IN_PROJECT: "true"
   PIP_DISABLE_PIP_VERSION_CHECK: "1"
-  PNPM_HOME: "$CI_PROJECT_DIR/.pnpm"
-  PNPM_STORE_DIR: "$CI_PROJECT_DIR/.pnpm-store"
+
+  PIP_CACHE_DIR: "$CI_PROJECT_DIR/.cache/pip"
+  POETRY_CACHE_DIR: "$CI_PROJECT_DIR/.cache/pypoetry"
 cache:
+  policy: pull-push
   key:
     files:
       - poetry.lock
   paths:
-    - .cache/pypoetry
     - .cache/pip
+    - .cache/pypoetry
 
 # ---------- common before_script (copy into each job) ----------
 # Note: we do NOT call `poetry env use` anymore.
@@ -31,6 +33,7 @@ cache:
   before_script:
     - python --version
     - pip install "poetry==$POETRY_VERSION"
+    - poetry config cache-dir "$POETRY_CACHE_DIR"
     - poetry install --with dev --without ml
     - export VENV_BIN="$(poetry env info --path)/bin"
 
@@ -57,6 +60,7 @@ core:
   before_script:
     - python --version
     - pip install "poetry==$POETRY_VERSION"
+    - poetry config cache-dir "$POETRY_CACHE_DIR"
     - poetry install --with dev --without ml
     - export VENV_BIN="$(poetry env info --path)/bin"
   script:
@@ -116,6 +120,7 @@ unacronym:
   before_script:
     - python --version
     - pip install "poetry==$POETRY_VERSION"
+    - poetry config cache-dir "$POETRY_CACHE_DIR"
     - poetry install --with dev --without ml
     - export VENV_BIN="$(poetry env info --path)/bin"
     # Wait for DB to be ready
