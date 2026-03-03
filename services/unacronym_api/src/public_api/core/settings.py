@@ -37,6 +37,10 @@ class AppSettings(BaseSettings):
     TIER2_MODEL_NAME: str = ''
     HF_CACHE_DIR: str = ''
 
+    CHUNKING_ENABLED: bool = True
+    CHUNK_THRESHOLD_CHARS: int = 30_000
+    CHUNK_SIZE_CHARS: int = 20_000
+    CHUNK_OVERLAP_CHARS: int = 1_200
 
     @property
     def cors_origins(self) -> list[str]:
