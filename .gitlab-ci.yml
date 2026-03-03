@@ -22,9 +22,8 @@ cache:
     files:
       - poetry.lock
   paths:
-    - .cache/pip
     - .cache/pypoetry
-    - .venv
+    - .cache/pip
 
 # ---------- common before_script (copy into each job) ----------
 # Note: we do NOT call `poetry env use` anymore.
@@ -32,7 +31,7 @@ cache:
   before_script:
     - python --version
     - pip install "poetry==$POETRY_VERSION"
-    - poetry install --with dev
+    - poetry install --with dev --without ml
     - export VENV_BIN="$(poetry env info --path)/bin"
 
 core:
@@ -58,7 +57,7 @@ core:
   before_script:
     - python --version
     - pip install "poetry==$POETRY_VERSION"
-    - poetry install --with dev
+    - poetry install --with dev --without ml
     - export VENV_BIN="$(poetry env info --path)/bin"
   script:
     # Wait for the DB (TCP probe; no psycopg import needed)

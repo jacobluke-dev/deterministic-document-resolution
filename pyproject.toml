@@ -35,7 +35,8 @@ unacronym-api = { path = "services/unacronym_api", develop = true }
 optional = true
 
 [tool.poetry.group.ml.dependencies]
-# Installed: sentence-transformers 5.2.3
+torch = "^2.10.0"
+transformers = "^5.2.0"
 sentence-transformers = "^5.2.3"
 
 [tool.poetry.group.dev.dependencies]
