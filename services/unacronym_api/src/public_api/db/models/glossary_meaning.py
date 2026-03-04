@@ -11,7 +11,7 @@ if TYPE_CHECKING:
 
 
 class GlossaryMeaning(BaseWithTimestamps):
-    __tablename__ = "glossary_meaning"
+    __tablename__ = "glossary_meanings"
 
     id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
 

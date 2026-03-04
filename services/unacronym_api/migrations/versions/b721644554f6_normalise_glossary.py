@@ -35,7 +35,7 @@ def upgrade() -> None:
     op.create_index('ix_glossary_acronyms_active_normalized', 'glossary_acronyms', ['normalized'], unique=False, schema='unacronym', postgresql_where=sa.text('is_active IS true'))
     op.create_index('ix_glossary_acronyms_normalized', 'glossary_acronyms', ['normalized'], unique=False, schema='unacronym')
     op.create_index('ux_glossary_acronyms_tenant_normalized', 'glossary_acronyms', ['tenant_id', 'normalized'], unique=True, schema='unacronym')
-    op.create_table('glossary_meaning',
+    op.create_table('glossary_meanings',
     sa.Column('id', sa.BigInteger(), nullable=False),
     sa.Column('acronym_id', sa.BigInteger(), nullable=False),
     sa.Column('definition', sa.Text(), nullable=False),
@@ -46,12 +46,12 @@ def upgrade() -> None:
     sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=False),
     sa.Column('updated_at', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=False),
     sa.ForeignKeyConstraint(['acronym_id'], ['unacronym.glossary_acronyms.id'], name=op.f('fk_glossary_meaning_acronym_id_glossary_acronyms'), ondelete='CASCADE'),
-    sa.PrimaryKeyConstraint('id', name=op.f('pk_glossary_meaning')),
+    sa.PrimaryKeyConstraint('id', name=op.f('pk_glossary_meanings')),
     schema='unacronym'
     )
-    op.create_index('ix_glossary_meaning_acronym_active', 'glossary_meaning', ['acronym_id', 'is_active'], unique=False, schema='unacronym')
-    op.create_index(op.f('ix_unacronym_glossary_meaning_acronym_id'), 'glossary_meaning', ['acronym_id'], unique=False, schema='unacronym')
-    op.create_index('ux_glossary_meaning_acronym_domain', 'glossary_meaning', ['acronym_id', 'domain'], unique=True, schema='unacronym')
+    op.create_index('ix_glossary_meaning_acronym_active', 'glossary_meanings', ['acronym_id', 'is_active'], unique=False, schema='unacronym')
+    op.create_index(op.f('ix_unacronym_glossary_meaning_acronym_id'), 'glossary_meanings', ['acronym_id'], unique=False, schema='unacronym')
+    op.create_index('ux_glossary_meaning_acronym_domain', 'glossary_meanings', ['acronym_id', 'domain'], unique=True, schema='unacronym')
     op.create_table('glossary_variants',
     sa.Column('id', sa.BigInteger(), nullable=False),
     sa.Column('acronym_id', sa.BigInteger(), nullable=False),
@@ -69,13 +69,6 @@ def upgrade() -> None:
     op.drop_table("acronym_aliases")
     # 2) then drop the parent
     op.drop_table("glossary_entries")
-    op.create_index(
-        "ix_glossary_acronyms_active_normalized",
-        "glossary_acronyms",
-        ["normalized"],
-        unique=False,
-        postgresql_where=sa.text("is_active IS TRUE"),
-    )
     # ### end Alembic commands ###
 
 
@@ -106,10 +99,10 @@ def downgrade() -> None:
     op.drop_index(op.f('ix_unacronym_glossary_variants_acronym_id'), table_name='glossary_variants', schema='unacronym')
     op.drop_index('ix_glossary_variant_lower_variant', table_name='glossary_variants', schema='unacronym')
     op.drop_table('glossary_variants', schema='unacronym')
-    op.drop_index('ux_glossary_meaning_acronym_domain', table_name='glossary_meaning', schema='unacronym')
-    op.drop_index(op.f('ix_unacronym_glossary_meaning_acronym_id'), table_name='glossary_meaning', schema='unacronym')
-    op.drop_index('ix_glossary_meaning_acronym_active', table_name='glossary_meaning', schema='unacronym')
-    op.drop_table('glossary_meaning', schema='unacronym')
+    op.drop_index('ux_glossary_meaning_acronym_domain', table_name='glossary_meanings', schema='unacronym')
+    op.drop_index(op.f('ix_unacronym_glossary_meaning_acronym_id'), table_name='glossary_meanings', schema='unacronym')
+    op.drop_index('ix_glossary_meaning_acronym_active', table_name='glossary_meanings', schema='unacronym')
+    op.drop_table('glossary_meanings', schema='unacronym')
     op.drop_index('ux_glossary_acronyms_tenant_normalized', table_name='glossary_acronyms', schema='unacronym')
     op.drop_index('ix_glossary_acronyms_normalized', table_name='glossary_acronyms', schema='unacronym')
     op.drop_index('ix_glossary_acronyms_active_normalized', table_name='glossary_acronyms', schema='unacronym', postgresql_where=sa.text('is_active IS true'))
