@@ -14,7 +14,7 @@ __all__ = [
     "ApiKey",
     "Base",
     "BaseWithTimestamps",
-    "GlossaryMeaning"
+    "GlossaryMeaning",
     "GlossaryAcronym",
     "GlossaryVariant",
     "Logger",
