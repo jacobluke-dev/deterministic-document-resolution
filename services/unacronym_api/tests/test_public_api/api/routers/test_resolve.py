@@ -5,7 +5,7 @@ from httpx import Response
 from public_api.api.routers import resolve as resolve_mod
 from public_api.core import deps_auth as deps_auth_mod
 from public_api.core.auth.api_keys import Principal
-from public_api.db.models import GlossaryEntry
+from public_api.db.models import GlossaryAcronym, GlossaryMeaning
 from public_api.schemas.error import ErrorCode
 
 
@@ -21,22 +21,55 @@ class TestV1Resolve:
     def seed_for_this_class(self, session_factory):
         # minimal deterministic seed used by multiple tests here
         with session_factory() as s:
-            if not s.query(GlossaryEntry).filter_by(acronym="MPS").first():
-                s.add(
-                    GlossaryEntry(
-                        acronym="MPS",
-                        definition="Metropolitan Police Service.",
-                        provenance="test",
-                    )
+            def _ensure(acr: str, definition: str) -> None:
+                norm = acr.lower()
+
+                ga = (
+                    s.query(GlossaryAcronym)
+                    .filter(GlossaryAcronym.tenant_id.is_(None))
+                    .filter(GlossaryAcronym.normalized == norm)
+                    .first()
                 )
-            if not s.query(GlossaryEntry).filter_by(acronym="ABC").first():
-                s.add(
-                    GlossaryEntry(
-                        acronym="ABC",
-                        definition="Alpha Beta Charlie.",
-                        provenance="test",
+
+                if ga is None:
+                    ga = GlossaryAcronym(
+                        tenant_id=None,
+                        acronym=acr,
+                        normalized=norm,
+                        is_active=True,
                     )
+                    s.add(ga)
+                    s.flush()
+                else:
+                    # keep canonical surface stable for tests
+                    ga.acronym = acr
+                    ga.is_active = True
+
+                gm = (
+                    s.query(GlossaryMeaning)
+                    .filter(GlossaryMeaning.acronym_id == ga.id)
+                    .filter(GlossaryMeaning.domain == "general")
+                    .first()
                 )
+
+                if gm is None:
+                    s.add(
+                        GlossaryMeaning(
+                            acronym_id=ga.id,
+                            definition=definition,
+                            domain="general",
+                            provenance="test",
+                            is_active=True,
+                        )
+                    )
+                else:
+                    gm.definition = definition
+                    gm.provenance = "test"
+                    gm.is_active = True
+
+            _ensure("MPS", "Metropolitan Police Service.")
+            _ensure("ABC", "Alpha Beta Charlie.")
+
             s.commit()
         yield
 

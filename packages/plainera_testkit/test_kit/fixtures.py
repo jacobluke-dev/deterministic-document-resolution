@@ -91,4 +91,8 @@ class TestDBManager(DBManager):
 
 @pytest.fixture(name="dbm")
 def dbm(apply_migrations_once, engine_factory, session_factory):
-    return TestDBManager(engine_factory, session_factory, {"glossary_entries", "acronym_aliases"})
+    return TestDBManager(
+        engine_factory,
+        session_factory,
+        {"glossary_acronyms", "glossary_meanings", "glossary_variants"},
+    )
