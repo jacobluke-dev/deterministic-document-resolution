@@ -3,11 +3,10 @@
 from observability.db.models.base import Base, BaseWithTimestamps
 from plainera_unacronym.db.models.logger import PackageLogger
 
-
+from .api_key import ApiKey
 from .glossary_acronym import GlossaryAcronym
 from .glossary_meaning import GlossaryMeaning
 from .glossary_variant import GlossaryVariant
-from .api_key import ApiKey
 from .logger import Logger
 
 __all__ = [

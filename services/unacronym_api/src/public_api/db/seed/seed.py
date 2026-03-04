@@ -44,10 +44,12 @@ def main(force: bool = False) -> None:
             ["Portable Document Format"],
         ),
         ("GDPR", [("general", "General Data Protection Regulation.")], "seed", ["General Data Protection Regulation"]),
-        ("ECHR", [("general", "European Convention on Human Rights.")], "seed", ["European Convention on Human Rights"]),
+        ("ECHR", [("general", "European Convention on Human Rights.")], "seed",
+         ["European Convention on Human Rights"]),
         ("FOI", [("general", "Freedom of Information.")], "seed", ["Freedom of Information"]),
         ("SAR", [("general", "Subject Access Request.")], "seed", ["Subject Access Request"]),
-        ("SLA", [("general", "Service Level Agreement.")], "seed", ["Service-Level Agreement", "Service Level Agreements"]),
+        ("SLA", [("general", "Service Level Agreement.")], "seed",
+         ["Service-Level Agreement", "Service Level Agreements"]),
         ("KPI", [("general", "Key Performance Indicator.")], "seed", ["Key Performance Indicators"]),
     ]
 
