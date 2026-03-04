@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from collections.abc import Iterable, Iterator, Sequence
 from contextlib import contextmanager
 from functools import wraps
@@ -10,6 +12,30 @@ from sqlalchemy.orm import Session, sessionmaker
 
 P = ParamSpec("P")
 R = TypeVar("R")
+
+def _validate_ident(ident: str) -> str:
+    """Allow only simple SQL identifiers: letters, numbers, underscore."""
+    ident = ident.strip()
+    if not ident:
+        raise ValueError("Empty identifier")
+    if not ident.replace("_", "").isalnum():
+        raise ValueError(f"Invalid identifier: {ident!r}")
+    return ident
+
+
+def _quote_ident(ident: str) -> str:
+    return f'"{_validate_ident(ident)}"'
+
+
+def _quote_table_fqn(table_fqn: str) -> str:
+    """
+    Quote schema-qualified table like: schema.table or table.
+    Reject anything else.
+    """
+    parts = [p.strip() for p in table_fqn.split(".") if p.strip()]
+    if not parts or len(parts) > 2:
+        raise ValueError(f"Invalid table name: {table_fqn!r}")
+    return ".".join(_quote_ident(p) for p in parts)
 
 
 def require_allowed_table(func: Callable[P, R]) -> Callable[P, R]:
@@ -148,6 +174,15 @@ class DBManager:
         with self.engine.begin() as conn:
             conn.exec_driver_sql(sql)
 
+    def query(self, sql: str, params: dict[str, Any] | None = None) -> list[tuple[Any, ...]]:
+        """Run an arbitrary SELECT and return rows.
+
+        Use sparingly.
+        """
+        with self.engine.connect() as conn:
+            res = conn.execute(text(sql), params or {})
+            return [tuple(row) for row in res]
+
     # --- Simple table helpers (keep generic/on purpose) --------------------
 
     @require_allowed_table
@@ -180,7 +215,8 @@ class DBManager:
         cols = ", ".join(f'"{c}"' for c in columns)
         placeholders = ", ".join(f":v{i}" for i in range(len(values)))
         params = {f"v{i}": v for i, v in enumerate(values)}
-        stmt = text(f'INSERT INTO {table_fqn} ({cols}) VALUES ({placeholders})')
+        table_sql = _quote_table_fqn(table_fqn)
+        stmt = text(f'INSERT INTO {table_sql} ({cols}) VALUES ({placeholders})')
         with self.engine.begin() as conn:
             conn.execute(stmt, params)
 
@@ -191,6 +227,8 @@ class DBManager:
         columns: Sequence[str] | None = None,
         where: str | None = None,
         params: dict[str, Any] | None = None,
+        order_by: Sequence[str] | None = None,
+        limit: int | None = None,
     ) -> list[tuple[Any, ...]]:
         """Select multiple rows from a specified table.
 
@@ -202,6 +240,8 @@ class DBManager:
                 keyword).
             params (dict[str, Any] | None): Parameters to bind in the WHERE
                 clause.
+            order_by (Sequence[str] | None): Optional ordering clause
+            limit (int | None): Optional limit clause.
 
         Returns:
             list[tuple]: list of rows returned by the query.
@@ -209,27 +249,38 @@ class DBManager:
         Raises:
             ValueError: If the table is not in `allowed_tables`.
             sqlalchemy.exc.SQLAlchemyError: If execution fails.
-
-        Examples:
-            >>> dbm.select_rows("glossary_entries", ["acronym", "definition"])
-            [('NHS', 'National Health Service')]
         """
         if not columns:
             col_str = "*"
         else:
             rendered: list[str] = []
             for c in columns:
-                if c.strip() == "*":
+                c = c.strip()
+                if c == "*":
                     rendered.append("*")
                 else:
-                    rendered.append(f'"{c}"')
+                    rendered.append(_quote_ident(c))
             col_str = ", ".join(rendered)
 
-        stmt = f"SELECT {col_str} FROM {table_fqn}"
+        table_sql = _quote_table_fqn(table_fqn)
+
+        stmt = f"SELECT {col_str} FROM {table_sql}"
         if where:
             stmt += f" WHERE {where}"
+
+        if order_by:
+            ob = ", ".join(_quote_ident(c) for c in order_by)
+            stmt += f" ORDER BY {ob}"
+
+        bound = dict(params or {})
+        if limit is not None:
+            if int(limit) < 0:
+                raise ValueError("limit must be >= 0")
+            stmt += " LIMIT :__limit"
+            bound["__limit"] = int(limit)
+
         with self.engine.connect() as conn:
-            res = conn.execute(text(stmt), params or {})
+            res = conn.execute(text(stmt), bound)
             return [tuple(row) for row in res]
 
     @require_allowed_table
@@ -327,6 +378,78 @@ class DBManager:
         update_params = {f"u_{k}": v for k, v in updates.items()}
         if touch_updated_at:
             sets.append('updated_at = NOW()')
-        stmt = text(f'UPDATE {table_fqn} SET {", ".join(sets)} WHERE {where}')
+        table_sql = _quote_table_fqn(table_fqn)
+        stmt = text(f'UPDATE {table_sql} SET {", ".join(sets)} WHERE {where}')
         with self.engine.begin() as conn:
             conn.execute(stmt, {**update_params, **params})
+
+    @require_allowed_table
+    def select_rows_where(
+        self,
+        table_fqn: str,
+        columns: Sequence[str] | None,
+        criteria: Iterable[tuple[str, Any]] | None = None,
+        order_by: Sequence[str] | None = None,
+        limit: int | None = None,
+    ) -> list[tuple[Any, ...]]:
+        """Select multiple rows from a specified table using simple equality
+        criteria.
+
+        This is a convenience wrapper around :meth:`select_rows` that builds a
+        parameterised WHERE clause from a list of ``(column, value)`` pairs.
+        All criteria are joined with ``AND`` and use equality comparisons.
+
+        Args:
+            table_fqn (str): Fully qualified table name (e.g. "public.users" or "users").
+            columns (Sequence[str] | None): Column names to select. If None, selects all columns ("*").
+            criteria (Iterable[tuple[str, Any]] | None): Optional list of criteria as ``(column, value)``
+                pairs. Each criterion becomes ``"<column>" = :pN`` with bound parameters. Criteria are
+                combined using ``AND``.
+            order_by (Sequence[str] | None): Optional list of columns to order by (ASC). Column names are
+                quoted.
+            limit (int | None): Optional maximum number of rows to return. Must be >= 0 if provided.
+
+        Returns:
+            list[tuple[Any, ...]]: Rows returned by the query as tuples, in the order of ``columns``.
+
+        Raises:
+            ValueError: If ``table_fqn`` is not in ``allowed_tables``.
+            ValueError: If ``limit`` is provided and is negative.
+            sqlalchemy.exc.SQLAlchemyError: If query execution fails.
+
+        Examples:
+            >>> dbm.select_rows_where(
+            ...     "glossary_acronyms",
+            ...     columns=["acronym", "normalized"],
+            ...     criteria=[("acronym", "QWE")],
+            ... )
+            [('QWE', 'qwe')]
+
+            >>> dbm.select_rows_where(
+            ...     "glossary_acronyms",
+            ...     columns=["acronym"],
+            ...     criteria=[("tenant_id", None)],
+            ...     order_by=["acronym"],
+            ...     limit=10,
+            ... )
+        """
+        where = None
+        params: dict[str, Any] = {}
+
+        crit = list(criteria) if criteria else []
+        if crit:
+            parts: list[str] = []
+            for i, (col, val) in enumerate(crit):
+                key = f"p{i}"
+                parts.append(f'{_quote_ident(col)} = :{key}')
+                params[key] = val
+            where = " AND ".join(parts)
+
+        return self.select_rows(
+            table_fqn=table_fqn,
+            columns=columns,
+            where=where,
+            params=params,
+            order_by=order_by,
+            limit=limit,
+        )
