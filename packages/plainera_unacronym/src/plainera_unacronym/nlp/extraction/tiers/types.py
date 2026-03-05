@@ -13,6 +13,7 @@ FloatVec = NDArray[np.floating]
 
 Tier2SkipReason = Literal[
     "disabled",
+    "pending",
     "model_unavailable",
     "single_candidate",
     "not_ambiguous",
