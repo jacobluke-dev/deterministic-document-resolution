@@ -73,7 +73,7 @@ class TestDetectAndExtractUnit:
                             start_offset=28,
                             end_offset=31,
                             occurrence_confidence=0.5,
-                            context_window=(0, 32),
+                            segement_window=(0, 32),
                         )
                     ],
                     unique_acronyms={"PDF": fo(text, "PDF", 28, 0.5)},

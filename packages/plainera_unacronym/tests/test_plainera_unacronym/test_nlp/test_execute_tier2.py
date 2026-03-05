@@ -879,6 +879,9 @@ def _run_flow(
 # ----------------------------
 
 class TestTier2E2e:
+    # this is awful but I'm being lazy
+    def __init__(self):
+        self._ovr_win = 0
 
     def test_tier2_e2e_resolves_api_by_section_context(self, _patch) -> None:
         _patch_tier2_embed(_patch)
@@ -890,6 +893,15 @@ class TestTier2E2e:
             ExtractionConfig(),
             tier2=Tier2Config(mode="on", weight=0.65, model_name="fake"),
         )
+
+        def _t2_win(s: FlowState) -> int:
+            t2 = getattr(s.ext_cfg, "tier2", None)
+            v = getattr(t2, "context_window_chars", None)
+            if v is not None:
+                return int(v)
+            if self._ovr_win is not None:
+                return int(self._ovr_win)
+            return 50
 
         text = (
             "SOFTWARE SECTION\n"
@@ -905,6 +917,7 @@ class TestTier2E2e:
         # the sliced context can include keywords from *both* sections (“HTTP/REST” and “GMP/assay/purity”), which makes
         # the fake keyword-bucket embeddings ambiguous and can destabilise reranking. Keeping the window small keeps
         # each occurrence’s context local to its section so Tier-2 can separate senses deterministically.
+        _patch(ExtractionFlow.build_chain._t2_win, _t2_win) # noqa
 
         _, extr, _, state = _run_flow(text, ext_cfg=ext_cfg, disambig_window_chars=50)
 

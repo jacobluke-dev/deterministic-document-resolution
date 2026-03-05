@@ -35,7 +35,7 @@ def _occ(acr: str, s: int, e: int, conf: float, key: str | None = None) -> Occur
         start_offset=s,
         end_offset=e,
         occurrence_confidence=conf,
-        context_window=(0, 0),
+        segement_window=(0, 0),
         normalized_key=key,
         reasons=None,
     )

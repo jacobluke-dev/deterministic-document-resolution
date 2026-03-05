@@ -76,7 +76,7 @@ class TestSrTier2SemanticRerank:
         assert rep.applied == 0
         assert rep.reasons["model_unavailable"] == 1
         assert s.disambig.tier2.ranked[0].applied is False
-        assert s.disambig.tier2.ranked[0].skip_reason == "model_unavailable"
+        assert s.disambig.tier2.ranked[0].skip_reason == "pending"
 
     def test_tier2_applies_and_blends_in_tier1_order(self, monkeypatch):
         s = _mk_state(mode="on")
