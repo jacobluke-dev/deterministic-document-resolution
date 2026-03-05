@@ -77,20 +77,52 @@ def _skip_tier2(r1: Tier1OccurrenceRanking, reason: Tier2SkipReason) -> Tier2Occ
 
 def _slice_context(text: str, start: int, end: int, window_chars: int) -> str:
     """
-    Deterministically extract a context window around an occurrence span.
+    Extract a deterministic, occurrence-centred context window around an acronym mention.
+
+    The returned string is intended for Tier-1/Tier-2 disambiguation. The window is
+    centred on the acronym occurrence defined by (start, end) and bounded by
+    `window_chars` total characters (approximately half on each side).
+
+    To improve readability and embedding quality, the function optionally expands
+    the initial window boundaries to whitespace, avoiding mid-token truncation.
+    This expansion is strictly limited to a small, fixed distance to preserve
+    determinism and prevent runaway growth.
 
     Args:
-        text: Source document text.
-        start: Occurrence start offset (inclusive).
-        end: Occurrence end offset (exclusive).
-        window_chars: Characters to include on each side of the span.
+        text: Full source document text.
+        start: Start character offset of the acronym occurrence in `text`.
+        end: End character offset (exclusive) of the acronym occurrence in `text`.
+        window_chars: Target total context window size (in characters). If <= 0,
+            returns an empty string.
 
     Returns:
-        The context substring clamped to the bounds of `text`.
+        A context substring of `text` surrounding the occurrence. The substring is:
+          - centred on (start, end),
+          - clamped to document bounds,
+          - optionally adjusted to whitespace boundaries (within a small limit).
+
+    Notes:
+        - This function is deterministic: the same inputs always produce the same output.
+        - It does not attempt full sentence boundary detection; it uses a lightweight
+          whitespace adjustment as a stable approximation.
+        - Offsets in the rest of the pipeline use Python-slice semantics (end exclusive),
+          and this function follows the same convention.
     """
-    L = max(0, start - window_chars)
-    R = min(len(text), end + window_chars)
-    return text[L:R]
+    if window_chars <= 0:
+        return ""
+
+    half = max(1, window_chars // 2)
+    ws = max(0, start - half)
+    we = min(len(text), end + half)
+
+    # Optional: trim to whitespace boundaries (still deterministic)
+    # Expand left to previous whitespace within a small limit
+    while ws > 0 and (start - ws) < 40 and not text[ws].isspace():
+        ws -= 1
+    while we < len(text) and (we - end) < 40 and not text[we - 1].isspace():
+        we += 1
+
+    return text[ws:we]
 
 
 def collect_tier2_inputs(
@@ -121,6 +153,7 @@ def collect_tier2_inputs(
     eligible: list[_EligibleRerank] = []
 
     for i, r1 in enumerate(t1_ranked):
+        print("T2", r1.occ.acronym, r1.occ.start, r1.occ.end, "win", window_chars)
         scores = r1.candidate_scores
 
         if len(scores) < 2:
@@ -162,7 +195,7 @@ def collect_tier2_inputs(
             continue
 
         eligible.append(_EligibleRerank(i, r1, context, cand_ids, cand_texts))
-        ranked2.append(_skip_tier2(r1, "model_unavailable"))
+        ranked2.append(_skip_tier2(r1, "pending"))
 
     return ranked2, eligible
 
@@ -177,8 +210,9 @@ def embed_for_tier2(
     Embed all unique candidate texts and all eligible contexts in two batches.
 
     Args:
-        model_name: Embedding model identifier passed to `embed_texts`.
         eligible: Eligible rerank work items.
+        model_name: Embedding model identifier passed to `embed_texts`.
+        tier2_model: Tier2 model identifier passed to `embed_texts`.
 
     Returns:
         A batch containing candidate/context embeddings and a text->row index map,
