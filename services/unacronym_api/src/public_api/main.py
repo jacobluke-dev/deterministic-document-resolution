@@ -67,7 +67,7 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, Any]:
                 app_settings.TIER2_MODEL_NAME,
                 cache_folder=app_settings.HF_CACHE_DIR,
             )
-        except ModuleNotFoundError as e:
+        except ModuleNotFoundError:
             # sentence_transformers / torch not installed
             if app_settings.TIER2_STRICT:
                 raise
