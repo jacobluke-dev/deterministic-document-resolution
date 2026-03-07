@@ -43,8 +43,7 @@ def _tier2_cfg(*, mode: Literal["off", "auto", "on"], weight: float = 0.5) -> Ex
         tier2=Tier2Config(
             mode=mode,
             model_name="fake-model",
-            weight=weight,
-            context_window_chars=80,  # ✅ key line: Tier-2 context slice window
+            weight=weight
         ),
     )
 
@@ -259,7 +258,7 @@ class TestDetectAndExtractE2ETier2AcronymWins:
 
         ext_cfg = replace(
             ExtractionConfig(),
-            tier2=Tier2Config(mode="on", weight=1, model_name="fake-model", context_window_chars=120),
+            tier2=Tier2Config(mode="on", weight=1, model_name="fake-model"),
         )
 
         _det, extr, reports = detect_and_extract(text, ext_cfg=ext_cfg, return_reports=True, tier2_model=object())
@@ -304,7 +303,7 @@ class TestDetectAndExtractE2ETier2AcronymWins:
 
         ext_cfg = replace(
             ExtractionConfig(),
-            tier2=Tier2Config(mode="on", weight=1, model_name="fake-model", context_window_chars=80),
+            tier2=Tier2Config(mode="on", weight=1, model_name="fake-model"),
         )
 
         _det, extr, reports = detect_and_extract(text, ext_cfg=ext_cfg, return_reports=True, tier2_model=object())
@@ -860,7 +859,6 @@ def _run_flow(
     text: str,
     *,
     ext_cfg: ExtractionConfig,
-    disambig_window_chars: int | None = None,
     disambig_margin_threshold: float | None = None,
 ) -> tuple[Any, Any, list[Any], FlowState]:
     flow = ExtractionFlow(
@@ -895,10 +893,6 @@ class TestTier2E2e:
         )
 
         def _t2_win(s: FlowState) -> int:
-            t2 = getattr(s.ext_cfg, "tier2", None)
-            v = getattr(t2, "context_window_chars", None)
-            if v is not None:
-                return int(v)
             if self._ovr_win is not None:
                 return int(self._ovr_win)
             return 50
@@ -965,7 +959,7 @@ class TestTier2E2e:
                                        "The PDF integrates to one for a random variable.\n"
         )
 
-        _, extr, _, state = _run_flow(text, ext_cfg=ext_cfg, disambig_window_chars=80)
+        _, extr, _, state = _run_flow(text, ext_cfg=ext_cfg)
 
         rep = _tier2_report(state)
         assert getattr(rep, "applied", 0) == 0, "Expected Tier-2 not to run under confident Tier-1 results."
@@ -1027,7 +1021,7 @@ class TestTier2E2e:
             tier2=Tier2Config(mode="on", weight=0.85, model_name="fake", select_margin_threshold=0.20),
         )
 
-        _, extr_on, _, state_on = _run_flow(text, ext_cfg=ext_on, disambig_window_chars=80)
+        _, extr_on, _, state_on = _run_flow(text, ext_cfg=ext_on)
 
         rep_on = _tier2_report(state_on)
         assert getattr(rep_on, "applied", 0) > 0

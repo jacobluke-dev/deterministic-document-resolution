@@ -117,7 +117,7 @@ def occ():
             start_offset=s,
             end_offset=e,
             occurrence_confidence=conf,
-            segement_window=(max(0, s - 20), e + 20),
+            segment_window=(max(0, s - 20), e + 20),
             normalized_key=k,
             reasons=None,
         )

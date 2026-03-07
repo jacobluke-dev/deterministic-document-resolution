@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from collections import Counter
 from typing import Literal, cast
 
@@ -244,7 +246,7 @@ def st_tier1_build_senses(s: FlowState) -> StageResult[FlowState]:
     """
     assert s.det_res is not None
 
-    t1 = s.disambig.tier1
+    t1 = s.tier_1
     t1.senses_by_acronym = build_senses(s.all_defs)
     t1.sense_index = {x.sense_id: x for xs in t1.senses_by_acronym.values() for x in xs}
     t1.occurrences = [OccurrenceLite(o.acronym, o.start_offset, o.end_offset) for o in s.det_res.occurrences]
@@ -288,7 +290,7 @@ def st_tier1_score_occurrences(s: FlowState, *, window_chars: int, margin_thresh
     """
     assert s.det_res is not None
 
-    t1 = s.disambig.tier1
+    t1 = s.tier_1
 
     res = disambiguate_occurrences(
         text=s.text,
@@ -318,7 +320,6 @@ def st_tier1_score_occurrences(s: FlowState, *, window_chars: int, margin_thresh
 def st_tier2_semantic_rerank(
     s: FlowState,
     *,
-    window_chars: int,
     auto_margin_ceiling: float,
 ) -> StageResult[FlowState]:
     """
@@ -331,7 +332,6 @@ def st_tier2_semantic_rerank(
     Args:
         s: FlowState for the pipeline stage. Requires `s.det_res` and Tier-1
             rankings in `s.disambig.tier1.ranked`.
-        window_chars: Context window size around each occurrence.
         auto_margin_ceiling: The margin ceiling
 
     Returns:
@@ -343,8 +343,8 @@ def st_tier2_semantic_rerank(
 
     assert s.det_res is not None
 
-    t1 = s.disambig.tier1
-    t2 = s.disambig.tier2
+    t1 = s.tier_1
+    t2 = s.tier_2
 
     tier2_cfg = getattr(s.ext_cfg, "tier2", None)
     Mode = Literal["off", "auto", "on"]
@@ -380,7 +380,6 @@ def st_tier2_semantic_rerank(
         t1_ranked=t1.ranked,
         sense_index=t1.sense_index,
         ambiguous_acrs=ambiguous_acrs,
-        window_chars=window_chars,
         auto_margin_ceiling=auto_ceiling,
         mode=mode,
         only_when_undecided=tier2_cfg.only_when_undecided,
@@ -475,8 +474,8 @@ def st_tiers_select_and_assemble(s: FlowState, *, margin_threshold: float) -> St
         rel_margin = gap / max(p1, 1e-9)
         return sid1, rel_margin, gap
 
-    t1 = s.disambig.tier1
-    t2 = s.disambig.tier2
+    t1 = s.tier_1
+    t2 = s.tier_2
 
     tier2_by_key: dict[tuple[str, int, int], Tier2OccurrenceRanking] = {
         (r2.occ.acronym, r2.occ.start, r2.occ.end): r2 for r2 in (t2.ranked or [])
@@ -529,8 +528,8 @@ def st_tiers_select_and_assemble(s: FlowState, *, margin_threshold: float) -> St
         resolutions=resolutions,
         ambiguous_keys=ambiguous,
         undecided=undecided,
-        tier2_report=s.disambig.tier2.report,
-        tier2_ranked=tuple(s.disambig.tier2.ranked),
+        tier2_report=s.tier_2.report,
+        tier2_ranked=tuple(s.tier_2.ranked),
     )
 
     s.last_info = f"senses={sum(len(v) for v in t1.senses_by_acronym.values())}, undecided={len(undecided)}"

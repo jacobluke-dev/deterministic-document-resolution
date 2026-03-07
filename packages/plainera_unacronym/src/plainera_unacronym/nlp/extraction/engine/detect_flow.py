@@ -45,7 +45,6 @@ class ExtractionFlow:
         window_left: int = 320,
         window_right: int = 280,
         # optional runtime overrides so we don't mutate frozen configs
-        disambig_window_chars: int | None = None,
         disambig_margin_threshold: float | None = None,
         trace: bool = False,
         trace_filter: str | None = None,
@@ -59,10 +58,6 @@ class ExtractionFlow:
                 when performing anchored extraction.
             window_right (int): Chars to include to the right of the first occurrence
                 when performing anchored extraction.
-            disambig_window_chars (int | None): Optional runtime override for the
-                disambiguation context window size (in chars). If None, uses config defaults.
-            disambig_margin_threshold (float | None): Optional runtime override for the
-                disambiguation margin threshold. If None, uses config defaults.
             trace (bool): If True, capture structured trace events for selected stage fields.
             trace_filter (str | None): Optional regex filter applied to acronym keys when tracing.
         """
@@ -71,7 +66,6 @@ class ExtractionFlow:
         self.ext_cfg = ext_cfg or ExtractionConfig()
         self.window_left = window_left
         self.window_right = window_right
-        self._ovr_win = disambig_window_chars
         self._ovr_margin = disambig_margin_threshold
         self._tracer = Tracer(trace_filter) if trace else None
 
@@ -89,35 +83,26 @@ class ExtractionFlow:
         """
         wl, wr = self.window_left, self.window_right
 
-        # compute disambig knobs once here (engine concern)
-        def _win(s: FlowState) -> int:
-            if self._ovr_win is not None:
-                return self._ovr_win
-            dis = getattr(s.ext_cfg, "disambig", None)
-            return int(getattr(dis, "window_chars", 320))
-
-        def _t2_win(s: FlowState) -> int:
-            t2 = getattr(s.ext_cfg, "tier2", None)
-            v = getattr(t2, "context_window_chars", None)
-            return int(v) if v is not None else _win(s)
-
         def _margin(s: FlowState) -> float:
             if self._ovr_margin is not None:
                 return self._ovr_margin
-            dis = getattr(s.ext_cfg, "disambig", None)
+            dis = getattr(s.ext_cfg, "select_margin_threshold", None)
             return float(getattr(dis, "margin_threshold", 0.20))
 
         def _t1_margin(s: FlowState) -> float:
-            dis = getattr(s.ext_cfg, "disambig", None)
+            dis = getattr(s.ext_cfg, "select_margin_threshold", None)
             return float(getattr(dis, "margin_threshold", 0.20))
+
+        def _t1_window_chars(s: FlowState) -> int:
+            return int(getattr(s.ext_cfg, "tier_1_window_chars", 140))
 
         def _t2_ceiling(s: FlowState) -> float:
             t2 = getattr(s.ext_cfg, "tier2", None)
             return float(getattr(t2, "auto_margin_ceiling", 0.75))
 
-        def _t2_select_margin(s: FlowState) -> float:
-            t2 = getattr(s.ext_cfg, "tier2", None)
-            return float(getattr(t2, "select_margin_threshold", _margin(s)))
+        def _multi_select_margin(s: FlowState) -> float:
+            return float(getattr(s.ext_cfg.multi_tier, "select_margin_threshold", 0.1))
+
 
         return Chain(
             [
@@ -153,7 +138,9 @@ class ExtractionFlow:
                     lambda s: f"{len(s.backref_defs)}",
                     trace_fields=("sentence_backref",),
                 ),
-                Stage("merge_dedupe", f.st_merge, lambda s: f"{len(s.all_defs)}", trace_fields=("all_defs",)),
+                Stage("merge_dedupe", f.st_merge,
+                      lambda s: f"{len(s.all_defs)}",
+                      trace_fields=("all_defs",)),
                 Stage(
                     "finalise_picks",
                     f.st_finalise_picks,
@@ -170,21 +157,26 @@ class ExtractionFlow:
                 ),
                 Stage(
                     "tier1_score_occurrences",
-                    lambda s: f.st_tier1_score_occurrences(s, window_chars=_win(s), margin_threshold=_t1_margin(s)),
+                    lambda s: f.st_tier1_score_occurrences(
+                        s,
+                        window_chars=_t1_window_chars(s),
+                        margin_threshold=_t1_margin(s),
+                    ),
                     lambda s: s.last_info,
-                    trace_fields=("disambig.tier1.ranked",),
+                    trace_fields=("tier_1.ranked",),
                 ),
                 Stage(
                     "tier2_semantic_rerank",
                     lambda s: f.st_tier2_semantic_rerank(
-                        s, window_chars=_t2_win(s), auto_margin_ceiling=_t2_ceiling(s)
+                        s,
+                        auto_margin_ceiling=_t2_ceiling(s),
                     ),
                     lambda s: s.last_info,
                     trace_fields=("disambig.tier2.report", "disambig.tier2.ranked"),
                 ),
                 Stage(
                     "tiers_select_and_assemble",
-                    lambda s: f.st_tiers_select_and_assemble(s, margin_threshold=_t2_select_margin(s)),
+                    lambda s: f.st_tiers_select_and_assemble(s, margin_threshold=_multi_select_margin(s)),
                     lambda s: "ready",
                 ),
             ]

@@ -55,7 +55,7 @@ class Occurrence:
     start_offset: int
     end_offset: int  # end-exclusive
     occurrence_confidence: float
-    segement_window: Span  # (left_idx, right_idx) in the original text
+    segment_window: Span  # (left_idx, right_idx) in the original text
     normalized_key: str | None = None
     reasons: tuple[str, ...] | None = None
 
