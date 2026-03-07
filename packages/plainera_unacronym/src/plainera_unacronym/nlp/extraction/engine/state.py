@@ -12,7 +12,7 @@ from plainera_unacronym.nlp.common.types import (
 )
 from plainera_unacronym.nlp.detection.cleanup import DroppedOccurrence
 from plainera_unacronym.nlp.extraction.config import ExtractionConfig
-from plainera_unacronym.nlp.extraction.tiers.types import DisambigWork
+from plainera_unacronym.nlp.extraction.tiers.types import Tier1Work, Tier2Work
 
 
 @dataclass
@@ -36,6 +36,7 @@ class FlowState:
     coverage: float = 0.0
     missing_keys: tuple[str, ...] = ()
 
-    disambig: DisambigWork = field(default_factory=DisambigWork, repr=False)
+    tier_1: Tier1Work = field(default_factory=Tier1Work, repr=False)
+    tier_2: Tier2Work = field(default_factory=Tier2Work, repr=False)
 
     extr: ExtractionResult | None = None

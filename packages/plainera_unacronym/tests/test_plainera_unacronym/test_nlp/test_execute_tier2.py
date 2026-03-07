@@ -43,8 +43,7 @@ def _tier2_cfg(*, mode: Literal["off", "auto", "on"], weight: float = 0.5) -> Ex
         tier2=Tier2Config(
             mode=mode,
             model_name="fake-model",
-            weight=weight,
-            context_window_chars=80,  # ✅ key line: Tier-2 context slice window
+            weight=weight
         ),
     )
 
@@ -259,7 +258,7 @@ class TestDetectAndExtractE2ETier2AcronymWins:
 
         ext_cfg = replace(
             ExtractionConfig(),
-            tier2=Tier2Config(mode="on", weight=1, model_name="fake-model", context_window_chars=120),
+            tier2=Tier2Config(mode="on", weight=1, model_name="fake-model"),
         )
 
         _det, extr, reports = detect_and_extract(text, ext_cfg=ext_cfg, return_reports=True, tier2_model=object())
@@ -304,7 +303,7 @@ class TestDetectAndExtractE2ETier2AcronymWins:
 
         ext_cfg = replace(
             ExtractionConfig(),
-            tier2=Tier2Config(mode="on", weight=1, model_name="fake-model", context_window_chars=80),
+            tier2=Tier2Config(mode="on", weight=1, model_name="fake-model"),
         )
 
         _det, extr, reports = detect_and_extract(text, ext_cfg=ext_cfg, return_reports=True, tier2_model=object())
@@ -700,8 +699,8 @@ def _get(obj: Any, path: str) -> Any:
 
 
 def _tier2_report(state: FlowState) -> Any:
-    rep = _get(state, "disambig.tier2.report")
-    assert rep is not None, "Expected state.disambig.tier2.report to exist after the run."
+    rep = _get(state, "tier_2.report")
+    assert rep is not None, "Expected state.tier_2.report to exist after the run."
     return rep
 
 
@@ -764,11 +763,11 @@ def _sense_index(state: FlowState) -> dict[str, Any]:
 
 
 def _iter_ranked_records(state: FlowState):
-    ranked2 = _get(state, "disambig.tier2.ranked")
+    ranked2 = _get(state, "tier_2.ranked")
     if isinstance(ranked2, (list, tuple)) and ranked2:
         return ranked2
-    ranked1 = _get(state, "disambig.tier1.ranked")
-    assert isinstance(ranked1, (list, tuple)) and ranked1, "Expected state.disambig.tier1.ranked"
+    ranked1 = _get(state, "tier_1.ranked")
+    assert isinstance(ranked1, (list, tuple)) and ranked1, "Expected state.tier_1.ranked"
     return ranked1
 
 
@@ -780,8 +779,8 @@ def _iter_candidate_sid_keys(r: Any):
 
 
 def _tier1_ranked(state: FlowState):
-    ranked1 = _get(state, "disambig.tier1.ranked")
-    assert isinstance(ranked1, (list, tuple)) and ranked1, "Expected state.disambig.tier1.ranked"
+    ranked1 = _get(state, "tier_1.ranked")
+    assert isinstance(ranked1, (list, tuple)) and ranked1, "Expected state.tier_1.ranked"
     return ranked1
 
 
@@ -860,12 +859,10 @@ def _run_flow(
     text: str,
     *,
     ext_cfg: ExtractionConfig,
-    disambig_window_chars: int | None = None,
     disambig_margin_threshold: float | None = None,
 ) -> tuple[Any, Any, list[Any], FlowState]:
     flow = ExtractionFlow(
         ext_cfg=ext_cfg,
-        disambig_window_chars=disambig_window_chars,
         disambig_margin_threshold=disambig_margin_threshold,
     )
     state = FlowState(text=text, det_cfg=flow.det_cfg, ext_cfg=flow.ext_cfg)
@@ -878,13 +875,19 @@ def _run_flow(
 # E2E 1 — Tier-2 resolves later occurrences using context
 # ----------------------------
 
-class TestTier2E2e:
 
+class TestTier2E2e:
     def test_tier2_e2e_resolves_api_by_section_context(self, _patch) -> None:
         _patch_tier2_embed(_patch)
-        assert t2.embed_for_tier2.__globals__["embed_texts"](["a", "b"],
-                                                             model=object(),
-                                                             model_name="fake").shape[0] == 2
+
+        assert (
+            t2.embed_for_tier2.__globals__["embed_texts"](
+                ["a", "b"],
+                model=object(),
+                model_name="fake",
+            ).shape[0]
+            == 2
+        )
 
         ext_cfg = replace(
             ExtractionConfig(),
@@ -900,19 +903,22 @@ class TestTier2E2e:
             "Active Pharmaceutical Ingredient (API) is manufactured under GMP.\n"
             "The API batch assay passed; API purity exceeded the spec.\n"
         )
-        # Use a deliberately small disambiguation context window in this test.
-        # The document has two nearby sections with different meanings for the same acronym (API). With a large window,
-        # the sliced context can include keywords from *both* sections (“HTTP/REST” and “GMP/assay/purity”), which makes
-        # the fake keyword-bucket embeddings ambiguous and can destabilise reranking. Keeping the window small keeps
-        # each occurrence’s context local to its section so Tier-2 can separate senses deterministically.
 
-        _, extr, _, state = _run_flow(text, ext_cfg=ext_cfg, disambig_window_chars=50)
+        _, extr, _, state = _run_flow(text, ext_cfg=ext_cfg)
 
         rep = _tier2_report(state)
         assert getattr(rep, "applied", 0) > 0, "Expected Tier-2 to apply to at least one occurrence."
 
-        sid_software = _find_sid_by_slug(state, acr="API", contains="Application Programming Interface")
-        sid_pharma = _find_sid_by_slug(state, acr="API", contains="Active Pharmaceutical Ingredient")
+        sid_software = _find_sid_by_slug(
+            state,
+            acr="API",
+            contains="Application Programming Interface",
+        )
+        sid_pharma = _find_sid_by_slug(
+            state,
+            acr="API",
+            contains="Active Pharmaceutical Ingredient",
+        )
 
         boundary = text.index("PHARMA APPENDIX")
 
@@ -952,7 +958,7 @@ class TestTier2E2e:
                                        "The PDF integrates to one for a random variable.\n"
         )
 
-        _, extr, _, state = _run_flow(text, ext_cfg=ext_cfg, disambig_window_chars=80)
+        _, extr, _, state = _run_flow(text, ext_cfg=ext_cfg)
 
         rep = _tier2_report(state)
         assert getattr(rep, "applied", 0) == 0, "Expected Tier-2 not to run under confident Tier-1 results."
@@ -1011,10 +1017,10 @@ class TestTier2E2e:
 
         ext_on = replace(
             ExtractionConfig(),
-            tier2=Tier2Config(mode="on", weight=0.85, model_name="fake", select_margin_threshold=0.20),
+            tier2=Tier2Config(mode="on", weight=0.85, model_name="fake"),
         )
 
-        _, extr_on, _, state_on = _run_flow(text, ext_cfg=ext_on, disambig_window_chars=80)
+        _, extr_on, _, state_on = _run_flow(text, ext_cfg=ext_on)
 
         rep_on = _tier2_report(state_on)
         assert getattr(rep_on, "applied", 0) > 0
@@ -1031,7 +1037,7 @@ class TestTier2E2e:
         assert chosen_on is not None
 
         assert chosen_on == sid_pharma, f"Expected Tier-2 final choice to be pharma; got {chosen_on!r}"
-        ranked2 = _get(state_on, "disambig.tier2.ranked") or []
+        ranked2 = _get(state_on, "tier_2.ranked") or []
         assert ranked2, "Expected Tier-2 ranked records"
 
         assert any(

@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from dataclasses import dataclass, field
 from types import MappingProxyType
 from typing import Literal, Mapping
@@ -42,26 +44,35 @@ class ConfidenceConfig:
 class Tier2Config:
     mode: Literal["off", "auto", "on"] = "auto"
     model_name: str = "all-MiniLM-L6-v2"
-    max_candidates: int = 6
-    weight: float = 0.35
-
+    weight: float = 0.35  # here for testing only
     # If True, Tier-2 only runs when Tier-1 chose None.
     # If False, Tier-2 may rerank even when Tier-1 chose, but you still gate via ceilings below.
     only_when_undecided: bool = False
 
-    context_window_chars: int | None = None  # if None, uses disambig.window_chars
+    auto_margin_ceiling: float = 0.75
 
-    # AUTO eligibility gate:
-    # - Tier-1 still "decides" at margin_threshold (e.g. 0.20)
-    # - Tier-2 runs in auto-mode when r1.margin < auto_margin_ceiling (e.g. 0.75 for auditing)
-    auto_margin_ceiling: float = 0.75  # eligibility in auto
-    select_margin_threshold: float = 0.10  # acceptance when using blended scores (auto)
+
+@dataclass(frozen=True, slots=True)
+class ResolutionConfig:
+    """
+    Configuration for final selection across multiple ranking tiers.
+
+    This controls acceptance/arbitration rules applied after Tier-1, Tier-2,
+    and any future tiers have produced candidate rankings.
+    """
+
+    # Minimum normalized separation required to accept a final chosen sense.
+    select_margin_threshold: float = 0.10
 
 
 @dataclass(frozen=True, slots=True)
 class ExtractionConfig:
     confidence: ConfidenceConfig = field(default_factory=ConfidenceConfig)
     tier2: Tier2Config = field(default_factory=Tier2Config)
+    multi_tier: ResolutionConfig = field(default_factory=ResolutionConfig)
+
+    tier_1_window_chars: int = 140
+    tier_1_margin_threshold: float = 0.20
 
     # Phrase limits / toggles
     max_phrase_chars: int = 200

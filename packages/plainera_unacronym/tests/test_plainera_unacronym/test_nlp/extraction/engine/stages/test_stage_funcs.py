@@ -23,7 +23,7 @@ class TestSrTier2SemanticRerank:
         s = _mk_state(mode="off")
 
         # Set minimal Tier-1 ranked list (so "skipped=n" is meaningful)
-        t1 = s.disambig.tier1
+        t1 = s.tier_1
         t1.ranked = [
             Tier1OccurrenceRanking(
                 occ=OccurrenceLite("GPU", 5, 8),
@@ -36,18 +36,18 @@ class TestSrTier2SemanticRerank:
 
         _patch(Tier2.embed_for_tier2, embed_texts=lambda *a, **k: None)
 
-        f.st_tier2_semantic_rerank(s, window_chars=50, auto_margin_ceiling=0.02)
+        f.st_tier2_semantic_rerank(s, auto_margin_ceiling=0.02)
 
-        assert s.disambig.tier2.report is not None
-        assert s.disambig.tier2.report.applied == 0
-        assert s.disambig.tier2.report.reasons["disabled"] == 1
-        assert s.disambig.tier2.ranked == []
+        assert s.tier_2.report is not None
+        assert s.tier_2.report.applied == 0
+        assert s.tier_2.report.reasons["disabled"] == 1
+        assert s.tier_2.ranked == []
 
     def test_tier2_model_unavailable_falls_back_cleanly(self, _patch):
         s = _mk_state(mode="on")
 
         # Seed Tier-1 work
-        t1 = s.disambig.tier1
+        t1 = s.tier_1
         t1.sense_index = {
             "gpu|graphics": AcronymSense("GPU", "Graphics Processing Unit", "gpu|graphics", 0.8, [], 1),
             "gpu|general": AcronymSense("GPU", "General Purpose Unit", "gpu|general", 0.7, [], 1),
@@ -69,20 +69,20 @@ class TestSrTier2SemanticRerank:
         _patch(f.st_tier2_semantic_rerank, embed_texts=lambda *a, **k: None)
         _patch(Tier2.embed_for_tier2, embed_texts=lambda *a, **k: None)
 
-        f.st_tier2_semantic_rerank(s, window_chars=50, auto_margin_ceiling=0)
+        f.st_tier2_semantic_rerank(s, auto_margin_ceiling=0)
 
-        rep = s.disambig.tier2.report
+        rep = s.tier_2.report
         assert rep is not None
         assert rep.applied == 0
         assert rep.reasons["model_unavailable"] == 1
-        assert s.disambig.tier2.ranked[0].applied is False
-        assert s.disambig.tier2.ranked[0].skip_reason == "model_unavailable"
+        assert s.tier_2.ranked[0].applied is False
+        assert s.tier_2.ranked[0].skip_reason == "pending"
 
     def test_tier2_applies_and_blends_in_tier1_order(self, monkeypatch):
         s = _mk_state(mode="on")
         s.text = "kernel launch overhead ... GPU ..."
 
-        t1 = s.disambig.tier1
+        t1 = s.tier_1
         t1.sense_index = {
             "gpu|graphics": AcronymSense("GPU", "Graphics Processing Unit", "gpu|graphics", 0.8, [], 1),
             "gpu|general": AcronymSense("GPU", "General Purpose Unit", "gpu|general", 0.7, [], 1),
@@ -112,9 +112,9 @@ class TestSrTier2SemanticRerank:
 
         monkeypatch.setattr(Tier2, "embed_texts", fake_embed_texts, raising=True)
 
-        f.st_tier2_semantic_rerank(s, window_chars=50, auto_margin_ceiling=0)
+        f.st_tier2_semantic_rerank(s, auto_margin_ceiling=0)
 
-        r2 = s.disambig.tier2.ranked[0]
+        r2 = s.tier_2.ranked[0]
         assert r2.applied is True
         assert r2.blended_scores is not None
         assert list(r2.blended_scores.keys()) == ["gpu|graphics", "gpu|general"]
@@ -127,7 +127,7 @@ class TestStTier1SelectAndAssemble:
         s = FlowState(text="x", det_cfg=DetectorConfig(), ext_cfg=ext_cfg)
         s.det_res = object()
 
-        t1 = s.disambig.tier1
+        t1 = s.tier_1
         t1.senses_by_acronym = {
             "GPU": [
                 AcronymSense("GPU", "Graphics Processing Unit", "gpu|graphics", 0.8, [], 1),

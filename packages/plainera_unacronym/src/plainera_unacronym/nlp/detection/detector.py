@@ -163,7 +163,7 @@ def _build_occurrence_from_match(
         start_offset=s,
         end_offset=end_for_occ,
         occurrence_confidence=conf,
-        context_window=ctx,
+        segment_window=ctx,
         normalized_key=display_key,
         reasons=rsn,
     )

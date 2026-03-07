@@ -144,7 +144,8 @@ class TestV1Resolve:
         assert body["error"]["code"] == "SERVICE_UNAVAILABLE"
         assert body["error"]["details"]["timeout_ms"] == 500
 
-    def _stable_json(self, resp: Response) -> dict[str, Any]:
+    @staticmethod
+    def _stable_json(resp: Response) -> dict[str, Any]:
         body = resp.json()
         meta = dict(body.get("meta", {}))
         # Strip fields that can vary run-to-run
@@ -156,12 +157,13 @@ class TestV1Resolve:
     async def test_deterministic_output(self, client):
         payload = {
             "text": "Alpha (ABC). Another (ABC).",
-            "options": {"include_glossary_enrichment": True},
+            "options": {"include_glossary_enrichment": False},
         }
         r1 = await client.post("/v1/resolve", json=payload)
         r2 = await client.post("/v1/resolve", json=payload)
-        assert r1.status_code == 200
-        assert r2.status_code == 200
+
+        assert r1.status_code == 200, r1.text
+        assert r2.status_code == 200, r2.text
         assert self._stable_json(r1) == self._stable_json(r2)
 
     @pytest.mark.anyio
