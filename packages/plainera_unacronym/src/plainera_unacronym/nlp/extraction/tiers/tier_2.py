@@ -283,7 +283,6 @@ def collect_tier2_inputs(
             continue
 
         context = _slice_tier2_context(text, r1.occ.start, r1.occ.end)
-        print("T2", r1.occ.acronym, r1.occ.start, r1.occ.end, repr(context[:80]))
 
         cand_ids = list(scores.keys())
         cand_texts: list[str] = []

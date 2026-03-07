@@ -1,26 +1,8 @@
-import re
-
 from plainera_unacronym.nlp import DetectorConfig
-from plainera_unacronym.nlp.detection.domains.legal.config import LegalConfig
+from plainera_unacronym.nlp.detection.domains.legal.legal_gate import should_enable_legal
 from plainera_unacronym.nlp.detection.domains.legal.patterns import legal_pattern
 from plainera_unacronym.nlp.plugins.interface import DomainPlugin
 from plainera_unacronym.nlp.plugins.registry import register_plugin
-
-# Strong-ish cues that are relatively characteristic in contracts/regulatory docs.
-# Keep this conservative to reduce false positives.
-_LEGAL_SNIFF_RE = re.compile(
-    r"(?:"
-    r"\"[A-Z][^\"]{1,80}\"\s+(?:shall\s+)?mean(?:s)?\b"   # "Term" means / shall mean
-    r"|hereinafter\b"
-    r"|pursuant\s+to\b"
-    r"|this\s+Agreement\b"
-    r"|\b(?:Schedule|Appendix)\s+[A-Z0-9]+\b"
-    r"|\b(?:clause|section)\s+\d+(?:\.\d+)*\b"
-    r"|\b[A-Z][A-Za-z]+(?:\s+[A-Z][A-Za-z]+){0,4}\s+Act\s+\d{4}\b"
-    r"|\bRegulation\s*\(\s*EU\s*\)\s*\d{3,4}/\d{2,4}\b"
-    r")",
-    re.IGNORECASE,
-)
 
 
 class LegalPlugin(DomainPlugin):
@@ -31,26 +13,12 @@ class LegalPlugin(DomainPlugin):
     """
 
     name = "legal"
+    _SNIFF_CAP = 80_000
 
-    def _cfg(self, cfg: DetectorConfig) -> LegalConfig:
-        """Return the active `Legal` for this plugin.
-
-        Looks up `cfg.domain_cfg["bio"]` and falls back to a default `LegalConfig()`.
-        This isolates callers from the storage details of per-domain configuration.
-
-        Args:
-            cfg (DetectorConfig): Active detector configuration.
-
-        Returns:
-            LegalConfig: Per-document legal configuration for this plugin.
-        """
-        return cfg.domain_cfg.get(self.name) or LegalConfig()
-
-    @staticmethod
-    def sniff(text: str) -> bool:
+    def sniff(self, text: str) -> bool:
         """Heuristically detect whether a document is likely legal document
 
-        Scans a capped prefix for strong bio cues checkiing using the _LEGAL_SNIFF_RE.
+        Scans a capped prefix for strong bio cues checking using the _LEGAL_SNIFF_RE.
 
         Args:
             text (str): Source document text (caller may pass a truncated prefix).
@@ -58,8 +26,9 @@ class LegalPlugin(DomainPlugin):
         Returns:
             bool: True if legal signals are present; otherwise False.
         """
-        t = text[:80_000]
-        return bool(_LEGAL_SNIFF_RE.search(t))
+        t = text[:self._SNIFF_CAP]
+        ok, _reasons = should_enable_legal(t)
+        return ok
 
     def extra_candidates(self, text: str, cfg: DetectorConfig):
         """Yield additional biology-specific candidate spans.

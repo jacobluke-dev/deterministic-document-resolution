@@ -54,7 +54,6 @@ class TestCompileAnchoredExact:
         )
         assert len(out) == expected
         spec = out
-        print(spec)
         pat = spec[0].pat
         base_conf = spec[0].base_conf
         kind = spec[0].kind
@@ -420,7 +419,6 @@ class TestExtractNearFirstsIntegration:
             require_two_words=False,
         )
         out_strict = extract_near_firsts(text, firsts, window_left=10, window_right=200, cfg=cfg_strict)
-        print(out_strict)
         assert out_strict["PTO"] is None
 
         cfg_relaxed = ExtractionConfig(
