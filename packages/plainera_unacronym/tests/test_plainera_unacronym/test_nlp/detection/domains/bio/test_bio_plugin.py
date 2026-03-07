@@ -1,6 +1,5 @@
 import plainera_unacronym.nlp.detection.detector as det
 import plainera_unacronym.nlp.plugins.activation as act
-import pytest
 from plainera_unacronym.nlp.detection.detector import Detector, DetectorConfig, autodetect_domains
 from plainera_unacronym.nlp.detection.domains.bio.config import BioConfig
 from plainera_unacronym.nlp.detection.domains.bio.plugin import BioPlugin

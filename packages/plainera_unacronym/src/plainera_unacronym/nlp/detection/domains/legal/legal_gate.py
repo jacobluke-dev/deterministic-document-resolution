@@ -1,5 +1,6 @@
 from .config import LEGAL_STRONG_CUES, LEGAL_SUPPORT_CUES
 
+
 def legal_signal_score(text: str, cap: int = 80_000) -> tuple[int, list[str], bool]:
     t = text[:cap]
     score, reasons, has_strong = 0, [], False

@@ -1,6 +1,7 @@
 import re
 from functools import lru_cache
 
+
 @lru_cache(maxsize=1)
 def legal_pattern() -> re.Pattern[str]:
     # Mixed alpha + roman numerals: MiFID II, CRR III, Basel IV, etc.

@@ -1,14 +1,15 @@
 import pytest
-
 from plainera_unacronym.nlp.detection.domains.bio.bio_gate import bio_signal_score, should_enable_bio
-from plainera_unacronym.nlp.detection.domains.bio.config import (CYTOKINE,
-                                                                 VIRUS,
-                                                                 PCR_RE,
-                                                                 STATS,
-                                                                 RNA_RE,
-                                                                 SECTIONS,
-                                                                 GREEK,
-                                                                 UNITS)
+from plainera_unacronym.nlp.detection.domains.bio.config import (
+    CYTOKINE,
+    GREEK,
+    PCR_RE,
+    RNA_RE,
+    SECTIONS,
+    STATS,
+    UNITS,
+    VIRUS,
+)
 
 
 class TestRegexesMinimalMatches:
