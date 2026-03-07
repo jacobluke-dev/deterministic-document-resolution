@@ -44,11 +44,10 @@ class ConfidenceConfig:
 class Tier2Config:
     mode: Literal["off", "auto", "on"] = "auto"
     model_name: str = "all-MiniLM-L6-v2"
-    max_candidates: int = 6  # TODO is really required??
-    weight: float = 0.35  # TODO is really required??
+    weight: float = 0.35  # here for testing only
     # If True, Tier-2 only runs when Tier-1 chose None.
     # If False, Tier-2 may rerank even when Tier-1 chose, but you still gate via ceilings below.
-    only_when_undecided: bool = False  # TODO is really required??
+    only_when_undecided: bool = False
 
     auto_margin_ceiling: float = 0.75
 
