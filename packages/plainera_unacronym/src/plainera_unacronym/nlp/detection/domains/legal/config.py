@@ -36,6 +36,7 @@ LEGAL_SUPPORT_CUES = (
     ("act_year", LEGAL_ACT_YEAR_RE, 2),
 )
 
+
 @dataclass(frozen=True, slots=True)
 class LegalConfig(DetectorConfig):
     enable_legal: bool = False
