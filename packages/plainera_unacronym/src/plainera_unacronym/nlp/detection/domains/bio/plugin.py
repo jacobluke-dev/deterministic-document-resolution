@@ -1,10 +1,10 @@
 import re
 
 from plainera_unacronym.nlp import DetectorConfig
+from plainera_unacronym.nlp.detection.domains.bio.bio_gate import should_enable_bio
 from plainera_unacronym.nlp.detection.domains.bio.config import BioConfig
 from plainera_unacronym.nlp.detection.domains.bio.patterns import bio_pattern
 from plainera_unacronym.nlp.detection.domains.bio.rules import bio_keep_guard
-from plainera_unacronym.nlp.detection.heuristics.gate import should_enable_bio
 from plainera_unacronym.nlp.plugins.interface import DomainPlugin
 from plainera_unacronym.nlp.plugins.registry import register_plugin
 
@@ -24,22 +24,22 @@ class BioPlugin(DomainPlugin):
 
     name = "bio"
 
-    @staticmethod
-    def domain_cfg(cfg: DetectorConfig, name: str, default):
-        """Fetch a per-domain config object from `cfg.domain_cfg` with a fallback.
-
-        Centralises the “get or default” lookup so plugins can pull their config
-        without repeating boilerplate. Returns `default` when unset or falsy.
-
-        Args:
-            cfg (DetectorConfig): Active detector configuration holding `domain_cfg`.
-            name (str): Domain key used for lookup (typically plugin `name`).
-            default: Default config object to return when no entry exists.
-
-        Returns:
-            The configured domain object if present; otherwise `default`.
-        """
-        return cfg.domain_cfg.get(name) or default
+    # TODO delete @staticmethod
+    # def domain_cfg(cfg: DetectorConfig, name: str, default):
+    #     """Fetch a per-domain config object from `cfg.domain_cfg` with a fallback.
+    #
+    #     Centralises the “get or default” lookup so plugins can pull their config
+    #     without repeating boilerplate. Returns `default` when unset or falsy.
+    #
+    #     Args:
+    #         cfg (DetectorConfig): Active detector configuration holding `domain_cfg`.
+    #         name (str): Domain key used for lookup (typically plugin `name`).
+    #         default: Default config object to return when no entry exists.
+    #
+    #     Returns:
+    #         The configured domain object if present; otherwise `default`.
+    #     """
+    #     return cfg.domain_cfg.get(name) or default
 
     def _cfg(self, cfg: DetectorConfig) -> BioConfig:
         """Return the active `BioConfig` for this plugin.
