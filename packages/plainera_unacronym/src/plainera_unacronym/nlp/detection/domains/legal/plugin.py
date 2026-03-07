@@ -18,7 +18,7 @@ class LegalPlugin(DomainPlugin):
     def sniff(self, text: str) -> bool:
         """Heuristically detect whether a document is likely legal document
 
-        Scans a capped prefix for strong bio cues checking using the _LEGAL_SNIFF_RE.
+        Scans a capped prefix for strong legal cues checking using the _LEGAL_SNIFF_RE.
 
         Args:
             text (str): Source document text (caller may pass a truncated prefix).
@@ -26,12 +26,12 @@ class LegalPlugin(DomainPlugin):
         Returns:
             bool: True if legal signals are present; otherwise False.
         """
-        t = text[:self._SNIFF_CAP]
+        t = text[: self._SNIFF_CAP]
         ok, _reasons = should_enable_legal(t)
         return ok
 
     def extra_candidates(self, text: str, cfg: DetectorConfig):
-        """Yield additional biology-specific candidate spans.
+        """Yield additional legal specific candidate spans.
 
         When the legaL domain is enabled, runs the domain regex and yields each match
         as a `(surface, start, end)` tuple using end-exclusive offsets.
@@ -86,5 +86,6 @@ class LegalPlugin(DomainPlugin):
             bool: Always ``False`` for now (no legal-domain rescue applied).
         """
         return False
+
 
 register_plugin(LegalPlugin())
