@@ -1,5 +1,3 @@
-// src/lib/api/types.ts
-
 export type ResolveOptions = {
   locale?: "en-GB" | "en-US";
   window_chars?: number;

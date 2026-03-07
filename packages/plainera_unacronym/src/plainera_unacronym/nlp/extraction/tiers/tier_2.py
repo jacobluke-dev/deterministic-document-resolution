@@ -16,6 +16,11 @@ from plainera_unacronym.nlp.extraction.tiers.types import (
     Tier2SkipReason,
 )
 
+# Internal safety rails only.
+# These are not "policy knobs" exposed to callers.
+_T2_MIN_CONTEXT_CHARS = 80
+_T2_HARD_CAP_CHARS = 320
+
 
 @dataclass(frozen=True)
 class _EligibleRerank:
@@ -55,6 +60,158 @@ class _EmbeddingsBatch:
     cand_row: dict[str, int]
 
 
+def _clamp_span(start: int, end: int, text_len: int) -> tuple[int, int]:
+    start = max(0, min(start, text_len))
+    end = max(start, min(end, text_len))
+    return start, end
+
+
+def _trim_to_whitespace(text: str, start: int, end: int, max_adjust: int = 40) -> tuple[int, int]:
+    text_len = len(text)
+    start, end = _clamp_span(start, end, text_len)
+
+    moved = 0
+    while start > 0 and moved < max_adjust and not text[start].isspace():
+        start -= 1
+        moved += 1
+
+    moved = 0
+    while end < text_len and moved < max_adjust and not text[end - 1].isspace():
+        end += 1
+        moved += 1
+
+    return _clamp_span(start, end, text_len)
+
+
+def _find_sentence_span(text: str, start: int, end: int) -> tuple[int, int]:
+    """
+    Return the sentence-like span containing the occurrence.
+
+    Sentence boundaries are approximated deterministically using:
+      - newline boundaries
+      - '.', '!', '?', ';'
+    """
+    text_len = len(text)
+    start, end = _clamp_span(start, end, text_len)
+
+    left = start
+    while left > 0:
+        ch = text[left - 1]
+        if ch in ".!?;\n":
+            break
+        left -= 1
+
+    right = end
+    while right < text_len:
+        ch = text[right]
+        if ch in ".!?;\n":
+            right += 1  # include boundary punctuation/newline
+            break
+        right += 1
+
+    left, right = _trim_to_whitespace(text, left, right)
+    return left, right
+
+
+def _find_prev_sentence_span(text: str, sentence_start: int) -> tuple[int, int] | None:
+    if sentence_start <= 0:
+        return None
+
+    i = sentence_start - 1
+    while i > 0 and text[i - 1].isspace():
+        i -= 1
+    if i <= 0:
+        return None
+
+    end = i
+    start, _ = _find_sentence_span(text, max(0, end - 1), end)
+    return start, end
+
+
+def _find_next_sentence_span(text: str, sentence_end: int) -> tuple[int, int] | None:
+    text_len = len(text)
+    i = sentence_end
+    while i < text_len and text[i].isspace():
+        i += 1
+    if i >= text_len:
+        return None
+
+    _, end = _find_sentence_span(text, i, min(i + 1, text_len))
+    return i, end
+
+
+def _enforce_hard_cap(text: str, start: int, end: int, occ_start: int, occ_end: int) -> tuple[int, int]:
+    """
+    If the span is too large, clamp it around the occurrence while preserving locality.
+    """
+    text_len = len(text)
+    start, end = _clamp_span(start, end, text_len)
+
+    if (end - start) <= _T2_HARD_CAP_CHARS:
+        return start, end
+
+    half = max(1, _T2_HARD_CAP_CHARS // 2)
+    clipped_start = max(0, occ_start - half)
+    clipped_end = min(text_len, occ_end + half)
+    return _trim_to_whitespace(text, clipped_start, clipped_end)
+
+
+def _resolve_tier2_context_span(text: str, start: int, end: int) -> tuple[int, int]:
+    """
+    Resolve a deterministic local context span for a Tier-2 occurrence.
+
+    Policy:
+      1) use the containing sentence
+      2) if too short, expand with a neighbouring sentence
+      3) apply a hard cap only as a safety rail
+    """
+    sent_start, sent_end = _find_sentence_span(text, start, end)
+    span_start, span_end = sent_start, sent_end
+
+    if (span_end - span_start) < _T2_MIN_CONTEXT_CHARS:
+        prev_span = _find_prev_sentence_span(text, sent_start)
+        next_span = _find_next_sentence_span(text, sent_end)
+
+        candidates: list[tuple[int, int]] = [(span_start, span_end)]
+
+        if prev_span is not None:
+            candidates.append((prev_span[0], span_end))
+        if next_span is not None:
+            candidates.append((span_start, next_span[1]))
+        if prev_span is not None and next_span is not None:
+            candidates.append((prev_span[0], next_span[1]))
+
+        # Choose the smallest span that reaches the minimum target, else the largest available.
+        valid = [c for c in candidates if (c[1] - c[0]) >= _T2_MIN_CONTEXT_CHARS]
+        if valid:
+            span_start, span_end = min(valid, key=lambda x: (x[1] - x[0]))
+        else:
+            span_start, span_end = max(candidates, key=lambda x: (x[1] - x[0]))
+
+    span_start, span_end = _enforce_hard_cap(text, span_start, span_end, start, end)
+    return span_start, span_end
+
+
+def _slice_tier2_context(text: str, start: int, end: int) -> str:
+    """
+    Return the Tier-2 local context slice for an acronym occurrence.
+
+    The slice is derived from the occurrence's containing sentence. If that
+    sentence is too short, an adjacent sentence may be included to provide
+    sufficient local context. A hard cap is applied only as a safety rail.
+
+    Args:
+        text: Full source text.
+        start: Start offset of the occurrence.
+        end: End offset (exclusive) of the occurrence.
+
+    Returns:
+        A deterministic local context slice for Tier-2 semantic reranking.
+    """
+    span_start, span_end = _resolve_tier2_context_span(text, start, end)
+    return text[span_start:span_end]
+
+
 def _skip_tier2(r1: Tier1OccurrenceRanking, reason: Tier2SkipReason) -> Tier2OccurrenceRanking:
     """
     Create a Tier-2 ranking record representing a skipped rerank.
@@ -75,30 +232,11 @@ def _skip_tier2(r1: Tier1OccurrenceRanking, reason: Tier2SkipReason) -> Tier2Occ
     )
 
 
-def _slice_context(text: str, start: int, end: int, window_chars: int) -> str:
-    """
-    Deterministically extract a context window around an occurrence span.
-
-    Args:
-        text: Source document text.
-        start: Occurrence start offset (inclusive).
-        end: Occurrence end offset (exclusive).
-        window_chars: Characters to include on each side of the span.
-
-    Returns:
-        The context substring clamped to the bounds of `text`.
-    """
-    L = max(0, start - window_chars)
-    R = min(len(text), end + window_chars)
-    return text[L:R]
-
-
 def collect_tier2_inputs(
     *,
     text: str,
     t1_ranked: Sequence[Tier1OccurrenceRanking],
     sense_index: dict[str, AcronymSense],
-    window_chars: int,
     auto_margin_ceiling: float,
     mode: Literal["off", "auto", "on"],
     only_when_undecided: bool,
@@ -144,7 +282,8 @@ def collect_tier2_inputs(
             ranked2.append(_skip_tier2(r1, "tier1_confident"))
             continue
 
-        context = _slice_context(text, r1.occ.start, r1.occ.end, window_chars)
+        context = _slice_tier2_context(text, r1.occ.start, r1.occ.end)
+        print("T2", r1.occ.acronym, r1.occ.start, r1.occ.end, repr(context[:80]))
 
         cand_ids = list(scores.keys())
         cand_texts: list[str] = []
@@ -162,7 +301,7 @@ def collect_tier2_inputs(
             continue
 
         eligible.append(_EligibleRerank(i, r1, context, cand_ids, cand_texts))
-        ranked2.append(_skip_tier2(r1, "model_unavailable"))
+        ranked2.append(_skip_tier2(r1, "pending"))
 
     return ranked2, eligible
 
@@ -177,8 +316,9 @@ def embed_for_tier2(
     Embed all unique candidate texts and all eligible contexts in two batches.
 
     Args:
-        model_name: Embedding model identifier passed to `embed_texts`.
         eligible: Eligible rerank work items.
+        model_name: Embedding model identifier passed to `embed_texts`.
+        tier2_model: Tier2 model identifier passed to `embed_texts`.
 
     Returns:
         A batch containing candidate/context embeddings and a text->row index map,

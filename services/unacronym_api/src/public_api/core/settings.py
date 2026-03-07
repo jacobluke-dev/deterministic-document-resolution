@@ -34,6 +34,7 @@ class AppSettings(BaseSettings):
     API_KEY_LAST_USED_ASYNC: bool = True
 
     TIER2_ENABLED: bool = True
+    TIER2_STRICT: bool = False
     TIER2_MODEL_NAME: str = ''
     HF_CACHE_DIR: str = ''
 

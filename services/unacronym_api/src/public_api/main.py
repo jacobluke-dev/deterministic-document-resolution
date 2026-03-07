@@ -57,13 +57,21 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, Any]:
     state = app.state
 
     # ---- Tier-2 model (startup) ----
+    state = app.state
+
+    state.tier2_model = None
+
     if app_settings.TIER2_ENABLED:
-        state.tier2_model = _load_st_model(
-            app_settings.TIER2_MODEL_NAME,
-            cache_folder=app_settings.HF_CACHE_DIR,
-        )
-    else:
-        state.tier2_model = None
+        try:
+            state.tier2_model = _load_st_model(
+                app_settings.TIER2_MODEL_NAME,
+                cache_folder=app_settings.HF_CACHE_DIR,
+            )
+        except ModuleNotFoundError:
+            # sentence_transformers / torch not installed
+            if app_settings.TIER2_STRICT:
+                raise
+            state.tier2_model = None
 
     # ---- DBM (startup) ----
     if db_settings.DATABASE_DISABLED:

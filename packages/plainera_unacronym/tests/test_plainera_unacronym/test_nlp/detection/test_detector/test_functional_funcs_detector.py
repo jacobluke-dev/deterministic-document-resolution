@@ -120,7 +120,7 @@ class TestBuildOccurrenceFromMatch:
         assert occ.start_offset == 0
         assert occ.end_offset == 4
         assert occ.occurrence_confidence == 0.87
-        assert occ.context_window == (111, 222)
+        assert occ.segment_window == (111, 222)
         assert occ.normalized_key == display_key
         assert occ.reasons is None
 
@@ -158,7 +158,7 @@ class TestBuildOccurrenceFromMatch:
         assert display_key == "NK[N.A.S.A|preserve]"
         assert occ.acronym == "N.A.S.A"  # dots INCLUDED
         assert occ.end_offset == 4  # advanced
-        assert occ.context_window == (5, 10)
+        assert occ.segment_window == (5, 10)
 
         # Helper call args used the adjusted end offset
         assert calls["normalize_acronym_key"] == ("N.A.S.A", cfg.allow_chars, "preserve")
@@ -248,8 +248,8 @@ class TestBuildOccurrenceFromMatch:
         assert not key_p.endswith(".")
 
         # Context window invariants (don’t assert exact indices across implementations)
-        l_s, r_s = occ_s.context_window
-        l_p, r_p = occ_p.context_window
+        l_s, r_s = occ_s.segment_window
+        l_p, r_p = occ_p.segment_window
         n = len(text)
         for left, right, strt, end in [
             (l_s, r_s, occ_s.start_offset, occ_s.end_offset),
@@ -298,7 +298,7 @@ class TestBuildOccurrenceFromMatch:
         left_expected = text.index("API")  # because the sentence delimiter is right before 'API '
         # We expect the window to include up to and including the '!'
         right_expected = len(text)  # '!' is last char; function includes the terminator
-        assert occ.context_window == (left_expected, right_expected)
+        assert occ.segment_window == (left_expected, right_expected)
 
 
 class TestScoreChunkWorkerUnit:
@@ -332,7 +332,7 @@ class TestScoreChunkWorkerUnit:
                 start_offset=s,
                 end_offset=e,
                 occurrence_confidence=conf,
-                context_window=(0, 0),
+                segment_window=(0, 0),
                 normalized_key=surface,
                 reasons=None,
             )
@@ -473,7 +473,7 @@ class TestScoreChunkWorkerUnit:
         # Context-window sanity (bounds and containment)
         n = len(text)
         for o in out:
-            left, right = o.context_window
+            left, right = o.segment_window
             assert 0 <= left < right <= n
             assert left <= o.start_offset < o.end_offset <= right
 

@@ -13,6 +13,7 @@ FloatVec = NDArray[np.floating]
 
 Tier2SkipReason = Literal[
     "disabled",
+    "pending",
     "model_unavailable",
     "single_candidate",
     "not_ambiguous",
@@ -49,6 +50,21 @@ class Tier2Report:
 
 @dataclass
 class Tier1Work:
+    """
+    Tier-1 deterministic sense-building and occurrence-ranking workspace.
+
+    Holds the acronym sense inventory derived from extracted definitions, along
+    with the lightweight occurrence list and the Tier-1 ranking result for each
+    occurrence.
+
+    Attributes:
+        senses_by_acronym: Grouped senses keyed by acronym surface/normalized key.
+        sense_index: Flat lookup of sense_id -> AcronymSense.
+        occurrences: Minimal occurrence records used for downstream scoring.
+        ranked: Tier-1 ranking result for each occurrence, including candidate
+            scores, chosen sense (if any), and confidence separation metrics.
+    """
+
     senses_by_acronym: dict[str, list[AcronymSense]] = field(default_factory=dict)
     sense_index: dict[str, AcronymSense] = field(default_factory=dict)
     occurrences: list[OccurrenceLite] = field(default_factory=list)
@@ -57,11 +73,17 @@ class Tier1Work:
 
 @dataclass
 class Tier2Work:
+    """
+    Tier-2 semantic rerank workspace.
+
+    Stores semantic rerank outputs aligned to Tier-1-ranked occurrences, plus a
+    compact summary report describing how many occurrences were reranked versus
+    skipped and why.
+
+    Attributes:
+        ranked: Tier-2 rerank results aligned to Tier-1 occurrence order.
+        report: Aggregate Tier-2 application/skipping summary.
+    """
+
     ranked: list[Tier2OccurrenceRanking] = field(default_factory=list)
     report: Tier2Report | None = None
-
-
-@dataclass
-class DisambigWork:
-    tier1: Tier1Work = field(default_factory=Tier1Work)
-    tier2: Tier2Work = field(default_factory=Tier2Work)

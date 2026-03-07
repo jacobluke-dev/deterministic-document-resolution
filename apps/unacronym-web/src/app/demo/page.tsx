@@ -97,8 +97,8 @@ export default function DemoPage() {
     try {
       const data = await resolveText(req, ac.signal, useApiKey ? apiKey : undefined);
 
-      const rows = toResolveRows(data.acronyms ?? []).sort((a, b) => a.start - b.start);
-      setUi({kind: "success", rows});
+      const rows = toResolveRows(data.acronyms).sort((a, b) => a.start - b.start);
+      setUi({ kind: "success", rows });
       toast.success(`${rows.length} acronym(s) found.`);
 
       const live = document.getElementById("results-live-region");

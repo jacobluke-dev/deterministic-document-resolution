@@ -1,46 +1,57 @@
 import type { AcronymBlock } from "@/lib/api/types";
 
+export type ResolveSense = {
+  definition: string;
+  confidence: number | null;
+  source: "extracted" | "glossary";
+};
+
 export type ResolveRow = {
   acronym: string;
-  definition: string | null;
+  definition: string | null;      // primary
   start: number;
   end: number;
-  confidence: number | null;
+  confidence: number | null;       // primary
   source: "extracted" | "glossary" | "—";
-  glossaryLabel: string | null; // shown only when glossary contributed something
+  glossaryLabel: string | null;
   occurrences: { start: number; end: number }[];
+
+  senses: ResolveSense[];          // all senses (extracted + glossary)
 };
+
 
 export function toResolveRows(blocks: AcronymBlock[]): ResolveRow[] {
   return blocks.map((b) => {
-    const extractedBest = (b.definitions ?? [])[0] ?? null;
-    const glossaryBest = b.glossary?.matches?.[0] ?? null;
+    const extracted = (b.definitions ?? []).map((d) => ({
+      definition: d.text,
+      confidence: d.confidence ?? null,
+      source: d.source, // "extracted" | "glossary" (per your Definition model)
+    }));
 
-    // Prefer extracted definition; fall back to glossary definition if present
-    const definition = extractedBest?.text ?? glossaryBest?.definition ?? null;
+    const glossary = (b.glossary?.matches ?? []).map((m) => ({
+      definition: m.definition,
+      confidence: m.confidence ?? null,
+      source: "glossary" as const,
+    }));
 
-    // Confidence: extracted first; else glossary match confidence; else null
-    const confidence = extractedBest?.confidence ?? glossaryBest?.confidence ?? null;
+    // deterministic order: extracted ranked first (already ranked), then glossary ranked
+    const senses = [...extracted, ...glossary];
 
-    // Source column: extracted if extracted exists, otherwise glossary if glossary exists
-    const source: ResolveRow["source"] = extractedBest
-      ? extractedBest.source // "extracted" | "glossary"
-      : glossaryBest
-        ? "glossary"
-        : "—";
+    const primary = senses[0] ?? null;
 
-    // Glossary label: only show if there is a glossary match (don’t show "system")
-    const glossaryLabel = glossaryBest ? "glossary" : null;
+    const source: ResolveRow["source"] = primary ? primary.source : "—";
+    const glossaryLabel = glossary.length ? "glossary" : null;
 
     return {
       acronym: b.acronym,
       start: b.first_occurrence.start,
       end: b.first_occurrence.end,
-      definition,
-      confidence,
+      definition: primary?.definition ?? null,
+      confidence: primary?.confidence ?? null,
       source,
       glossaryLabel,
       occurrences: (b.occurrences ?? []) as { start: number; end: number }[],
+      senses,
     };
   });
 }
