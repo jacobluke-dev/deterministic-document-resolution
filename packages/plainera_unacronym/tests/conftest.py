@@ -151,3 +151,22 @@ def _mock_tier2_embeddings(monkeypatch):
 
     # This is the real seam Tier-2 uses now
     monkeypatch.setattr(t2, "embed_texts", _fast_embed_texts, raising=True)
+
+@pytest.fixture(autouse=True)
+def patch_sink_and_logger(monkeypatch):
+    # Silence DB/log I/O, but keep logs capturable if needed.
+    class NullSink:
+        def __call__(self, *a, **k):
+            pass
+
+        def __getattr__(self, _):
+            return lambda *a, **k: None
+
+    monkeypatch.setattr(det, "sink", NullSink(), raising=True)
+    logs = []
+
+    def spy_logger(message, *a, **kw):
+        logs.append({"message": message, **kw})
+
+    monkeypatch.setattr(det, "message_logger", spy_logger, raising=True)
+    return logs

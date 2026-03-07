@@ -9,10 +9,16 @@ from plainera_unacronym.nlp.plugins.registry import register_plugin
 # Strong-ish cues that are relatively characteristic in contracts/regulatory docs.
 # Keep this conservative to reduce false positives.
 _LEGAL_SNIFF_RE = re.compile(
-    r"\b(?:shall\s+mean|\"[A-Z][^\"]{1,80}\"\s+means|hereinafter|pursuant\s+to|"
-    r"Schedule\s+[A-Z0-9]+|Appendix\s+[A-Z0-9]+|this\s+Agreement|"
-    r"clause\s+\d+(?:\.\d+)*|section\s+\d+(?:\.\d+)*|"
-    r"Act\s+\d{4}|Regulation\s*\(EU\)\s*\d{3,4}/\d{2,4})\b",
+    r"(?:"
+    r"\"[A-Z][^\"]{1,80}\"\s+(?:shall\s+)?mean(?:s)?\b"   # "Term" means / shall mean
+    r"|hereinafter\b"
+    r"|pursuant\s+to\b"
+    r"|this\s+Agreement\b"
+    r"|\b(?:Schedule|Appendix)\s+[A-Z0-9]+\b"
+    r"|\b(?:clause|section)\s+\d+(?:\.\d+)*\b"
+    r"|\b[A-Z][A-Za-z]+(?:\s+[A-Z][A-Za-z]+){0,4}\s+Act\s+\d{4}\b"
+    r"|\bRegulation\s*\(\s*EU\s*\)\s*\d{3,4}/\d{2,4}\b"
+    r")",
     re.IGNORECASE,
 )
 
