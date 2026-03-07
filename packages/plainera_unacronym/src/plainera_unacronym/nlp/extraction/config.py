@@ -54,7 +54,7 @@ class Tier2Config:
 
 
 @dataclass(frozen=True, slots=True)
-class MultiTierConfig:
+class ResolutionConfig:
     """
     Configuration for final selection across multiple ranking tiers.
 
@@ -70,9 +70,10 @@ class MultiTierConfig:
 class ExtractionConfig:
     confidence: ConfidenceConfig = field(default_factory=ConfidenceConfig)
     tier2: Tier2Config = field(default_factory=Tier2Config)
-    multi_tier: MultiTierConfig = field(default_factory=MultiTierConfig)
+    multi_tier: ResolutionConfig = field(default_factory=ResolutionConfig)
 
     tier_1_window_chars: int = 140
+    tier_1_margin_threshold: float = 0.20
 
     # Phrase limits / toggles
     max_phrase_chars: int = 200

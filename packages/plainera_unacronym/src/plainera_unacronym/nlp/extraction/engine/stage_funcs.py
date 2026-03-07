@@ -226,9 +226,9 @@ def st_tier1_build_senses(s: FlowState) -> StageResult[FlowState]:
     Constructs the Tier-1 disambiguation working set from the current extraction
     state:
 
-    - Derives `s.disambig.tier1.senses_by_acronym` from `s.all_defs` via
+    - Derives `s.tier_1.senses_by_acronym` from `s.all_defs` via
       `build_senses()`.
-    - Builds `s.disambig.tier1.sense_index` for O(1) lookup by `sense_id`.
+    - Builds `s.tier_1.sense_index` for O(1) lookup by `sense_id`.
     - Projects detector occurrences (`s.det_res.occurrences`) into a minimal
       `OccurrenceLite` list (`acronym`, `start_offset`, `end_offset`) suitable
       for scoring and reranking stages.
@@ -260,7 +260,7 @@ def st_tier1_score_occurrences(s: FlowState, *, window_chars: int, margin_thresh
     Tier-1: score each occurrence against candidate senses and produce a provisional choice.
 
     Runs the heuristic disambiguation pass over the prepared Tier-1 working set
-    (`s.disambig.tier1.occurrences` and `s.disambig.tier1.senses_by_acronym`),
+    (`s.tier_1.occurrences` and `s.tier_1.senses_by_acronym`),
     computing per-occurrence candidate scores and (optionally) selecting a
     provisional winning sense.
 
@@ -271,7 +271,7 @@ def st_tier1_score_occurrences(s: FlowState, *, window_chars: int, margin_thresh
       - tie diagnostics (`gap`, `margin`) used by later selection/assembly stages
 
     Results are normalised into `Tier1OccurrenceRanking` entries and stored in
-    `s.disambig.tier1.ranked`. This stage does not mutate extracted definitions;
+    `s.tier_1.ranked`. This stage does not mutate extracted definitions;
     it only annotates occurrences with ranking metadata.
 
     Args:
@@ -331,7 +331,7 @@ def st_tier2_semantic_rerank(
 
     Args:
         s: FlowState for the pipeline stage. Requires `s.det_res` and Tier-1
-            rankings in `s.disambig.tier1.ranked`.
+            rankings in `s.tier_1.ranked`.
         auto_margin_ceiling: The margin ceiling
 
     Returns:

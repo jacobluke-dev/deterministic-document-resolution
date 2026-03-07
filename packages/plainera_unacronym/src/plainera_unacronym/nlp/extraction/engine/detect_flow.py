@@ -83,15 +83,8 @@ class ExtractionFlow:
         """
         wl, wr = self.window_left, self.window_right
 
-        def _margin(s: FlowState) -> float:
-            if self._ovr_margin is not None:
-                return self._ovr_margin
-            dis = getattr(s.ext_cfg, "select_margin_threshold", None)
-            return float(getattr(dis, "margin_threshold", 0.20))
-
         def _t1_margin(s: FlowState) -> float:
-            dis = getattr(s.ext_cfg, "select_margin_threshold", None)
-            return float(getattr(dis, "margin_threshold", 0.20))
+            return float(getattr(s.ext_cfg, "tier_1_margin_threshold", 0.20))
 
         def _t1_window_chars(s: FlowState) -> int:
             return int(getattr(s.ext_cfg, "tier_1_window_chars", 140))
@@ -101,12 +94,14 @@ class ExtractionFlow:
             return float(getattr(t2, "auto_margin_ceiling", 0.75))
 
         def _multi_select_margin(s: FlowState) -> float:
-            return float(getattr(s.ext_cfg.multi_tier, "select_margin_threshold", 0.1))
-
+            multi = getattr(s.ext_cfg, "multi_tier", None)
+            return float(getattr(multi, "select_margin_threshold", 0.10))
 
         return Chain(
             [
-                Stage("detect", f.st_detect, lambda s: f"firsts={self._n_firsts(s)} dropped={len(s.cleanup_dropped)}"),
+                Stage("detect",
+                      f.st_detect,
+                      lambda s: f"firsts={self._n_firsts(s)} dropped={len(s.cleanup_dropped)}"),
                 Stage(
                     "post_detect_cleanup",
                     f.st_post_detect_cleanup,
@@ -172,7 +167,7 @@ class ExtractionFlow:
                         auto_margin_ceiling=_t2_ceiling(s),
                     ),
                     lambda s: s.last_info,
-                    trace_fields=("disambig.tier2.report", "disambig.tier2.ranked"),
+                    trace_fields=("tier_2.report", "tier_2.ranked"),
                 ),
                 Stage(
                     "tiers_select_and_assemble",

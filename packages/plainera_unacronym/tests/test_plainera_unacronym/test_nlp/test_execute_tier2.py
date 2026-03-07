@@ -699,8 +699,8 @@ def _get(obj: Any, path: str) -> Any:
 
 
 def _tier2_report(state: FlowState) -> Any:
-    rep = _get(state, "disambig.tier2.report")
-    assert rep is not None, "Expected state.disambig.tier2.report to exist after the run."
+    rep = _get(state, "tier_2.report")
+    assert rep is not None, "Expected state.tier_2.report to exist after the run."
     return rep
 
 
@@ -763,11 +763,11 @@ def _sense_index(state: FlowState) -> dict[str, Any]:
 
 
 def _iter_ranked_records(state: FlowState):
-    ranked2 = _get(state, "disambig.tier2.ranked")
+    ranked2 = _get(state, "tier_2.ranked")
     if isinstance(ranked2, (list, tuple)) and ranked2:
         return ranked2
-    ranked1 = _get(state, "disambig.tier1.ranked")
-    assert isinstance(ranked1, (list, tuple)) and ranked1, "Expected state.disambig.tier1.ranked"
+    ranked1 = _get(state, "tier_1.ranked")
+    assert isinstance(ranked1, (list, tuple)) and ranked1, "Expected state.tier_1.ranked"
     return ranked1
 
 
@@ -779,8 +779,8 @@ def _iter_candidate_sid_keys(r: Any):
 
 
 def _tier1_ranked(state: FlowState):
-    ranked1 = _get(state, "disambig.tier1.ranked")
-    assert isinstance(ranked1, (list, tuple)) and ranked1, "Expected state.disambig.tier1.ranked"
+    ranked1 = _get(state, "tier_1.ranked")
+    assert isinstance(ranked1, (list, tuple)) and ranked1, "Expected state.tier_1.ranked"
     return ranked1
 
 
@@ -1038,7 +1038,7 @@ class TestTier2E2e:
         assert chosen_on is not None
 
         assert chosen_on == sid_pharma, f"Expected Tier-2 final choice to be pharma; got {chosen_on!r}"
-        ranked2 = _get(state_on, "disambig.tier2.ranked") or []
+        ranked2 = _get(state_on, "tier_2.ranked") or []
         assert ranked2, "Expected Tier-2 ranked records"
 
         assert any(
