@@ -1,4 +1,4 @@
-from plainera_unacronym.nlp.detection.domains.bio.config import SUPPORT, STRONG
+from plainera_unacronym.nlp.detection.domains.bio.config import STRONG, SUPPORT
 
 
 def bio_signal_score(text: str, cap: int = 80_000) -> tuple[int, list[str], bool]:
