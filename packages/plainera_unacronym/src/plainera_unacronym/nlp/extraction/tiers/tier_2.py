@@ -16,7 +16,6 @@ from plainera_unacronym.nlp.extraction.tiers.types import (
     Tier2SkipReason,
 )
 
-
 # Internal safety rails only.
 # These are not "policy knobs" exposed to callers.
 _T2_MIN_CONTEXT_CHARS = 80

@@ -64,6 +64,7 @@ class Tier1Work:
         ranked: Tier-1 ranking result for each occurrence, including candidate
             scores, chosen sense (if any), and confidence separation metrics.
     """
+
     senses_by_acronym: dict[str, list[AcronymSense]] = field(default_factory=dict)
     sense_index: dict[str, AcronymSense] = field(default_factory=dict)
     occurrences: list[OccurrenceLite] = field(default_factory=list)
@@ -83,5 +84,6 @@ class Tier2Work:
         ranked: Tier-2 rerank results aligned to Tier-1 occurrence order.
         report: Aggregate Tier-2 application/skipping summary.
     """
+
     ranked: list[Tier2OccurrenceRanking] = field(default_factory=list)
     report: Tier2Report | None = None

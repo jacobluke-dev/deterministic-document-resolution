@@ -99,9 +99,7 @@ class ExtractionFlow:
 
         return Chain(
             [
-                Stage("detect",
-                      f.st_detect,
-                      lambda s: f"firsts={self._n_firsts(s)} dropped={len(s.cleanup_dropped)}"),
+                Stage("detect", f.st_detect, lambda s: f"firsts={self._n_firsts(s)} dropped={len(s.cleanup_dropped)}"),
                 Stage(
                     "post_detect_cleanup",
                     f.st_post_detect_cleanup,
@@ -133,9 +131,7 @@ class ExtractionFlow:
                     lambda s: f"{len(s.backref_defs)}",
                     trace_fields=("sentence_backref",),
                 ),
-                Stage("merge_dedupe", f.st_merge,
-                      lambda s: f"{len(s.all_defs)}",
-                      trace_fields=("all_defs",)),
+                Stage("merge_dedupe", f.st_merge, lambda s: f"{len(s.all_defs)}", trace_fields=("all_defs",)),
                 Stage(
                     "finalise_picks",
                     f.st_finalise_picks,

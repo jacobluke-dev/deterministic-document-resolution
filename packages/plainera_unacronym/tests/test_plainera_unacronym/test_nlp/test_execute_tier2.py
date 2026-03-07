@@ -863,7 +863,6 @@ def _run_flow(
 ) -> tuple[Any, Any, list[Any], FlowState]:
     flow = ExtractionFlow(
         ext_cfg=ext_cfg,
-        disambig_window_chars=disambig_window_chars,
         disambig_margin_threshold=disambig_margin_threshold,
     )
     state = FlowState(text=text, det_cfg=flow.det_cfg, ext_cfg=flow.ext_cfg)
@@ -876,26 +875,24 @@ def _run_flow(
 # E2E 1 — Tier-2 resolves later occurrences using context
 # ----------------------------
 
-class TestTier2E2e:
-    # this is awful but I'm being lazy
-    def __init__(self):
-        self._ovr_win = 0
 
+class TestTier2E2e:
     def test_tier2_e2e_resolves_api_by_section_context(self, _patch) -> None:
         _patch_tier2_embed(_patch)
-        assert t2.embed_for_tier2.__globals__["embed_texts"](["a", "b"],
-                                                             model=object(),
-                                                             model_name="fake").shape[0] == 2
+
+        assert (
+            t2.embed_for_tier2.__globals__["embed_texts"](
+                ["a", "b"],
+                model=object(),
+                model_name="fake",
+            ).shape[0]
+            == 2
+        )
 
         ext_cfg = replace(
             ExtractionConfig(),
             tier2=Tier2Config(mode="on", weight=0.65, model_name="fake"),
         )
-
-        def _t2_win(s: FlowState) -> int:
-            if self._ovr_win is not None:
-                return int(self._ovr_win)
-            return 50
 
         text = (
             "SOFTWARE SECTION\n"
@@ -906,20 +903,22 @@ class TestTier2E2e:
             "Active Pharmaceutical Ingredient (API) is manufactured under GMP.\n"
             "The API batch assay passed; API purity exceeded the spec.\n"
         )
-        # Use a deliberately small disambiguation context window in this test.
-        # The document has two nearby sections with different meanings for the same acronym (API). With a large window,
-        # the sliced context can include keywords from *both* sections (“HTTP/REST” and “GMP/assay/purity”), which makes
-        # the fake keyword-bucket embeddings ambiguous and can destabilise reranking. Keeping the window small keeps
-        # each occurrence’s context local to its section so Tier-2 can separate senses deterministically.
-        _patch(ExtractionFlow.build_chain._t2_win, _t2_win) # noqa
 
-        _, extr, _, state = _run_flow(text, ext_cfg=ext_cfg, disambig_window_chars=50)
+        _, extr, _, state = _run_flow(text, ext_cfg=ext_cfg)
 
         rep = _tier2_report(state)
         assert getattr(rep, "applied", 0) > 0, "Expected Tier-2 to apply to at least one occurrence."
 
-        sid_software = _find_sid_by_slug(state, acr="API", contains="Application Programming Interface")
-        sid_pharma = _find_sid_by_slug(state, acr="API", contains="Active Pharmaceutical Ingredient")
+        sid_software = _find_sid_by_slug(
+            state,
+            acr="API",
+            contains="Application Programming Interface",
+        )
+        sid_pharma = _find_sid_by_slug(
+            state,
+            acr="API",
+            contains="Active Pharmaceutical Ingredient",
+        )
 
         boundary = text.index("PHARMA APPENDIX")
 
@@ -1018,7 +1017,7 @@ class TestTier2E2e:
 
         ext_on = replace(
             ExtractionConfig(),
-            tier2=Tier2Config(mode="on", weight=0.85, model_name="fake", select_margin_threshold=0.20),
+            tier2=Tier2Config(mode="on", weight=0.85, model_name="fake"),
         )
 
         _, extr_on, _, state_on = _run_flow(text, ext_cfg=ext_on)
