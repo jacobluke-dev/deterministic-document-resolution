@@ -1,9 +1,9 @@
 import re
 
-from plainera_unacronym.nlp.common.types import pattern_cache, DetectorConfig
+from plainera_unacronym.nlp.common.types import pattern_cache, AcronymDetectorConfig
 
 
-def compile_acronym_pattern(cfg: DetectorConfig) -> re.Pattern[str]:
+def compile_acronym_pattern(cfg: AcronymDetectorConfig) -> re.Pattern[str]:
     """
     Compile a linear, low-backtracking token pattern for acronym-like candidates.
 
@@ -12,7 +12,7 @@ def compile_acronym_pattern(cfg: DetectorConfig) -> re.Pattern[str]:
     matching inside longer identifiers.
 
     Args:
-        cfg (DetectorConfig): Detector configuration controlling bounds and enabled branches.
+        cfg (AcronymDetectorConfig): Detector configuration controlling bounds and enabled branches.
 
     Returns:
         re.Pattern[str]: Compiled regex with a named group "tok" for candidate spans.

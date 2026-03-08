@@ -2,25 +2,25 @@ import math
 import re
 
 import pytest
-from plainera_unacronym.nlp.common.types import DetectorConfig, FirstOccurrence
+from plainera_unacronym.nlp.common.types import AcronymDetectorConfig, FirstOccurrence
 from plainera_unacronym.nlp.detection.nlp_helpers import cfg_fingerprint, _round_sig, top_n_values
 
 
 class TestCfgFingerprint:
     def test_returns_12_lower_hex(self):
-        fp = cfg_fingerprint(DetectorConfig())
+        fp = cfg_fingerprint(AcronymDetectorConfig())
         assert len(fp) == 12
         assert re.fullmatch(r"[0-9a-f]{12}", fp), f"not lower-hex: {fp}"
 
     def test_stable_for_same_values(self):
-        a = DetectorConfig()
-        b = DetectorConfig()
+        a = AcronymDetectorConfig()
+        b = AcronymDetectorConfig()
         assert cfg_fingerprint(a) == cfg_fingerprint(b)
 
     def test_ignores_unlisted_fields(self):
-        base = DetectorConfig()
+        base = AcronymDetectorConfig()
         # Change fields NOT included in the snapshot:
-        changed = DetectorConfig(
+        changed = AcronymDetectorConfig(
             min_len=99,  # ignored
             max_len=123,  # ignored
             require_caps_ratio=0.123,  # ignored
@@ -53,13 +53,13 @@ class TestCfgFingerprint:
         ],
     )
     def test_changes_when_relevant_field_changes(self, mut):
-        base = DetectorConfig()
+        base = AcronymDetectorConfig()
         changed = mut(base)
         assert cfg_fingerprint(base) != cfg_fingerprint(changed)
 
     def test_domains_order_insensitive(self):
-        a = DetectorConfig(enabled_domains=frozenset({"b", "a", "c"}))
-        b = DetectorConfig(enabled_domains=frozenset({"c", "b", "a"}))
+        a = AcronymDetectorConfig(enabled_domains=frozenset({"b", "a", "c"}))
+        b = AcronymDetectorConfig(enabled_domains=frozenset({"c", "b", "a"}))
         assert cfg_fingerprint(a) == cfg_fingerprint(b)
 
 

@@ -20,21 +20,6 @@ Span: TypeAlias = tuple[int, int]
 TextSpanTuple: TypeAlias = tuple[str, int, int]
 
 
-@dataclass(frozen=True, slots=True)
-class TextSpan:
-    text: str
-    start: int
-    end: int  # half-open [start, end)
-
-    @property
-    def span(self) -> Span:
-        return self.start, self.end
-
-    @property
-    def length(self) -> int:
-        return self.end - self.start
-
-
 # -------------------------- STRATEGIES ------------------------------------
 
 
@@ -157,7 +142,7 @@ class OccurrenceResolution:
 
 
 @dataclass(frozen=True, slots=True)
-class DetectorConfig:
+class AcronymDetectorConfig:
     min_len: int = 2
     min_confidence_default: float = 0.50
     min_confidence_by_len: Mapping[int, float] = field(

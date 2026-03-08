@@ -1,4 +1,4 @@
-from plainera_unacronym.nlp import AcronymDetector, DetectorConfig
+from plainera_unacronym.nlp import AcronymDetector, AcronymDetectorConfig
 
 
 def _keys(result) -> set[str]:
@@ -15,7 +15,7 @@ class TestBioE2E:
             "We quantified mRNA and IL-6 in hospitalized patients. "
             "SARS-CoV-2 cohorts were analyzed with PCR and ELISA."
         )
-        res = AcronymDetector(DetectorConfig(enabled_domains=frozenset({"bio"}))).detect(txt)
+        res = AcronymDetector(AcronymDetectorConfig(enabled_domains=frozenset({"bio"}))).detect(txt)
         keys = _keys(res)
 
         # Core bio signals should be detected as acronyms
@@ -40,7 +40,7 @@ class TestBioE2E:
             "PCR confirmed results; ELISA validated protein levels. "
         )
         big = para * 200  # large enough to consider parallel
-        det_default = AcronymDetector(DetectorConfig(enabled_domains=frozenset({"bio"})))
+        det_default = AcronymDetector(AcronymDetectorConfig(enabled_domains=frozenset({"bio"})))
 
         serial = det_default.detect(big)
         parallel = det_default.detect_parallel(big, threshold=10, chunk_size=64)
@@ -71,7 +71,7 @@ class TestBioAndGeneralIntegration:
         )
 
         # Enable bio domain explicitly for stability (autodetect is exercised elsewhere)
-        cfg = DetectorConfig(enabled_domains=frozenset({"bio"}), dotted_display="strip")
+        cfg = AcronymDetectorConfig(enabled_domains=frozenset({"bio"}), dotted_display="strip")
         res = AcronymDetector(cfg).detect(txt)
         ks = _keys(res)
 

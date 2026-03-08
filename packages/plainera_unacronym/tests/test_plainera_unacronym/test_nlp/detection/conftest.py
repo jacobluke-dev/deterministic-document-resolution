@@ -1,4 +1,4 @@
-from plainera_unacronym.nlp import DetectorConfig
+from plainera_unacronym.nlp import AcronymDetectorConfig
 import pytest
 
 @pytest.fixture
@@ -12,6 +12,6 @@ def test_cfg():
             "debug_anomalies": False,
         }
         defaults.update(overrides)
-        return DetectorConfig(**defaults)
+        return AcronymDetectorConfig(**defaults)
 
     return _make_cfg

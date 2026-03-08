@@ -15,7 +15,7 @@ from plainera_unacronym.nlp.common.constants_regex import (
     PLURAL_SUFFIXES_DEFAULT,
     POST_SPAN_TOKEN_ASCII_RE,
 )
-from plainera_unacronym.nlp.common.types import DetectorConfig
+from plainera_unacronym.nlp.common.types import AcronymDetectorConfig
 
 if TYPE_CHECKING:
     from plainera_unacronym.nlp.detection.heuristics.context import HeuristicCfg
@@ -163,7 +163,7 @@ def _has_upper_after_with_fillers(text: str, start: int, max_fillers: int = 2) -
 
 
 def is_in_caps_interjection_context(
-    surface: str, text: str, s: int, e: int, cfg: Union[DetectorConfig, "HeuristicCfg"]
+    surface: str, text: str, s: int, e: int, cfg: Union[AcronymDetectorConfig, "HeuristicCfg"]
 ) -> bool:
     """
     Detect “shouty interjection” context like ', ALRIGHTY THEN!'.
@@ -191,7 +191,7 @@ def is_in_caps_interjection_context(
 
 
 def is_in_caps_interjection_context_prev(
-    surface: str, text: str, s: int, e: int, cfg: Union[DetectorConfig, "HeuristicCfg"]
+    surface: str, text: str, s: int, e: int, cfg: Union[AcronymDetectorConfig, "HeuristicCfg"]
 ) -> bool:
     """Detect the *second* ALL-CAPS word in a shouty pair (e.g. ', ALRIGHTY THEN!').
 

@@ -1,10 +1,10 @@
 from plainera_unacronym.nlp.common.shared import normalize_acronym_key
-from plainera_unacronym.nlp.common.types import DetectorConfig, FirstOccurrence, Occurrence
+from plainera_unacronym.nlp.common.types import AcronymDetectorConfig, FirstOccurrence, Occurrence
 
 
 def recompute_firsts(
     occurrences: list[Occurrence],
-    cfg: DetectorConfig,
+    cfg: AcronymDetectorConfig,
 ) -> dict[str, FirstOccurrence]:
     """Recomputes first-occurrence metadata from a list of kept occurrences.
 

@@ -1,14 +1,14 @@
 from observability.logger.levels import LogLevel
 from observability.logger.message_logger import message_logger
 from plainera_unacronym.nlp import Occurrence
-from plainera_unacronym.nlp.common.types import OccurrenceBuildError, DetectorConfig
+from plainera_unacronym.nlp.common.types import OccurrenceBuildError, AcronymDetectorConfig
 from plainera_unacronym.nlp.detection.acronym.builders import build_occurrence_from_match
 from plainera_unacronym.nlp.detection.heuristics.context import blacklist_context_drop
 from plainera_unacronym.nlp.detection.heuristics.core import calc_score, threshold_len
 from plainera_unacronym.wiring.composition import sink
 
 
-def score_chunk_worker(cfg: DetectorConfig, text: str, cands: list[tuple[str, int, int]]) -> list[Occurrence]:
+def score_chunk_worker(cfg: AcronymDetectorConfig, text: str, cands: list[tuple[str, int, int]]) -> list[Occurrence]:
     """
     Score and filter a chunk of candidate acronym spans.
 

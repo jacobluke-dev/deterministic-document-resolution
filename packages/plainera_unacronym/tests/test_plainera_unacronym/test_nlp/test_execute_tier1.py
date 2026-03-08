@@ -3,7 +3,7 @@ from types import SimpleNamespace as NS
 import plainera_unacronym.nlp.extraction.engine.stage_funcs as stage_fxn
 import plainera_unacronym.nlp.extraction.engine.state as state
 from plainera_unacronym.nlp.common.types import (
-    DetectorConfig,
+    AcronymDetectorConfig,
     DetectorResult,
     InTextPick,
     Occurrence,
@@ -38,7 +38,7 @@ def _ed(
 
 def _cfgs():
     return (
-        DetectorConfig(),  # default is fine
+        AcronymDetectorConfig(),  # default is fine
         ExtractionConfig(
             inline_cues=(r"short\s+for", r"stands?\s+for"),
             max_phrase_chars=200,
@@ -391,14 +391,14 @@ class TestDetectAndExtractE2EConfigAdjustment:
     def test_tier_one_dotted_acronym_key_strips_to_plain_preserves_dots_and_detects(self, picked_def):
         det, extr = detect_and_extract(
             "The United States of America (U.S.A.) is referenced.",
-            det_cfg=DetectorConfig(enable_dotted=True, dotted_display="preserve"),
+            det_cfg=AcronymDetectorConfig(enable_dotted=True, dotted_display="preserve"),
         )
         assert picked_def(extr, "U.S.A") in {"United States of America"}, extr.picks.get("U.S.A")
 
     def test_tier_one_dotted_acronym_key_strips_to_plain_removes_dots_and_detects(self, picked_def):
         det, extr = detect_and_extract(
             "The United States of America (U.S.A.) is referenced.",
-            det_cfg=DetectorConfig(enable_dotted=True, dotted_display="strip"),
+            det_cfg=AcronymDetectorConfig(enable_dotted=True, dotted_display="strip"),
         )
         assert picked_def(extr, "USA") in {"United States of America"}, extr.picks.get("USA")
 
@@ -407,7 +407,7 @@ class TestDetectAndExtractE2EConfigAdjustment:
     ):
         det, extr = detect_and_extract(
             "The United States of America (U.S.A.) is referenced, written by A.B.",
-            det_cfg=DetectorConfig(enable_dotted=True, dotted_display="strip"),
+            det_cfg=AcronymDetectorConfig(enable_dotted=True, dotted_display="strip"),
         )
         assert picked_def(extr, "USA") in {"United States of America"}, extr.picks.get("USA")
         assert picked_def(extr, "AB") is None
@@ -418,7 +418,7 @@ class TestDetectAndExtractE2EConfigAdjustment:
     ):
         det, extr = detect_and_extract(
             "The United States of America (U.S.A.) is referenced, written by A.B.",
-            det_cfg=DetectorConfig(enable_dotted=True, dotted_display="preserve"),
+            det_cfg=AcronymDetectorConfig(enable_dotted=True, dotted_display="preserve"),
         )
         assert picked_def(extr, "U.S.A") in {"United States of America"}, extr.picks.get("U.S.A")
         assert picked_def(extr, "AB") is None
@@ -427,7 +427,7 @@ class TestDetectAndExtractE2EConfigAdjustment:
     def test_tier_one_dotted_initialism_outside_parentheses_detects_strip_key(self, picked_def):
         det, extr = detect_and_extract(
             "The U.S.A. is referenced.",
-            det_cfg=DetectorConfig(enable_dotted=True, dotted_display="strip"),
+            det_cfg=AcronymDetectorConfig(enable_dotted=True, dotted_display="strip"),
         )
         assert "USA" in det.unique_acronyms, det.unique_acronyms
         fo = det.unique_acronyms["USA"]
@@ -439,7 +439,7 @@ class TestDetectAndExtractE2EConfigAdjustment:
     def test_tier_one_dotted_initialism_outside_parentheses_followed_by_closing_paren_detects(self, picked_def):
         det, extr = detect_and_extract(
             "This is referenced as U.S.A) in older documents.",
-            det_cfg=DetectorConfig(enable_dotted=True, dotted_display="preserve"),
+            det_cfg=AcronymDetectorConfig(enable_dotted=True, dotted_display="preserve"),
         )
         assert "U.S.A" in det.unique_acronyms, det.unique_acronyms
         assert det.unique_acronyms["U.S.A"].normalized_key == "U.S.A"
@@ -447,7 +447,7 @@ class TestDetectAndExtractE2EConfigAdjustment:
     def test_tier_one_two_letter_dotted_whitelist_allows_uk(self, picked_def):
         det, extr = detect_and_extract(
             "We are based in the U.K. and operate internationally.",
-            det_cfg=DetectorConfig(enable_dotted=True, dotted_display="strip"),
+            det_cfg=AcronymDetectorConfig(enable_dotted=True, dotted_display="strip"),
         )
         # Whitelisted two-letter dotted should be permitted.
         assert "UK" in det.unique_acronyms, det.unique_acronyms
@@ -457,7 +457,7 @@ class TestDetectAndExtractE2EConfigAdjustment:
     def test_tier_one_two_letter_dotted_not_whitelisted_rejects_name_initials(self, picked_def):
         det, extr = detect_and_extract(
             "The report was written by A.B. and reviewed by C.D.",
-            det_cfg=DetectorConfig(enable_dotted=True, dotted_display="strip"),
+            det_cfg=AcronymDetectorConfig(enable_dotted=True, dotted_display="strip"),
         )
         # Non-whitelisted 2-letter dotted tokens should be rejected
         assert "AB" not in det.unique_acronyms
@@ -468,7 +468,7 @@ class TestDetectAndExtractE2EConfigAdjustment:
     def test_tier_one_preserve_semantics_does_not_keep_terminal_dot_in_key(self, picked_def):
         det, extr = detect_and_extract(
             "The United States of America (U.S.A.) is referenced.",
-            det_cfg=DetectorConfig(enable_dotted=True, dotted_display="preserve"),
+            det_cfg=AcronymDetectorConfig(enable_dotted=True, dotted_display="preserve"),
         )
 
         assert "U.S.A" in det.unique_acronyms, det.unique_acronyms

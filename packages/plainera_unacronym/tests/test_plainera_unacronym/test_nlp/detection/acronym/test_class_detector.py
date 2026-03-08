@@ -8,7 +8,7 @@ import plainera_unacronym.nlp.detection.acronym.detector as det
 import plainera_unacronym.nlp.detection.base as bs
 import pytest
 
-from plainera_unacronym.nlp import DetectorConfig, Occurrence
+from plainera_unacronym.nlp import AcronymDetectorConfig, Occurrence
 from plainera_unacronym.nlp.detection.acronym.detector import AcronymDetector
 
 
@@ -17,8 +17,8 @@ from plainera_unacronym.nlp.detection.acronym.detector import AcronymDetector
 
 @pytest.fixture
 def cfg_factory():
-    def make(**overrides) -> DetectorConfig:
-        return replace(DetectorConfig(), **overrides)
+    def make(**overrides) -> AcronymDetectorConfig:
+        return replace(AcronymDetectorConfig(), **overrides)
 
     return make
 
@@ -283,7 +283,7 @@ class TestAcronymDetectorUnit:
 
 class TestAcronymDetectorIntegration:
     def test_end_to_end_common_cases(self):
-        cfg = DetectorConfig(dotted_display="strip", enable_dotted=False)
+        cfg = AcronymDetectorConfig(dotted_display="strip", enable_dotted=False)
         d = AcronymDetector(cfg)
 
         text = "We’ll loop in R & D after the NHS workshop. OK, let's meet at 10:30 AM."
@@ -299,17 +299,17 @@ class TestAcronymDetectorIntegration:
         txt = "The U.S. economy and U.K. policy differ. NASA leads."
 
         # OFF (default): dotted forms not matched
-        off = AcronymDetector(DetectorConfig(enable_dotted=False, dotted_display="strip")).detect(txt)
+        off = AcronymDetector(AcronymDetectorConfig(enable_dotted=False, dotted_display="strip")).detect(txt)
         assert "US" not in off.unique_acronyms and "UK" not in off.unique_acronyms
         assert "NASA" in off.unique_acronyms
 
         # ON: dotted initialisms accepted; dots stripped for key in strip mode
-        on = AcronymDetector(DetectorConfig(enable_dotted=True, dotted_display="strip")).detect(txt)
+        on = AcronymDetector(AcronymDetectorConfig(enable_dotted=True, dotted_display="strip")).detect(txt)
         assert "US" in on.unique_acronyms and "UK" in on.unique_acronyms
 
     def test_dotted_initialisms_are_preserved_in_keys(self):
         txt = "The U.S. economy and U.K. policy differ. NASA leads."
-        cfg = DetectorConfig(enable_dotted=True, dotted_display="preserve")
+        cfg = AcronymDetectorConfig(enable_dotted=True, dotted_display="preserve")
         res = AcronymDetector(cfg).detect(txt)
 
         keys = set(res.unique_acronyms.keys())
@@ -321,7 +321,7 @@ class TestAcronymDetectorIntegration:
 
     def test_dotted_initialisms_strip_mode_normalizes_without_dots(self):
         txt = "The U.S. economy and U.K. policy differ. NASA leads."
-        cfg = DetectorConfig(enable_dotted=True, dotted_display="strip")
+        cfg = AcronymDetectorConfig(enable_dotted=True, dotted_display="strip")
         res = AcronymDetector(cfg).detect(txt)
 
         keys = set(res.unique_acronyms.keys())
@@ -333,12 +333,12 @@ class TestAcronymDetectorIntegration:
         txt = "Transport for London (TfL) runs the Tube. TfL operates buses."
 
         # Mixed-case enabled → should keep the original casing key "TfL"
-        mc_on = AcronymDetector(DetectorConfig(enable_mixed_case=True)).detect(txt)
+        mc_on = AcronymDetector(AcronymDetectorConfig(enable_mixed_case=True)).detect(txt)
         on_keys = set(mc_on.unique_acronyms.keys())
         assert "TfL" in on_keys, f"Expected 'TfL' with mixed-case enabled, got {on_keys}"
 
         # Mixed-case disabled → should not surface TfL (nor an uppercased TFL)
-        mc_off = AcronymDetector(DetectorConfig(enable_mixed_case=False)).detect(txt)
+        mc_off = AcronymDetector(AcronymDetectorConfig(enable_mixed_case=False)).detect(txt)
         off_keys = set(mc_off.unique_acronyms.keys())
         assert "TFL" not in off_keys, f"Did not expect 'TFL' with mixed-case disabled, got {off_keys}"
         assert "TfL" not in off_keys, f"Did not expect 'TfL' with mixed-case disabled, got {off_keys}"

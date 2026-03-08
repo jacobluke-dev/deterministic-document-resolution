@@ -6,7 +6,7 @@ from observability.logger.levels import LogLevel
 from observability.logger.message_logger import message_logger
 
 from plainera_unacronym.nlp.common.types import (
-    DetectorConfig,
+    AcronymDetectorConfig,
     DetectorResult,
     FirstOccurrence,
     Occurrence, OccurrenceBuildError,
@@ -26,14 +26,14 @@ from ..heuristics.inline_cues import boost_confidence_if_inline_cue
 from ..nlp_helpers import top_n_values, cfg_fingerprint
 from ...common.shared import normalize_acronym_key
 
-DEFAULT_CONFIG = DetectorConfig()
+DEFAULT_CONFIG = AcronymDetectorConfig()
 
 class AcronymDetector(BaseDetector[DetectorResult]):
-    def __init__(self, config: DetectorConfig = DEFAULT_CONFIG, max_workers: Optional[int] = None):
+    def __init__(self, config: AcronymDetectorConfig = DEFAULT_CONFIG, max_workers: Optional[int] = None):
         super().__init__(config=config, max_workers=max_workers)
         self._pat = compile_acronym_pattern(config)
 
-    def _with_auto_domains(self, text: str) -> DetectorConfig:
+    def _with_auto_domains(self, text: str) -> AcronymDetectorConfig:
         """
         Return a config updated with any domains auto-detected from the text.
 
@@ -44,7 +44,7 @@ class AcronymDetector(BaseDetector[DetectorResult]):
             text: Input text to scan for domain cues.
 
         Returns:
-            DetectorConfig | dict[str|Any]: Config with augmented `enabled_domains` when applicable.
+            AcronymDetectorConfig | dict[str|Any]: Config with augmented `enabled_domains` when applicable.
         """
         auto = autodetect_domains(text, self.cfg)
         if auto:

@@ -2,7 +2,7 @@ import re
 from dataclasses import dataclass
 from typing import Optional
 
-from plainera_unacronym.nlp.common.types import DetectorConfig
+from plainera_unacronym.nlp.common.types import AcronymDetectorConfig
 
 RNA_RE = re.compile(r"\b(?:mRNA|tRNA|rRNA|miRNA|siRNA|sgRNA|gRNA|lncRNA|snRNA|scRNA|cDNA|gDNA)\b")
 CYTOKINE = re.compile(r"\b(?:IL-\d{1,3}|IFN-[\u03B1-\u03C9]|TNF-[\u03B1-\u03C9]|TGF-[\u03B1-\u03C9])\b")
@@ -34,7 +34,7 @@ _STATS_OR_HR_RR_RE = re.compile(r"\b(OR|HR|RR)\s*(?:=|≈|~)?\s*\d")
 
 
 @dataclass(frozen=True, slots=True)
-class BioConfig(DetectorConfig):
+class BioConfig(AcronymDetectorConfig):
     rna_like: frozenset[str] = frozenset({"mRNA", "miRNA", "sgRNA"})
     two_letter_keep: frozenset[str] = frozenset({"IL", "TN", "HR", "OR", "RR"})
     enable_bio: bool = False

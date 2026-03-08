@@ -1,6 +1,6 @@
 import re
 
-from plainera_unacronym.nlp import DetectorConfig
+from plainera_unacronym.nlp import AcronymDetectorConfig
 from plainera_unacronym.nlp.detection.domains.bio.bio_gate import should_enable_bio
 from plainera_unacronym.nlp.detection.domains.bio.config import BioConfig
 from plainera_unacronym.nlp.detection.domains.bio.patterns import bio_pattern
@@ -41,14 +41,14 @@ class BioPlugin(DomainPlugin):
     #     """
     #     return cfg.domain_cfg.get(name) or default
 
-    def _cfg(self, cfg: DetectorConfig) -> BioConfig:
+    def _cfg(self, cfg: AcronymDetectorConfig) -> BioConfig:
         """Return the active `BioConfig` for this plugin.
 
         Looks up `cfg.domain_cfg["bio"]` and falls back to a default `BioConfig()`.
         This isolates callers from the storage details of per-domain configuration.
 
         Args:
-            cfg (DetectorConfig): Active detector configuration.
+            cfg (AcronymDetectorConfig): Active detector configuration.
 
         Returns:
             BioConfig: Per-document biology configuration for this plugin.
@@ -74,7 +74,7 @@ class BioPlugin(DomainPlugin):
         ok, _ = should_enable_bio(t)
         return ok
 
-    def extra_candidates(self, text: str, cfg: DetectorConfig):
+    def extra_candidates(self, text: str, cfg: AcronymDetectorConfig):
         """Yield additional biology-specific candidate spans.
 
         When the bio domain is enabled, runs the domain regex and yields each match
@@ -82,7 +82,7 @@ class BioPlugin(DomainPlugin):
 
         Args:
             text (str): Source document text.
-            cfg (DetectorConfig): Active detector configuration.
+            cfg (AcronymDetectorConfig): Active detector configuration.
 
         Yields:
             TextSpanTuple: (surface, start, end) for each domain match.
@@ -94,7 +94,7 @@ class BioPlugin(DomainPlugin):
             s, e = m.span("bio")
             yield text[s:e], s, e
 
-    def keep_guard(self, surface: str, text: str, s: int, e: int, cfg: DetectorConfig) -> bool:
+    def keep_guard(self, surface: str, text: str, s: int, e: int, cfg: AcronymDetectorConfig) -> bool:
         """Decide whether to keep a generic candidate based on biology context.
 
         Used to rescue tokens that the generic pipeline might drop (e.g., short or
@@ -105,7 +105,7 @@ class BioPlugin(DomainPlugin):
             text (str): Full source document text.
             s (int): Start offset (inclusive) of the candidate.
             e (int): End offset (exclusive) of the candidate.
-            cfg (DetectorConfig): Active detector configuration (may contain BioConfig).
+            cfg (AcronymDetectorConfig): Active detector configuration (may contain BioConfig).
 
         Returns:
             bool: True to keep the candidate; False to let generic logic decide.

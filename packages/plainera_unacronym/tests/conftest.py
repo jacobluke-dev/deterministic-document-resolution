@@ -5,7 +5,7 @@ import plainera_unacronym.nlp.detection.base as bs
 import plainera_unacronym.nlp.detection.acronym.detector as det
 import pytest
 from plainera_unacronym.nlp.common.shared import normalize_acronym_key
-from plainera_unacronym.nlp.common.types import DetectorConfig, FirstOccurrence, Occurrence, Span
+from plainera_unacronym.nlp.common.types import AcronymDetectorConfig, FirstOccurrence, Occurrence, Span
 from plainera_unacronym.nlp.extraction import ExtractionConfig
 
 
@@ -118,15 +118,15 @@ def picked_def():
 
 
 @pytest.fixture
-def cfg() -> DetectorConfig:
-    return DetectorConfig()
+def cfg() -> AcronymDetectorConfig:
+    return AcronymDetectorConfig()
 
 
 @pytest.fixture
 def fo():
-    def _fo(acr: str, s: int, e: int, conf: float = 0.9, cfg: DetectorConfig = None) -> FirstOccurrence:
+    def _fo(acr: str, s: int, e: int, conf: float = 0.9, cfg: AcronymDetectorConfig = None) -> FirstOccurrence:
         if cfg is None:
-            cfg = DetectorConfig()
+            cfg = AcronymDetectorConfig()
         k = normalize_acronym_key(acr, cfg.allow_chars, dotted_mode=cfg.dotted_display)
         assert k
         return FirstOccurrence(acronym=acr, start_offset=s, end_offset=e, occurrence_confidence=conf, normalized_key=k)
@@ -136,7 +136,7 @@ def fo():
 
 @pytest.fixture
 def occ():
-    def _occ(cfg: DetectorConfig, acr: str, s: int, e: int, conf: float = 0.9) -> Occurrence:
+    def _occ(cfg: AcronymDetectorConfig, acr: str, s: int, e: int, conf: float = 0.9) -> Occurrence:
         k = normalize_acronym_key(acr, cfg.allow_chars, dotted_mode=cfg.dotted_display)
         return Occurrence(
             acronym=acr,
@@ -155,7 +155,7 @@ def occ():
 def cfg_integrated():
     def _cfg_integrated(require_two_words=True, max_chars=200):
         return (
-            DetectorConfig(),
+            AcronymDetectorConfig(),
             ExtractionConfig(
                 inline_cues=(r"short\s+for", r"stands?\s+for", r"is\s+(?:an\s+)?acronym\s+for"),
                 max_phrase_chars=max_chars,

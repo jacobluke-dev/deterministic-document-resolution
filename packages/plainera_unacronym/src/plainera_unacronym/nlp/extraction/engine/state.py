@@ -4,7 +4,7 @@ from dataclasses import dataclass, field
 from typing import Any
 
 from plainera_unacronym.nlp.common.types import (
-    DetectorConfig,
+    AcronymDetectorConfig,
     DetectorResult,
     ExtractedDefinition,
     ExtractionResult,
@@ -18,7 +18,7 @@ from plainera_unacronym.nlp.extraction.tiers.types import Tier1Work, Tier2Work
 @dataclass
 class FlowState:
     text: str
-    det_cfg: DetectorConfig
+    det_cfg: AcronymDetectorConfig
     ext_cfg: ExtractionConfig
     last_info: str = ""
 

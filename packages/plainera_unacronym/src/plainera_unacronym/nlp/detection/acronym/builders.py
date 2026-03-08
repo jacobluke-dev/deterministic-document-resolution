@@ -1,10 +1,10 @@
 from plainera_unacronym.nlp.common.shared import normalize_acronym_key, strip_trailing_punct_str
-from plainera_unacronym.nlp.common.types import DetectorConfig, Occurrence, OccurrenceBuildError
+from plainera_unacronym.nlp.common.types import AcronymDetectorConfig, Occurrence, OccurrenceBuildError
 from plainera_unacronym.nlp.detection.heuristics.core import context_window, reason_tags
 from plainera_unacronym.nlp.detection.heuristics.general import strip_terminal_plural
 
 
-def adjust_end_for_trailing_dot(cfg: DetectorConfig, text: str, s: int, e: int) -> int:
+def adjust_end_for_trailing_dot(cfg: AcronymDetectorConfig, text: str, s: int, e: int) -> int:
     """
     Apply the dotted-display policy to an occurrence end-offset.
 
@@ -68,7 +68,7 @@ def normalize_surface_for_key(surface: str) -> str:
 
 
 def build_occurrence_from_match(
-    cfg: DetectorConfig,
+    cfg: AcronymDetectorConfig,
     text: str,
     surface: str,
     s: int,

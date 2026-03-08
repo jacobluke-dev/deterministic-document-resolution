@@ -12,7 +12,7 @@ from plainera_unacronym.nlp.common.constants_regex import (
     TRAILING_PUNCT_CHARS,
 )
 from plainera_unacronym.nlp.common.shared import has_letter, has_paren_definition, normalize_acronym_key
-from plainera_unacronym.nlp.common.types import DetectorConfig, Span, TextSpanTuple
+from plainera_unacronym.nlp.common.types import AcronymDetectorConfig, Span, TextSpanTuple
 from plainera_unacronym.nlp.plugins.registry import DOMAIN_PLUGINS
 
 _DOTTED_INITIALISM_RE = re.compile(r"^(?:[A-Z]\.)+[A-Z]$")
@@ -198,7 +198,7 @@ def threshold_len(surface: str, allow_chars: str) -> int:
     return clen
 
 
-def boost_confidence_if_whitelisted(surface: str, confidence_score: float, cfg: DetectorConfig) -> float:
+def boost_confidence_if_whitelisted(surface: str, confidence_score: float, cfg: AcronymDetectorConfig) -> float:
     """
     Boost confidence for whitelisted two-letter keys.
 
@@ -208,7 +208,7 @@ def boost_confidence_if_whitelisted(surface: str, confidence_score: float, cfg: 
     Args:
         surface (str): Candidate surface text.
         confidence_score (float): Current confidence score.
-        cfg (DetectorConfig): Detector configuration (whitelist and boost settings).
+        cfg (AcronymDetectorConfig): Detector configuration (whitelist and boost settings).
 
     Returns:
         float: Updated confidence score (capped at 0.99).
@@ -225,7 +225,7 @@ def boost_confidence_if_whitelisted(surface: str, confidence_score: float, cfg: 
     return confidence_score
 
 
-def calc_score(surface: str, text: str, start: int, end: int, cfg: DetectorConfig) -> float:
+def calc_score(surface: str, text: str, start: int, end: int, cfg: AcronymDetectorConfig) -> float:
     """
     Compute a confidence score for an accepted candidate using local cues.
 
@@ -237,7 +237,7 @@ def calc_score(surface: str, text: str, start: int, end: int, cfg: DetectorConfi
         text (str): Source text.
         start (int): Start offset (inclusive).
         end (int): End offset (exclusive).
-        cfg (DetectorConfig): Detector configuration (blacklists, etc.).
+        cfg (AcronymDetectorConfig): Detector configuration (blacklists, etc.).
 
     Returns:
         float: Confidence score clamped to [0.0, 1.0].
@@ -318,7 +318,7 @@ def _is_lower_prefix_brand(surface: str) -> bool:
     return bool(re.match(r"^[a-z]{1,2}[A-Z][A-Za-z0-9]+$", surface))
 
 
-def _accept_candidate(text: str, cfg: DetectorConfig, s: int, e: int) -> TextSpanTuple | None:
+def _accept_candidate(text: str, cfg: AcronymDetectorConfig, s: int, e: int) -> TextSpanTuple | None:
     """
     Apply standard gating to a raw (s, e) match and return an accepted span.
 
@@ -327,7 +327,7 @@ def _accept_candidate(text: str, cfg: DetectorConfig, s: int, e: int) -> TextSpa
 
     Args:
         text (str): Source text.
-        cfg (DetectorConfig): Detector configuration (bounds, allowlists, ratios).
+        cfg (AcronymDetectorConfig): Detector configuration (bounds, allowlists, ratios).
         s (int): Start offset (inclusive).
         e (int): End offset (exclusive).
 
@@ -351,7 +351,7 @@ def _accept_candidate(text: str, cfg: DetectorConfig, s: int, e: int) -> TextSpa
     return surface, s, e
 
 
-def _passes_dotted_gates(text: str, cfg: DetectorConfig, surface: str, s: int, e: int) -> bool:
+def _passes_dotted_gates(text: str, cfg: AcronymDetectorConfig, surface: str, s: int, e: int) -> bool:
     """
     Validate dotted-initialism constraints when '.' appears in the surface.
 
@@ -361,7 +361,7 @@ def _passes_dotted_gates(text: str, cfg: DetectorConfig, surface: str, s: int, e
 
     Args:
         text (str): Source text for boundary/context checks.
-        cfg (DetectorConfig): Detector configuration (length bounds, allowlists).
+        cfg (AcronymDetectorConfig): Detector configuration (length bounds, allowlists).
         surface (str): Candidate surface text (already punctuation-stripped).
         s (int): Start offset (inclusive) of the candidate in `text`.
         e (int): End offset (exclusive) of the candidate in `text`.
@@ -404,7 +404,7 @@ def _passes_dotted_gates(text: str, cfg: DetectorConfig, surface: str, s: int, e
     return True
 
 
-def _passes_generic_gates(cfg: DetectorConfig, surface: str) -> bool:
+def _passes_generic_gates(cfg: AcronymDetectorConfig, surface: str) -> bool:
     """
     Apply generic (non-dotted-specific) gating to a candidate surface.
 
@@ -413,7 +413,7 @@ def _passes_generic_gates(cfg: DetectorConfig, surface: str) -> bool:
     least two uppercase letters.
 
     Args:
-        cfg (DetectorConfig): Detector configuration (length bounds and ratio thresholds).
+        cfg (AcronymDetectorConfig): Detector configuration (length bounds and ratio thresholds).
         surface (str): Candidate surface text (already punctuation-stripped).
 
     Returns:
@@ -453,7 +453,7 @@ def _passes_generic_gates(cfg: DetectorConfig, surface: str) -> bool:
     return caps_ratio(surface) >= req
 
 
-def _collect_core_hits(text: str, cfg: DetectorConfig, pat: re.Pattern[str]) -> list[TextSpanTuple]:
+def _collect_core_hits(text: str, cfg: AcronymDetectorConfig, pat: re.Pattern[str]) -> list[TextSpanTuple]:
     """
     Collect accepted core-regex hits in text order.
 
@@ -462,7 +462,7 @@ def _collect_core_hits(text: str, cfg: DetectorConfig, pat: re.Pattern[str]) -> 
 
     Args:
         text (str): Source text.
-        cfg (DetectorConfig): Detector configuration.
+        cfg (AcronymDetectorConfig): Detector configuration.
         pat (re.Pattern[str]): Compiled pattern containing group "tok".
 
     Returns:
@@ -477,7 +477,7 @@ def _collect_core_hits(text: str, cfg: DetectorConfig, pat: re.Pattern[str]) -> 
     return out
 
 
-def _collect_domain_hits(text: str, cfg: DetectorConfig) -> list[TextSpanTuple]:
+def _collect_domain_hits(text: str, cfg: AcronymDetectorConfig) -> list[TextSpanTuple]:
     """Collect accepted domain-plugin hits and sort for containment checks.
 
     Sorted by (start asc, length desc) so longer domain spans come first.
@@ -519,7 +519,7 @@ def _contained_in_any(s: int, e: int, containers: list[TextSpanTuple]) -> bool:
     return False
 
 
-def iter_acronym_candidates(text: str, cfg: DetectorConfig, pat: re.Pattern[str]) -> Iterator[TextSpanTuple]:
+def iter_acronym_candidates(text: str, cfg: AcronymDetectorConfig, pat: re.Pattern[str]) -> Iterator[TextSpanTuple]:
     """
     Yield accepted candidates while suppressing obvious fragments.
 
@@ -528,7 +528,7 @@ def iter_acronym_candidates(text: str, cfg: DetectorConfig, pat: re.Pattern[str]
 
     Args:
         text (str): Source text.
-        cfg (DetectorConfig): Detector configuration.
+        cfg (AcronymDetectorConfig): Detector configuration.
         pat (re.Pattern[str]): Compiled core token pattern.
 
     Yields:
@@ -560,7 +560,7 @@ def iter_acronym_candidates(text: str, cfg: DetectorConfig, pat: re.Pattern[str]
         yield h
 
 
-def reason_tags(surface: str, text: str, start: int, end: int, cfg: DetectorConfig) -> list[str]:  # noqa: C901
+def reason_tags(surface: str, text: str, start: int, end: int, cfg: AcronymDetectorConfig) -> list[str]:  # noqa: C901
     """
     Derive lightweight “reason” tags for a matched acronym span, based on local
     context and config. Tags highlight cues that may boost or penalize confidence.
