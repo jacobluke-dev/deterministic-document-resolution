@@ -1,7 +1,7 @@
 import re
 import types
 
-import plainera_unacronym.nlp.detection.detector as det
+import plainera_unacronym.nlp.detection.acronym.detector as det
 import plainera_unacronym.nlp.detection.heuristics.core as core
 import plainera_unacronym.nlp.plugins.registry as domain_mod
 import pytest
@@ -18,7 +18,7 @@ from plainera_unacronym.nlp.detection.heuristics.core import (
     core_len_for_bounds,
     has_stands_for_follow,
     in_brackets,
-    iter_candidates_with,
+    iter_acronym_candidates,
     letters,
     next_word_lowercase,
     prev_token,
@@ -1098,7 +1098,7 @@ class TestIterCandidatesWith:
 
     @staticmethod
     def collect(text: str, cfg: DetectorConfig, pat: re.Pattern[str]):
-        return list(iter_candidates_with(text, cfg, pat))
+        return list(iter_acronym_candidates(text, cfg, pat))
 
     def test_all_caps_simple(self):
         cfg = DetectorConfig()

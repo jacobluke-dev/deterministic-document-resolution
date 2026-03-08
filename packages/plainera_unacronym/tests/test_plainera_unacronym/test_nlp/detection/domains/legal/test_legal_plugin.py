@@ -1,10 +1,11 @@
 # needed to 'activate' plugin
 import plainera_unacronym.nlp.detection.domains  # noqa: F401
-from plainera_unacronym.nlp import Detector
+from plainera_unacronym.nlp import AcronymDetector
 from plainera_unacronym.nlp.common.types import DetectorConfig
+from plainera_unacronym.nlp.detection.acronym.compiler import compile_acronym_pattern
 from plainera_unacronym.nlp.detection.domains import LegalPlugin
 from plainera_unacronym.nlp.detection.domains.legal.legal_gate import should_enable_legal
-from plainera_unacronym.nlp.detection.heuristics.core import compile_pattern, iter_candidates_with
+from plainera_unacronym.nlp.detection.heuristics.core import iter_acronym_candidates
 from plainera_unacronym.nlp.plugins.activation import autodetect_domains
 from plainera_unacronym.nlp.plugins.registry import DOMAIN_PLUGINS
 
@@ -49,7 +50,7 @@ class TestAutodetectDomains:
 
     def test_detector_merges_auto_domains_into_enabled_domains(self):
         cfg = DetectorConfig(enabled_domains=frozenset())
-        d = Detector(config=cfg)
+        d = AcronymDetector(config=cfg)
 
         text = 'In this Agreement, "Services" means the services described in Schedule A.'
         cfg2 = d._with_auto_domains(text)
@@ -58,10 +59,10 @@ class TestAutodetectDomains:
 
     def test_iter_candidates_with_legal_enabled_smoke(self):
         cfg = DetectorConfig(enabled_domains=frozenset({"legal"}))
-        pat = compile_pattern(cfg)
+        pat = compile_acronym_pattern(cfg)
 
         text = 'This Agreement ("Agreement") is made on the Effective Date.'
-        out = list(iter_candidates_with(text, cfg, pat))
+        out = list(iter_acronym_candidates(text, cfg, pat))
 
         # We don't care what it finds here; only that it runs.
         assert isinstance(out, list)

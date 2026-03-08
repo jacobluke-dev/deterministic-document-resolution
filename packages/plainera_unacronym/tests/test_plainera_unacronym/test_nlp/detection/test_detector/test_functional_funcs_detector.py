@@ -1,14 +1,11 @@
 from dataclasses import dataclass
 
-import plainera_unacronym.nlp.detection.detector as det
+import plainera_unacronym.nlp.detection.acronym.detector as det
 import pytest
 from plainera_unacronym.nlp import DetectorConfig, Occurrence
 from plainera_unacronym.nlp.common.types import OccurrenceBuildError
-from plainera_unacronym.nlp.detection.detector import (
-    _adjust_end_for_trailing_dot,
-    _build_occurrence_from_match,
-    _score_chunk_worker,
-)
+from plainera_unacronym.nlp.detection.acronym.builders import adjust_end_for_trailing_dot, build_occurrence_from_match
+from plainera_unacronym.nlp.detection.acronym.chunking import score_chunk_worker
 
 
 @dataclass(frozen=True, slots=True)
@@ -26,27 +23,27 @@ class TestAdjustEndForTrailingDotUnit:
         text = "NASA."
         s, e = 0, 4  # span is "NASA", dot is at text[4]
         assert text[e] == "."
-        assert _adjust_end_for_trailing_dot(cfg, text, s, e) == e
+        assert adjust_end_for_trailing_dot(cfg, text, s, e) == e
 
     def test_preserve_mode_advances_by_one_when_dot_present(self):
         cfg = DetectorConfig(dotted_display="preserve")
         text = "NASA."
         s, e = 0, 4
         assert text[e] == "."
-        assert _adjust_end_for_trailing_dot(cfg, text, s, e) == e + 1
+        assert adjust_end_for_trailing_dot(cfg, text, s, e) == e + 1
 
     def test_preserve_mode_does_not_advance_when_no_dot(self):
         cfg = DetectorConfig(dotted_display="preserve")
         text = "NASA!"
         s, e = 0, 4
         assert text[e] == "!"
-        assert _adjust_end_for_trailing_dot(cfg, text, s, e) == e
+        assert adjust_end_for_trailing_dot(cfg, text, s, e) == e
 
     def test_at_end_of_text_never_advances(self):
         cfg = DetectorConfig(dotted_display="preserve")
         text = "NASA"
         s, e = 0, 4  # e == len(text)
-        assert _adjust_end_for_trailing_dot(cfg, text, s, e) == e
+        assert adjust_end_for_trailing_dot(cfg, text, s, e) == e
 
     @pytest.mark.parametrize("display_mode", ["strip", "preserve", "unknown"])
     def test_unknown_mode_behaves_like_strip(self, display_mode):
@@ -57,7 +54,7 @@ class TestAdjustEndForTrailingDotUnit:
         s, e = 0, 3  # span "U.S", dot at index 3
         assert text[e] == "."
         expected = e + 1 if display_mode == "preserve" else e
-        assert _adjust_end_for_trailing_dot(cfg, text, s, e) == expected
+        assert adjust_end_for_trailing_dot(cfg, text, s, e) == expected
 
     @pytest.mark.parametrize(
         "text,s,e",
@@ -71,19 +68,19 @@ class TestAdjustEndForTrailingDotUnit:
     def test_raises_on_bad_offsets(self, text, s, e):
         cfg = DetectorConfig(dotted_display="strip")
         with pytest.raises(OccurrenceBuildError):
-            _adjust_end_for_trailing_dot(cfg, text, s, e)
+            adjust_end_for_trailing_dot(cfg, text, s, e)
 
     def test_raises_when_preserve_advances_past_text_end(self):
         # e points at the last character '.', so preserve would try to advance past end.
         cfg = DetectorConfig(dotted_display="preserve")
         text = "X."
         s, e = 0, 1  # span "X", dot at index 1 (OK to advance to 2)
-        assert _adjust_end_for_trailing_dot(cfg, text, s, e) == 2
+        assert adjust_end_for_trailing_dot(cfg, text, s, e) == 2
 
         # Now make the span include the dot already; e == len(text), cannot look at text[e]
         # and also no advancement should happen; still must validate offsets.
         s2, e2 = 0, 2
-        assert _adjust_end_for_trailing_dot(cfg, text, s2, e2) == 2
+        assert adjust_end_for_trailing_dot(cfg, text, s2, e2) == 2
 
 
 class TestBuildOccurrenceFromMatch:
@@ -99,7 +96,7 @@ class TestBuildOccurrenceFromMatch:
             return 111, 222
 
         _patch(
-            _build_occurrence_from_match,
+            build_occurrence_from_match,
             normalize_acronym_key=fake_normalize_acronym_key,
             context_window=fake_context_window,
         )
@@ -109,7 +106,7 @@ class TestBuildOccurrenceFromMatch:
         surface = "NASA"
         s, e = 0, 4  # '.' is at index 4
 
-        occ, display_key = _build_occurrence_from_match(cfg, text, surface, s, e, conf=0.87)
+        occ, display_key = build_occurrence_from_match(cfg, text, surface, s, e, conf=0.87)
 
         # display key returned from our fake normalizer
         assert display_key == "NK[NASA|strip]"
@@ -143,7 +140,7 @@ class TestBuildOccurrenceFromMatch:
             return 5, 10
 
         _patch(
-            _build_occurrence_from_match,
+            build_occurrence_from_match,
             normalize_acronym_key=fake_normalize_acronym_key,
             context_window=fake_context_window,
         )
@@ -153,7 +150,7 @@ class TestBuildOccurrenceFromMatch:
         surface = "N.A.S.A"
         s, e = 0, 4  # '.' at index 4
 
-        occ, display_key = _build_occurrence_from_match(cfg, text, surface, s, e, conf=0.9)
+        occ, display_key = build_occurrence_from_match(cfg, text, surface, s, e, conf=0.9)
 
         assert display_key == "NK[N.A.S.A|preserve]"
         assert occ.acronym == "N.A.S.A"  # dots INCLUDED
@@ -182,7 +179,7 @@ class TestBuildOccurrenceFromMatch:
             return ["EDGE", "PUNCT"]
 
         _patch(
-            _build_occurrence_from_match,
+            build_occurrence_from_match,
             normalize_acronym_key=fake_normalize_acronym_key,
             context_window=fake_context_window,
             reason_tags=fake_reason_tags,
@@ -196,7 +193,7 @@ class TestBuildOccurrenceFromMatch:
         assert cfg.dotted_display == "preserve"
         assert text[e] == ".", (e, text, text[e - 2 : e + 2])
 
-        occ, display_key = _build_occurrence_from_match(cfg, text, surface, s, e, conf=0.7)
+        occ, display_key = build_occurrence_from_match(cfg, text, surface, s, e, conf=0.7)
 
         assert display_key == "NK"
         assert occ.reasons == ("EDGE", "PUNCT")
@@ -209,12 +206,12 @@ class TestBuildOccurrenceFromMatch:
         surface = "API"
         s, e = 0, 3
         _patch(
-            _build_occurrence_from_match,
+            build_occurrence_from_match,
             normalize_acronym_key=lambda base, allow_chars, dotted_mode=None: f"{base.lower()}::{dotted_mode}",
             context_window=lambda text, s, e, w: (1, 2),
         )
 
-        occ, key = _build_occurrence_from_match(cfg, text, surface, s, e, conf=0.5)
+        occ, key = build_occurrence_from_match(cfg, text, surface, s, e, conf=0.5)
 
         assert key == "api::strip"
         assert isinstance(occ, Occurrence)
@@ -229,7 +226,7 @@ class TestBuildOccurrenceFromMatch:
 
         # strip mode → do NOT include trailing dot; plural stripped before normalisation
         cfg_strip = DetectorConfig(dotted_display="strip")
-        occ_s, key_s = _build_occurrence_from_match(cfg_strip, text, text[s_gpu:e_gpu], s_gpu, e_gpu, conf=0.91)
+        occ_s, key_s = build_occurrence_from_match(cfg_strip, text, text[s_gpu:e_gpu], s_gpu, e_gpu, conf=0.91)
 
         assert isinstance(occ_s, Occurrence)
         assert occ_s.acronym == "GPU"  # plural removed
@@ -240,7 +237,7 @@ class TestBuildOccurrenceFromMatch:
 
         # preserve mode → removes trailing dot in surface & end_offset
         cfg_pres = DetectorConfig(dotted_display="preserve")
-        occ_p, key_p = _build_occurrence_from_match(cfg_pres, text, text[s_gpu:e_gpu], s_gpu, e_gpu, conf=0.91)
+        occ_p, key_p = build_occurrence_from_match(cfg_pres, text, text[s_gpu:e_gpu], s_gpu, e_gpu, conf=0.91)
         assert occ_p.acronym == "GPU"  # dot not included
         assert occ_p.end_offset == e_gpu + 1
         assert occ_p.normalized_key == key_p
@@ -264,7 +261,7 @@ class TestBuildOccurrenceFromMatch:
         e = s + len("N.A.S.A")
         cfg = DetectorConfig(dotted_display="preserve", debug_reasons=True, enable_dotted=True)
 
-        occ, _ = _build_occurrence_from_match(cfg, text, text[s:e], s, e, conf=0.7)
+        occ, _ = build_occurrence_from_match(cfg, text, text[s:e], s, e, conf=0.7)
 
         assert isinstance(occ.reasons, tuple) and occ.reasons
         assert "inside_parens" in occ.reasons
@@ -277,7 +274,7 @@ class TestBuildOccurrenceFromMatch:
         e = s + len("N.A.S.A")
         cfg = DetectorConfig(dotted_display="preserve", debug_reasons=True, enable_dotted=True)
 
-        occ, _ = _build_occurrence_from_match(cfg, text, text[s:e], s, e, conf=0.7)
+        occ, _ = build_occurrence_from_match(cfg, text, text[s:e], s, e, conf=0.7)
 
         assert isinstance(occ.reasons, tuple) and occ.reasons
         assert "dotted_initialism" in occ.reasons
@@ -291,7 +288,7 @@ class TestBuildOccurrenceFromMatch:
         e = s + 3
         cfg = DetectorConfig(window_chars=80, dotted_display="strip")
 
-        occ, _ = _build_occurrence_from_match(cfg, text, text[s:e], s, e, conf=0.5)
+        occ, _ = build_occurrence_from_match(cfg, text, text[s:e], s, e, conf=0.5)
 
         # Sentence is " API is here!" after the period+space
         # Compute expected left: after the period space; right: include '!'
@@ -340,14 +337,14 @@ class TestScoreChunkWorkerUnit:
             return occ, surface
 
         _patch(
-            _score_chunk_worker,
+            score_chunk_worker,
             blacklist_context_drop=fake_blacklist,
             score=fake_score,
             threshold_len=fake_threshold_len,
-            _build_occurrence_from_match=fake_build,
+            build_occurrence_from_match=fake_build,
         )
 
-        out = _score_chunk_worker(cfg, text="GPU and API", cands=cands)
+        out = score_chunk_worker(cfg, text="GPU and API", cands=cands)
         # Only "API" should pass through
         assert [o.acronym for o in out] == ["API"]
         assert calls["build"] == ["API"]
@@ -377,14 +374,14 @@ class TestScoreChunkWorkerUnit:
             return Occurrence(surface, s, e, conf, (0, 0), surface, None), surface
 
         _patch(
-            _score_chunk_worker,
+            score_chunk_worker,
             blacklist_context_drop=fake_blacklist,
             score=fake_score,
             threshold_len=fake_threshold_len,
-            _build_occurrence_from_match=fake_build,
+            build_occurrence_from_match=fake_build,
         )
 
-        out = _score_chunk_worker(cfg, text="AI & R&D", cands=cands)
+        out = score_chunk_worker(cfg, text="AI & R&D", cands=cands)
         # Only "R&D" should survive at equality
         assert [o.acronym for o in out] == ["R&D"]
         assert out[0].occurrence_confidence == pytest.approx(0.60)
@@ -410,14 +407,14 @@ class TestScoreChunkWorkerUnit:
             return Occurrence(surface, s, e, conf, (0, 0), surface, None), surface
 
         _patch(
-            _score_chunk_worker,
+            score_chunk_worker,
             blacklist_context_drop=fake_blacklist,
             calc_score=fake_score,
             threshold_len=fake_threshold_len,
-            _build_occurrence_from_match=fake_build,
+            build_occurrence_from_match=fake_build,
         )
 
-        out = _score_chunk_worker(cfg, text="A B C", cands=cands)
+        out = score_chunk_worker(cfg, text="A B C", cands=cands)
         assert [o.acronym for o in out] == ["A", "C"]
         assert [o.occurrence_confidence for o in out] == [pytest.approx(0.8), pytest.approx(0.9)]
 
@@ -451,7 +448,7 @@ class TestScoreChunkWorkerUnit:
             ("N.A.S.A", s_nasa, e_nasa),  # should be accepted; dot preserved
         ]
 
-        out = _score_chunk_worker(cfg, text, cands)
+        out = score_chunk_worker(cfg, text, cands)
 
         # Expect only 'R&D' and 'N.A.S.A.' (order preserved)
         assert [o.acronym for o in out] == ["R&D", "N.A.S.A"]
@@ -492,15 +489,15 @@ class TestScoreChunkWorkerUnit:
         cands = [("GPU", 0, 3), ("API", 5, 8)]
 
         _patch(
-            _score_chunk_worker,
+            score_chunk_worker,
             blacklist_context_drop=lambda *a, **k: False,
             score=lambda *a, **k: 0.99,
             threshold_len=lambda *a, **k: 3,
-            _build_occurrence_from_match=fake_build,
+            build_occurrence_from_match=fake_build,
             message_logger=fake_logger,
         )
 
-        out = _score_chunk_worker(cfg, text="GPU and API", cands=cands)
+        out = score_chunk_worker(cfg, text="GPU and API", cands=cands)
 
         assert [o.acronym for o in out] == ["API"]
         assert any(evt == "detector.bad_occurrence" for (evt, _kw) in calls["events"])
@@ -515,14 +512,14 @@ class TestScoreChunkWorkerUnit:
             return det.Occurrence(surface, s, e, conf, (0, 0), surface, None), surface
 
         _patch(
-            _score_chunk_worker,
+            score_chunk_worker,
             blacklist_context_drop=lambda *a, **k: False,
             score=lambda *a, **k: 0.99,
             threshold_len=lambda *a, **k: 3,
-            _build_occurrence_from_match=fake_build,
+            build_occurrence_from_match=fake_build,
         )
 
-        out = _score_chunk_worker(cfg, text="GPU and API", cands=cands)
+        out = score_chunk_worker(cfg, text="GPU and API", cands=cands)
         assert [o.acronym for o in out] == ["API"]
 
     def test_builder_exception_logs_when_debug_anomalies_on(self, _patch):
@@ -536,15 +533,15 @@ class TestScoreChunkWorkerUnit:
             return det.Occurrence("API", 5, 8, conf, (0, 0), "API", None), "API"
 
         _patch(
-            _score_chunk_worker,
+            score_chunk_worker,
             blacklist_context_drop=lambda *a, **k: False,
             score=lambda *a, **k: 0.99,
             threshold_len=lambda *a, **k: 3,
-            _build_occurrence_from_match=fake_build,
+            build_occurrence_from_match=fake_build,
             message_logger=lambda event, **kw: events.append(event),
         )
 
-        out = _score_chunk_worker(cfg, text="GPU and API", cands=cands)
+        out = score_chunk_worker(cfg, text="GPU and API", cands=cands)
         assert [o.acronym for o in out] == ["API"]
         assert "detector.bad_occurrence" in events
 
@@ -558,14 +555,14 @@ class TestScoreChunkWorkerUnit:
             raise det.OccurrenceBuildError("boom")
 
         _patch(
-            _score_chunk_worker,
+            score_chunk_worker,
             blacklist_context_drop=lambda *a, **k: False,
             score=lambda *a, **k: 0.99,
             threshold_len=lambda *a, **k: 3,
-            _build_occurrence_from_match=fake_build,
+            build_occurrence_from_match=fake_build,
             message_logger=lambda event, **kw: events.append(event),
         )
 
-        out = _score_chunk_worker(cfg, text="GPU", cands=cands)
+        out = score_chunk_worker(cfg, text="GPU", cands=cands)
         assert out == []
         assert events == []  # no log when debug_anomalies is off

@@ -1,7 +1,8 @@
 from typing import Callable
 
 import numpy as np
-import plainera_unacronym.nlp.detection.detector as det
+import plainera_unacronym.nlp.detection.base as bs
+import plainera_unacronym.nlp.detection.acronym.detector as det
 import pytest
 from plainera_unacronym.nlp.common.shared import normalize_acronym_key
 from plainera_unacronym.nlp.common.types import DetectorConfig, FirstOccurrence, Occurrence, Span
@@ -28,8 +29,33 @@ class NullSink:
 @pytest.fixture(autouse=True)
 def patch_sink(monkeypatch):
     dummy = NullSink()
-    monkeypatch.setattr(det, "sink", dummy, raising=True)
+    monkeypatch.setattr(bs, "sink", dummy, raising=True)
     yield dummy
+
+
+@pytest.fixture(autouse=True)
+def patch_sink_and_logger(monkeypatch):
+    class NullSink:
+        def __call__(self, *a, **k):
+            pass
+
+        def __getattr__(self, _):
+            return lambda *a, **k: None
+
+    dummy_sink = NullSink()
+    monkeypatch.setattr(bs, "sink", dummy_sink, raising=True)
+
+    logs = []
+
+    def spy_logger(message, *a, **kw):
+        logs.append({"message": message, **kw})
+
+    # Base-level logs
+    monkeypatch.setattr(bs, "message_logger", spy_logger, raising=True)
+    # Acronym detector logs
+    monkeypatch.setattr(det, "message_logger", spy_logger, raising=True)
+
+    return logs
 
 
 @pytest.fixture
@@ -151,22 +177,3 @@ def _mock_tier2_embeddings(monkeypatch):
 
     # This is the real seam Tier-2 uses now
     monkeypatch.setattr(t2, "embed_texts", _fast_embed_texts, raising=True)
-
-@pytest.fixture(autouse=True)
-def patch_sink_and_logger(monkeypatch):
-    # Silence DB/log I/O, but keep logs capturable if needed.
-    class NullSink:
-        def __call__(self, *a, **k):
-            pass
-
-        def __getattr__(self, _):
-            return lambda *a, **k: None
-
-    monkeypatch.setattr(det, "sink", NullSink(), raising=True)
-    logs = []
-
-    def spy_logger(message, *a, **kw):
-        logs.append({"message": message, **kw})
-
-    monkeypatch.setattr(det, "message_logger", spy_logger, raising=True)
-    return logs

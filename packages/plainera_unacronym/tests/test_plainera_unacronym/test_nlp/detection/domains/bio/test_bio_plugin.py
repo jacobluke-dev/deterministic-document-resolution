@@ -1,6 +1,8 @@
-import plainera_unacronym.nlp.detection.detector as det
+import plainera_unacronym.nlp.detection.acronym.detector as det
 import plainera_unacronym.nlp.plugins.activation as act
-from plainera_unacronym.nlp.detection.detector import Detector, DetectorConfig, autodetect_domains
+from plainera_unacronym.nlp.detection.acronym.detector import AcronymDetector
+from plainera_unacronym.nlp.plugins.activation import autodetect_domains
+from plainera_unacronym.nlp import DetectorConfig
 from plainera_unacronym.nlp.detection.domains.bio.config import BioConfig
 from plainera_unacronym.nlp.detection.domains.bio.plugin import BioPlugin
 
@@ -27,18 +29,18 @@ class TestBioAutodetect:
         monkeypatch.setattr(det, "autodetect_domains", lambda text, cfg: frozenset({"bio"}), raising=True)
 
         # Keep detection path minimal
-        monkeypatch.setattr(det, "compile_pattern", lambda _cfg: object(), raising=True)
-        monkeypatch.setattr(det, "iter_candidates_with", lambda *a, **k: [], raising=True)
+        monkeypatch.setattr(det, "compile_acronym_pattern", lambda _cfg: object(), raising=True)
+        monkeypatch.setattr(det, "iter_acronym_candidates", lambda *a, **k: [], raising=True)
 
-        d = Detector(DetectorConfig(enabled_domains=frozenset()))
+        d = AcronymDetector(DetectorConfig(enabled_domains=frozenset()))
         _ = d.detect("mRNA and IL-6 were measured.")
 
         messages = [c["message"] for c in patch_sink_and_logger]
 
-        assert "detector.autodetect_domains" in messages, f"logs: {messages}"
-        assert "detector.detect.start" in messages
-        assert "detector.detect.summary" in messages
-        assert messages.index("detector.autodetect_domains") < messages.index("detector.detect.start")
+        assert "acronym_detector.autodetect_domains" in messages, f"logs: {messages}"
+        assert "acronym_detector.detect.start" in messages
+        assert "acronym_detector.detect.summary" in messages
+        assert messages.index("acronym_detector.autodetect_domains") < messages.index("acronym_detector.detect.start")
 
     def test_bio_keep_guard_for_rna_and_two_letter_stats(self):
         """

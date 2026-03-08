@@ -1,4 +1,3 @@
-from concurrent.futures import as_completed
 from dataclasses import replace as dc_replace
 from typing import Optional
 
@@ -25,6 +24,7 @@ from ..heuristics.core import (calc_score,
                                iter_acronym_candidates)
 from ..heuristics.inline_cues import boost_confidence_if_inline_cue
 from ..nlp_helpers import top_n_values, cfg_fingerprint
+from ...common.shared import normalize_acronym_key
 
 DEFAULT_CONFIG = DetectorConfig()
 
@@ -129,7 +129,7 @@ class AcronymDetector(BaseDetector[DetectorResult]):
                 occ, display_key = build_occurrence_from_match(cfg, text, surface, s, e, conf)
             except OccurrenceBuildError as err:
                 message_logger(
-                    "detector.bad_occurrence",
+                    "acronym_detector.bad_occurrence",
                     level=LogLevel.ERROR,
                     logger_type="nlp",
                     details={"reason": str(err), "surface": surface, "s": s, "e": e},
@@ -203,18 +203,39 @@ class AcronymDetector(BaseDetector[DetectorResult]):
         ]
 
         occurrences: list[Occurrence] = []
-        for future in as_completed(futures):
-            occurrences.extend(future.result())
+        for idx, future in enumerate(futures):
+            try:
+                occurrences.extend(future.result())
+            except Exception as e:
+                import traceback
+
+                message_logger(
+                    "acronym_detector.chunk.failed",
+                    level=LogLevel.ERROR,
+                    logger_type="nlp",
+                    args={"chunk_index": idx},
+                    details={"error": str(e), "trace": traceback.format_exc()},
+                    db_sink=self.sink,
+                )
 
         firsts: dict[str, FirstOccurrence] = {}
         for occ in occurrences:
-            if occ.normalized_key not in firsts:
-                firsts[occ.normalized_key] = FirstOccurrence(
+            display_key = getattr(occ, "normalized_key", None)
+
+            if not isinstance(display_key, str) or not display_key:
+                display_key = normalize_acronym_key(
+                    occ.acronym,
+                    cfg.allow_chars,
+                    dotted_mode=cfg.dotted_display,
+                )
+
+            if display_key not in firsts:
+                firsts[display_key] = FirstOccurrence(
                     acronym=occ.acronym,
                     start_offset=occ.start_offset,
                     end_offset=occ.end_offset,
                     occurrence_confidence=occ.occurrence_confidence,
-                    normalized_key=occ.normalized_key,
+                    normalized_key=display_key,
                 )
 
         return DetectorResult(unique_acronyms=firsts, occurrences=occurrences)

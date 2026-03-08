@@ -59,7 +59,7 @@ class TestDetectAndExtractUnit:
         det_cfg, ext_cfg = _cfgs()
 
         # Fake Detector.detect -> has one FO and one occurrence
-        class FakeDetector:
+        class FakeAcronymDetector:
             cfg = det_cfg
 
             def __init__(self, config=None):
@@ -79,7 +79,7 @@ class TestDetectAndExtractUnit:
                     unique_acronyms={"PDF": fo(text, "PDF", 28, 0.5)},
                 )
 
-        monkeypatch.setattr(stage_fxn, "Detector", FakeDetector)
+        monkeypatch.setattr(stage_fxn, "AcronymDetector", FakeAcronymDetector)
 
         # Anchored picks: found
         anchored_pick = InTextPick(

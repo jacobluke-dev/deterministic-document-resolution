@@ -3,19 +3,19 @@ import re
 
 import pytest
 from plainera_unacronym.nlp.common.types import DetectorConfig, FirstOccurrence
-from plainera_unacronym.nlp.detection.nlp_helpers import _cfg_fingerprint, _round_sig, top_n_values
+from plainera_unacronym.nlp.detection.nlp_helpers import cfg_fingerprint, _round_sig, top_n_values
 
 
 class TestCfgFingerprint:
     def test_returns_12_lower_hex(self):
-        fp = _cfg_fingerprint(DetectorConfig())
+        fp = cfg_fingerprint(DetectorConfig())
         assert len(fp) == 12
         assert re.fullmatch(r"[0-9a-f]{12}", fp), f"not lower-hex: {fp}"
 
     def test_stable_for_same_values(self):
         a = DetectorConfig()
         b = DetectorConfig()
-        assert _cfg_fingerprint(a) == _cfg_fingerprint(b)
+        assert cfg_fingerprint(a) == cfg_fingerprint(b)
 
     def test_ignores_unlisted_fields(self):
         base = DetectorConfig()
@@ -33,7 +33,7 @@ class TestCfgFingerprint:
             blacklist=frozenset({"OF", "IN"}),  # ignored
             domain_cfg={"x": 1},  # ignored
         )
-        assert _cfg_fingerprint(base) == _cfg_fingerprint(changed)
+        assert cfg_fingerprint(base) == cfg_fingerprint(changed)
 
     @pytest.mark.parametrize(
         "mut",
@@ -55,12 +55,12 @@ class TestCfgFingerprint:
     def test_changes_when_relevant_field_changes(self, mut):
         base = DetectorConfig()
         changed = mut(base)
-        assert _cfg_fingerprint(base) != _cfg_fingerprint(changed)
+        assert cfg_fingerprint(base) != cfg_fingerprint(changed)
 
     def test_domains_order_insensitive(self):
         a = DetectorConfig(enabled_domains=frozenset({"b", "a", "c"}))
         b = DetectorConfig(enabled_domains=frozenset({"c", "b", "a"}))
-        assert _cfg_fingerprint(a) == _cfg_fingerprint(b)
+        assert cfg_fingerprint(a) == cfg_fingerprint(b)
 
 
 class TestRoundSig:
