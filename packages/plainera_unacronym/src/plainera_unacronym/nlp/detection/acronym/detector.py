@@ -203,10 +203,12 @@ class AcronymDetector(BaseDetector[DetectorResult]):
         ]
 
         occurrences: list[Occurrence] = []
+        failed_chunks = 0
         for idx, future in enumerate(futures):
             try:
                 occurrences.extend(future.result())
             except Exception as e:
+                failed_chunks += 1
                 import traceback
 
                 message_logger(
@@ -217,6 +219,9 @@ class AcronymDetector(BaseDetector[DetectorResult]):
                     details={"error": str(e), "trace": traceback.format_exc()},
                     db_sink=self.sink,
                 )
+
+        if failed_chunks == len(futures):
+            occurrences = score_chunk_worker(cfg, text, cands)
 
         firsts: dict[str, FirstOccurrence] = {}
         for occ in occurrences:

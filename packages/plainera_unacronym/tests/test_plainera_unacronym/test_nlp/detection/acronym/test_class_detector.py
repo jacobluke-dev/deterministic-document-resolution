@@ -5,7 +5,6 @@ from dataclasses import replace
 from types import SimpleNamespace
 
 import plainera_unacronym.nlp.detection.acronym.detector as det
-import plainera_unacronym.nlp.detection.acronym.builders as bd
 import plainera_unacronym.nlp.detection.base as bs
 import pytest
 
@@ -44,7 +43,7 @@ def _occ(acr: str, s: int, e: int, conf: float, key: str | None = None) -> Occur
     )
 
 
-class TestDetectorUnit:
+class TestAcronymDetectorUnit:
     def test__with_auto_domains_merges_and_short_circuits(self, cfg_factory, monkeypatch):
         cfg0 = cfg_factory(enabled_domains=frozenset({"bio"}))
         d = AcronymDetector(cfg0, max_workers=1)
@@ -282,7 +281,7 @@ class TestDetectorUnit:
         assert hasattr(res, "unique_acronyms") and hasattr(res, "occurrences")
 
 
-class TestDetectorIntegration:
+class TestAcronymDetectorIntegration:
     def test_end_to_end_common_cases(self):
         cfg = DetectorConfig(dotted_display="strip", enable_dotted=False)
         d = AcronymDetector(cfg)
