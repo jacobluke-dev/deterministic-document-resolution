@@ -1,4 +1,4 @@
-from plainera_unacronym.nlp.common.types import AcronymDetectorConfig, DetectorResult, Occurrence
+from plainera_unacronym.nlp.common.types import AcronymDetectorConfig, AcronymDetectorResult, Occurrence
 
 from .common import DroppedOccurrence, RuleFn
 from .core import recompute_firsts
@@ -26,9 +26,9 @@ RULES_SAFE: tuple[RuleFn, ...] = (
 
 def post_detect_cleanup(
     text: str,
-    det: DetectorResult,
+    det: AcronymDetectorResult,
     cfg: AcronymDetectorConfig,
-) -> tuple[DetectorResult, str, list[DroppedOccurrence]]:
+) -> tuple[AcronymDetectorResult, str, list[DroppedOccurrence]]:
     """Applies deterministic post-detection clean up rules and recomputes first occurrences.
 
     This function runs a narrow, conservative rule pipeline over `det.occurrences` to
@@ -74,7 +74,7 @@ def post_detect_cleanup(
     # Recompute unique_acronyms from kept occurrences (authoritative boundary)
     firsts = recompute_firsts(kept, cfg)
 
-    cleaned = DetectorResult(unique_acronyms=firsts, occurrences=kept)
+    cleaned = AcronymDetectorResult(unique_acronyms=firsts, occurrences=kept)
     summary = (
         f"cleanup occs {len(before)}→{len(kept)} "
         f"firsts={len(det.unique_acronyms)}→{len(firsts)} "

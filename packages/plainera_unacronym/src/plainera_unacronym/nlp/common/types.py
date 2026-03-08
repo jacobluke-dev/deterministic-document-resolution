@@ -181,8 +181,17 @@ class AcronymDetectorConfig:
         return frozenset(self.allow_chars)
 
 
+@dataclass(frozen=True)
+class DefinedTermDetectorConfig:
+    window_chars: int = 80
+    allow_unquoted_capitalised_terms: bool = False
+    require_legal_domain_for_unquoted: bool = True
+    max_definition_chars: int = 500
+
+
+
 @dataclass(frozen=True, slots=True)
-class DetectorResult:
+class AcronymDetectorResult:
     unique_acronyms: dict[str, FirstOccurrence]  # key = normalized_key
     occurrences: list[Occurrence]
 

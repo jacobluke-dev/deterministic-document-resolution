@@ -8,7 +8,7 @@ from typing import Any, Iterable, Protocol
 
 import anyio
 from fastapi import status
-from plainera_unacronym.nlp.common.types import DetectorResult, ExtractionResult
+from plainera_unacronym.nlp.common.types import AcronymDetectorResult, ExtractionResult
 from plainera_unacronym.nlp.execute import detect_and_extract
 
 from public_api.core.auth.chunking import make_chunks, merge_blocks, shift_blocks
@@ -269,7 +269,7 @@ class ResolveService:
     def _map_pipeline_to_blocks(
         self,
         *,
-        det_res: DetectorResult,
+        det_res: AcronymDetectorResult,
         extr: ExtractionResult,
         opts: ResolveOptions,
         lang: str,
@@ -334,7 +334,7 @@ class ResolveService:
 
         return blocks
 
-    async def _run_pipeline(self, text: str, opts: ResolveOptions) -> tuple[DetectorResult, ExtractionResult]:
+    async def _run_pipeline(self, text: str, opts: ResolveOptions) -> tuple[AcronymDetectorResult, ExtractionResult]:
         return await asyncio.wait_for(
             anyio.to_thread.run_sync(
                 lambda: detect_and_extract(

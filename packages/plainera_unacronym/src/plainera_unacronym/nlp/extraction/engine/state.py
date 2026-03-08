@@ -5,7 +5,7 @@ from typing import Any
 
 from plainera_unacronym.nlp.common.types import (
     AcronymDetectorConfig,
-    DetectorResult,
+    AcronymDetectorResult,
     ExtractedDefinition,
     ExtractionResult,
     InTextPick,
@@ -22,7 +22,7 @@ class FlowState:
     ext_cfg: ExtractionConfig
     last_info: str = ""
 
-    det_res: DetectorResult | None = None
+    det_res: AcronymDetectorResult | None = None
     cleanup_dropped: list[DroppedOccurrence] = field(default_factory=list)
     picks: dict[str, InTextPick | None] = field(default_factory=dict)
 

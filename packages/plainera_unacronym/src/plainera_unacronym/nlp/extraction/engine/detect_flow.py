@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from collections import Counter
 
-from plainera_unacronym.nlp.common.types import AcronymDetectorConfig, DetectorResult, ExtractionResult
+from plainera_unacronym.nlp.common.types import AcronymDetectorConfig, AcronymDetectorResult, ExtractionResult
 from plainera_unacronym.nlp.extraction.config import ExtractionConfig
 from plainera_unacronym.nlp.extraction.engine import stage_funcs as f
 from plainera_unacronym.nlp.extraction.engine.stages import Chain, Stage, StageReport, TraceEvent, Tracer
@@ -173,14 +173,14 @@ class ExtractionFlow:
             ]
         )
 
-    def run(self, text: str) -> tuple[DetectorResult, ExtractionResult, list[StageReport]]:
+    def run(self, text: str) -> tuple[AcronymDetectorResult, ExtractionResult, list[StageReport]]:
         """Run the pipeline over `text`.
 
         Args:
             text (str): Source document text.
 
         Returns:
-            tuple[DetectorResult, ExtractionResult, list[StageReport]]:
+            tuple[AcronymDetectorResult, ExtractionResult, list[StageReport]]:
                 - DetectorResult: Raw detector output after cleanup.
                 - ExtractionResult: Final extraction output (picks, defs, senses, resolutions).
                 - list[StageReport]: Per-stage execution reports.

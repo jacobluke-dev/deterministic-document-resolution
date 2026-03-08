@@ -4,7 +4,7 @@ import plainera_unacronym.nlp.extraction.engine.stage_funcs as stage_fxn
 import plainera_unacronym.nlp.extraction.engine.state as state
 from plainera_unacronym.nlp.common.types import (
     AcronymDetectorConfig,
-    DetectorResult,
+    AcronymDetectorResult,
     InTextPick,
     Occurrence,
 )
@@ -66,7 +66,7 @@ class TestDetectAndExtractUnit:
                 pass
 
             def detect(self, t):
-                return DetectorResult(
+                return AcronymDetectorResult(
                     occurrences=[
                         Occurrence(
                             acronym="PDF",

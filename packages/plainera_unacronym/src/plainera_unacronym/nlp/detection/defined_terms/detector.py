@@ -9,14 +9,7 @@ from .builders import build_defined_term_occurrence, build_defined_term_sense
 from .compiler import compile_defined_term_patterns
 from .normalise import normalize_defined_term_key
 from .types import DefinedTermDetectorResult, DefinedTermOccurrence, DefinedTermSense
-
-
-@dataclass(frozen=True)
-class DefinedTermDetectorConfig:
-    window_chars: int = 80
-    allow_unquoted_capitalised_terms: bool = False
-    require_legal_domain_for_unquoted: bool = True
-    max_definition_chars: int = 500
+from ...common.types import DefinedTermDetectorConfig
 
 
 class DefinedTermDetector(BaseDetector[DefinedTermDetectorResult]):

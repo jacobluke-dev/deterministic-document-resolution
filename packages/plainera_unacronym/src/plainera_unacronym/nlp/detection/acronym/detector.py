@@ -7,7 +7,7 @@ from observability.logger.message_logger import message_logger
 
 from plainera_unacronym.nlp.common.types import (
     AcronymDetectorConfig,
-    DetectorResult,
+    AcronymDetectorResult,
     FirstOccurrence,
     Occurrence, OccurrenceBuildError,
 )
@@ -28,7 +28,7 @@ from ...common.shared import normalize_acronym_key
 
 DEFAULT_CONFIG = AcronymDetectorConfig()
 
-class AcronymDetector(BaseDetector[DetectorResult]):
+class AcronymDetector(BaseDetector[AcronymDetectorResult]):
     def __init__(self, config: AcronymDetectorConfig = DEFAULT_CONFIG, max_workers: Optional[int] = None):
         super().__init__(config=config, max_workers=max_workers)
         self._pat = compile_acronym_pattern(config)
@@ -54,7 +54,7 @@ class AcronymDetector(BaseDetector[DetectorResult]):
         return self.cfg
 
     @logger(message="acronym_detector.detect", db_sink="sink")
-    def detect(self, text: str) -> DetectorResult:
+    def detect(self, text: str) -> AcronymDetectorResult:
         """
         Run acronym detection over the given text and return matches.
 
@@ -71,7 +71,7 @@ class AcronymDetector(BaseDetector[DetectorResult]):
             text: Input text to analyze.
 
         Returns:
-            DetectorResult: Contains `occurrences` and `unique_acronyms`.
+            AcronymDetectorResult: Contains `occurrences` and `unique_acronyms`.
         """
         cfg0 = self.cfg
         cfg = self._with_auto_domains(text)
@@ -164,10 +164,10 @@ class AcronymDetector(BaseDetector[DetectorResult]):
             db_sink=self.sink,
         )
 
-        return DetectorResult(unique_acronyms=firsts, occurrences=occurrences)
+        return AcronymDetectorResult(unique_acronyms=firsts, occurrences=occurrences)
 
     @logger(message="acronym_detector.parallel", db_sink="sink")
-    def detect_parallel(self, text: str, threshold: int = 1000, chunk_size: int = 256) -> DetectorResult:
+    def detect_parallel(self, text: str, threshold: int = 1000, chunk_size: int = 256) -> AcronymDetectorResult:
         """
         Run detection with optional multiprocess fan-out for large inputs.
 
@@ -188,7 +188,7 @@ class AcronymDetector(BaseDetector[DetectorResult]):
             chunk_size: Number of candidates per process task.
 
         Returns:
-            DetectorResult: Contains `occurrences` and `unique_acronyms`.
+            AcronymDetectorResult: Contains `occurrences` and `unique_acronyms`.
         """
         cfg = self._with_auto_domains(text)
         cands = list(iter_acronym_candidates(text, cfg, self._pat))
@@ -243,4 +243,4 @@ class AcronymDetector(BaseDetector[DetectorResult]):
                     normalized_key=display_key,
                 )
 
-        return DetectorResult(unique_acronyms=firsts, occurrences=occurrences)
+        return AcronymDetectorResult(unique_acronyms=firsts, occurrences=occurrences)
