@@ -1,4 +1,4 @@
-from dataclasses import dataclass
+from dataclasses import replace as dc_replace
 
 from observability.logger.decorator import logger
 
@@ -17,9 +17,14 @@ class DefinedTermDetector(BaseDetector[DefinedTermDetectorResult]):
         super().__init__(config=config, max_workers=max_workers)
         self._patterns = compile_defined_term_patterns()
 
-    def _legal_domain_active(self, text: str) -> bool:
+    def _with_auto_domains(self, text: str) -> DefinedTermDetectorConfig:
         auto = autodetect_domains(text, self.cfg)
-        return "legal" in auto
+        if auto:
+            merged = self.cfg.enabled_domains | auto
+            if merged != self.cfg.enabled_domains:
+                return dc_replace(self.cfg, enabled_domains=merged)
+        return self.cfg
+
 
     def _extract_definition_text(self, text: str, anchor_end: int) -> tuple[str, int, int]:
         start = anchor_end
@@ -35,21 +40,24 @@ class DefinedTermDetector(BaseDetector[DefinedTermDetectorResult]):
         definition = slice_text[:stop_idx].strip(" :,-")
         return definition, start, start + len(definition)
 
-    def _iter_senses(self, text: str) -> list[DefinedTermSense]:
+    def _iter_senses(self, text: str, cfg: DefinedTermDetectorConfig, legal_active: bool) -> list[DefinedTermSense]:
         senses: list[DefinedTermSense] = []
 
         for pat_name in ("quoted_means", "quoted_shall_mean", "bare_means", "bare_shall_mean"):
             pat = getattr(self._patterns, pat_name)
             for match in pat.finditer(text):
-                raw_term = match.groupdict().get("term_q") or match.groupdict().get("term_b")
+                group_name = "term_q" if match.groupdict().get("term_q") else "term_b"
+                raw_term = match.group(group_name)
                 if not raw_term:
                     continue
 
+                term_start, term_end = match.span(group_name)
+
                 is_quoted = raw_term.startswith('"') and raw_term.endswith('"')
                 if not is_quoted:
-                    if self.cfg.require_legal_domain_for_unquoted and not self._legal_domain_active(text):
+                    if cfg.require_legal_domain_for_unquoted and not legal_active:
                         continue
-                    if not self.cfg.allow_unquoted_capitalised_terms:
+                    if not cfg.allow_unquoted_capitalised_terms:
                         continue
 
                 definition_text, def_start, def_end = self._extract_definition_text(text, match.end())
@@ -59,8 +67,8 @@ class DefinedTermDetector(BaseDetector[DefinedTermDetectorResult]):
                 senses.append(
                     build_defined_term_sense(
                         term=raw_term,
-                        term_start=match.start(),
-                        term_end=match.end(raw_term.strip('"')) if False else match.start() + len(raw_term),
+                        term_start=term_start,
+                        term_end=term_end,
                         definition_text=definition_text,
                         definition_start=def_start,
                         definition_end=def_end,
@@ -70,7 +78,14 @@ class DefinedTermDetector(BaseDetector[DefinedTermDetectorResult]):
 
         return senses
 
-    def _iter_occurrences(self, text: str, known_keys: set[str]) -> list[DefinedTermOccurrence]:
+    def _iter_occurrences(
+        self,
+        text: str,
+        *,
+        known_keys: set[str],
+        cfg: DefinedTermDetectorConfig,
+        legal_active: bool,
+    ) -> list[DefinedTermOccurrence]:
         occurrences: list[DefinedTermOccurrence] = []
 
         for match in self._patterns.quoted_occurrence.finditer(text):
@@ -87,7 +102,7 @@ class DefinedTermDetector(BaseDetector[DefinedTermDetectorResult]):
                 )
             )
 
-        if self.cfg.allow_unquoted_capitalised_terms and self._legal_domain_active(text):
+        if (not cfg.require_legal_domain_for_unquoted) or legal_active:
             for match in self._patterns.capitalised_occurrence.finditer(text):
                 raw_term = match.group("term")
                 normalized = normalize_defined_term_key(raw_term)
@@ -106,9 +121,15 @@ class DefinedTermDetector(BaseDetector[DefinedTermDetectorResult]):
 
     @logger(message="defined_term_detector.detect", db_sink="sink")
     def detect(self, text: str) -> DefinedTermDetectorResult:
-        senses = self._iter_senses(text)
+        cfg = self._with_auto_domains(text)
+        legal_active = "legal" in cfg.enabled_domains
+
+        senses = self._iter_senses(text, cfg, legal_active)
         unique_terms = {sense.normalized_key: sense for sense in senses}
-        occurrences = self._iter_occurrences(text, known_keys=set(unique_terms.keys()))
+        occurrences = self._iter_occurrences(text,
+                                             known_keys=set(unique_terms.keys()),
+                                             cfg=cfg,
+                                             legal_active=legal_active)
 
         return DefinedTermDetectorResult(
             senses=senses,

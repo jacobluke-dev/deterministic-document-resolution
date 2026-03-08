@@ -13,8 +13,13 @@ class DefinedTermPatterns:
 
 
 def compile_defined_term_patterns() -> DefinedTermPatterns:
-    quoted_term = r'(?P<term_q>"[A-Z][A-Za-z0-9&/\- ]{1,100}")'
-    bare_term = r"(?P<term_b>[A-Z][A-Za-z0-9&/\-]+(?:\s+[A-Z][A-Za-z0-9&/\-]+){0,7})"
+    term_char = r"A-Za-z0-9&/'’.\-()"
+    bridge = r"(?:of|for|to|and|or|the|in|on|at|by|per)"
+    head = rf"[A-Z][{term_char}]*"
+    tail = rf"(?:\s+(?:{head}|{bridge}))*"
+
+    quoted_term = rf'(?P<term_q>"{head}{tail}")'
+    bare_term = rf"(?P<term_b>{head}{tail})"
 
     quoted_means = re.compile(rf"{quoted_term}\s+means\b", re.IGNORECASE)
     quoted_shall_mean = re.compile(rf"{quoted_term}\s+shall\s+mean\b", re.IGNORECASE)
@@ -22,10 +27,8 @@ def compile_defined_term_patterns() -> DefinedTermPatterns:
     bare_means = re.compile(rf"\b{bare_term}\s+means\b")
     bare_shall_mean = re.compile(rf"\b{bare_term}\s+shall\s+mean\b")
 
-    quoted_occurrence = re.compile(r'"(?P<term>[A-Z][A-Za-z0-9&/\- ]{{1,100}})"')
-    capitalised_occurrence = re.compile(
-        r"\b(?P<term>[A-Z][A-Za-z0-9&/\-]+(?:\s+[A-Z][A-Za-z0-9&/\-]+){0,7})\b"
-    )
+    quoted_occurrence = re.compile(rf'"(?P<term>{head}{tail})"')
+    capitalised_occurrence = re.compile(rf"\b(?P<term>{head}{tail})\b")
 
     return DefinedTermPatterns(
         quoted_means=quoted_means,

@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from plainera_unacronym.nlp.common.shared import strip_trailing_punct_str
 
 from .normalise import normalize_defined_term_key
