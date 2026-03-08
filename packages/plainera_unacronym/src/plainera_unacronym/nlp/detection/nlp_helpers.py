@@ -7,7 +7,7 @@ from typing import Any
 from plainera_unacronym.nlp import FirstOccurrence
 
 
-def _cfg_fingerprint(cfg) -> str:
+def cfg_fingerprint(cfg) -> str:
     """
     Compute a short, deterministic fingerprint of a detector configuration.
 
