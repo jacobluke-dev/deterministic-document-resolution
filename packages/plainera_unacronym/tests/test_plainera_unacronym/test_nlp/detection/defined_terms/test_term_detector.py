@@ -1,22 +1,11 @@
-from dataclasses import replace
-
 import pytest
 
 import plainera_unacronym.nlp.detection.defined_terms.detector as det_mod
-from plainera_unacronym.nlp.common.types import DefinedTermDetectorConfig
 from plainera_unacronym.nlp.detection.defined_terms.detector import (
     DefinedTermDetector,
     _overlaps_any,
     _spans_overlap,
 )
-
-
-@pytest.fixture
-def cfg_terms_det_factory():
-    def make(**overrides) -> DefinedTermDetectorConfig:
-        return replace(DefinedTermDetectorConfig(), **overrides)
-
-    return make
 
 
 class TestDefinedTermDetectorHelpers:
