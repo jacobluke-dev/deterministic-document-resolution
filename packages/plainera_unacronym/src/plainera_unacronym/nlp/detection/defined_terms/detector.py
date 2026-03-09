@@ -17,19 +17,62 @@ _QUOTE_CHARS = {'"', "“", "”"}
 
 
 def _spans_overlap(a_start: int, a_end: int, b_start: int, b_end: int) -> bool:
+    """Return whether two half-open spans overlap.
+
+    Args:
+        a_start: Inclusive start offset of the first span.
+        a_end: Exclusive end offset of the first span.
+        b_start: Inclusive start offset of the second span.
+        b_end: Exclusive end offset of the second span.
+
+    Returns:
+        True if the spans overlap by at least one character; otherwise False.
+    """
     return a_start < b_end and b_start < a_end
 
 
 def _overlaps_any(start: int, end: int, spans: set[Span]) -> bool:
+    """Return whether a span overlaps any span in a collection.
+
+    Args:
+        start: Inclusive start offset of the candidate span.
+        end: Exclusive end offset of the candidate span.
+        spans: Set of existing half-open spans to compare against.
+
+    Returns:
+        True if the candidate span overlaps any span in ``spans``; otherwise
+        False.
+    """
     return any(_spans_overlap(start, end, s, e) for s, e in spans)
 
 
 class DefinedTermDetector(BaseDetector[DefinedTermDetectorResult]):
+    """Detect defined-term introductions and occurrences in text.
+
+    The detector identifies a bounded set of legal drafting patterns, including
+    quoted term definitions, selected unquoted capitalised definitions, and later
+    term occurrences. Detection is configuration-driven and may be further gated by
+    automatic domain activation.
+
+    This detector returns:
+        * ``unique_terms``: canonical defined-term senses keyed by normalised term.
+        * ``occurrences``: later references to previously introduced terms.
+    """
     def __init__(self, config: DefinedTermDetectorConfig, max_workers=None):
         super().__init__(config=config, max_workers=max_workers)
         self._patterns = compile_defined_term_patterns()
 
     def _with_auto_domains(self, text: str) -> DefinedTermDetectorConfig:
+        """Return config with auto-detected domains merged in.
+
+        Args:
+            text: Source text to inspect for domain activation cues.
+
+        Returns:
+            A config instance with any newly auto-detected domains merged into
+            ``enabled_domains``. Returns the existing config unchanged when no new
+            domains are detected.
+        """
         auto = autodetect_domains(text, self.cfg)
         if auto:
             merged = self.cfg.enabled_domains | auto
@@ -39,6 +82,22 @@ class DefinedTermDetector(BaseDetector[DefinedTermDetectorResult]):
 
     @staticmethod
     def _resolve_known_term_from_run(raw_term: str, known_keys: set[str]) -> tuple[str, str] | None:
+        """Resolve a capitalised text run to a known defined term.
+
+        The method first tries an exact normalised match. If that fails, it attempts
+        right-trimmed suffix matching so that broader capitalised runs can resolve to a
+        known defined term, for example ``"Party's Confidential Information"`` to
+        ``"Confidential Information"``.
+
+        Args:
+            raw_term: Raw matched text from a capitalised occurrence pattern.
+            known_keys: Set of known normalised defined-term keys introduced earlier in
+                the run.
+
+        Returns:
+            A tuple of ``(resolved_term, normalised_key)`` if a known term can be
+            resolved; otherwise ``None``.
+        """
         parts = raw_term.split()
         if not parts:
             return None
@@ -59,6 +118,23 @@ class DefinedTermDetector(BaseDetector[DefinedTermDetectorResult]):
         return None
 
     def _extract_definition_text(self, text: str, anchor_end: int) -> tuple[str, int, int]:
+        """Extract a short definition fragment following a definition anchor.
+
+        Extraction begins at ``anchor_end`` and stops at the earliest recognised
+        boundary marker within the configured maximum character window. Leading and
+        trailing spacing and lightweight punctuation noise are trimmed from the
+        returned slice.
+
+        Args:
+            text: Full source text.
+            anchor_end: End offset immediately after the definition anchor, such as
+                ``means`` or ``shall mean``.
+
+        Returns:
+            A tuple of ``(definition, start, end)`` where ``definition`` is the trimmed
+            extracted text and ``start``/``end`` are offsets into ``text`` for the
+            returned slice.
+        """
         raw_start = anchor_end
         raw_end = min(len(text), anchor_end + self.cfg.max_definition_chars)
 
@@ -86,6 +162,21 @@ class DefinedTermDetector(BaseDetector[DefinedTermDetectorResult]):
         cfg: DefinedTermDetectorConfig,
         legal_active: bool,
     ) -> list[DefinedTermSense]:
+        """Collect defined-term introductions from supported drafting patterns.
+
+        This includes quoted introductions, selected unquoted capitalised
+        introductions, and parenthetical aliases. Unquoted introductions may be gated
+        by configuration and legal-domain activation.
+
+        Args:
+            text: Full source text to scan.
+            cfg: Active detector configuration.
+            legal_active: Whether the legal domain is currently enabled for this run.
+
+        Returns:
+            A list of ``DefinedTermSense`` objects representing introduced terms in the
+            order they were detected.
+        """
         intros: list[DefinedTermSense] = []
 
         for pat_name in (
@@ -134,6 +225,25 @@ class DefinedTermDetector(BaseDetector[DefinedTermDetectorResult]):
         cfg: DefinedTermDetectorConfig,
         legal_active: bool,
     ) -> list[DefinedTermOccurrence]:
+        """Collect later occurrences of previously introduced defined terms.
+
+        The detector first considers quoted occurrences and then, when allowed by
+        configuration, unquoted capitalised occurrences. Unquoted matches must resolve
+        back to a known term from the current run.
+
+        Args:
+            text: Full source text to scan.
+            known_keys: Set of known normalised term keys introduced earlier in the
+                same run.
+            intro_term_spans: Spans occupied by introduction terms, used to avoid
+                re-emitting introductions as occurrences.
+            cfg: Active detector configuration.
+            legal_active: Whether the legal domain is currently enabled for this run.
+
+        Returns:
+            A list of ``DefinedTermOccurrence`` objects representing detected
+            occurrences of known terms.
+        """
         occurrences: list[DefinedTermOccurrence] = []
 
         # 1) Quoted occurrences
@@ -193,6 +303,19 @@ class DefinedTermDetector(BaseDetector[DefinedTermDetectorResult]):
 
     @logger(message="defined_term_detector.detect", db_sink="sink")
     def detect(self, text: str) -> DefinedTermDetectorResult:
+        """Detect defined-term introductions and occurrences in a text run.
+
+        The method optionally expands enabled domains through auto-detection, extracts
+        term introductions, builds the unique-term index keyed by normalised term, and
+        then finds later occurrences that resolve back to those introduced terms.
+
+        Args:
+            text: Full source text to analyse.
+
+        Returns:
+            A ``DefinedTermDetectorResult`` containing detected unique terms and later
+            occurrences.
+        """
         cfg = self._with_auto_domains(text)
         legal_active = "legal" in cfg.enabled_domains
 
@@ -214,6 +337,21 @@ class DefinedTermDetector(BaseDetector[DefinedTermDetectorResult]):
         )
 
     def detect_parallel(self, text: str, threshold: int = 1000, chunk_size: int = 256) -> DefinedTermDetectorResult:
-        # Fine to keep this simple initially.
-        # Defined-term detection is more structure-sensitive than acronym scanning.
+        """Detect defined terms using the current single-pass implementation.
+
+        This method currently delegates directly to ``detect``. The parallel entry
+        point exists to preserve a stable detector interface and allow future
+        structure-aware chunking if needed.
+
+        Args:
+            text: Full source text to analyse.
+            threshold: Minimum text-size threshold at which a parallel strategy may be
+                considered in future.
+            chunk_size: Target chunk size that may be used by a future parallel
+                implementation.
+
+        Returns:
+            A ``DefinedTermDetectorResult`` containing detected unique terms and later
+            occurrences.
+        """
         return self.detect(text)
