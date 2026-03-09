@@ -11,8 +11,7 @@ from .builders import build_defined_term_occurrence, build_defined_term_sense
 from .compiler import compile_defined_term_patterns
 from .normalise import normalize_defined_term_key
 from .types import DefinedTermDetectorResult, DefinedTermOccurrence, DefinedTermSense
-from ...common.types import DefinedTermDetectorConfig
-
+from ...common.types import DefinedTermDetectorConfig, Span
 
 _QUOTE_CHARS = {'"', "“", "”"}
 
@@ -20,7 +19,7 @@ def _spans_overlap(a_start: int, a_end: int, b_start: int, b_end: int) -> bool:
     return a_start < b_end and b_start < a_end
 
 
-def _overlaps_any(start: int, end: int, spans: set[tuple[int, int]]) -> bool:
+def _overlaps_any(start: int, end: int, spans: set[Span]) -> bool:
     return any(_spans_overlap(start, end, s, e) for s, e in spans)
 
 
@@ -59,18 +58,26 @@ class DefinedTermDetector(BaseDetector[DefinedTermDetectorResult]):
         return None
 
     def _extract_definition_text(self, text: str, anchor_end: int) -> tuple[str, int, int]:
-        start = anchor_end
-        end = min(len(text), anchor_end + self.cfg.max_definition_chars)
+        raw_start = anchor_end
+        raw_end = min(len(text), anchor_end + self.cfg.max_definition_chars)
 
-        slice_text = text[start:end]
+        slice_text = text[raw_start:raw_end]
         stop_idx = len(slice_text)
         for marker in [".", ";", "\n"]:
             idx = slice_text.find(marker)
             if idx != -1:
                 stop_idx = min(stop_idx, idx)
 
-        definition = slice_text[:stop_idx].strip(" :,-")
-        return definition, start, start + len(definition)
+        raw_definition = slice_text[:stop_idx]
+
+        trimmed_left = len(raw_definition) - len(raw_definition.lstrip(" :,-"))
+        trimmed_right = len(raw_definition.rstrip(" :,-"))
+
+        start = raw_start + trimmed_left
+        end = raw_start + trimmed_right
+        definition = text[start:end]
+
+        return definition, start, end
 
     def _iter_term_introductions(
         self,
@@ -95,6 +102,9 @@ class DefinedTermDetector(BaseDetector[DefinedTermDetectorResult]):
                     continue
 
                 term_start, term_end = match.span(group_name)
+                if raw_term[:1] in {'"', "“", "”"} and raw_term[-1:] in {'"', "“", "”"}:
+                    term_start += 1
+                    term_end -= 1
 
                 is_quoted = raw_term.startswith('"') and raw_term.endswith('"')
                 if not is_quoted:
@@ -119,7 +129,7 @@ class DefinedTermDetector(BaseDetector[DefinedTermDetectorResult]):
         text: str,
         *,
         known_keys: set[str],
-        intro_term_spans: set[tuple[int, int]],
+        intro_term_spans: set[Span],
         cfg: DefinedTermDetectorConfig,
         legal_active: bool,
     ) -> list[DefinedTermOccurrence]:
@@ -144,12 +154,18 @@ class DefinedTermDetector(BaseDetector[DefinedTermDetectorResult]):
             )
 
         # 2) Unquoted capitalised occurrences
-        if (not cfg.require_legal_domain_for_unquoted) or legal_active:
+        if cfg.allow_unquoted_capitalised_terms and (
+            (not cfg.require_legal_domain_for_unquoted) or legal_active
+        ):
             for match in self._patterns.capitalised_occurrence.finditer(text):
                 raw_term = match.group("term")
                 start_offset, end_offset = match.span("term")
 
                 if _overlaps_any(start_offset, end_offset, intro_term_spans):
+                    continue
+
+                tail = text[end_offset:].lstrip()
+                if tail.startswith("("):
                     continue
 
                 resolved = self._resolve_known_term_from_run(raw_term, known_keys)
