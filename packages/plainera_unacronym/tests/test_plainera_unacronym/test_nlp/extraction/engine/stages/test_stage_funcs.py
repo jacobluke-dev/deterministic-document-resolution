@@ -2,7 +2,7 @@ from dataclasses import replace
 from typing import Literal
 
 import numpy as np
-from plainera_unacronym.nlp.common.types import AcronymSense, DetectorConfig, OccurrenceLite
+from plainera_unacronym.nlp.common.types import AcronymDetectorConfig, AcronymSense, OccurrenceLite
 from plainera_unacronym.nlp.extraction.config import ExtractionConfig, Tier2Config  # adjust import if needed
 from plainera_unacronym.nlp.extraction.engine import stage_funcs as f
 from plainera_unacronym.nlp.extraction.engine.detect_flow import ExtractionFlow
@@ -13,7 +13,7 @@ from plainera_unacronym.nlp.extraction.tiers.types import Tier1OccurrenceRanking
 
 def _mk_state(*, mode: Literal["off", "auto", "on"]) -> FlowState:
     ext_cfg = replace(ExtractionConfig(), tier2=Tier2Config(mode=mode, weight=0.5, model_name="fake"))
-    s = FlowState(text="ctx ... GPU ... kernel ...", det_cfg=DetectorConfig(), ext_cfg=ext_cfg)
+    s = FlowState(text="ctx ... GPU ... kernel ...", det_cfg=AcronymDetectorConfig(), ext_cfg=ext_cfg)
     s.det_res = object()  # only asserted as not None in these stages
     return s
 
@@ -124,7 +124,7 @@ class TestSrTier2SemanticRerank:
 class TestStTier1SelectAndAssemble:
     def test_select_and_assemble_uses_tier1_when_tier2_absent(self):
         ext_cfg = replace(ExtractionConfig(), tier2=Tier2Config(mode="off"))
-        s = FlowState(text="x", det_cfg=DetectorConfig(), ext_cfg=ext_cfg)
+        s = FlowState(text="x", det_cfg=AcronymDetectorConfig(), ext_cfg=ext_cfg)
         s.det_res = object()
 
         t1 = s.tier_1

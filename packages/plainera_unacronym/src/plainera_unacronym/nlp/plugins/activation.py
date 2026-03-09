@@ -1,12 +1,12 @@
 from typing import FrozenSet
 
-from plainera_unacronym.nlp.common.types import DetectorConfig
+from plainera_unacronym.nlp.common.types import AcronymDetectorConfig
 
 from .interface import SupportsSniff
 from .registry import DOMAIN_PLUGINS
 
 
-def autodetect_domains(text: str, _cfg: DetectorConfig, *, cap: int = 80_000) -> FrozenSet[str]:
+def autodetect_domains(text: str, _cfg: AcronymDetectorConfig, *, cap: int = 80_000) -> FrozenSet[str]:
     """Return the set of domain plugin names auto-detected for a given text.
 
     This scans a capped prefix of ``text`` (default: first 80,000 characters)

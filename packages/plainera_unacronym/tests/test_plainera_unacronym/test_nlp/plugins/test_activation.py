@@ -1,7 +1,7 @@
 # tests/test_plainera_unacronym/test_nlp/plugins/test_activation.py
 
 import plainera_unacronym.nlp.plugins.activation as activation_mod
-from plainera_unacronym.nlp.common.types import DetectorConfig
+from plainera_unacronym.nlp.common.types import AcronymDetectorConfig
 from plainera_unacronym.nlp.plugins.activation import _safe_sniff, autodetect_domains
 
 # --------- Test doubles (plugins) ---------------------------------------------
@@ -47,7 +47,7 @@ class TestSafeSniff:
 
 class TestAutodetectDomains:
     def test_detects_plugins_that_sniff_true(self, monkeypatch):
-        cfg = DetectorConfig()
+        cfg = AcronymDetectorConfig()
         monkeypatch.setattr(
             activation_mod,
             "DOMAIN_PLUGINS",
@@ -58,7 +58,7 @@ class TestAutodetectDomains:
         assert detected == frozenset({"bio"})
 
     def test_ignores_plugins_without_sniff(self, monkeypatch):
-        cfg = DetectorConfig()
+        cfg = AcronymDetectorConfig()
         monkeypatch.setattr(
             activation_mod,
             "DOMAIN_PLUGINS",
@@ -69,7 +69,7 @@ class TestAutodetectDomains:
         assert detected == frozenset()
 
     def test_handles_exceptions_and_detects_others(self, monkeypatch):
-        cfg = DetectorConfig()
+        cfg = AcronymDetectorConfig()
         monkeypatch.setattr(
             activation_mod,
             "DOMAIN_PLUGINS",
@@ -80,7 +80,7 @@ class TestAutodetectDomains:
         assert detected == frozenset({"bio"})
 
     def test_respects_cap_truncation(self, monkeypatch):
-        cfg = DetectorConfig()
+        cfg = AcronymDetectorConfig()
         monkeypatch.setattr(
             activation_mod,
             "DOMAIN_PLUGINS",
@@ -94,7 +94,7 @@ class TestAutodetectDomains:
         assert autodetect_domains(long_text, cfg, cap=200_000) == frozenset({"bio"})
 
     def test_returns_frozenset(self, monkeypatch):
-        cfg = DetectorConfig()
+        cfg = AcronymDetectorConfig()
         monkeypatch.setattr(
             activation_mod,
             "DOMAIN_PLUGINS",

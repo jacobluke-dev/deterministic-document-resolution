@@ -1,5 +1,5 @@
 import pytest
-from plainera_unacronym.nlp import DetectorConfig
+from plainera_unacronym.nlp import AcronymDetectorConfig
 from plainera_unacronym.nlp.common.types import TextSpanTuple
 from plainera_unacronym.nlp.detection.heuristics.general import (
     _alpha_len,
@@ -33,8 +33,8 @@ def _extract_span(s: str) -> TextSpanTuple:
     return text, start, end
 
 
-def make_cfg(allow_chars: str = "-&/._") -> DetectorConfig:
-    return DetectorConfig(min_len=2, max_len=12, allow_chars=allow_chars)
+def make_cfg(allow_chars: str = "-&/._") -> AcronymDetectorConfig:
+    return AcronymDetectorConfig(min_len=2, max_len=12, allow_chars=allow_chars)
 
 
 def _patch_near(monkeypatch, left_gap: int, right_gap: int):

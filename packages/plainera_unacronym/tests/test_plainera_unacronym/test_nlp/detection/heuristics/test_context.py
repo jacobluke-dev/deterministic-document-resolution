@@ -1,8 +1,8 @@
-from plainera_unacronym.nlp import DetectorConfig
+from plainera_unacronym.nlp import AcronymDetectorConfig
 from plainera_unacronym.nlp.detection.heuristics.context import blacklist_context_drop
 
 
-def mk_cfg(**overrides) -> DetectorConfig:
+def mk_cfg(**overrides) -> AcronymDetectorConfig:
     """
     Build a config with pragmatic defaults for this unit under test.
     We ensure 'IT' and 'AM' are in blacklist (so token-specific rules run),
@@ -12,7 +12,7 @@ def mk_cfg(**overrides) -> DetectorConfig:
         "non_acronym_upper": frozenset({"OK", "LTD", "PLC", "NO"}),
     }
 
-    cfg = DetectorConfig()
+    cfg = AcronymDetectorConfig()
 
     object.__setattr__(cfg, "non_acronym_upper", base["non_acronym_upper"])
     object.__setattr__(cfg, "blacklist", frozenset({"IT", "AM"}))

@@ -1,10 +1,11 @@
 from typing import Callable
 
 import numpy as np
-import plainera_unacronym.nlp.detection.detector as det
+import plainera_unacronym.nlp.detection.acronym.detector as det
+import plainera_unacronym.nlp.detection.base as bs
 import pytest
 from plainera_unacronym.nlp.common.shared import normalize_acronym_key
-from plainera_unacronym.nlp.common.types import DetectorConfig, FirstOccurrence, Occurrence, Span
+from plainera_unacronym.nlp.common.types import AcronymDetectorConfig, FirstOccurrence, Occurrence, Span
 from plainera_unacronym.nlp.extraction import ExtractionConfig
 
 
@@ -28,8 +29,33 @@ class NullSink:
 @pytest.fixture(autouse=True)
 def patch_sink(monkeypatch):
     dummy = NullSink()
-    monkeypatch.setattr(det, "sink", dummy, raising=True)
+    monkeypatch.setattr(bs, "sink", dummy, raising=True)
     yield dummy
+
+
+@pytest.fixture(autouse=True)
+def patch_sink_and_logger(monkeypatch):
+    class NullSink:
+        def __call__(self, *a, **k):
+            pass
+
+        def __getattr__(self, _):
+            return lambda *a, **k: None
+
+    dummy_sink = NullSink()
+    monkeypatch.setattr(bs, "sink", dummy_sink, raising=True)
+
+    logs = []
+
+    def spy_logger(message, *a, **kw):
+        logs.append({"message": message, **kw})
+
+    # Base-level logs
+    monkeypatch.setattr(bs, "message_logger", spy_logger, raising=True)
+    # Acronym detector logs
+    monkeypatch.setattr(det, "message_logger", spy_logger, raising=True)
+
+    return logs
 
 
 @pytest.fixture
@@ -92,15 +118,15 @@ def picked_def():
 
 
 @pytest.fixture
-def cfg() -> DetectorConfig:
-    return DetectorConfig()
+def cfg() -> AcronymDetectorConfig:
+    return AcronymDetectorConfig()
 
 
 @pytest.fixture
 def fo():
-    def _fo(acr: str, s: int, e: int, conf: float = 0.9, cfg: DetectorConfig = None) -> FirstOccurrence:
+    def _fo(acr: str, s: int, e: int, conf: float = 0.9, cfg: AcronymDetectorConfig = None) -> FirstOccurrence:
         if cfg is None:
-            cfg = DetectorConfig()
+            cfg = AcronymDetectorConfig()
         k = normalize_acronym_key(acr, cfg.allow_chars, dotted_mode=cfg.dotted_display)
         assert k
         return FirstOccurrence(acronym=acr, start_offset=s, end_offset=e, occurrence_confidence=conf, normalized_key=k)
@@ -110,7 +136,7 @@ def fo():
 
 @pytest.fixture
 def occ():
-    def _occ(cfg: DetectorConfig, acr: str, s: int, e: int, conf: float = 0.9) -> Occurrence:
+    def _occ(cfg: AcronymDetectorConfig, acr: str, s: int, e: int, conf: float = 0.9) -> Occurrence:
         k = normalize_acronym_key(acr, cfg.allow_chars, dotted_mode=cfg.dotted_display)
         return Occurrence(
             acronym=acr,
@@ -129,7 +155,7 @@ def occ():
 def cfg_integrated():
     def _cfg_integrated(require_two_words=True, max_chars=200):
         return (
-            DetectorConfig(),
+            AcronymDetectorConfig(),
             ExtractionConfig(
                 inline_cues=(r"short\s+for", r"stands?\s+for", r"is\s+(?:an\s+)?acronym\s+for"),
                 max_phrase_chars=max_chars,
@@ -151,22 +177,3 @@ def _mock_tier2_embeddings(monkeypatch):
 
     # This is the real seam Tier-2 uses now
     monkeypatch.setattr(t2, "embed_texts", _fast_embed_texts, raising=True)
-
-@pytest.fixture(autouse=True)
-def patch_sink_and_logger(monkeypatch):
-    # Silence DB/log I/O, but keep logs capturable if needed.
-    class NullSink:
-        def __call__(self, *a, **k):
-            pass
-
-        def __getattr__(self, _):
-            return lambda *a, **k: None
-
-    monkeypatch.setattr(det, "sink", NullSink(), raising=True)
-    logs = []
-
-    def spy_logger(message, *a, **kw):
-        logs.append({"message": message, **kw})
-
-    monkeypatch.setattr(det, "message_logger", spy_logger, raising=True)
-    return logs

@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from collections import Counter
 
-from plainera_unacronym.nlp.common.types import DetectorConfig, DetectorResult, ExtractionResult
+from plainera_unacronym.nlp.common.types import AcronymDetectorConfig, AcronymDetectorResult, ExtractionResult
 from plainera_unacronym.nlp.extraction.config import ExtractionConfig
 from plainera_unacronym.nlp.extraction.engine import stage_funcs as f
 from plainera_unacronym.nlp.extraction.engine.stages import Chain, Stage, StageReport, TraceEvent, Tracer
@@ -26,7 +26,7 @@ class ExtractionFlow:
     optionally trace events for debugging.
 
     Attributes:
-        det_cfg (DetectorConfig): Configuration used by the acronym detector.
+        det_cfg (AcronymDetectorConfig): Configuration used by the acronym detector.
         ext_cfg (ExtractionConfig): Configuration used by extraction strategies.
         window_left (int): Characters to include to the left of a first occurrence
             when building the local anchored extraction window.
@@ -39,7 +39,7 @@ class ExtractionFlow:
 
     def __init__(
         self,
-        det_cfg: DetectorConfig | None = None,
+        det_cfg: AcronymDetectorConfig | None = None,
         ext_cfg: ExtractionConfig | None = None,
         *,
         window_left: int = 320,
@@ -52,7 +52,7 @@ class ExtractionFlow:
         """Initialize an ExtractionFlow.
 
         Args:
-            det_cfg (DetectorConfig | None): Detector config. If None, then `DetectorConfig()`.
+            det_cfg (AcronymDetectorConfig | None): Detector config. If None, then `DetectorConfig()`.
             ext_cfg (ExtractionConfig | None): Extraction config. If None, then `ExtractionConfig()`.
             window_left (int): Chars to include to the left of the first occurrence
                 when performing anchored extraction.
@@ -62,7 +62,7 @@ class ExtractionFlow:
             trace_filter (str | None): Optional regex filter applied to acronym keys when tracing.
         """
         self.trace_events: list[TraceEvent] | None = None
-        self.det_cfg = det_cfg or DetectorConfig()
+        self.det_cfg = det_cfg or AcronymDetectorConfig()
         self.ext_cfg = ext_cfg or ExtractionConfig()
         self.window_left = window_left
         self.window_right = window_right
@@ -173,14 +173,14 @@ class ExtractionFlow:
             ]
         )
 
-    def run(self, text: str) -> tuple[DetectorResult, ExtractionResult, list[StageReport]]:
+    def run(self, text: str) -> tuple[AcronymDetectorResult, ExtractionResult, list[StageReport]]:
         """Run the pipeline over `text`.
 
         Args:
             text (str): Source document text.
 
         Returns:
-            tuple[DetectorResult, ExtractionResult, list[StageReport]]:
+            tuple[AcronymDetectorResult, ExtractionResult, list[StageReport]]:
                 - DetectorResult: Raw detector output after cleanup.
                 - ExtractionResult: Final extraction output (picks, defs, senses, resolutions).
                 - list[StageReport]: Per-stage execution reports.
