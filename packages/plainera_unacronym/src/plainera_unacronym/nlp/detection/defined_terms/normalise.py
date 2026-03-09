@@ -9,6 +9,12 @@ _NON_WORD_RE = re.compile(r"[^\w\s-]")
 def normalize_defined_term_key(term: str) -> str:
     """Normalise a defined term into a stable lookup key.
 
+    Args:
+        term (str): term to normalise
+
+    Returns:
+        str: normalised term string
+
     Rules:
       - strip surrounding whitespace
       - collapse internal whitespace
