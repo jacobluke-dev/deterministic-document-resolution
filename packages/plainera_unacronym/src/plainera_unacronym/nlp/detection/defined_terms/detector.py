@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from dataclasses import replace as dc_replace
 
 from observability.logger.decorator import logger
@@ -10,6 +12,16 @@ from .compiler import compile_defined_term_patterns
 from .normalise import normalize_defined_term_key
 from .types import DefinedTermDetectorResult, DefinedTermOccurrence, DefinedTermSense
 from ...common.types import DefinedTermDetectorConfig
+
+
+_QUOTE_CHARS = {'"', "“", "”"}
+
+def _spans_overlap(a_start: int, a_end: int, b_start: int, b_end: int) -> bool:
+    return a_start < b_end and b_start < a_end
+
+
+def _overlaps_any(start: int, end: int, spans: set[tuple[int, int]]) -> bool:
+    return any(_spans_overlap(start, end, s, e) for s, e in spans)
 
 
 class DefinedTermDetector(BaseDetector[DefinedTermDetectorResult]):
@@ -25,6 +37,26 @@ class DefinedTermDetector(BaseDetector[DefinedTermDetectorResult]):
                 return dc_replace(self.cfg, enabled_domains=merged)
         return self.cfg
 
+    @staticmethod
+    def _resolve_known_term_from_run(raw_term: str, known_keys: set[str]) -> tuple[str, str] | None:
+        parts = raw_term.split()
+        if not parts:
+            return None
+
+        # Try exact first
+        exact_key = normalize_defined_term_key(raw_term)
+        if exact_key in known_keys:
+            return raw_term, exact_key
+
+        # Then try right-trimmed suffixes:
+        # "Party's Confidential Information" -> "Confidential Information"
+        for i in range(1, len(parts)):
+            candidate = " ".join(parts[i:])
+            key = normalize_defined_term_key(candidate)
+            if key in known_keys:
+                return candidate, key
+
+        return None
 
     def _extract_definition_text(self, text: str, anchor_end: int) -> tuple[str, int, int]:
         start = anchor_end
@@ -40,10 +72,21 @@ class DefinedTermDetector(BaseDetector[DefinedTermDetectorResult]):
         definition = slice_text[:stop_idx].strip(" :,-")
         return definition, start, start + len(definition)
 
-    def _iter_senses(self, text: str, cfg: DefinedTermDetectorConfig, legal_active: bool) -> list[DefinedTermSense]:
-        senses: list[DefinedTermSense] = []
+    def _iter_term_introductions(
+        self,
+        text: str,
+        cfg: DefinedTermDetectorConfig,
+        legal_active: bool,
+    ) -> list[DefinedTermSense]:
+        intros: list[DefinedTermSense] = []
 
-        for pat_name in ("quoted_means", "quoted_shall_mean", "bare_means", "bare_shall_mean"):
+        for pat_name in (
+                "quoted_means",
+                "quoted_shall_mean",
+                "bare_means",
+                "bare_shall_mean",
+                "parenthetical_alias",
+        ):
             pat = getattr(self._patterns, pat_name)
             for match in pat.finditer(text):
                 group_name = "term_q" if match.groupdict().get("term_q") else "term_b"
@@ -60,60 +103,74 @@ class DefinedTermDetector(BaseDetector[DefinedTermDetectorResult]):
                     if not cfg.allow_unquoted_capitalised_terms:
                         continue
 
-                definition_text, def_start, def_end = self._extract_definition_text(text, match.end())
-                if not definition_text:
-                    continue
-
-                senses.append(
+                intros.append(
                     build_defined_term_sense(
                         term=raw_term,
                         term_start=term_start,
                         term_end=term_end,
-                        definition_text=definition_text,
-                        definition_start=def_start,
-                        definition_end=def_end,
                         provenance="defined_term_detector",
                     )
                 )
 
-        return senses
+        return intros
 
     def _iter_occurrences(
         self,
         text: str,
         *,
         known_keys: set[str],
+        intro_term_spans: set[tuple[int, int]],
         cfg: DefinedTermDetectorConfig,
         legal_active: bool,
     ) -> list[DefinedTermOccurrence]:
         occurrences: list[DefinedTermOccurrence] = []
 
+        # 1) Quoted occurrences
         for match in self._patterns.quoted_occurrence.finditer(text):
             raw_term = match.group("term")
+            start_offset, end_offset = match.span("term")
+            if _overlaps_any(start_offset, end_offset, intro_term_spans):
+                continue
+
             normalized = normalize_defined_term_key(raw_term)
             if normalized not in known_keys:
                 continue
-
             occurrences.append(
                 build_defined_term_occurrence(
                     term=raw_term,
-                    start_offset=match.start(),
-                    end_offset=match.end(),
+                    start_offset=start_offset,
+                    end_offset=end_offset,
                 )
             )
 
+        # 2) Unquoted capitalised occurrences
         if (not cfg.require_legal_domain_for_unquoted) or legal_active:
             for match in self._patterns.capitalised_occurrence.finditer(text):
                 raw_term = match.group("term")
-                normalized = normalize_defined_term_key(raw_term)
-                if normalized not in known_keys:
+                start_offset, end_offset = match.span("term")
+
+                if _overlaps_any(start_offset, end_offset, intro_term_spans):
                     continue
+
+                resolved = self._resolve_known_term_from_run(raw_term, known_keys)
+                if not resolved:
+                    continue
+
+                resolved_term, _ = resolved
+
+                # Adjust span to the resolved suffix inside the broader match
+                suffix_start = raw_term.rfind(resolved_term)
+                if suffix_start == -1:
+                    continue
+
+                resolved_start = start_offset + suffix_start
+                resolved_end = resolved_start + len(resolved_term)
 
                 occurrences.append(
                     build_defined_term_occurrence(
-                        term=raw_term,
-                        start_offset=match.start(),
-                        end_offset=match.end(),
+                        term=resolved_term,
+                        start_offset=resolved_start,
+                        end_offset=resolved_end,
                     )
                 )
 
@@ -124,15 +181,19 @@ class DefinedTermDetector(BaseDetector[DefinedTermDetectorResult]):
         cfg = self._with_auto_domains(text)
         legal_active = "legal" in cfg.enabled_domains
 
-        senses = self._iter_senses(text, cfg, legal_active)
-        unique_terms = {sense.normalized_key: sense for sense in senses}
-        occurrences = self._iter_occurrences(text,
-                                             known_keys=set(unique_terms.keys()),
-                                             cfg=cfg,
-                                             legal_active=legal_active)
+        intros = self._iter_term_introductions(text, cfg, legal_active)
+        unique_terms = {intro.normalized_key: intro for intro in intros}
+        intro_term_spans = {(intro.start_offset, intro.end_offset) for intro in intros}
+
+        occurrences = self._iter_occurrences(
+            text,
+            known_keys=set(unique_terms.keys()),
+            intro_term_spans=intro_term_spans,
+            cfg=cfg,
+            legal_active=legal_active,
+        )
 
         return DefinedTermDetectorResult(
-            senses=senses,
             occurrences=occurrences,
             unique_terms=unique_terms,
         )

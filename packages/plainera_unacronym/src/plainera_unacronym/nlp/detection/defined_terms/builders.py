@@ -11,9 +11,6 @@ def build_defined_term_sense(
     term: str,
     term_start: int,
     term_end: int,
-    definition_text: str,
-    definition_start: int,
-    definition_end: int,
     provenance: str,
 ) -> DefinedTermSense:
     cleaned_term = strip_trailing_punct_str(term.strip().strip('"'))
@@ -22,15 +19,11 @@ def build_defined_term_sense(
 
     return DefinedTermSense(
         term=cleaned_term,
-        definition_text=definition_text.strip(),
         start_offset=term_start,
         end_offset=term_end,
-        definition_start_offset=definition_start,
-        definition_end_offset=definition_end,
         normalized_key=normalized_key,
         sense_id=sense_id,
         provenance=provenance,
-        confidence=1.0,
     )
 
 
