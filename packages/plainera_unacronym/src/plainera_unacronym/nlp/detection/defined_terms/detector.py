@@ -58,6 +58,7 @@ class DefinedTermDetector(BaseDetector[DefinedTermDetectorResult]):
         * ``unique_terms``: canonical defined-term senses keyed by normalised term.
         * ``occurrences``: later references to previously introduced terms.
     """
+
     def __init__(self, config: DefinedTermDetectorConfig, max_workers=None):
         super().__init__(config=config, max_workers=max_workers)
         self._patterns = compile_defined_term_patterns()

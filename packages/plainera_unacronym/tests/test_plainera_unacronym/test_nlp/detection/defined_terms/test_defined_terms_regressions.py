@@ -1,4 +1,3 @@
-import pytest
 
 class TestDefinedTermFalsePositiveRegressions:
     def test_detect_ignores_heading_like_phrase(self, defined_term_detector_factory):

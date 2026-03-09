@@ -27,6 +27,7 @@ class DefinedTermPatterns:
             may resolve to a known defined term, for example
             ``Change of Control``.
     """
+
     quoted_means: re.Pattern[str]
     quoted_shall_mean: re.Pattern[str]
     bare_means: re.Pattern[str]
