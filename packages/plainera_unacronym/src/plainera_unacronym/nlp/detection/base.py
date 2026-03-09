@@ -3,7 +3,6 @@ from concurrent.futures import ProcessPoolExecutor
 from os import cpu_count
 from typing import Generic, Optional, TypeVar
 
-from observability.logger.decorator import logger
 from observability.logger.message_logger import message_logger
 
 from plainera_unacronym.wiring.composition import sink

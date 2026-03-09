@@ -1,4 +1,3 @@
-import pytest
 
 import plainera_unacronym.nlp.detection.defined_terms.detector as det_mod
 from plainera_unacronym.nlp.detection.defined_terms.detector import (

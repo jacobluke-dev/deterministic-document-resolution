@@ -2,7 +2,7 @@ from dataclasses import replace
 from typing import Literal
 
 import numpy as np
-from plainera_unacronym.nlp.common.types import AcronymSense, AcronymDetectorConfig, OccurrenceLite
+from plainera_unacronym.nlp.common.types import AcronymDetectorConfig, AcronymSense, OccurrenceLite
 from plainera_unacronym.nlp.extraction.config import ExtractionConfig, Tier2Config  # adjust import if needed
 from plainera_unacronym.nlp.extraction.engine import stage_funcs as f
 from plainera_unacronym.nlp.extraction.engine.detect_flow import ExtractionFlow

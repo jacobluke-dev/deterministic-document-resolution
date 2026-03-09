@@ -18,7 +18,7 @@ def normalize_defined_term_key(term: str) -> str:
       - convert spaces/hyphens to underscores
     """
     value = term.translate(CANON_TABLE_DEFAULT)
-    value = value.strip().strip('"\'')
+    value = value.strip().strip("\"'")
     value = _NON_WORD_RE.sub("", value)
     value = _WS_RE.sub(" ", value).strip().lower()
     value = value.replace("-", " ")

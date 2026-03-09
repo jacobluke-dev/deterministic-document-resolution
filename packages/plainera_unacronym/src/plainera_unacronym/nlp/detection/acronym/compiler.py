@@ -1,6 +1,6 @@
 import re
 
-from plainera_unacronym.nlp.common.types import pattern_cache, AcronymDetectorConfig
+from plainera_unacronym.nlp.common.types import AcronymDetectorConfig, pattern_cache
 
 
 def compile_acronym_pattern(cfg: AcronymDetectorConfig) -> re.Pattern[str]:

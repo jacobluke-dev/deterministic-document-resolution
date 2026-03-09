@@ -5,28 +5,32 @@ from observability.logger.decorator import logger
 from observability.logger.levels import LogLevel
 from observability.logger.message_logger import message_logger
 
+from plainera_unacronym.nlp.common.shared import normalize_acronym_key
 from plainera_unacronym.nlp.common.types import (
     AcronymDetectorConfig,
     AcronymDetectorResult,
     FirstOccurrence,
-    Occurrence, OccurrenceBuildError,
+    Occurrence,
+    OccurrenceBuildError,
 )
+from plainera_unacronym.nlp.detection.base import BaseDetector
+from plainera_unacronym.nlp.detection.heuristics.context import blacklist_context_drop
+from plainera_unacronym.nlp.detection.heuristics.core import (
+    boost_confidence_if_whitelisted,
+    calc_score,
+    iter_acronym_candidates,
+    threshold_len,
+)
+from plainera_unacronym.nlp.detection.heuristics.inline_cues import boost_confidence_if_inline_cue
+from plainera_unacronym.nlp.detection.nlp_helpers import cfg_fingerprint, top_n_values
 from plainera_unacronym.nlp.plugins.activation import autodetect_domains
+
+from .builders import build_occurrence_from_match
 from .chunking import score_chunk_worker
 from .compiler import compile_acronym_pattern
 
-from ..base import BaseDetector
-from .builders import build_occurrence_from_match
-from ..heuristics.context import blacklist_context_drop
-from ..heuristics.core import (calc_score,
-                               threshold_len,
-                               boost_confidence_if_whitelisted,
-                               iter_acronym_candidates)
-from ..heuristics.inline_cues import boost_confidence_if_inline_cue
-from ..nlp_helpers import top_n_values, cfg_fingerprint
-from ...common.shared import normalize_acronym_key
-
 DEFAULT_CONFIG = AcronymDetectorConfig()
+
 
 class AcronymDetector(BaseDetector[AcronymDetectorResult]):
     def __init__(self, config: AcronymDetectorConfig = DEFAULT_CONFIG, max_workers: Optional[int] = None):

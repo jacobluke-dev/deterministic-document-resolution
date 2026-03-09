@@ -4,16 +4,17 @@ from dataclasses import replace as dc_replace
 
 from observability.logger.decorator import logger
 
+from plainera_unacronym.nlp.common.types import DefinedTermDetectorConfig, Span
+from plainera_unacronym.nlp.detection.base import BaseDetector
 from plainera_unacronym.nlp.plugins.activation import autodetect_domains
 
-from ..base import BaseDetector
 from .builders import build_defined_term_occurrence, build_defined_term_sense
 from .compiler import compile_defined_term_patterns
 from .normalise import normalize_defined_term_key
 from .types import DefinedTermDetectorResult, DefinedTermOccurrence, DefinedTermSense
-from ...common.types import DefinedTermDetectorConfig, Span
 
 _QUOTE_CHARS = {'"', "“", "”"}
+
 
 def _spans_overlap(a_start: int, a_end: int, b_start: int, b_end: int) -> bool:
     return a_start < b_end and b_start < a_end
@@ -88,11 +89,11 @@ class DefinedTermDetector(BaseDetector[DefinedTermDetectorResult]):
         intros: list[DefinedTermSense] = []
 
         for pat_name in (
-                "quoted_means",
-                "quoted_shall_mean",
-                "bare_means",
-                "bare_shall_mean",
-                "parenthetical_alias",
+            "quoted_means",
+            "quoted_shall_mean",
+            "bare_means",
+            "bare_shall_mean",
+            "parenthetical_alias",
         ):
             pat = getattr(self._patterns, pat_name)
             for match in pat.finditer(text):
@@ -154,9 +155,7 @@ class DefinedTermDetector(BaseDetector[DefinedTermDetectorResult]):
             )
 
         # 2) Unquoted capitalised occurrences
-        if cfg.allow_unquoted_capitalised_terms and (
-            (not cfg.require_legal_domain_for_unquoted) or legal_active
-        ):
+        if cfg.allow_unquoted_capitalised_terms and ((not cfg.require_legal_domain_for_unquoted) or legal_active):
             for match in self._patterns.capitalised_occurrence.finditer(text):
                 raw_term = match.group("term")
                 start_offset, end_offset = match.span("term")

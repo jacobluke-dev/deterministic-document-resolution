@@ -3,7 +3,7 @@ import re
 
 import pytest
 from plainera_unacronym.nlp.common.types import AcronymDetectorConfig, FirstOccurrence
-from plainera_unacronym.nlp.detection.nlp_helpers import cfg_fingerprint, _round_sig, top_n_values
+from plainera_unacronym.nlp.detection.nlp_helpers import _round_sig, cfg_fingerprint, top_n_values
 
 
 class TestCfgFingerprint:

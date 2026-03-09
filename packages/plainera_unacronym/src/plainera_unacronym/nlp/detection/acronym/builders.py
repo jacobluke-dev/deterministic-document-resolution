@@ -113,7 +113,7 @@ def build_occurrence_from_match(
     display_key = normalize_acronym_key(
         key_base,
         cfg.allow_chars,
-        dotted_mode=cfg.dotted_display,   # this governs INTERNAL dot handling (U.S.A vs USA)
+        dotted_mode=cfg.dotted_display,  # this governs INTERNAL dot handling (U.S.A vs USA)
     )
     if not display_key:
         raise OccurrenceBuildError("empty_display_key")

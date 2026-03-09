@@ -1,8 +1,7 @@
 import pytest
-
 from plainera_unacronym.nlp import Occurrence
 from plainera_unacronym.nlp.common.types import OccurrenceBuildError
-from plainera_unacronym.nlp.detection.acronym.builders import build_occurrence_from_match, adjust_end_for_trailing_dot
+from plainera_unacronym.nlp.detection.acronym.builders import adjust_end_for_trailing_dot, build_occurrence_from_match
 
 
 class TestBuildOccurrenceFromMatch:

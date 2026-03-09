@@ -7,10 +7,8 @@ from types import SimpleNamespace
 import plainera_unacronym.nlp.detection.acronym.detector as det
 import plainera_unacronym.nlp.detection.base as bs
 import pytest
-
 from plainera_unacronym.nlp import AcronymDetectorConfig, Occurrence
 from plainera_unacronym.nlp.detection.acronym.detector import AcronymDetector
-
 
 # ----- helpers -----
 

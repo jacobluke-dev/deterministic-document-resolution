@@ -4,13 +4,13 @@ from dataclasses import dataclass
 
 @dataclass(frozen=True)
 class DefinedTermPatterns:
-    quoted_means: re.Pattern
-    quoted_shall_mean: re.Pattern
-    bare_means: re.Pattern
-    bare_shall_mean: re.Pattern
-    parenthetical_alias: re.Pattern
-    quoted_occurrence: re.Pattern
-    capitalised_occurrence: re.Pattern
+    quoted_means: re.Pattern[str]
+    quoted_shall_mean: re.Pattern[str]
+    bare_means: re.Pattern[str]
+    bare_shall_mean: re.Pattern[str]
+    parenthetical_alias: re.Pattern[str]
+    quoted_occurrence: re.Pattern[str]
+    capitalised_occurrence: re.Pattern[str]
 
 
 def compile_defined_term_patterns() -> DefinedTermPatterns:

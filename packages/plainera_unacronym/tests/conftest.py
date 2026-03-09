@@ -1,8 +1,8 @@
 from typing import Callable
 
 import numpy as np
-import plainera_unacronym.nlp.detection.base as bs
 import plainera_unacronym.nlp.detection.acronym.detector as det
+import plainera_unacronym.nlp.detection.base as bs
 import pytest
 from plainera_unacronym.nlp.common.shared import normalize_acronym_key
 from plainera_unacronym.nlp.common.types import AcronymDetectorConfig, FirstOccurrence, Occurrence, Span

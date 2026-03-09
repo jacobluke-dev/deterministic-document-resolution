@@ -1,6 +1,6 @@
-import pytest
 from dataclasses import replace
 
+import pytest
 from plainera_unacronym.nlp import AcronymDetectorConfig
 from plainera_unacronym.nlp.common.types import DefinedTermDetectorConfig
 

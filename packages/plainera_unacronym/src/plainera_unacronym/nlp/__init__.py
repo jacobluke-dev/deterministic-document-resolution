@@ -13,7 +13,11 @@ def __getattr__(name: str):
     if name in {"AcronymDetectorConfig", "FirstOccurrence", "Occurrence"}:
         from plainera_unacronym.nlp.common.types import AcronymDetectorConfig, FirstOccurrence, Occurrence
 
-        return {"AcronymDetectorConfig": AcronymDetectorConfig, "FirstOccurrence": FirstOccurrence, "Occurrence": Occurrence}[name]
+        return {
+            "AcronymDetectorConfig": AcronymDetectorConfig,
+            "FirstOccurrence": FirstOccurrence,
+            "Occurrence": Occurrence,
+        }[name]
     raise AttributeError(name)
 
 

@@ -188,9 +188,9 @@ class AcronymDetectorResult:
 
 # -------------------------- DEFINED TERMS ---------------------------------
 
+
 @dataclass(frozen=True)
 class DefinedTermDetectorConfig:
-
     enabled_domains: frozenset[str] = frozenset()
     window_chars: int = 80
     allow_unquoted_capitalised_terms: bool = False
