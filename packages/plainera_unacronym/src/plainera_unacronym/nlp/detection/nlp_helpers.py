@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import hashlib
 import heapq
 import json
@@ -7,7 +9,7 @@ from typing import Any
 from plainera_unacronym.nlp import FirstOccurrence
 
 
-def _cfg_fingerprint(cfg) -> str:
+def cfg_fingerprint(cfg) -> str:
     """
     Compute a short, deterministic fingerprint of a detector configuration.
 
@@ -68,7 +70,7 @@ def _round_sig(x: float, sig: int = 3) -> float:
     return float(d.quantize(q, rounding=ROUND_HALF_UP))
 
 
-def top_n_values(firsts: dict[str, "FirstOccurrence"], n: int = 5) -> list[dict[str, str | float]] | list[Any]:
+def top_n_values(firsts: dict[str, FirstOccurrence], n: int = 5) -> list[dict[str, str | float]] | list[Any]:
     """
     Return a compact preview of the top-N acronyms by confidence.
 

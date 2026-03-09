@@ -2,7 +2,7 @@ import re
 from dataclasses import dataclass
 from typing import Optional
 
-from plainera_unacronym.nlp.common.types import DetectorConfig
+from plainera_unacronym.nlp.common.types import AcronymDetectorConfig
 
 # STRONG (high precision)
 LEGAL_QUOTED_MEANS_RE = re.compile(r"\"[A-Z][^\"]{1,80}\"\s+(?:shall\s+)?mean(?:s)?\b", re.IGNORECASE)
@@ -38,7 +38,7 @@ LEGAL_SUPPORT_CUES = (
 
 
 @dataclass(frozen=True, slots=True)
-class LegalConfig(DetectorConfig):
+class LegalConfig(AcronymDetectorConfig):
     enable_legal: bool = False
     sniff_threshold: int = 6
 

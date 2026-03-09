@@ -1,4 +1,4 @@
-from plainera_unacronym.nlp.common.types import DetectorResult
+from plainera_unacronym.nlp.common.types import AcronymDetectorResult
 from plainera_unacronym.nlp.detection.cleanup.post import post_detect_cleanup
 
 
@@ -9,7 +9,7 @@ class TestPostCleanup:
         occ_mrna = occ(cfg, "mRNA", 12, 16)
         occ_rna = occ(cfg, "RNA", 13, 16)  # contained, strict suffix
 
-        det = DetectorResult(
+        det = AcronymDetectorResult(
             unique_acronyms={
                 occ_mrna.normalized_key: fo("mRNA", 12, 16),
                 occ_rna.normalized_key: fo("RNA", 13, 16),
@@ -31,7 +31,7 @@ class TestPostCleanup:
         occ_outer = occ(cfg, "ABCD", 6, 10)
         occ_inner = occ(cfg, "BC", 7, 9)  # contained, but "ABCD" does not end with "BC"? (it ends with "CD")
 
-        det = DetectorResult(
+        det = AcronymDetectorResult(
             unique_acronyms={
                 occ_outer.normalized_key: fo("ABCD", 6, 10),
                 occ_inner.normalized_key: fo("BC", 7, 9),
@@ -50,7 +50,7 @@ class TestPostCleanup:
         occ_rna = occ(cfg, "RNA", 10, 13, conf=0.6)
         occ_mrna = occ(cfg, "mRNA", 15, 19, conf=0.85)
 
-        det = DetectorResult(
+        det = AcronymDetectorResult(
             unique_acronyms={
                 occ_rna.normalized_key: fo("RNA", 10, 13, conf=0.6),
                 occ_mrna.normalized_key: fo("mRNA", 15, 19, conf=0.85),
@@ -71,7 +71,7 @@ class TestPostCleanup:
         occ_mrna = occ(cfg, "mRNA", 12, 16)
         occ_rna = occ(cfg, "RNA", 18, 21)
 
-        det = DetectorResult(
+        det = AcronymDetectorResult(
             unique_acronyms={
                 occ_mrna.normalized_key: fo("mRNA", 12, 16),
                 occ_rna.normalized_key: fo("RNA", 18, 21),
@@ -90,7 +90,7 @@ class TestPostCleanup:
         occ_mrna = occ(cfg, "mRNA", 12, 16)
         occ_rna = occ(cfg, "rNa", 18, 21)
 
-        det = DetectorResult(
+        det = AcronymDetectorResult(
             unique_acronyms={
                 occ_mrna.normalized_key: fo("mRNA", 12, 16),
                 occ_rna.normalized_key: fo("rNa", 18, 21),
@@ -111,7 +111,7 @@ class TestPostCleanup:
         occ_mrna = occ(cfg, "mRNA", 12, 16)
         occ_rna = occ(cfg, "RNA", 13, 16)
 
-        det = DetectorResult(
+        det = AcronymDetectorResult(
             unique_acronyms={
                 occ_mrna.normalized_key: fo("mRNA", 12, 16),
                 occ_rna.normalized_key: fo("RNA", 13, 16),
@@ -132,7 +132,7 @@ class TestPostCleanup:
         # letters=ABCDE with one lowercase 'd' in the middle -> should drop (len>=4, mostly upper, blip)
         occ_typo = occ(cfg, "ABCdE", 12, 17)
 
-        det = DetectorResult(
+        det = AcronymDetectorResult(
             unique_acronyms={
                 occ_typo.normalized_key: fo("ABCdE", 12, 17),
             },
@@ -150,7 +150,7 @@ class TestPostCleanup:
 
         occ_ok = occ(cfg, "TfL", 17, 20)
 
-        det = DetectorResult(
+        det = AcronymDetectorResult(
             unique_acronyms={occ_ok.normalized_key: fo("TfL", 17, 20)},
             occurrences=[occ_ok],
         )
@@ -166,7 +166,7 @@ class TestPostCleanup:
         occ1 = occ(cfg, "mRNA", 0, 4, conf=0.7)
         occ2 = occ(cfg, "mRNA", 22, 26, conf=0.9)
 
-        det = DetectorResult(
+        det = AcronymDetectorResult(
             unique_acronyms={
                 occ2.normalized_key: fo("mRNA", 22, 26, conf=0.9),  # pretend detector picked later first
             },

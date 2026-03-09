@@ -19,22 +19,6 @@ SCHEMA_VERSION = "1.1.0"
 Span: TypeAlias = tuple[int, int]
 TextSpanTuple: TypeAlias = tuple[str, int, int]
 
-
-@dataclass(frozen=True, slots=True)
-class TextSpan:
-    text: str
-    start: int
-    end: int  # half-open [start, end)
-
-    @property
-    def span(self) -> Span:
-        return self.start, self.end
-
-    @property
-    def length(self) -> int:
-        return self.end - self.start
-
-
 # -------------------------- STRATEGIES ------------------------------------
 
 
@@ -157,7 +141,7 @@ class OccurrenceResolution:
 
 
 @dataclass(frozen=True, slots=True)
-class DetectorConfig:
+class AcronymDetectorConfig:
     min_len: int = 2
     min_confidence_default: float = 0.50
     min_confidence_by_len: Mapping[int, float] = field(
@@ -197,9 +181,21 @@ class DetectorConfig:
 
 
 @dataclass(frozen=True, slots=True)
-class DetectorResult:
+class AcronymDetectorResult:
     unique_acronyms: dict[str, FirstOccurrence]  # key = normalized_key
     occurrences: list[Occurrence]
+
+
+# -------------------------- DEFINED TERMS ---------------------------------
+
+
+@dataclass(frozen=True)
+class DefinedTermDetectorConfig:
+    enabled_domains: frozenset[str] = frozenset()
+    window_chars: int = 80
+    allow_unquoted_capitalised_terms: bool = False
+    require_legal_domain_for_unquoted: bool = True
+    max_definition_chars: int = 500
 
 
 # -------------------------- EXTRACTION -------------------------------------

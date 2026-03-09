@@ -1,8 +1,10 @@
-import plainera_unacronym.nlp.detection.detector as det
+import plainera_unacronym.nlp.detection.acronym.detector as det
 import plainera_unacronym.nlp.plugins.activation as act
-from plainera_unacronym.nlp.detection.detector import Detector, DetectorConfig, autodetect_domains
+from plainera_unacronym.nlp import AcronymDetectorConfig
+from plainera_unacronym.nlp.detection.acronym.detector import AcronymDetector
 from plainera_unacronym.nlp.detection.domains.bio.config import BioConfig
 from plainera_unacronym.nlp.detection.domains.bio.plugin import BioPlugin
+from plainera_unacronym.nlp.plugins.activation import autodetect_domains
 
 
 class TestBioAutodetect:
@@ -18,7 +20,7 @@ class TestBioAutodetect:
         monkeypatch.setattr(act, "_safe_sniff", lambda plug, t: plug.sniff(t), raising=True)
 
         text = "We quantified mRNA for IL-6 after SARS-CoV-2 infection. " "The 5′UTR also showed changes."
-        cfg = DetectorConfig()
+        cfg = AcronymDetectorConfig()
         auto = autodetect_domains(text, cfg)
         assert "bio" in auto, f"Expected 'bio' in autodetected domains, got {auto}"
 
@@ -27,18 +29,18 @@ class TestBioAutodetect:
         monkeypatch.setattr(det, "autodetect_domains", lambda text, cfg: frozenset({"bio"}), raising=True)
 
         # Keep detection path minimal
-        monkeypatch.setattr(det, "compile_pattern", lambda _cfg: object(), raising=True)
-        monkeypatch.setattr(det, "iter_candidates_with", lambda *a, **k: [], raising=True)
+        monkeypatch.setattr(det, "compile_acronym_pattern", lambda _cfg: object(), raising=True)
+        monkeypatch.setattr(det, "iter_acronym_candidates", lambda *a, **k: [], raising=True)
 
-        d = Detector(DetectorConfig(enabled_domains=frozenset()))
+        d = AcronymDetector(AcronymDetectorConfig(enabled_domains=frozenset()))
         _ = d.detect("mRNA and IL-6 were measured.")
 
         messages = [c["message"] for c in patch_sink_and_logger]
 
-        assert "detector.autodetect_domains" in messages, f"logs: {messages}"
-        assert "detector.detect.start" in messages
-        assert "detector.detect.summary" in messages
-        assert messages.index("detector.autodetect_domains") < messages.index("detector.detect.start")
+        assert "acronym_detector.autodetect_domains" in messages, f"logs: {messages}"
+        assert "acronym_detector.detect.start" in messages
+        assert "acronym_detector.detect.summary" in messages
+        assert messages.index("acronym_detector.autodetect_domains") < messages.index("acronym_detector.detect.start")
 
     def test_bio_keep_guard_for_rna_and_two_letter_stats(self):
         """
@@ -47,7 +49,7 @@ class TestBioAutodetect:
           - Two-letter tokens like OR are kept when a stats context (95% CI / OR/HR/RR) is nearby.
         """
         plug = BioPlugin()
-        cfg = DetectorConfig(
+        cfg = AcronymDetectorConfig(
             enabled_domains=frozenset({"bio"}),  # activate plugin behavior
         )
 
@@ -76,7 +78,7 @@ class TestBioAutodetect:
           - Two-letter tokens like 'Or' fail rather than 'OR'.
         """
         plug = BioPlugin()
-        cfg = DetectorConfig(
+        cfg = AcronymDetectorConfig(
             enabled_domains=frozenset({"bio"}),  # activate plugin behavior
         )
 
@@ -94,7 +96,7 @@ class TestBioAutodetect:
 
     def test_keep_guard_returns_false_when_domain_disabled(self):
         plug = BioPlugin()
-        cfg = DetectorConfig(enabled_domains=frozenset())
+        cfg = AcronymDetectorConfig(enabled_domains=frozenset())
         text = "Differential expression of miRNA was observed."
         s = text.index("miRNA")
         e = s + len("miRNA")
@@ -102,7 +104,7 @@ class TestBioAutodetect:
 
     def test_keep_guard_uses_domain_cfg_override(self):
         plug = BioPlugin()
-        cfg = DetectorConfig(enabled_domains=frozenset({"bio"}))
+        cfg = AcronymDetectorConfig(enabled_domains=frozenset({"bio"}))
         # Override to make stats window tiny so context is missed.
         object.__setattr__(
             cfg, "domain_cfg", {"bio": BioConfig(stats_window_chars=5, two_letter_keep=frozenset({"OR"}))}
@@ -118,10 +120,10 @@ class TestExtraCandidates:
     def test_extra_candidates_respects_enabled_domains(self):
         plug = BioPlugin()
         text = "Measured IL-6 and IFN-γ in SARS-CoV-2 samples."
-        cfg_off = DetectorConfig(enabled_domains=frozenset())
+        cfg_off = AcronymDetectorConfig(enabled_domains=frozenset())
         assert list(plug.extra_candidates(text, cfg_off) or []) == []
 
-        cfg_on = DetectorConfig(enabled_domains=frozenset({"bio"}))
+        cfg_on = AcronymDetectorConfig(enabled_domains=frozenset({"bio"}))
         hits = list(plug.extra_candidates(text, cfg_on) or [])
         assert any(s == "IL-6" for s, _, _ in hits)
         assert all(text[s:e] == surf for surf, s, e in hits)
@@ -137,7 +139,7 @@ class TestAutoDetectedDomains:
                 raise RuntimeError("boom")
 
         monkeypatch.setattr(act, "DOMAIN_PLUGINS", {"bio": BadPlug()}, raising=True)
-        cfg = DetectorConfig()
+        cfg = AcronymDetectorConfig()
         assert act.autodetect_domains("mRNA IL-6", cfg) == frozenset()
 
     def test_autodetect_domains_returns_plugin_name_on_true(self, monkeypatch):
@@ -150,6 +152,6 @@ class TestAutoDetectedDomains:
 
         monkeypatch.setattr(act, "DOMAIN_PLUGINS", {"bio": GoodPlug()}, raising=True)
 
-        cfg = DetectorConfig()
+        cfg = AcronymDetectorConfig()
         assert act.autodetect_domains("x IL-6 y", cfg) == frozenset({"bio"})
         assert act.autodetect_domains("no signals", cfg) == frozenset()

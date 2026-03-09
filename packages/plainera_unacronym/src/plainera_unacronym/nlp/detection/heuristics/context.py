@@ -2,7 +2,7 @@ from typing import TYPE_CHECKING, FrozenSet, Protocol, cast, overload
 
 from plainera_unacronym.nlp.common.constants_regex import BOUNDARY, TIME_RE
 from plainera_unacronym.nlp.common.shared import has_paren_definition
-from plainera_unacronym.nlp.common.types import DetectorConfig
+from plainera_unacronym.nlp.common.types import AcronymDetectorConfig
 from plainera_unacronym.nlp.detection.heuristics.core import (
     has_stands_for_follow,
     in_brackets,
@@ -46,11 +46,11 @@ class HeuristicCfg(Protocol):
 
 
 if TYPE_CHECKING:
-    from plainera_unacronym.nlp.common.types import DetectorConfig
+    from plainera_unacronym.nlp.common.types import AcronymDetectorConfig
 
-    CfgLike = HeuristicCfg | DetectorConfig
+    CfgLike = HeuristicCfg | AcronymDetectorConfig
 
-    def _assert_subset(x: DetectorConfig) -> DetectorConfig:
+    def _assert_subset(x: AcronymDetectorConfig) -> AcronymDetectorConfig:
         return x
 else:
     CfgLike = HeuristicCfg
@@ -119,13 +119,13 @@ def _drop_all_caps_heading(surface: str, text: str, s: int, e: int, cfg: Heurist
     return is_all_caps_word(surface, cfg.allow_chars) and is_all_caps_heading(text, s, e)
 
 
-def effective_blacklist(cfg: DetectorConfig) -> frozenset[str]:
+def effective_blacklist(cfg: AcronymDetectorConfig) -> frozenset[str]:
     """
     Returns the complete black list system and user / organisational
     defined list.
 
     Args:
-        cfg (DetectorConfig): Config implementing the HeuristicCfg subset.
+        cfg (AcronymDetectorConfig): Config implementing the HeuristicCfg subset.
 
     returns:
         frozenset[str]: A complete black list system and user / organisational defined list
@@ -212,7 +212,7 @@ def blacklist_context_drop(surface: str, text: str, start: int, end: int, cfg: H
 
 
 @overload
-def blacklist_context_drop(surface: str, text: str, start: int, end: int, cfg: "DetectorConfig") -> bool: ...
+def blacklist_context_drop(surface: str, text: str, start: int, end: int, cfg: "AcronymDetectorConfig") -> bool: ...
 
 
 def blacklist_context_drop(surface: str, text: str, start: int, end: int, cfg: CfgLike) -> bool:

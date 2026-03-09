@@ -4,8 +4,8 @@ from dataclasses import dataclass, field
 from typing import Any
 
 from plainera_unacronym.nlp.common.types import (
-    DetectorConfig,
-    DetectorResult,
+    AcronymDetectorConfig,
+    AcronymDetectorResult,
     ExtractedDefinition,
     ExtractionResult,
     InTextPick,
@@ -18,11 +18,11 @@ from plainera_unacronym.nlp.extraction.tiers.types import Tier1Work, Tier2Work
 @dataclass
 class FlowState:
     text: str
-    det_cfg: DetectorConfig
+    det_cfg: AcronymDetectorConfig
     ext_cfg: ExtractionConfig
     last_info: str = ""
 
-    det_res: DetectorResult | None = None
+    det_res: AcronymDetectorResult | None = None
     cleanup_dropped: list[DroppedOccurrence] = field(default_factory=list)
     picks: dict[str, InTextPick | None] = field(default_factory=dict)
 

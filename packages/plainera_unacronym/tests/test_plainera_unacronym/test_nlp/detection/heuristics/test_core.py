@@ -1,11 +1,11 @@
 import re
 import types
 
-import plainera_unacronym.nlp.detection.detector as det
+import plainera_unacronym.nlp.detection.acronym.detector as det
 import plainera_unacronym.nlp.detection.heuristics.core as core
 import plainera_unacronym.nlp.plugins.registry as domain_mod
 import pytest
-from plainera_unacronym.nlp import DetectorConfig
+from plainera_unacronym.nlp import AcronymDetectorConfig
 from plainera_unacronym.nlp.common.constants_regex import TRAILING_PUNCT_CHARS
 from plainera_unacronym.nlp.common.types import Span
 from plainera_unacronym.nlp.detection.heuristics.core import (
@@ -18,7 +18,7 @@ from plainera_unacronym.nlp.detection.heuristics.core import (
     core_len_for_bounds,
     has_stands_for_follow,
     in_brackets,
-    iter_candidates_with,
+    iter_acronym_candidates,
     letters,
     next_word_lowercase,
     prev_token,
@@ -503,42 +503,42 @@ class TestScoreUnit:
 
     def test_base_score_no_signals(self, patch_score_cues):
         patch_score_cues()
-        cfg = DetectorConfig()
+        cfg = AcronymDetectorConfig()
         text = "We use GPU daily."
         s, e = _idx(text, "GPU")
         assert core.calc_score("GPU", text, s, e, cfg) == 0.6
 
     def test_in_brackets_inside_adds_point_25(self, patch_score_cues):
         patch_score_cues(in_brackets=(True, False))
-        cfg = DetectorConfig()
+        cfg = AcronymDetectorConfig()
         text = "(GPU) is fast."
         s, e = _idx(text, "GPU")
         assert core.calc_score("GPU", text, s, e, cfg) == 0.6 + 0.25
 
     def test_inside_takes_precedence_over_adjacent(self, patch_score_cues):
         patch_score_cues(in_brackets=(True, False))
-        cfg = DetectorConfig()
+        cfg = AcronymDetectorConfig()
         text = "GPU near brackets."
         s, e = _idx(text, "GPU")
         assert core.calc_score("GPU", text, s, e, cfg) == 0.85
 
     def test_paren_definition_adds_point_25(self, patch_score_cues):
         patch_score_cues(in_brackets=(True, True))
-        cfg = DetectorConfig()
+        cfg = AcronymDetectorConfig()
         text = "GPU (Graphics Processing Unit)"
         s, e = _idx(text, "GPU")
         assert core.calc_score("GPU", text, s, e, cfg) == 0.6 + 0.25
 
     def test_stands_for_follow_adds_point_15(self, patch_score_cues):
         patch_score_cues(in_brackets=(False, False), paren_def=False, stands_for=True)
-        cfg = DetectorConfig()
+        cfg = AcronymDetectorConfig()
         text = "GPU stands for Graphics Processing Unit."
         s, e = _idx(text, "GPU")
         assert core.calc_score("GPU", text, s, e, cfg) == 0.6 + 0.15
 
     def test_soft_blacklist_penalises_point_2(self, patch_score_cues):
         patch_score_cues()
-        cfg = DetectorConfig()
+        cfg = AcronymDetectorConfig()
         text = "We saw AS today."
         s, e = _idx(text, "AS")
         # AS is in cfg.soft_blacklist → -0.2
@@ -547,7 +547,7 @@ class TestScoreUnit:
     def test_upper_bound_clamped_to_one(self, patch_score_cues):
         patch_score_cues(in_brackets=(True, False), paren_def=True, stands_for=True)
 
-        cfg = DetectorConfig()
+        cfg = AcronymDetectorConfig()
         text = "GPU (Graphics Processing Unit). GPU stands for Graphics Processing Unit."
         s, e = _idx(text, "GPU")
         assert core.calc_score("GPU", text, s, e, cfg) == 1.0
@@ -559,7 +559,7 @@ class TestScoreIntegration:
         # Pattern: "<TOKEN> stands for <definition>" should add +0.15.
         text = "In docs, GPU stands for Graphics Processing Unit."
         s, e = _idx(text, "GPU")
-        val = det.calc_score("GPU", text, s, e, DetectorConfig())
+        val = det.calc_score("GPU", text, s, e, AcronymDetectorConfig())
 
         # Expect base 0.6 + 0.15 for 'stands for', possibly more if in_brackets
         # logic treats proximity to punctuation as adjacent—but there are no brackets here.
@@ -677,7 +677,7 @@ class TestHasLowerAndUpper:
         assert _has_lower_and_upper(tok) is expected
 
 
-class DummyCfg(DetectorConfig):
+class DummyCfg(AcronymDetectorConfig):
     def __init__(
         self,
         min_len=2,
@@ -842,7 +842,7 @@ class TestAcceptCandidate:
 
     def test_end_to_end_accept_reject_matrix(self):
         # Configure with realistic bounds and mixed-case relaxation.
-        cfg = DetectorConfig(
+        cfg = AcronymDetectorConfig(
             min_len=2,
             max_len=10,
             require_caps_ratio=0.80,
@@ -991,7 +991,7 @@ class TestCollectDomainHits:
 
         monkeypatch.setattr(core, "_accept_candidate", accept, raising=False)
 
-        cfg = DetectorConfig(enabled_domains=("bio", "finance"))
+        cfg = AcronymDetectorConfig(enabled_domains=("bio", "finance"))
         hits = _collect_domain_hits(text, cfg)
 
         # Expect sort: start asc (5..7), then 10..20 (longer first), then 10..15, then 12..18
@@ -1014,7 +1014,7 @@ class TestCollectDomainHits:
         monkeypatch.setattr(core, "DOMAIN_PLUGINS", {"bio": BioPlug(), "finance": FinPlug()}, raising=False)
         monkeypatch.setattr(core, "_accept_candidate", lambda _t, _c, s, e: ("hit", s, e), raising=False)
 
-        cfg = DetectorConfig(enabled_domains=frozenset({"bio"}))  # finance disabled
+        cfg = AcronymDetectorConfig(enabled_domains=frozenset({"bio"}))  # finance disabled
         hits = _collect_domain_hits("x", cfg)
         assert hits == [("hit", 1, 3)]
 
@@ -1030,7 +1030,7 @@ class TestCollectDomainHits:
 
         monkeypatch.setattr(core, "_accept_candidate", accept, raising=False)
 
-        cfg = DetectorConfig(enabled_domains=frozenset({"bio", "chem"}))  # "chem" missing -> ignored
+        cfg = AcronymDetectorConfig(enabled_domains=frozenset({"bio", "chem"}))  # "chem" missing -> ignored
         hits = _collect_domain_hits("x", cfg)
         assert hits == [("hit", 5, 9)]
 
@@ -1043,8 +1043,8 @@ class TestCollectDomainHits:
         monkeypatch.setattr(domain_mod, "DOMAIN_PLUGINS", {"any": AnyPlug()}, raising=False)
         monkeypatch.setattr(domain_mod, "_accept_candidate", lambda *_: ("hit", 1, 2), raising=False)
 
-        assert _collect_domain_hits("x", DetectorConfig(enabled_domains=(frozenset()))) == []
-        assert _collect_domain_hits("x", DetectorConfig(enabled_domains=None)) == []
+        assert _collect_domain_hits("x", AcronymDetectorConfig(enabled_domains=(frozenset()))) == []
+        assert _collect_domain_hits("x", AcronymDetectorConfig(enabled_domains=None)) == []
 
 
 class TestContainedInAny:
@@ -1097,11 +1097,11 @@ class TestIterCandidatesWith:
     PAT = re.compile(r"(?P<tok>[A-Za-z][A-Za-z0-9&\-/\.]*)")
 
     @staticmethod
-    def collect(text: str, cfg: DetectorConfig, pat: re.Pattern[str]):
-        return list(iter_candidates_with(text, cfg, pat))
+    def collect(text: str, cfg: AcronymDetectorConfig, pat: re.Pattern[str]):
+        return list(iter_acronym_candidates(text, cfg, pat))
 
     def test_all_caps_simple(self):
-        cfg = DetectorConfig()
+        cfg = AcronymDetectorConfig()
         text = "We ran it on the GPU and CPU yesterday."
         out = self.collect(text, cfg, self.PAT)
         surfaces = [s for s, _, _ in out]
@@ -1110,7 +1110,7 @@ class TestIterCandidatesWith:
 
     def test_mixed_case_relaxation_enabled(self):
         # "iOS": 2/3 letters uppercase ≈ 0.667. With mixed-case relaxation (0.5) it should pass.
-        cfg = DetectorConfig(enable_mixed_case=True, require_caps_ratio_mixed=0.5)
+        cfg = AcronymDetectorConfig(enable_mixed_case=True, require_caps_ratio_mixed=0.5)
         text = "We ship an iOS build every week."
         out = self.collect(text, cfg, self.PAT)
         surfaces = [s for s, _, _ in out]
@@ -1118,7 +1118,7 @@ class TestIterCandidatesWith:
 
     def test_mixed_case_relaxation_disabled(self):
         # With relaxation OFF, require_caps_ratio=0.7 and iOS has ~0.667 → should be filtered out.
-        cfg = DetectorConfig(enable_mixed_case=False)
+        cfg = AcronymDetectorConfig(enable_mixed_case=False)
         text = "We ship an iOS build every week."
         out = self.collect(text, cfg, self.PAT)
         surfaces = [s for s, _, _ in out]
@@ -1126,14 +1126,14 @@ class TestIterCandidatesWith:
 
     def test_digits_ignored_in_caps_ratio(self):
         # "H2O": letters H,O are uppercase; digit '2' ignored → ratio = 1.0 → passes.
-        cfg = DetectorConfig()
+        cfg = AcronymDetectorConfig()
         text = "Check the H2O level."
         out = self.collect(text, cfg, self.PAT)
         surfaces = [s for s, _, _ in out]
         assert "H2O" in surfaces
 
     def test_trailing_punct_stripped_and_indices(self):
-        cfg = DetectorConfig()
+        cfg = AcronymDetectorConfig()
         text = "Memory uses RAM."
         out = self.collect(text, cfg, self.PAT)
         # Expect one candidate "RAM" with indices pointing exactly to 'RAM' (not the '.')
@@ -1147,7 +1147,7 @@ class TestIterCandidatesWith:
 
     def test_min_len_enforced(self):
         # Default min_len=2 → single-letter tokens should be filtered.
-        cfg = DetectorConfig()
+        cfg = AcronymDetectorConfig()
         text = "A B CD"
         out = self.collect(text, cfg, self.PAT)
         surfaces = [s for s, _, _ in out]
@@ -1157,7 +1157,7 @@ class TestIterCandidatesWith:
 
     def test_max_len_enforced(self):
         # Default max_len=10 → very long all-caps should be filtered.
-        cfg = DetectorConfig()
+        cfg = AcronymDetectorConfig()
         long_tok = "THISISVERYLONG"  # length 14
         text = f"Edge {long_tok} token."
         out = self.collect(text, cfg, self.PAT)
@@ -1166,7 +1166,7 @@ class TestIterCandidatesWith:
 
     def test_allowed_separators_compound_tokens(self):
         # Ensure tokens with separators (&, -) get considered and pass.
-        cfg = DetectorConfig()
+        cfg = AcronymDetectorConfig()
         text = "Our R&D team ported GPU-CPU pipelines."
         out = self.collect(text, cfg, self.PAT)
         surfaces = [s for s, _, _ in out]
@@ -1176,7 +1176,7 @@ class TestIterCandidatesWith:
     def test_mixed_case_requires_two_uppers_for_relax(self):
         # Relaxation only kicks in if upp >= 2. "eBay" has only 1 uppercase in practice (B),
         # so it should fail under default require_caps_ratio=0.7.
-        cfg = DetectorConfig(enable_mixed_case=False)
+        cfg = AcronymDetectorConfig(enable_mixed_case=False)
         text = "We listed it on eBay."
         out = self.collect(text, cfg, self.PAT)
         surfaces = [s for s, _, _ in out]
@@ -1184,7 +1184,7 @@ class TestIterCandidatesWith:
 
     def test_mixed_case_relax_threshold_param(self):
         # Tighten the mixed-case threshold so "NaCl" (2/4 = 0.5) fails.
-        cfg = DetectorConfig(enable_mixed_case=True, require_caps_ratio_mixed=0.6)
+        cfg = AcronymDetectorConfig(enable_mixed_case=True, require_caps_ratio_mixed=0.6)
         text = "We used NaCl in the experiment."
         out = self.collect(text, cfg, self.PAT)
         surfaces = [s for s, _, _ in out]

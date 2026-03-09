@@ -2,21 +2,25 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-__all__ = ["Detector", "DetectorConfig", "FirstOccurrence", "Occurrence"]
+__all__ = ["AcronymDetector", "AcronymDetectorConfig", "FirstOccurrence", "Occurrence"]
 
 
 def __getattr__(name: str):
-    if name == "Detector":
-        from plainera_unacronym.nlp.detection.detector import Detector
+    if name == "AcronymDetector":
+        from plainera_unacronym.nlp.detection.acronym.detector import AcronymDetector
 
-        return Detector
-    if name in {"DetectorConfig", "FirstOccurrence", "Occurrence"}:
-        from plainera_unacronym.nlp.common.types import DetectorConfig, FirstOccurrence, Occurrence
+        return AcronymDetector
+    if name in {"AcronymDetectorConfig", "FirstOccurrence", "Occurrence"}:
+        from plainera_unacronym.nlp.common.types import AcronymDetectorConfig, FirstOccurrence, Occurrence
 
-        return {"DetectorConfig": DetectorConfig, "FirstOccurrence": FirstOccurrence, "Occurrence": Occurrence}[name]
+        return {
+            "AcronymDetectorConfig": AcronymDetectorConfig,
+            "FirstOccurrence": FirstOccurrence,
+            "Occurrence": Occurrence,
+        }[name]
     raise AttributeError(name)
 
 
 if TYPE_CHECKING:
-    from plainera_unacronym.nlp.common.types import DetectorConfig, FirstOccurrence, Occurrence
-    from plainera_unacronym.nlp.detection.detector import Detector
+    from plainera_unacronym.nlp.common.types import AcronymDetectorConfig, FirstOccurrence, Occurrence
+    from plainera_unacronym.nlp.detection.acronym.detector import AcronymDetector
