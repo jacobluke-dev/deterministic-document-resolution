@@ -59,6 +59,17 @@ class TermResolution:
     resolution_method: Literal["tier1", "tier2_blend", "unresolved"]
 
 
+@dataclass(frozen=True, slots=True)
+class TermDefinitionEntry:
+    surface: str
+    normalized_key: str
+    intro_span: TextSpanTuple
+    definition_span: TextSpanTuple | None
+    definition_text: str | None
+    intro_kind: str
+    section_path: tuple[str, ...]
+
+
 @dataclass(frozen=True)
 class TermTier1OccurrenceRanking:
     occ: DefinedTermOccurrence
