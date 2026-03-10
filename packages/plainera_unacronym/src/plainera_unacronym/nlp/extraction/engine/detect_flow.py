@@ -99,6 +99,7 @@ class ExtractionFlow:
 
         return Chain(
             [
+                # DETECTION STAGES
                 Stage("detect", f.st_detect, lambda s: f"firsts={self._n_firsts(s)} dropped={len(s.cleanup_dropped)}"),
                 Stage(
                     "post_detect_cleanup",
@@ -106,6 +107,7 @@ class ExtractionFlow:
                     lambda s: f"firsts={self._n_firsts(s)} dropped={len(s.cleanup_dropped)}",
                     trace_fields=("cleanup_dropped",),
                 ),
+                # TIER 1 STAGES
                 Stage(
                     "picks_first_occurrence_anchored",
                     lambda s: f.st_picks_first_occurrence_anchored(s, window_left=wl, window_right=wr),
@@ -156,6 +158,7 @@ class ExtractionFlow:
                     lambda s: s.last_info,
                     trace_fields=("tier_1.ranked",),
                 ),
+                # TIER 2 STAGES
                 Stage(
                     "tier2_semantic_rerank",
                     lambda s: f.st_tier2_semantic_rerank(
@@ -165,6 +168,7 @@ class ExtractionFlow:
                     lambda s: s.last_info,
                     trace_fields=("tier_2.report", "tier_2.ranked"),
                 ),
+                # 'MERGING' OF THE TIERS
                 Stage(
                     "tiers_select_and_assemble",
                     lambda s: f.st_tiers_select_and_assemble(s, margin_threshold=_multi_select_margin(s)),
