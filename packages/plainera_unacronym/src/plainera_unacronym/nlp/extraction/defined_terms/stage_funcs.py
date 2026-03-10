@@ -4,6 +4,17 @@ from plainera_unacronym.nlp.extraction.engine.stages import StageResult
 
 
 def st_detect_terms(s: TermFlowState) -> StageResult[TermFlowState]:
+    """Run detection to find defined terms occurrences and unique occurrences.
+
+    Populates `s.det_res` with the detector output and records a short summary
+    into `s.last_info`.
+
+    Args:
+        s (FlowState): Mutable flow state containing input text and detector config.
+
+    Returns:
+        StageResult[FlowState]: Updated flow state plus a human-readable note.
+    """
     det = DefinedTermDetector(config=s.det_cfg).detect(s.text)
     s.det_res = det
     s.last_info = f"unique terms:{len(det.unique_terms)} occurrences:{len(det.occurrences)}"
