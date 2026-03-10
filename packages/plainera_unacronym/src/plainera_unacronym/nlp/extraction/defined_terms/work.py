@@ -1,10 +1,13 @@
 from __future__ import annotations
 
-from dataclasses import field, dataclass
+from dataclasses import dataclass, field
 
-from plainera_unacronym.nlp.detection.defined_terms import DefinedTermOccurrence
-from plainera_unacronym.nlp.extraction.defined_terms.types import TermSense, TermTier1OccurrenceRanking, \
-    TermTier2OccurrenceRanking
+from plainera_unacronym.nlp.detection.defined_terms.types import DefinedTermOccurrence
+from plainera_unacronym.nlp.extraction.defined_terms.types import (
+    TermSense,
+    TermTier1OccurrenceRanking,
+    TermTier2OccurrenceRanking,
+)
 from plainera_unacronym.nlp.extraction.tiers.types import Tier2Report
 
 

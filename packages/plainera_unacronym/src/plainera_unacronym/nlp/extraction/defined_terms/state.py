@@ -5,14 +5,8 @@ from dataclasses import dataclass, field
 from plainera_unacronym.nlp.common.types import DefinedTermDetectorConfig
 from plainera_unacronym.nlp.detection.defined_terms import DefinedTermDetectorResult
 from plainera_unacronym.nlp.extraction.defined_terms.config import DefinedTermExtractionConfig
-from plainera_unacronym.nlp.extraction.defined_terms.types import (
-    TermResolutionResult,
-    TermSense,
-)
-from plainera_unacronym.nlp.extraction.defined_terms.work import (
-    TermTier1Work,
-    TermTier2Work,
-)
+from plainera_unacronym.nlp.extraction.defined_terms.types import TermResolutionResult, TermSense
+from plainera_unacronym.nlp.extraction.defined_terms.work import TermTier1Work, TermTier2Work
 
 
 @dataclass

@@ -1,11 +1,22 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Literal
+from typing import Literal, Mapping
 
 from plainera_unacronym.nlp.common.types import TextSpanTuple
-from plainera_unacronym.nlp.detection.defined_terms import DefinedTermOccurrence
+from plainera_unacronym.nlp.detection.defined_terms.types import DefinedTermOccurrence
 from plainera_unacronym.nlp.extraction.tiers.types import Tier2Report
+
+TermTier2SkipReason = Literal[
+    "disabled",
+    "pending",
+    "model_unavailable",
+    "single_candidate",
+    "not_ambiguous",
+    "tier1_decided",
+    "tier1_confident",
+    "no_senses",
+]
 
 
 @dataclass(frozen=True)
@@ -32,17 +43,6 @@ class TermCandidateScore:
 
 
 @dataclass(frozen=True)
-class TermResolution:
-    occurrence_span: TextSpanTuple
-    surface: str
-    normalized_key: str
-    chosen_sense_id: str | None
-    chosen_definition_span: TextSpanTuple | None
-    candidate_scores: tuple[TermCandidateScore, ...]
-    resolution_method: str
-
-
-@dataclass(frozen=True)
 class TermResolutionResult:
     term_sense_index: dict[str, tuple[TermSense, ...]]
     term_resolutions: tuple[TermResolution, ...]
@@ -51,23 +51,12 @@ class TermResolutionResult:
 @dataclass(frozen=True, slots=True)
 class TermResolution:
     occurrence_span: TextSpanTuple
+    surface: str
     normalized_key: str
     chosen_sense_id: str | None
-    definition_span: TextSpanTuple | None
-    candidate_scores: dict[str, float]
-    resolution_method: str
-
-
-TermTier2SkipReason = Literal[
-    "disabled",
-    "pending",
-    "model_unavailable",
-    "single_candidate",
-    "not_ambiguous",
-    "tier1_decided",
-    "tier1_confident",
-    "no_senses",
-]
+    chosen_definition_span: TextSpanTuple | None
+    candidate_scores: tuple[TermCandidateScore, ...]
+    resolution_method: Literal["tier1", "tier2_blend", "unresolved"]
 
 
 @dataclass(frozen=True)
@@ -86,3 +75,14 @@ class TermTier2OccurrenceRanking:
     skip_reason: TermTier2SkipReason | None
     tier2_sims: dict[str, float] | None
     blended_scores: dict[str, float] | None
+
+
+@dataclass(frozen=True, slots=True)
+class TermResolutionResult:
+    term_sense_index: dict[str, tuple[TermSense, ...]] = field(default_factory=dict)
+    sense_index: Mapping[str, TermSense] = field(default_factory=dict)
+    term_resolutions: list[TermResolution] = field(default_factory=list)
+    ambiguous_keys: tuple[str, ...] = field(default_factory=tuple)
+    undecided: list[TermResolution] = field(default_factory=list)
+    tier2_report: Tier2Report | None = None
+    tier2_ranked: tuple[TermTier2OccurrenceRanking, ...] = ()
