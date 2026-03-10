@@ -1,10 +1,13 @@
+from plainera_unacronym.nlp.detection.defined_terms import DefinedTermDetector
 from plainera_unacronym.nlp.extraction.defined_terms.state import TermFlowState
 from plainera_unacronym.nlp.extraction.engine.stages import StageResult
 
 
 def st_detect_terms(s: TermFlowState) -> StageResult[TermFlowState]:
+    det = DefinedTermDetector(config=s.det_cfg).detect(s.text)
+    s.det_res = det
+    s.last_info = f"unique terms:{len(det.unique_terms)} occurrences:{len(det.occurrences)}"
     return StageResult(s, s.last_info)
-
 
 
 def st_build_term_sense_index(s: TermFlowState) -> StageResult[TermFlowState]:
@@ -13,7 +16,6 @@ def st_build_term_sense_index(s: TermFlowState) -> StageResult[TermFlowState]:
 
 def st_tier1_score_term_occurrences(s: TermFlowState) -> StageResult[TermFlowState]:
     return StageResult(s, s.last_info)
-
 
 
 def st_tier2_term_semantic_rerank(s: TermFlowState) -> StageResult[TermFlowState]:
