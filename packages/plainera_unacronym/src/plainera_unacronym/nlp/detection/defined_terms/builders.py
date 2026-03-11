@@ -6,14 +6,14 @@ from .normalise import normalize_defined_term_key
 from .types import DefinedTermOccurrence, DefinedTermIntroduction
 
 
-def build_defined_term_sense(
+def build_defined_term_intro(
     *,
     term: str,
     term_start: int,
     term_end: int,
     provenance: str,
 ) -> DefinedTermIntroduction:
-    """Build a canonical defined-term sense from an introduced term span.
+    """Build a canonical defined-term intro from an introduced term span.
 
     The raw term text is trimmed, stripped of surrounding straight quotes, cleaned
     of trailing punctuation noise, and normalised into a stable lookup key. A
@@ -27,8 +27,8 @@ def build_defined_term_sense(
         provenance: Source label describing how the term was produced.
 
     Returns:
-        A ``DefinedTermSense`` containing the cleaned term text, source offsets,
-        normalised lookup key, deterministic sense ID, and provenance.
+        A ``DefinedTermIntroduction`` containing the cleaned term text, source offsets,
+        normalised lookup key, and provenance.
     """
     cleaned_term = strip_trailing_punct_str(term.strip().strip('"'))
     normalized_key = normalize_defined_term_key(cleaned_term)

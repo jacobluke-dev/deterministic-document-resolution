@@ -8,7 +8,7 @@ from plainera_unacronym.nlp.common.types import DefinedTermDetectorConfig, Span
 from plainera_unacronym.nlp.detection.base import BaseDetector
 from plainera_unacronym.nlp.plugins.activation import autodetect_domains
 
-from .builders import build_defined_term_occurrence, build_defined_term_sense
+from .builders import build_defined_term_occurrence, build_defined_term_intro
 from .compiler import compile_defined_term_patterns
 from .normalise import normalize_defined_term_key
 from .types import DefinedTermDetectorResult, DefinedTermOccurrence, DefinedTermIntroduction
@@ -175,7 +175,7 @@ class DefinedTermDetector(BaseDetector[DefinedTermDetectorResult]):
             legal_active: Whether the legal domain is currently enabled for this run.
 
         Returns:
-            A list of ``DefinedTermSense`` objects representing introduced terms in the
+            A list of ``DefinedTermIntroduction`` objects representing introduced terms in the
             order they were detected.
         """
         intros: list[DefinedTermIntroduction] = []
@@ -207,7 +207,7 @@ class DefinedTermDetector(BaseDetector[DefinedTermDetectorResult]):
                         continue
 
                 intros.append(
-                    build_defined_term_sense(
+                    build_defined_term_intro(
                         term=raw_term,
                         term_start=term_start,
                         term_end=term_end,
