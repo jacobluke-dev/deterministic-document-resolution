@@ -11,7 +11,7 @@ from plainera_unacronym.nlp.plugins.activation import autodetect_domains
 from .builders import build_defined_term_occurrence, build_defined_term_sense
 from .compiler import compile_defined_term_patterns
 from .normalise import normalize_defined_term_key
-from .types import DefinedTermDetectorResult, DefinedTermOccurrence, DefinedTermSense
+from .types import DefinedTermDetectorResult, DefinedTermOccurrence, DefinedTermIntroduction
 
 _QUOTE_CHARS = {'"', "“", "”"}
 
@@ -162,7 +162,7 @@ class DefinedTermDetector(BaseDetector[DefinedTermDetectorResult]):
         text: str,
         cfg: DefinedTermDetectorConfig,
         legal_active: bool,
-    ) -> list[DefinedTermSense]:
+    ) -> list[DefinedTermIntroduction]:
         """Collect defined-term introductions from supported drafting patterns.
 
         This includes quoted introductions, selected unquoted capitalised
@@ -178,7 +178,7 @@ class DefinedTermDetector(BaseDetector[DefinedTermDetectorResult]):
             A list of ``DefinedTermSense`` objects representing introduced terms in the
             order they were detected.
         """
-        intros: list[DefinedTermSense] = []
+        intros: list[DefinedTermIntroduction] = []
 
         for pat_name in (
             "quoted_means",
@@ -334,6 +334,7 @@ class DefinedTermDetector(BaseDetector[DefinedTermDetectorResult]):
 
         return DefinedTermDetectorResult(
             occurrences=occurrences,
+            introductions=intros,
             unique_terms=unique_terms,
         )
 
