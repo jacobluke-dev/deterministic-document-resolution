@@ -17,7 +17,6 @@ class TestBuildDefinedTermSense:
         assert result.start_offset == 10
         assert result.end_offset == 26
         assert result.normalized_key == "effective_date"
-        assert result.sense_id == "term|effective_date|10"
         assert result.provenance == "defined_term_detector"
 
     def test_build_defined_term_sense_strips_trailing_punctuation_and_quotes(self):
@@ -30,7 +29,6 @@ class TestBuildDefinedTermSense:
 
         assert result.term == "Confidential Information"
         assert result.normalized_key == "confidential_information"
-        assert result.sense_id == "term|confidential_information|50"
 
     def test_build_defined_term_sense_normalizes_bridge_words(self):
         result = build_defined_term_sense(
@@ -42,7 +40,6 @@ class TestBuildDefinedTermSense:
 
         assert result.term == "Change of Control"
         assert result.normalized_key == "change_of_control"
-        assert result.sense_id == "term|change_of_control|100"
 
 
 class TestBuildDefinedTermOccurrence:

@@ -3,7 +3,7 @@ from __future__ import annotations
 from plainera_unacronym.nlp.common.shared import strip_trailing_punct_str
 
 from .normalise import normalize_defined_term_key
-from .types import DefinedTermOccurrence, DefinedTermSense
+from .types import DefinedTermOccurrence, DefinedTermIntroduction
 
 
 def build_defined_term_sense(
@@ -12,7 +12,7 @@ def build_defined_term_sense(
     term_start: int,
     term_end: int,
     provenance: str,
-) -> DefinedTermSense:
+) -> DefinedTermIntroduction:
     """Build a canonical defined-term sense from an introduced term span.
 
     The raw term text is trimmed, stripped of surrounding straight quotes, cleaned
@@ -32,14 +32,12 @@ def build_defined_term_sense(
     """
     cleaned_term = strip_trailing_punct_str(term.strip().strip('"'))
     normalized_key = normalize_defined_term_key(cleaned_term)
-    sense_id = f"term|{normalized_key}|{term_start}"
 
-    return DefinedTermSense(
+    return DefinedTermIntroduction(
         term=cleaned_term,
         start_offset=term_start,
         end_offset=term_end,
         normalized_key=normalized_key,
-        sense_id=sense_id,
         provenance=provenance,
     )
 
