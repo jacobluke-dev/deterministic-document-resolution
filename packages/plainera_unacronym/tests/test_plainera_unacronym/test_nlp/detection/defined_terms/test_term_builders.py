@@ -1,12 +1,12 @@
 from plainera_unacronym.nlp.detection.defined_terms.builders import (
     build_defined_term_occurrence,
-    build_defined_term_sense,
+    build_defined_term_intro,
 )
 
 
 class TestBuildDefinedTermSense:
     def test_build_defined_term_sense_sets_expected_fields(self):
-        result = build_defined_term_sense(
+        result = build_defined_term_intro(
             term='"Effective Date"',
             term_start=10,
             term_end=26,
@@ -20,7 +20,7 @@ class TestBuildDefinedTermSense:
         assert result.provenance == "defined_term_detector"
 
     def test_build_defined_term_sense_strips_trailing_punctuation_and_quotes(self):
-        result = build_defined_term_sense(
+        result = build_defined_term_intro(
             term='"Confidential Information."',
             term_start=50,
             term_end=77,
@@ -31,7 +31,7 @@ class TestBuildDefinedTermSense:
         assert result.normalized_key == "confidential_information"
 
     def test_build_defined_term_sense_normalizes_bridge_words(self):
-        result = build_defined_term_sense(
+        result = build_defined_term_intro(
             term="Change of Control",
             term_start=100,
             term_end=117,
