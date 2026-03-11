@@ -6,6 +6,7 @@ from plainera_unacronym.nlp.extraction.defined_terms.senses import build_term_se
 from plainera_unacronym.nlp.extraction.defined_terms.state import TermFlowState
 from plainera_unacronym.nlp.extraction.defined_terms.structure import build_term_structure_index
 from plainera_unacronym.nlp.extraction.defined_terms.tiers.tier_1_score import score_term_occurrences_tier1
+from plainera_unacronym.nlp.extraction.defined_terms.tiers.tier_2 import rerank_term_occurrences_tier2
 from plainera_unacronym.nlp.extraction.engine.stages import StageResult
 
 
@@ -83,9 +84,16 @@ def st_tier1_score_term_occurrences(s: TermFlowState) -> StageResult[TermFlowSta
 
 def st_tier2_term_semantic_rerank(s: TermFlowState) -> StageResult[TermFlowState]:
     """Optionally rerank ambiguous term occurrences using Tier-2 semantics."""
-    # TODO: replace with real rerank step
-    applied = sum(1 for r in s.tier_2.ranked if r.applied)
-    s.last_info = f"tier2_ranked={len(s.tier_2.ranked)} applied={applied}"
+    ranked, report = rerank_term_occurrences_tier2(
+        text=s.text,
+        t1_ranked=s.tier_1.ranked,
+        sense_index=s.tier_1.sense_index,
+        cfg=s.ext_cfg,
+    )
+    s.tier_2.ranked = ranked
+    s.tier_2.report = report
+
+    s.last_info = f"tier2_ranked={len(ranked)} applied={report.applied}"
     return StageResult(s, s.last_info)
 
 
