@@ -5,6 +5,7 @@ from plainera_unacronym.nlp.extraction.defined_terms.definitions import extract_
 from plainera_unacronym.nlp.extraction.defined_terms.senses import build_term_sense_index
 from plainera_unacronym.nlp.extraction.defined_terms.state import TermFlowState
 from plainera_unacronym.nlp.extraction.defined_terms.structure import build_term_structure_index
+from plainera_unacronym.nlp.extraction.defined_terms.tiers.assemble import assemble_term_resolution_result
 from plainera_unacronym.nlp.extraction.defined_terms.tiers.tier_1_score import score_term_occurrences_tier1
 from plainera_unacronym.nlp.extraction.defined_terms.tiers.tier_2 import rerank_term_occurrences_tier2
 from plainera_unacronym.nlp.extraction.engine.stages import StageResult
@@ -98,9 +99,11 @@ def st_tier2_term_semantic_rerank(s: TermFlowState) -> StageResult[TermFlowState
 
 
 def st_assemble_term_resolutions(s: TermFlowState) -> StageResult[TermFlowState]:
-    """Assemble the final term resolution result."""
-    # TODO: replace with real assembler
-    # s.extr = TermResolutionResult(...)
-    n_res = len(s.extr.term_resolutions) if s.extr else 0
-    s.last_info = f"term_resolutions={n_res}"
+    """Assemble final term resolutions from Tier-1 and Tier-2 outputs."""
+    s.extr = assemble_term_resolution_result(s)
+    s.last_info = (
+        f"term_resolutions={len(s.extr.term_resolutions)} "
+        f"undecided={len(s.extr.undecided)} "
+        f"ambiguous_keys={len(s.extr.ambiguous_keys)}"
+    )
     return StageResult(s, s.last_info)

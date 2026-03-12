@@ -51,7 +51,7 @@ class TermResolutionResult:
 @dataclass(frozen=True, slots=True)
 class TermResolution:
     occurrence_span: TextSpanTuple
-    surface: str
+    term: str
     normalized_key: str
     chosen_sense_id: str | None
     chosen_definition_span: TextSpanTuple | None
