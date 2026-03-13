@@ -11,6 +11,7 @@ class TestBuildDefinedTermSense:
             term_start=10,
             term_end=26,
             provenance="defined_term_detector",
+            intro_kind="quoted_means"
         )
 
         assert result.term == "Effective Date"
@@ -25,6 +26,7 @@ class TestBuildDefinedTermSense:
             term_start=50,
             term_end=77,
             provenance="defined_term_detector",
+            intro_kind="quoted_means"
         )
 
         assert result.term == "Confidential Information"
@@ -36,6 +38,7 @@ class TestBuildDefinedTermSense:
             term_start=100,
             term_end=117,
             provenance="defined_term_detector",
+            intro_kind="quoted_means"
         )
 
         assert result.term == "Change of Control"

@@ -11,7 +11,7 @@ from plainera_unacronym.nlp.plugins.activation import autodetect_domains
 from .builders import build_defined_term_mention, build_defined_term_intro
 from .compiler import compile_defined_term_patterns
 from .normalise import normalize_defined_term_key
-from .types import DefinedTermDetectorResult, DefinedTermMention, DefinedTermIntroduction
+from .types import DefinedTermDetectorResult, DefinedTermMention, DefinedTermIntroduction, IntroKind
 
 _QUOTE_CHARS = {'"', "“", "”"}
 
@@ -87,11 +87,6 @@ class DefinedTermDetector(BaseDetector[DefinedTermDetectorResult]):
                 if merged != cfg.enabled_domains:
                     cfg = dc_replace(cfg, enabled_domains=merged)
 
-        legal_active = "legal" in cfg.enabled_domains
-
-        if legal_active and not cfg.allow_unquoted_capitalised_terms:
-            cfg = dc_replace(cfg, allow_unquoted_capitalised_terms=True)
-
         return cfg
 
     @staticmethod
@@ -131,45 +126,6 @@ class DefinedTermDetector(BaseDetector[DefinedTermDetectorResult]):
 
         return None
 
-    def _extract_definition_text(self, text: str, anchor_end: int) -> tuple[str, int, int]:
-        """Extract a short definition fragment following a definition anchor.
-
-        Extraction begins at ``anchor_end`` and stops at the earliest recognised
-        boundary marker within the configured maximum character window. Leading and
-        trailing spacing and lightweight punctuation noise are trimmed from the
-        returned slice.
-
-        Args:
-            text: Full source text.
-            anchor_end: End offset immediately after the definition anchor, such as
-                ``means`` or ``shall mean``.
-
-        Returns:
-            A tuple of ``(definition, start, end)`` where ``definition`` is the trimmed
-            extracted text and ``start``/``end`` are offsets into ``text`` for the
-            returned slice.
-        """
-        raw_start = anchor_end
-        raw_end = min(len(text), anchor_end + self.cfg.max_definition_chars)
-
-        slice_text = text[raw_start:raw_end]
-        stop_idx = len(slice_text)
-        for marker in [".", ";", "\n"]:
-            idx = slice_text.find(marker)
-            if idx != -1:
-                stop_idx = min(stop_idx, idx)
-
-        raw_definition = slice_text[:stop_idx]
-
-        trimmed_left = len(raw_definition) - len(raw_definition.lstrip(" :,-"))
-        trimmed_right = len(raw_definition.rstrip(" :,-"))
-
-        start = raw_start + trimmed_left
-        end = raw_start + trimmed_right
-        definition = text[start:end]
-
-        return definition, start, end
-
     def _iter_term_introductions(
         self,
         text: str,
@@ -192,14 +148,15 @@ class DefinedTermDetector(BaseDetector[DefinedTermDetectorResult]):
             order they were detected.
         """
         intros: list[DefinedTermIntroduction] = []
-
-        for pat_name in (
+        INTRO_PATTERN_NAMES: tuple[IntroKind, ...] = (
             "quoted_means",
             "quoted_shall_mean",
             "bare_means",
             "bare_shall_mean",
             "parenthetical_alias",
-        ):
+        )
+
+        for pat_name in INTRO_PATTERN_NAMES:
             pat = getattr(self._patterns, pat_name)
             for match in pat.finditer(text):
                 group_name = "term_q" if match.groupdict().get("term_q") else "term_b"
@@ -225,6 +182,7 @@ class DefinedTermDetector(BaseDetector[DefinedTermDetectorResult]):
                         term_start=term_start,
                         term_end=term_end,
                         provenance="defined_term_detector",
+                        intro_kind=pat_name
                     )
                 )
         intros.sort(key=lambda intro: (intro.start_offset, intro.end_offset, intro.normalized_key))
@@ -367,7 +325,9 @@ class DefinedTermDetector(BaseDetector[DefinedTermDetectorResult]):
             if prev is None or intro.end_offset < prev:
                 first_intro_end_by_key[intro.normalized_key] = intro.end_offset
 
-        unique_terms = {intro.normalized_key: intro for intro in intros}
+        unique_terms: dict[str, DefinedTermIntroduction] = {}
+        for intro in intros:
+            unique_terms.setdefault(intro.normalized_key, intro)
         intro_term_spans = {(intro.start_offset, intro.end_offset) for intro in intros}
 
         occurrences = self._iter_references(

@@ -1,11 +1,9 @@
 from __future__ import annotations
 
-from typing import Literal
-
 from plainera_unacronym.nlp.common.shared import strip_trailing_punct_str
 
 from .normalise import normalize_defined_term_key
-from .types import DefinedTermMention, DefinedTermIntroduction
+from .types import DefinedTermMention, DefinedTermIntroduction, IntroKind
 
 
 def build_defined_term_intro(
@@ -14,6 +12,7 @@ def build_defined_term_intro(
     term_start: int,
     term_end: int,
     provenance: str,
+    intro_kind: IntroKind,
 ) -> DefinedTermIntroduction:
     """Build a canonical defined-term intro from an introduced term span.
 
@@ -27,7 +26,7 @@ def build_defined_term_intro(
         term_start: Inclusive start offset of the detected term in the source text.
         term_end: Exclusive end offset of the detected term in the source text.
         provenance: Source label describing how the term was produced.
-
+        intro_kind: Introduction kind of the term.
     Returns:
         A ``DefinedTermIntroduction`` containing the cleaned term text, source offsets,
         normalised lookup key, and provenance.
@@ -41,6 +40,7 @@ def build_defined_term_intro(
         end_offset=term_end,
         normalized_key=normalized_key,
         provenance=provenance,
+        intro_kind=intro_kind,
     )
 
 

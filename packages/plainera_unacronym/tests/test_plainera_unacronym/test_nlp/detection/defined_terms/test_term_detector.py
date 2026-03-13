@@ -34,28 +34,22 @@ class TestDefinedTermDetectorWithAutoDomains:
         assert out is not detector.cfg
         assert out.enabled_domains == frozenset({"bio", "legal"})
 
-    def test_with_auto_domains_enables_unquoted_terms_when_legal_already_active(
+    def test_detect_does_not_enable_unquoted_mentions_just_because_legal_is_active(
         self,
-        _patch,
         defined_term_detector_factory,
     ):
-        detector = defined_term_detector_factory(
-            enabled_domains=frozenset({"legal"}),
+        text = """
+        Change of Control means any sale of assets.
+        Following a Change of Control, the Customer may terminate.
+        """
+
+        result = defined_term_detector_factory(
             allow_unquoted_capitalised_terms=False,
             require_legal_domain_for_unquoted=True,
-        )
+            enabled_domains=frozenset({"legal"}),
+        ).detect(text)
 
-        _patch(
-            det_mod.DefinedTermDetector._with_auto_domains,
-            autodetect_domains=lambda text, cfg_: frozenset({"legal"}),
-        )
-
-        out = detector._with_auto_domains("some contract text")
-
-        assert out.enabled_domains == frozenset({"legal"})
-        assert out.allow_unquoted_capitalised_terms is True
-        assert out.require_legal_domain_for_unquoted is True
-        assert out is not detector.cfg
+        assert "change_of_control" not in result.unique_terms or result.mentions == []
 
 
 class TestDefinedTermDetectorResolveKnownTermFromRun:
@@ -90,58 +84,6 @@ class TestDefinedTermDetectorResolveKnownTermFromRun:
         out = detector._resolve_known_term_from_run("", known_keys)
 
         assert out is None
-
-
-class TestDefinedTermDetectorExtractDefinitionText:
-    def test_extract_definition_text_stops_at_period(self, defined_term_detector_factory):
-        text = 'Intro. "Effective Date" means the date of signature. Next sentence.'
-
-        anchor_end = text.index("means") + len("means")
-        definition, start, end = (defined_term_detector_factory(max_definition_chars=200)
-                                  ._extract_definition_text(text, anchor_end))
-
-        assert definition == "the date of signature"
-        assert text[start:end] == "the date of signature"
-
-    def test_extract_definition_text_stops_at_semicolon(self, defined_term_detector_factory):
-        text = '"Services" means software support and maintenance; provided remotely.'
-
-        anchor_end = text.index("means") + len("means")
-        definition, start, end = (defined_term_detector_factory(max_definition_chars=200)
-                                  ._extract_definition_text(text, anchor_end))
-
-        assert definition == "software support and maintenance"
-        assert text[start:end] == "software support and maintenance"
-
-    def test_extract_definition_text_stops_at_newline(self, defined_term_detector_factory):
-        text = '"Services" means software support and maintenance\nAdditional text follows'
-
-        anchor_end = text.index("means") + len("means")
-        definition, start, end = (defined_term_detector_factory(max_definition_chars=200)
-                                  ._extract_definition_text(text, anchor_end))
-
-        assert definition == "software support and maintenance"
-        assert text[start:end] == "software support and maintenance"
-
-    def test_extract_definition_text_respects_max_definition_chars(self, defined_term_detector_factory):
-        text = '"Services" means software support and maintenance without punctuation'
-
-        anchor_end = text.index("means") + len("means")
-        definition, start, end = (defined_term_detector_factory(max_definition_chars=12)
-                                  ._extract_definition_text(text, anchor_end))
-
-        assert definition == "software su"
-        assert end - start == len("software su")
-
-    def test_extract_definition_text_strips_leading_spacing_and_punctuation(self, defined_term_detector_factory):
-        text = '"Services" means :,- software support and maintenance.'
-
-        anchor_end = text.index("means") + len("means")
-        definition, start, end = (defined_term_detector_factory(max_definition_chars=200)
-                                  ._extract_definition_text(text, anchor_end))
-
-        assert definition == "software support and maintenance"
-        assert text[start:end] == definition
 
 
 class TestDefinedTermDetectorIterTermIntroductions:
