@@ -288,8 +288,7 @@ class DefinedTermDetector(BaseDetector[DefinedTermDetectorResult]):
                 build_defined_term_mention(
                     term=raw_term,
                     start_offset=start_offset,
-                    end_offset=end_offset,
-                    kind="reference",
+                    end_offset=end_offset
                 )
             )
 
@@ -337,8 +336,7 @@ class DefinedTermDetector(BaseDetector[DefinedTermDetectorResult]):
                     build_defined_term_mention(
                         term=resolved_term,
                         start_offset=resolved_start,
-                        end_offset=resolved_end,
-                        kind="reference",
+                        end_offset=resolved_end
                     )
                 )
 

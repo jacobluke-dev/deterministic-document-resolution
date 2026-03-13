@@ -49,7 +49,6 @@ def build_defined_term_mention(
     term: str,
     start_offset: int,
     end_offset: int,
-    kind: Literal["introduction", "reference"],
     segment_window: str | None = None,
     confidence: float = 1.0,
 ) -> DefinedTermMention:
@@ -82,7 +81,6 @@ def build_defined_term_mention(
         start_offset=start_offset,
         end_offset=end_offset,
         normalized_key=normalized_key,
-        kind=kind,
         confidence=confidence,
         segment_window=segment_window,
     )

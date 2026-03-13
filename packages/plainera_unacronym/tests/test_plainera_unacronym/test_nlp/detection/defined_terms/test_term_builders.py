@@ -50,7 +50,6 @@ class TestBuildDefinedTermOccurrence:
             end_offset=210,
             segment_window="...the Services from the Effective Date...",
             confidence=0.85,
-            kind="introduction",
         )
 
         assert result.term == "Services"
@@ -65,7 +64,6 @@ class TestBuildDefinedTermOccurrence:
             term='"Effective Date."',
             start_offset=300,
             end_offset=317,
-            kind="introduction",
         )
 
         assert result.term == "Effective Date"
@@ -76,7 +74,6 @@ class TestBuildDefinedTermOccurrence:
             term="Change of Control",
             start_offset=400,
             end_offset=417,
-            kind="introduction",
         )
 
         assert result.term == "Change of Control"

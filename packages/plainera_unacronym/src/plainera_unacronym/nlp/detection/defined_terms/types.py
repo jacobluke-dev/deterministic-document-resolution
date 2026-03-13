@@ -26,7 +26,6 @@ class DefinedTermMention:
     start_offset: int
     end_offset: int
     normalized_key: str
-    kind: Literal["introduction", "reference"]
     confidence: float = 1.0
     segment_window: Optional[str] = None
 
