@@ -78,6 +78,8 @@ class DefinedTermDetector(BaseDetector[DefinedTermDetectorResult]):
             ``enabled_domains``. Returns the existing config unchanged when no new
             domains are detected.
         """
+        if not self.cfg.auto_detect_domains:
+            return self.cfg
         auto = autodetect_domains(text, self.cfg)
         if auto:
             merged = self.cfg.enabled_domains | auto
@@ -250,6 +252,9 @@ class DefinedTermDetector(BaseDetector[DefinedTermDetectorResult]):
             A list of ``DefinedTermMention`` objects representing detected
             occurrences of known terms.
         """
+        print("ITER REFERENCES cfg.enabled_domains:", cfg.enabled_domains)
+        print("ITER REFERENCES self.cfg.enabled_domains:", self.cfg.enabled_domains)
+        print("ITER REFERENCES legal_active:", legal_active)
         occurrences: list[DefinedTermMention] = []
         seen: set[Span] = set()
 
@@ -339,6 +344,7 @@ class DefinedTermDetector(BaseDetector[DefinedTermDetectorResult]):
                 )
 
         return occurrences
+
     @logger(message="defined_term_detector.detect", db_sink="sink")
     def detect(self, text: str) -> DefinedTermDetectorResult:
         """Detect defined-term introductions and occurrences in a text run.
@@ -357,9 +363,7 @@ class DefinedTermDetector(BaseDetector[DefinedTermDetectorResult]):
         cfg = self._with_auto_domains(text)
         legal_active = "legal" in cfg.enabled_domains
 
-
-
-        intros = self._iter_term_introductions(text, cfg, legal_active)
+        intros = list(self._iter_term_introductions(text, cfg, legal_active))
         first_intro_end_by_key: dict[str, int] = {}
         for intro in intros:
             prev = first_intro_end_by_key.get(intro.normalized_key)
