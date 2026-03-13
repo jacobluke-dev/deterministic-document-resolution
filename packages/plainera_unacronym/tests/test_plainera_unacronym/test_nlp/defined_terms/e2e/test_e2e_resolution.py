@@ -22,6 +22,7 @@ def _resolution_key(r) -> str | None:
 
     return None
 
+
 def _chosen_sense_ids_for_key(extr, key: str) -> list[str]:
     return [
         r.chosen_sense_id
@@ -32,7 +33,6 @@ def _chosen_sense_ids_for_key(extr, key: str) -> list[str]:
 
 def _resolutions_for_key(extr, key: str):
     return [r for r in extr.term_resolutions if _resolution_key(r) == key]
-
 
 
 def _sense_text_by_id(state) -> dict[str, str]:
@@ -157,7 +157,7 @@ class TestDefinedTermResolutionE2E:
             )
             return (), report
 
-        _patch(stage_funcs.st_tier2_term_semantic_rerank, rerank_term_occurrences_tier2 = _fake_tier2)
+        _patch(stage_funcs.st_tier2_term_semantic_rerank, rerank_term_occurrences_tier2=_fake_tier2)
 
         text = """
         "Effective Date" means the date on which both Parties sign this Agreement.
@@ -187,7 +187,6 @@ class TestDefinedTermResolutionE2E:
 
         assert extr.undecided == []
         assert "effective_date" not in extr.ambiguous_keys
-
 
     def test_no_later_mentions_only_introductions(self):
         text = """
