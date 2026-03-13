@@ -192,6 +192,7 @@ class AcronymDetectorResult:
 @dataclass(frozen=True)
 class DefinedTermDetectorConfig:
     enabled_domains: frozenset[str] = frozenset()
+    auto_detect_domains: bool = True
     window_chars: int = 80
     allow_unquoted_capitalised_terms: bool = False
     require_legal_domain_for_unquoted: bool = True
