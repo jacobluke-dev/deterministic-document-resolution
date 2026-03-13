@@ -4,7 +4,7 @@ from dataclasses import dataclass, field
 from typing import Literal, Mapping
 
 from plainera_unacronym.nlp.common.types import TextSpanTuple
-from plainera_unacronym.nlp.detection.defined_terms.types import DefinedTermOccurrence
+from plainera_unacronym.nlp.detection.defined_terms.types import DefinedTermMention
 from plainera_unacronym.nlp.extraction.tiers.types import Tier2Report
 
 TermTier2SkipReason = Literal[
@@ -72,7 +72,7 @@ class TermDefinitionEntry:
 
 @dataclass(frozen=True)
 class TermTier1OccurrenceRanking:
-    occ: DefinedTermOccurrence
+    occ: DefinedTermMention
     candidate_scores: dict[str, float]
     chosen_sense_id: str | None
     gap: float
@@ -81,7 +81,7 @@ class TermTier1OccurrenceRanking:
 
 @dataclass(frozen=True)
 class TermTier2OccurrenceRanking:
-    occ: DefinedTermOccurrence
+    occ: DefinedTermMention
     applied: bool
     skip_reason: TermTier2SkipReason | None
     tier2_sims: dict[str, float] | None

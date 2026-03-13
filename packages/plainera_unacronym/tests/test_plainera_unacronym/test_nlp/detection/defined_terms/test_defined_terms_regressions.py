@@ -94,7 +94,7 @@ class TestDefinedTermBoundaryRegressions:
         unique_terms = {intro.normalized_key: intro for intro in intros}
         intro_term_spans = {(intro.start_offset, intro.end_offset) for intro in intros}
 
-        occurrences = detector._iter_occurrences(
+        occurrences = detector._iter_references(
             text,
             known_keys=set(unique_terms.keys()),
             intro_term_spans=intro_term_spans,
@@ -122,7 +122,7 @@ class TestDefinedTermBoundaryRegressions:
         unique_terms = {intro.normalized_key: intro for intro in intros}
         intro_term_spans = {(intro.start_offset, intro.end_offset) for intro in intros}
 
-        occurrences = detector._iter_occurrences(
+        occurrences = detector._iter_references(
             text,
             known_keys=set(unique_terms.keys()),
             intro_term_spans=intro_term_spans,

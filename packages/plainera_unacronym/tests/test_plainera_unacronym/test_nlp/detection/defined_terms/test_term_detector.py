@@ -253,7 +253,7 @@ class TestDefinedTermDetectorIterOccurrences:
         detector = defined_term_detector_factory()
         text = 'The "Services" will begin tomorrow.'
 
-        out = detector._iter_occurrences(
+        out = detector._iter_references(
             text,
             known_keys={"services"},
             intro_term_spans=set(),
@@ -268,7 +268,7 @@ class TestDefinedTermDetectorIterOccurrences:
         detector = defined_term_detector_factory()
         text = 'The "Agreement" will begin tomorrow.'
 
-        out = detector._iter_occurrences(
+        out = detector._iter_references(
             text,
             known_keys={"services"},
             intro_term_spans=set(),
@@ -281,7 +281,7 @@ class TestDefinedTermDetectorIterOccurrences:
     def test_skips_intro_span_for_quoted_occurrence(self, cfg_terms_det_factory, defined_term_detector_factory):
         text = '"Services" means support services.'
 
-        out = defined_term_detector_factory()._iter_occurrences(
+        out = defined_term_detector_factory()._iter_references(
             text,
             known_keys={"services"},
             intro_term_spans={(0, 10)},  # span for Services without quotes
@@ -301,7 +301,7 @@ class TestDefinedTermDetectorIterOccurrences:
             require_legal_domain_for_unquoted=True, )
         text = "Following a Change of Control, the Customer may terminate."
 
-        out = detector._iter_occurrences(
+        out = detector._iter_references(
             text,
             known_keys={"change_of_control"},
             intro_term_spans=set(),
@@ -324,7 +324,7 @@ class TestDefinedTermDetectorIterOccurrences:
             require_legal_domain_for_unquoted=True)
         text = "Following a Change of Control, the Customer may terminate."
 
-        out = detector._iter_occurrences(
+        out = detector._iter_references(
             text,
             known_keys={"change_of_control"},
             intro_term_spans=set(),
@@ -344,7 +344,7 @@ class TestDefinedTermDetectorIterOccurrences:
             require_legal_domain_for_unquoted=False)
         text = "Each Party shall protect the other Party's Confidential Information."
 
-        out = detector._iter_occurrences(
+        out = detector._iter_references(
             text,
             known_keys={"confidential_information"},
             intro_term_spans=set(),
@@ -367,7 +367,7 @@ class TestDefinedTermDetectorIterOccurrences:
             require_legal_domain_for_unquoted=False)
         text = "Each Party shall protect the other Party's Confidential Information."
 
-        out = detector._iter_occurrences(
+        out = detector._iter_references(
             text,
             known_keys={"effective_date"},
             intro_term_spans=set(),
@@ -389,7 +389,7 @@ class TestDefinedTermDetectorIterOccurrences:
             require_legal_domain_for_unquoted=False)
         text = "Change of Control means any sale of assets."
 
-        out = detector._iter_occurrences(
+        out = detector._iter_references(
             text,
             known_keys={"change_of_control"},
             intro_term_spans={(0, 17)},
