@@ -1,8 +1,10 @@
 import pytest
 
+from plainera_unacronym.nlp.plugins.activation import autodetect_domains
+
+
 class TestDefinedTermDetectorMentions:
     def test_detect_logs_later_mentions_after_introductions(self, defined_term_detector_factory):
-
         text = '''
         This Master Services Agreement (the "Agreement") is entered into on the "Effective Date".
         "Effective Date" means the date on which both Parties sign this Agreement.
@@ -18,13 +20,12 @@ class TestDefinedTermDetectorMentions:
 
         result = defined_term_detector_factory(
             allow_unquoted_capitalised_terms=True,
-            enabled_domains=("legal",)
-            ).detect(text)
+            enabled_domains=frozenset({"legal"})
+        ).detect(text)
 
         assert len(result.introductions) == 4
 
         mention_keys = [m.normalized_key for m in result.mentions]
-        print("MENTION_KEYS", mention_keys)
 
         assert "agreement" in mention_keys
         assert "effective_date" in mention_keys
@@ -33,6 +34,7 @@ class TestDefinedTermDetectorMentions:
 
         assert mention_keys.count("effective_date") >= 1
         assert mention_keys.count("services") >= 2
+
 
 class TestDefinedTermDetectorE2E:
     @staticmethod
@@ -184,7 +186,6 @@ class TestDefinedTermDetectorE2E:
 
         assert intro_span not in mention_spans
 
-
     def test_detect_does_not_emit_intro_spans_as_mentions(self, defined_term_detector_factory):
         detector = defined_term_detector_factory(
             allow_unquoted_capitalised_terms=True,
@@ -228,32 +229,77 @@ class TestDefinedTermDetectorE2E:
         assert len(effective_mentions) == 1
         assert len(mention_spans) == len(set(mention_spans))
 
-    def test_detect_unquoted_mentions_require_legal_mode_when_configured(self, defined_term_detector_factory):
+    def test_auto_detect_domains_enables_legal_for_legalish_text(self, defined_term_detector_factory):
+        detector = defined_term_detector_factory(
+            allow_unquoted_capitalised_terms=True,
+            require_legal_domain_for_unquoted=True,
+            enabled_domains=frozenset(),
+            auto_detect_domains=True,
+        )
+
         text = """
         "Agreement" means this contract.
         "Services" means the software development services.
+        The Services shall commence on Monday.
+        """.strip()
 
-        The Agreement shall commence next week.
-        The Services shall begin after signature.
+        auto = autodetect_domains(text, detector.cfg)
+        assert auto == {"legal"}  # or frozenset({"legal"}) depending on your API
+
+        cfg = detector._with_auto_domains(text)
+        assert "legal" in cfg.enabled_domains
+
+    def test_detect_unquoted_mentions_require_legal_mode_when_configured(self, defined_term_detector_factory):
+        text = """
+        "Agreement" means this contract.
+        "Services" means the software development, support, and maintenance services.
+
+        The Services shall commence on Monday.
+        The Services shall be provided with reasonable skill and care.
+        Changes to the Services must be agreed in writing.
+        If any individual wishes to make any adaptations to the Agreement, this must be done with prior notice.
         """.strip()
 
         detector_no_legal = defined_term_detector_factory(
             allow_unquoted_capitalised_terms=True,
             require_legal_domain_for_unquoted=True,
-            enabled_domains=(),
+            enabled_domains=frozenset({"bio"}),
+            auto_detect_domains=False,
         )
         result_no_legal = detector_no_legal.detect(text)
 
         detector_legal = defined_term_detector_factory(
             allow_unquoted_capitalised_terms=True,
             require_legal_domain_for_unquoted=True,
-            enabled_domains=("legal",),
+            enabled_domains=frozenset({"legal"}),
+            auto_detect_domains=False,
         )
         result_legal = detector_legal.detect(text)
 
         assert self._mention_keys(result_no_legal) == []
         assert "agreement" in self._mention_keys(result_legal)
         assert "services" in self._mention_keys(result_legal)
+
+    def test_detect_auto_detect_domains_can_enable_legal_mentions(self, defined_term_detector_factory):
+        text = """
+        "Agreement" means this contract.
+        "Services" means the software development, support, and maintenance services.
+        The Services shall commence on Monday.
+        The Services shall be provided with reasonable skill and care.
+        Changes to the Services must be agreed in writing.
+        If any individual wishes to make any adaptations to the Agreement, this must be done with prior notice.
+        """.strip()
+
+        detector = defined_term_detector_factory(
+            allow_unquoted_capitalised_terms=True,
+            require_legal_domain_for_unquoted=True,
+        )
+        auto = autodetect_domains(text, detector.cfg)
+        assert "legal" in auto
+        result = detector.detect(text)
+        mention_keys = self._mention_keys(result)
+        assert "services" in mention_keys
+        assert "agreement" in mention_keys
 
     def test_detect_does_not_emit_unknown_terms_as_mentions(self, defined_term_detector_factory):
         detector = defined_term_detector_factory(

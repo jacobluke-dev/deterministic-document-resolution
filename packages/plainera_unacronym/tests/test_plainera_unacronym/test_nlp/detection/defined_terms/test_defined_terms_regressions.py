@@ -15,7 +15,7 @@ class TestDefinedTermFalsePositiveRegressions:
 
 
         assert "termination" not in result.unique_terms
-        assert all(o.normalized_key != "termination" for o in result.occurrences)
+        assert all(o.normalized_key != "termination" for o in result.mentions)
 
     def test_detect_ignores_sentence_initial_capitalised_word_as_occurrence(self, defined_term_detector_factory):
 
@@ -30,8 +30,8 @@ class TestDefinedTermFalsePositiveRegressions:
             enabled_domains=frozenset()).detect(text)
 
         assert "services" in result.unique_terms
-        assert all(o.term != "Tomorrow" for o in result.occurrences)
-        assert all(o.normalized_key != "tomorrow" for o in result.occurrences)
+        assert all(o.term != "Tomorrow" for o in result.mentions)
+        assert all(o.normalized_key != "tomorrow" for o in result.mentions)
 
     def test_detect_ignores_unanchored_bare_reference(self, defined_term_detector_factory):
 
@@ -41,7 +41,7 @@ class TestDefinedTermFalsePositiveRegressions:
             enabled_domains=frozenset({"legal"})).detect("The Customer shall pay within 30 days.")
 
         assert result.unique_terms == {}
-        assert result.occurrences == []
+        assert result.mentions == []
 
     def test_detect_ignores_party_name_when_not_defined(self, defined_term_detector_factory):
 
@@ -54,7 +54,7 @@ class TestDefinedTermFalsePositiveRegressions:
 
         assert "acme_limited" not in result.unique_terms
         assert "beta_systems_plc" not in result.unique_terms
-        assert all(o.normalized_key not in {"acme_limited", "beta_systems_plc"} for o in result.occurrences)
+        assert all(o.normalized_key not in {"acme_limited", "beta_systems_plc"} for o in result.mentions)
 
     def test_detect_ignores_statute_or_authority_name_as_defined_term(self, defined_term_detector_factory):
 
@@ -72,7 +72,7 @@ class TestDefinedTermFalsePositiveRegressions:
         assert "information_commissioner" not in result.unique_terms
         assert all(
             o.normalized_key not in {"companies_act_2006", "information_commissioner"}
-            for o in result.occurrences
+            for o in result.mentions
         )
 
 
@@ -98,6 +98,7 @@ class TestDefinedTermBoundaryRegressions:
             text,
             known_keys=set(unique_terms.keys()),
             intro_term_spans=intro_term_spans,
+            first_intro_end_by_key={"supplier": 0},
             cfg=cfg,
             legal_active=True,
         )
@@ -126,6 +127,7 @@ class TestDefinedTermBoundaryRegressions:
             text,
             known_keys=set(unique_terms.keys()),
             intro_term_spans=intro_term_spans,
+            first_intro_end_by_key={"supplier": 0},
             cfg=cfg,
             legal_active=True,
         )
