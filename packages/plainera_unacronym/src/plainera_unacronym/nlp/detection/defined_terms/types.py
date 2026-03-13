@@ -21,17 +21,18 @@ class DefinedTermIntroduction:
 
 
 @dataclass(frozen=True)
-class DefinedTermOccurrence:
+class DefinedTermMention:
     term: str
     start_offset: int
     end_offset: int
     normalized_key: str
-    occurrence_confidence: float = 1.0
+    kind: Literal["introduction", "reference"]
+    confidence: float = 1.0
     segment_window: Optional[str] = None
 
 
 @dataclass(frozen=True)
 class DefinedTermDetectorResult:
-    occurrences: list[DefinedTermOccurrence]
     introductions: list[DefinedTermIntroduction]
+    mentions: list[DefinedTermMention]
     unique_terms: dict[str, DefinedTermIntroduction]

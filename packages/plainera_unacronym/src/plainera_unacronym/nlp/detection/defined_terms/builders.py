@@ -1,9 +1,11 @@
 from __future__ import annotations
 
+from typing import Literal
+
 from plainera_unacronym.nlp.common.shared import strip_trailing_punct_str
 
 from .normalise import normalize_defined_term_key
-from .types import DefinedTermOccurrence, DefinedTermIntroduction
+from .types import DefinedTermMention, DefinedTermIntroduction
 
 
 def build_defined_term_intro(
@@ -42,14 +44,15 @@ def build_defined_term_intro(
     )
 
 
-def build_defined_term_occurrence(
+def build_defined_term_mention(
     *,
     term: str,
     start_offset: int,
     end_offset: int,
+    kind: Literal["introduction", "reference"],
     segment_window: str | None = None,
     confidence: float = 1.0,
-) -> DefinedTermOccurrence:
+) -> DefinedTermMention:
     """Build a defined-term occurrence from a detected reference span.
 
     The raw term text is trimmed, stripped of surrounding straight quotes, cleaned
@@ -67,18 +70,19 @@ def build_defined_term_occurrence(
         confidence: Confidence score assigned to the occurrence.
 
     Returns:
-        A ``DefinedTermOccurrence`` containing the cleaned term text, source
+        A ``DefinedTermMention`` containing the cleaned term text, source
         offsets, normalised lookup key, confidence score, and optional segment
         window.
     """
     cleaned_term = strip_trailing_punct_str(term.strip().strip('"'))
     normalized_key = normalize_defined_term_key(cleaned_term)
 
-    return DefinedTermOccurrence(
+    return DefinedTermMention(
         term=cleaned_term,
         start_offset=start_offset,
         end_offset=end_offset,
         normalized_key=normalized_key,
-        occurrence_confidence=confidence,
+        kind=kind,
+        confidence=confidence,
         segment_window=segment_window,
     )

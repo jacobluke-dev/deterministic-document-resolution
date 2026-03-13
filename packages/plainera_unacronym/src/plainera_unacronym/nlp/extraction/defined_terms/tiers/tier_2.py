@@ -4,7 +4,7 @@ from collections import Counter
 from dataclasses import dataclass
 from typing import Sequence
 
-from plainera_unacronym.nlp.detection.defined_terms.types import DefinedTermOccurrence
+from plainera_unacronym.nlp.detection.defined_terms.types import DefinedTermMention
 from plainera_unacronym.nlp.extraction.defined_terms.config import DefinedTermExtractionConfig
 from plainera_unacronym.nlp.extraction.defined_terms.types import (
     TermSense,
@@ -27,7 +27,7 @@ class _EligibleTermRerank:
 
 def _term_context(
     text: str,
-    occ: DefinedTermOccurrence,
+    occ: DefinedTermMention,
     *,
     window_chars: int,
 ) -> str:

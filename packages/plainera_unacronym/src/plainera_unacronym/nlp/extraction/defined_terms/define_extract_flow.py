@@ -46,7 +46,7 @@ class DefinedTermResolutionFlow:
     def _n_occurrences(s: TermFlowState) -> int:
         if s.det_res is None:
             return 0
-        return len(s.det_res.occurrences)
+        return len(s.det_res.mentions)
 
     @staticmethod
     def build_chain() -> Chain[TermFlowState]:

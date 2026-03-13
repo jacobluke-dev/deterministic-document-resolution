@@ -18,7 +18,7 @@ def st_detect_terms(s: TermFlowState) -> StageResult[TermFlowState]:
     s.last_info = (
         f"introductions={len(det.introductions)} "
         f"unique_terms={len(det.unique_terms)} "
-        f"occurrences={len(det.occurrences)}"
+        f"occurrences={len(det.mentions)}"
     )
     return StageResult(s, s.last_info)
 
@@ -51,7 +51,7 @@ def st_build_term_sense_index(s: TermFlowState) -> StageResult[TermFlowState]:
     )
 
     if s.det_res is not None:
-        s.tier_1.occurrences = list(s.det_res.occurrences)
+        s.tier_1.occurrences = list(s.det_res.mentions)
 
     s.last_info = (
         f"keys={len(s.tier_1.term_sense_index)} "
@@ -64,7 +64,7 @@ def st_build_term_sense_index(s: TermFlowState) -> StageResult[TermFlowState]:
 def st_tier1_score_term_occurrences(s: TermFlowState) -> StageResult[TermFlowState]:
     """Run deterministic Tier-1 scoring over term occurrences."""
     if s.det_res is not None and not s.tier_1.occurrences:
-        s.tier_1.occurrences = list(s.det_res.occurrences)
+        s.tier_1.occurrences = list(s.det_res.mentions)
 
     s.tier_1.ranked = score_term_occurrences_tier1(
         text=s.text,

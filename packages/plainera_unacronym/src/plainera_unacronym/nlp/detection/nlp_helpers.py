@@ -90,5 +90,5 @@ def top_n_values(firsts: dict[str, FirstOccurrence], n: int = 5) -> list[dict[st
     """
     if n <= 0 or not firsts:
         return []
-    items = heapq.nlargest(n, firsts.items(), key=lambda kv: kv[1].occurrence_confidence)
+    items = heapq.nlargest(n, firsts.items(), key=lambda kv: kv[1].confidence)
     return [{"key": k, "conf": _round_sig(fo.occurrence_confidence, 3)} for k, fo in items]

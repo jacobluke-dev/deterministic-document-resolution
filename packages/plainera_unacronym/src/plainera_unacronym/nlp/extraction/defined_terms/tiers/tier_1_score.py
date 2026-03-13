@@ -3,7 +3,7 @@ from __future__ import annotations
 import re
 from typing import Iterable
 
-from plainera_unacronym.nlp.detection.defined_terms.types import DefinedTermOccurrence
+from plainera_unacronym.nlp.detection.defined_terms.types import DefinedTermMention
 from plainera_unacronym.nlp.extraction.defined_terms.config import DefinedTermExtractionConfig
 from plainera_unacronym.nlp.extraction.defined_terms.structure import TermStructureIndex
 from plainera_unacronym.nlp.extraction.defined_terms.types import (
@@ -17,7 +17,7 @@ _WORD_RE = re.compile(r"[A-Za-z][A-Za-z0-9'-]*")
 
 def _occurrence_context(
     text: str,
-    occ: DefinedTermOccurrence,
+    occ: DefinedTermMention,
     *,
     window_chars: int,
 ) -> str:
@@ -56,12 +56,12 @@ def _lexical_overlap_score(
     return len(overlap) / len(def_tokens)
 
 
-def _directionality_score(occ: DefinedTermOccurrence, sense: TermSense) -> float:
+def _directionality_score(occ: DefinedTermMention, sense: TermSense) -> float:
     intro_start = sense.intro_span[1]
     return 1.0 if intro_start <= occ.start_offset else -0.25
 
 
-def _proximity_score(occ: DefinedTermOccurrence, sense: TermSense) -> float:
+def _proximity_score(occ: DefinedTermMention, sense: TermSense) -> float:
     intro_end = sense.intro_span[2]
     dist = abs(occ.start_offset - intro_end)
 
@@ -75,7 +75,7 @@ def _proximity_score(occ: DefinedTermOccurrence, sense: TermSense) -> float:
 
 
 def _section_proximity_score(
-    occ: DefinedTermOccurrence,
+    occ: DefinedTermMention,
     sense: TermSense,
     structure_index: TermStructureIndex | None,
 ) -> float:
@@ -105,7 +105,7 @@ def _intro_kind_score(intro_kind: str) -> float:
 def _score_candidate(
     *,
     text: str,
-    occ: DefinedTermOccurrence,
+    occ: DefinedTermMention,
     sense: TermSense,
     structure_index: TermStructureIndex | None,
     cfg: DefinedTermExtractionConfig,
@@ -132,7 +132,7 @@ def _score_candidate(
 def score_term_occurrence_tier1(
     *,
     text: str,
-    occ: DefinedTermOccurrence,
+    occ: DefinedTermMention,
     candidate_senses: Iterable[TermSense],
     structure_index: TermStructureIndex | None,
     cfg: DefinedTermExtractionConfig,
@@ -186,7 +186,7 @@ def score_term_occurrence_tier1(
 def score_term_occurrences_tier1(
     *,
     text: str,
-    occurrences: list[DefinedTermOccurrence],
+    occurrences: list[DefinedTermMention],
     term_sense_index: dict[str, tuple[TermSense, ...]],
     structure_index: TermStructureIndex | None,
     cfg: DefinedTermExtractionConfig,

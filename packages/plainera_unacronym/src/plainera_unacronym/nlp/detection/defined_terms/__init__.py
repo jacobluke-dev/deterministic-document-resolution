@@ -1,7 +1,7 @@
 from .compiler import DefinedTermPatterns, compile_defined_term_patterns
 from .detector import DefinedTermDetector
 from .normalise import normalize_defined_term_key
-from .types import DefinedTermDetectorResult, DefinedTermOccurrence, DefinedTermIntroduction
+from .types import DefinedTermDetectorResult, DefinedTermMention, DefinedTermIntroduction
 
 __all__ = [
     "DefinedTermDetector",
@@ -9,6 +9,6 @@ __all__ = [
     "compile_defined_term_patterns",
     "normalize_defined_term_key",
     "DefinedTermDetectorResult",
-    "DefinedTermOccurrence",
+    "DefinedTermMention",
     "DefinedTermIntroduction",
 ]

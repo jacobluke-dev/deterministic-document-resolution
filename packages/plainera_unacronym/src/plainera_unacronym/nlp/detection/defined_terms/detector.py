@@ -8,17 +8,17 @@ from plainera_unacronym.nlp.common.types import DefinedTermDetectorConfig, Span
 from plainera_unacronym.nlp.detection.base import BaseDetector
 from plainera_unacronym.nlp.plugins.activation import autodetect_domains
 
-from .builders import build_defined_term_occurrence, build_defined_term_intro
+from .builders import build_defined_term_mention, build_defined_term_intro
 from .compiler import compile_defined_term_patterns
 from .normalise import normalize_defined_term_key
-from .types import DefinedTermDetectorResult, DefinedTermOccurrence, DefinedTermIntroduction
+from .types import DefinedTermDetectorResult, DefinedTermMention, DefinedTermIntroduction
 
 _QUOTE_CHARS = {'"', "“", "”"}
 
 
 def _spans_overlap(a_start: int, a_end: int, b_start: int, b_end: int) -> bool:
     """Return whether two half-open spans overlap.
-
+7
     Args:
         a_start: Inclusive start offset of the first span.
         a_end: Exclusive end offset of the first span.
@@ -44,6 +44,10 @@ def _overlaps_any(start: int, end: int, spans: set[Span]) -> bool:
         False.
     """
     return any(_spans_overlap(start, end, s, e) for s, e in spans)
+
+
+def _is_intro_term_span(start: int, end: int, spans: set[Span]) -> bool:
+    return (start, end) in spans
 
 
 class DefinedTermDetector(BaseDetector[DefinedTermDetectorResult]):
@@ -214,18 +218,19 @@ class DefinedTermDetector(BaseDetector[DefinedTermDetectorResult]):
                         provenance="defined_term_detector",
                     )
                 )
-
+        intros.sort(key=lambda intro: (intro.start_offset, intro.end_offset, intro.normalized_key))
         return intros
 
-    def _iter_occurrences(
+    def _iter_references(
         self,
         text: str,
         *,
         known_keys: set[str],
         intro_term_spans: set[Span],
+        first_intro_end_by_key: dict[str, int],
         cfg: DefinedTermDetectorConfig,
         legal_active: bool,
-    ) -> list[DefinedTermOccurrence]:
+    ) -> list[DefinedTermMention]:
         """Collect later occurrences of previously introduced defined terms.
 
         The detector first considers quoted occurrences and then, when allowed by
@@ -242,37 +247,55 @@ class DefinedTermDetector(BaseDetector[DefinedTermDetectorResult]):
             legal_active: Whether the legal domain is currently enabled for this run.
 
         Returns:
-            A list of ``DefinedTermOccurrence`` objects representing detected
+            A list of ``DefinedTermMention`` objects representing detected
             occurrences of known terms.
         """
-        occurrences: list[DefinedTermOccurrence] = []
+        occurrences: list[DefinedTermMention] = []
+        seen: set[Span] = set()
 
         # 1) Quoted occurrences
         for match in self._patterns.quoted_occurrence.finditer(text):
             raw_term = match.group("term")
+            print("raw_term:", raw_term)
             start_offset, end_offset = match.span("term")
-            if _overlaps_any(start_offset, end_offset, intro_term_spans):
+
+            # Quoted intro terms should be suppressed, but only when the span is
+            # actually the intro term span.
+            if _is_intro_term_span(start_offset, end_offset, intro_term_spans):
+                print("is intro skip")
                 continue
 
             normalized = normalize_defined_term_key(raw_term)
-            if normalized not in known_keys:
+            first_intro_end = first_intro_end_by_key.get(normalized)
+            if first_intro_end is None or start_offset < first_intro_end:
                 continue
+
+            if normalized not in known_keys:
+                print("unknown term:", raw_term)
+                continue
+
+            span = (start_offset, end_offset)
+            if span in seen:
+                print("skippy")
+                continue
+            seen.add(span)
+            print("OCCURRENCE:", raw_term)
             occurrences.append(
-                build_defined_term_occurrence(
+                build_defined_term_mention(
                     term=raw_term,
                     start_offset=start_offset,
                     end_offset=end_offset,
+                    kind="reference",
                 )
             )
 
         # 2) Unquoted capitalised occurrences
-        if cfg.allow_unquoted_capitalised_terms and ((not cfg.require_legal_domain_for_unquoted) or legal_active):
+        if cfg.allow_unquoted_capitalised_terms and (
+            (not cfg.require_legal_domain_for_unquoted) or legal_active
+        ):
             for match in self._patterns.capitalised_occurrence.finditer(text):
                 raw_term = match.group("term")
                 start_offset, end_offset = match.span("term")
-
-                if _overlaps_any(start_offset, end_offset, intro_term_spans):
-                    continue
 
                 tail = text[end_offset:].lstrip()
                 if tail.startswith("("):
@@ -282,7 +305,7 @@ class DefinedTermDetector(BaseDetector[DefinedTermDetectorResult]):
                 if not resolved:
                     continue
 
-                resolved_term, _ = resolved
+                resolved_term, resolved_key = resolved
 
                 # Adjust span to the resolved suffix inside the broader match
                 suffix_start = raw_term.rfind(resolved_term)
@@ -290,18 +313,32 @@ class DefinedTermDetector(BaseDetector[DefinedTermDetectorResult]):
                     continue
 
                 resolved_start = start_offset + suffix_start
+
+                first_intro_end = first_intro_end_by_key.get(resolved_key)
+                if first_intro_end is None or resolved_start < first_intro_end:
+                    continue
+
                 resolved_end = resolved_start + len(resolved_term)
 
+                # Only now do intro suppression, against the actual resolved term span.
+                if _overlaps_any(resolved_start, resolved_end, intro_term_spans):
+                    continue
+
+                span = (resolved_start, resolved_end)
+                if span in seen:
+                    continue
+                seen.add(span)
+
                 occurrences.append(
-                    build_defined_term_occurrence(
+                    build_defined_term_mention(
                         term=resolved_term,
                         start_offset=resolved_start,
                         end_offset=resolved_end,
+                        kind="reference",
                     )
                 )
 
         return occurrences
-
     @logger(message="defined_term_detector.detect", db_sink="sink")
     def detect(self, text: str) -> DefinedTermDetectorResult:
         """Detect defined-term introductions and occurrences in a text run.
@@ -320,20 +357,31 @@ class DefinedTermDetector(BaseDetector[DefinedTermDetectorResult]):
         cfg = self._with_auto_domains(text)
         legal_active = "legal" in cfg.enabled_domains
 
+
+
         intros = self._iter_term_introductions(text, cfg, legal_active)
+        first_intro_end_by_key: dict[str, int] = {}
+        for intro in intros:
+            prev = first_intro_end_by_key.get(intro.normalized_key)
+            if prev is None or intro.end_offset < prev:
+                first_intro_end_by_key[intro.normalized_key] = intro.end_offset
+
         unique_terms = {intro.normalized_key: intro for intro in intros}
         intro_term_spans = {(intro.start_offset, intro.end_offset) for intro in intros}
 
-        occurrences = self._iter_occurrences(
+        occurrences = self._iter_references(
             text,
             known_keys=set(unique_terms.keys()),
             intro_term_spans=intro_term_spans,
+            first_intro_end_by_key=first_intro_end_by_key,
             cfg=cfg,
             legal_active=legal_active,
         )
+        print("OCCURRENCES:")
+        print(occurrences)
 
         return DefinedTermDetectorResult(
-            occurrences=occurrences,
+            mentions=occurrences,
             introductions=intros,
             unique_terms=unique_terms,
         )
