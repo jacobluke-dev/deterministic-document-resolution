@@ -78,14 +78,21 @@ class DefinedTermDetector(BaseDetector[DefinedTermDetectorResult]):
             ``enabled_domains``. Returns the existing config unchanged when no new
             domains are detected.
         """
-        if not self.cfg.auto_detect_domains:
-            return self.cfg
-        auto = autodetect_domains(text, self.cfg)
-        if auto:
-            merged = self.cfg.enabled_domains | auto
-            if merged != self.cfg.enabled_domains:
-                return dc_replace(self.cfg, enabled_domains=merged)
-        return self.cfg
+        cfg = self.cfg
+
+        if cfg.auto_detect_domains:
+            auto = autodetect_domains(text, cfg)
+            if auto:
+                merged = cfg.enabled_domains | auto
+                if merged != cfg.enabled_domains:
+                    cfg = dc_replace(cfg, enabled_domains=merged)
+
+        legal_active = "legal" in cfg.enabled_domains
+
+        if legal_active and not cfg.allow_unquoted_capitalised_terms:
+            cfg = dc_replace(cfg, allow_unquoted_capitalised_terms=True)
+
+        return cfg
 
     @staticmethod
     def _resolve_known_term_from_run(raw_term: str, known_keys: set[str]) -> tuple[str, str] | None:
@@ -252,22 +259,17 @@ class DefinedTermDetector(BaseDetector[DefinedTermDetectorResult]):
             A list of ``DefinedTermMention`` objects representing detected
             occurrences of known terms.
         """
-        print("ITER REFERENCES cfg.enabled_domains:", cfg.enabled_domains)
-        print("ITER REFERENCES self.cfg.enabled_domains:", self.cfg.enabled_domains)
-        print("ITER REFERENCES legal_active:", legal_active)
         occurrences: list[DefinedTermMention] = []
         seen: set[Span] = set()
 
         # 1) Quoted occurrences
         for match in self._patterns.quoted_occurrence.finditer(text):
             raw_term = match.group("term")
-            print("raw_term:", raw_term)
             start_offset, end_offset = match.span("term")
 
             # Quoted intro terms should be suppressed, but only when the span is
             # actually the intro term span.
             if _is_intro_term_span(start_offset, end_offset, intro_term_spans):
-                print("is intro skip")
                 continue
 
             normalized = normalize_defined_term_key(raw_term)
@@ -276,15 +278,12 @@ class DefinedTermDetector(BaseDetector[DefinedTermDetectorResult]):
                 continue
 
             if normalized not in known_keys:
-                print("unknown term:", raw_term)
                 continue
 
             span = (start_offset, end_offset)
             if span in seen:
-                print("skippy")
                 continue
             seen.add(span)
-            print("OCCURRENCE:", raw_term)
             occurrences.append(
                 build_defined_term_mention(
                     term=raw_term,
@@ -381,8 +380,6 @@ class DefinedTermDetector(BaseDetector[DefinedTermDetectorResult]):
             cfg=cfg,
             legal_active=legal_active,
         )
-        print("OCCURRENCES:")
-        print(occurrences)
 
         return DefinedTermDetectorResult(
             mentions=occurrences,

@@ -34,8 +34,16 @@ class TestDefinedTermDetectorWithAutoDomains:
         assert out is not detector.cfg
         assert out.enabled_domains == frozenset({"bio", "legal"})
 
-    def test__with_auto_domains_returns_same_config_when_no_new_domains(self, _patch, defined_term_detector_factory):
-        detector = defined_term_detector_factory(enabled_domains=frozenset({"legal"}))
+    def test_with_auto_domains_enables_unquoted_terms_when_legal_already_active(
+        self,
+        _patch,
+        defined_term_detector_factory,
+    ):
+        detector = defined_term_detector_factory(
+            enabled_domains=frozenset({"legal"}),
+            allow_unquoted_capitalised_terms=False,
+            require_legal_domain_for_unquoted=True,
+        )
 
         _patch(
             det_mod.DefinedTermDetector._with_auto_domains,
@@ -43,7 +51,11 @@ class TestDefinedTermDetectorWithAutoDomains:
         )
 
         out = detector._with_auto_domains("some contract text")
-        assert out is detector.cfg
+
+        assert out.enabled_domains == frozenset({"legal"})
+        assert out.allow_unquoted_capitalised_terms is True
+        assert out.require_legal_domain_for_unquoted is True
+        assert out is not detector.cfg
 
 
 class TestDefinedTermDetectorResolveKnownTermFromRun:
@@ -464,19 +476,6 @@ class TestDefinedTermDetectorDetect:
             allow_unquoted_capitalised_terms=True,
             require_legal_domain_for_unquoted=True,
             enabled_domains=frozenset()).detect(text)
-
-        assert result.unique_terms == {}
-        assert result.mentions == []
-
-    def test_detect_skips_unquoted_terms_when_disabled_even_if_legal_active(self, defined_term_detector_factory):
-        text = """
-        Change of Control means any sale of assets.
-        Following a Change of Control, the Customer may terminate.
-        """
-
-        result = defined_term_detector_factory(allow_unquoted_capitalised_terms=False,
-                                               require_legal_domain_for_unquoted=False,
-                                               enabled_domains=frozenset({"legal"}), ).detect(text)
 
         assert result.unique_terms == {}
         assert result.mentions == []
