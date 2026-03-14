@@ -42,12 +42,6 @@ class TermCandidateScore:
     components: dict[str, float]
 
 
-@dataclass(frozen=True)
-class TermResolutionResult:
-    term_sense_index: dict[str, tuple[TermSense, ...]]
-    term_resolutions: tuple[TermResolution, ...]
-
-
 @dataclass(frozen=True, slots=True)
 class TermResolution:
     occurrence_span: TextSpanTuple

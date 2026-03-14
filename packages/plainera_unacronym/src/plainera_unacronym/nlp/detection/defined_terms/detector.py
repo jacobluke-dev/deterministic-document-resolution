@@ -317,10 +317,7 @@ class DefinedTermDetector(BaseDetector[DefinedTermDetectorResult]):
         """
         occurrences: list[DefinedTermMention] = []
 
-        if not (
-            cfg.allow_unquoted_capitalised_terms
-            and ((not cfg.require_legal_domain_for_unquoted) or legal_active)
-        ):
+        if not (cfg.allow_unquoted_capitalised_terms and ((not cfg.require_legal_domain_for_unquoted) or legal_active)):
             return occurrences
 
         for match in self._patterns.capitalised_occurrence.finditer(text):
