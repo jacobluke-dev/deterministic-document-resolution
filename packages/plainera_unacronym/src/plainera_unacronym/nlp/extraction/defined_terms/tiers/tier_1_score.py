@@ -20,6 +20,21 @@ def _occurrence_context(
     *,
     window_chars: int,
 ) -> str:
+    """Return local context text for a defined-term occurrence.
+
+    Prefers a precomputed ``segment_window`` on the occurrence when available.
+    Otherwise, extracts a symmetric character window around the occurrence span.
+
+    Args:
+        text: Full source text containing the occurrence.
+        occ: Defined-term occurrence to extract context for.
+        window_chars: Number of characters to include on each side of the
+            occurrence when no precomputed segment window is present.
+
+    Returns:
+        A context string surrounding the occurrence, suitable for deterministic
+        Tier-1 feature scoring.
+    """
     if occ.segment_window:
         return occ.segment_window
 
@@ -29,6 +44,14 @@ def _occurrence_context(
 
 
 def _tokenise(text: str) -> set[str]:
+    """Tokenise text into a lowercase word set for overlap scoring.
+
+    Args:
+        text: Source text to tokenise.
+
+    Returns:
+        A set of lowercase word tokens extracted from ``text``.
+    """
     return {m.group(0).lower() for m in _WORD_RE.finditer(text)}
 
 
@@ -38,6 +61,22 @@ def _lexical_overlap_score(
     *,
     term_surface: str,
 ) -> float:
+    """Compute lexical overlap between occurrence context and definition text.
+
+    The surface tokens of the term itself are removed from both sides before
+    comparison so the score reflects contextual overlap rather than the repeated
+    term string.
+
+    Args:
+        occ_context: Local context text around the occurrence.
+        definition_text: Definition text for the candidate sense.
+        term_surface: Raw surface form of the occurrence being resolved.
+
+    Returns:
+        A normalised overlap score in the range ``[0, 1]``. Returns ``0.0`` when
+        the candidate has no definition text or when no informative tokens remain
+        after term-token removal.
+    """
     if not definition_text:
         return 0.0
 
@@ -56,11 +95,35 @@ def _lexical_overlap_score(
 
 
 def _directionality_score(occ: DefinedTermMention, sense: TermSense) -> float:
+    """Score whether the candidate introduction appears before the occurrence.
+
+    Earlier introductions are preferred. Candidate senses introduced after the
+    occurrence receive a small penalty.
+
+    Args:
+        occ: Defined-term occurrence being resolved.
+        sense: Candidate sense being scored.
+
+    Returns:
+        A directionality score favouring prior introductions.
+    """
     intro_start = sense.intro_span[1]
     return 1.0 if intro_start <= occ.start_offset else -0.25
 
 
 def _proximity_score(occ: DefinedTermMention, sense: TermSense) -> float:
+    """Score proximity between the occurrence and candidate introduction span.
+
+    Nearby introductions receive a higher score than distant ones using a small
+    bucketed distance heuristic.
+
+    Args:
+        occ: Defined-term occurrence being resolved.
+        sense: Candidate sense being scored.
+
+    Returns:
+        A proximity score favouring nearby introductions.
+    """
     intro_end = sense.intro_span[2]
     dist = abs(occ.start_offset - intro_end)
 
@@ -78,6 +141,21 @@ def _section_proximity_score(
     sense: TermSense,
     structure_index: TermStructureIndex | None,
 ) -> float:
+    """Score structural proximity between an occurrence and a candidate sense.
+
+    Exact section-path matches score highest. Candidates sharing only the top-level
+    section receive a partial score. When no structure index is available, the
+    score is ``0.0``.
+
+    Args:
+        occ: Defined-term occurrence being resolved.
+        sense: Candidate sense being scored.
+        structure_index: Optional structure index used to map offsets to section
+            paths.
+
+    Returns:
+        A structural proximity score in the range ``[0.0, 1.0]``.
+    """
     if structure_index is None:
         return 0.0
 
@@ -94,6 +172,18 @@ def _section_proximity_score(
 
 
 def _intro_kind_score(intro_kind: str) -> float:
+    """Return a heuristic weight for the introduction style of a candidate sense.
+
+    More explicit definitional patterns such as ``quoted_means`` and
+    ``quoted_shall_mean`` receive a stronger score than weaker patterns such as a
+    parenthetical alias.
+
+    Args:
+        intro_kind: Introduction kind label recorded on the candidate sense.
+
+    Returns:
+        A heuristic intro-kind score used as one Tier-1 scoring component.
+    """
     if intro_kind in {"quoted_means", "quoted_shall_mean", "bare_means", "bare_shall_mean"}:
         return 1.0
     if intro_kind == "parenthetical_alias":
@@ -109,6 +199,22 @@ def _score_candidate(
     structure_index: TermStructureIndex | None,
     cfg: DefinedTermExtractionConfig,
 ) -> float:
+    """Compute the deterministic Tier-1 score for one occurrence/sense pair.
+
+    The final score is a weighted sum of directional, proximity, structural,
+    lexical-overlap, and introduction-kind components.
+
+    Args:
+        text: Full source text containing the occurrence.
+        occ: Defined-term occurrence being resolved.
+        sense: Candidate sense to score.
+        structure_index: Optional structure index used for section-path proximity.
+        cfg: Active extraction configuration controlling Tier-1 weights and
+            context-window size.
+
+    Returns:
+        The final deterministic Tier-1 score for the candidate sense.
+    """
     occ_context = _occurrence_context(
         text,
         occ,
@@ -139,6 +245,25 @@ def score_term_occurrence_tier1(
     structure_index: TermStructureIndex | None,
     cfg: DefinedTermExtractionConfig,
 ) -> TermTier1OccurrenceRanking:
+    """Score one defined-term occurrence against its candidate senses.
+
+    Candidates are scored deterministically, sorted by descending score, and the
+    top candidate is selected only when its normalised margin over the runner-up
+    meets the configured threshold.
+
+    Args:
+        text: Full source text containing the occurrence.
+        occ: Defined-term occurrence to resolve.
+        candidate_senses: Candidate senses associated with the occurrence's
+            normalised term key.
+        structure_index: Optional structure index used for section-path scoring.
+        cfg: Active extraction configuration controlling Tier-1 thresholds and
+            feature weights.
+
+    Returns:
+        A ``TermTier1OccurrenceRanking`` containing candidate scores, the chosen
+        sense ID when sufficiently separated, and the computed gap and margin.
+    """
     senses = list(candidate_senses)
 
     if not senses:
@@ -193,6 +318,23 @@ def score_term_occurrences_tier1(
     structure_index: TermStructureIndex | None,
     cfg: DefinedTermExtractionConfig,
 ) -> list[TermTier1OccurrenceRanking]:
+    """Run deterministic Tier-1 scoring for all detected term occurrences.
+
+    Each occurrence is matched against the candidate senses for its normalised
+    term key and scored independently using ``score_term_occurrence_tier1``.
+
+    Args:
+        text: Full source text containing the occurrences.
+        occurrences: Detected later references to defined terms.
+        term_sense_index: Mapping from normalised term key to candidate senses.
+        structure_index: Optional structure index used for section-path scoring.
+        cfg: Active extraction configuration controlling Tier-1 thresholds and
+            feature weights.
+
+    Returns:
+        A list of ``TermTier1OccurrenceRanking`` objects aligned to the input
+        ``occurrences`` order.
+    """
     ranked: list[TermTier1OccurrenceRanking] = []
 
     for occ in occurrences:

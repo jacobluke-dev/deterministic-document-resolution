@@ -13,6 +13,16 @@ _MEANS_START_RE = re.compile(
 
 
 def _as_text_span(text: str, start: int, end: int):
+    """Return a text span tuple for a slice of the source text.
+
+    Args:
+        text: Full source text.
+        start: Inclusive start offset of the span.
+        end: Exclusive end offset of the span.
+
+    Returns:
+        A tuple of ``(span_text, start, end)`` for the requested slice.
+    """
     return text[start:end], start, end
 
 
@@ -22,9 +32,21 @@ def _resolve_definition_start(
     *,
     intro_kind: str,
 ) -> int | None:
-    """
-    Return the start offset of the actual definition body, or None if this
-    introduction form should not produce a trailing definition span.
+    """Resolve the starting offset of the trailing definition body.
+
+    For introduction kinds that support a trailing ``means`` or ``shall mean``
+    clause, this helper skips the definitional anchor and returns the start of
+    the actual definition text. Parenthetical aliases do not produce trailing
+    definition spans and therefore return ``None``.
+
+    Args:
+        text: Full source text.
+        intro_end: Exclusive end offset of the introduction term span.
+        intro_kind: Introduction kind recorded for the detected term.
+
+    Returns:
+        The start offset of the definition body, or ``None`` when the
+        introduction form does not support trailing definition extraction.
     """
     if intro_kind == "parenthetical_alias":
         return None
@@ -44,6 +66,21 @@ def _find_definition_end(
     *,
     max_chars: int = 400,
 ) -> int | None:
+    """Find the end offset of a trailing definition fragment.
+
+    Scans forward from ``start`` up to ``max_chars`` and stops at the earliest
+    recognised boundary marker such as a blank line, semicolon, or period.
+
+    Args:
+        text: Full source text.
+        start: Inclusive start offset of the definition body.
+        max_chars: Maximum number of characters to scan when searching for a
+            definition boundary.
+
+    Returns:
+        The exclusive end offset of the extracted definition fragment, or
+        ``None`` when no non-whitespace definition content is available.
+    """
     if start >= len(text):
         return None
 
@@ -71,6 +108,25 @@ def extract_term_definitions(
     structure_index: TermStructureIndex | None,
     max_definition_chars: int = 400,
 ) -> list[TermDefinitionEntry]:
+    """Extract definition entries from detected defined-term introductions.
+
+    For each introduction, this function records the introduction span, attempts
+    to extract a trailing definition span and text when the introduction form
+    supports it, and attaches structural section-path context from the document
+    structure index.
+
+    Args:
+        text: Full source text containing the detected introductions.
+        detector_result: Detector output containing introduced defined terms.
+        structure_index: Optional structure index used to map introduction
+            offsets to section paths.
+        max_definition_chars: Maximum number of characters to scan when
+            extracting trailing definition text.
+
+    Returns:
+        A list of ``TermDefinitionEntry`` objects sorted by introduction span
+        order.
+    """
     entries: list[TermDefinitionEntry] = []
 
     for intro in detector_result.introductions:

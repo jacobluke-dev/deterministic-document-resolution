@@ -15,15 +15,37 @@ _SECTION_RE = re.compile(r"^(?P<raw>(?:(?:section|clause)\s+)?(?P<label>\d+(?:\.
 
 @dataclass(frozen=True, slots=True)
 class StructurePathEntry:
+    """Map a contiguous text span to a lightweight structural document path.
+
+    Attributes:
+        span: Half-open ``(start, end)`` character span covered by the path.
+        path: Structural path labels describing the block, for example
+            ``("document",)``, ``("section:2",)``, or
+            ``("schedule:A", "section:1.2")``.
+    """
     span: Span
     path: tuple[str, ...]
 
-
 @dataclass(frozen=True, slots=True)
 class TermStructureIndex:
+    """Lookup index mapping source offsets to lightweight structural paths.
+
+    Attributes:
+        paths_by_span: Ordered span-to-path entries covering the detected
+            structural blocks of the document.
+    """
     paths_by_span: tuple[StructurePathEntry, ...]
 
     def path_for_offset(self, offset: int) -> tuple[str, ...]:
+        """Return the structural path containing a given character offset.
+
+        Args:
+            offset: Character offset in the source document.
+
+        Returns:
+            The structural path for the matching span, or ``("document",)``
+            when no more specific path is available.
+        """
         for entry in self.paths_by_span:
             start, end = entry.span
             if start <= offset < end:
@@ -32,6 +54,16 @@ class TermStructureIndex:
 
 
 def _line_spans(text: str) -> list[TextSpanTuple]:
+    """Split text into line spans while preserving source offsets.
+
+    Args:
+        text: Full source text to segment into lines.
+
+    Returns:
+        A list of ``(line_text, start, end)`` tuples for each line. When the
+        text contains no line breaks, a single span covering the whole text is
+        returned.
+    """
     spans: list[TextSpanTuple] = []
     pos = 0
     for line in text.splitlines(keepends=True):
@@ -49,16 +81,32 @@ def _close_entry(
     current_end: int,
     current_path: tuple[str, ...],
 ) -> None:
+    """Append a structure entry for the current open span when non-empty.
+
+    Args:
+        entries: Output list of accumulated structure entries.
+        current_start: Inclusive start offset of the current structural block.
+        current_end: Exclusive end offset of the current structural block.
+        current_path: Structural path associated with the current block.
+    """
     if current_end > current_start:
         entries.append(StructurePathEntry(span=(current_start, current_end), path=current_path))
 
 
 def build_term_structure_index(text: str) -> TermStructureIndex:
-    """
-    Build a lightweight structure index from section/schedule-like headings.
+    """Build a lightweight structure index from section- and schedule-like headings.
 
-    This is intentionally conservative. If no headings are found, the whole
-    document becomes a single ('document',) block.
+    The parser is intentionally conservative. It scans line-oriented headings and
+    opens new structural blocks for recognised schedules, annexes, appendices,
+    sections, and clauses. If no headings are found, the entire document is
+    represented as a single ``("document",)`` span.
+
+    Args:
+        text: Full source text to analyse.
+
+    Returns:
+        A ``TermStructureIndex`` containing ordered span-to-path mappings for the
+        detected structural blocks.
     """
     lines = _line_spans(text)
     entries: list[StructurePathEntry] = []

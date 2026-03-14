@@ -14,6 +14,24 @@ def _select_final_candidate_scores_and_method(
     s: TermFlowState,
     idx: int,
 ) -> tuple[tuple[TermCandidateScore, ...], Literal["tier1", "tier2_blend"]]:
+    """Build final candidate scores for one occurrence and record the source method.
+
+    For the occurrence at ``idx``, this helper combines Tier-1 candidate scores
+    with Tier-2 semantic information when Tier-2 was actually applied. When no
+    applied Tier-2 result exists, the returned candidate scores remain pure
+    Tier-1 scores.
+
+    Args:
+        s: Current term-resolution flow state containing Tier-1 and Tier-2
+            ranking outputs plus the sense index.
+        idx: Index of the occurrence to assemble candidate scores for.
+
+    Returns:
+        A tuple of:
+            - candidate scores sorted by descending final score, and
+            - the method label indicating whether the final scores came from
+              pure Tier-1 scoring or Tier-2 blended scoring.
+    """
     r1 = s.tier_1.ranked[idx]
     r2 = s.tier_2.ranked[idx] if idx < len(s.tier_2.ranked) else None
 
@@ -48,6 +66,21 @@ def _choose_from_candidate_scores(
     *,
     margin_threshold: float,
 ) -> str | None:
+    """Choose a winning sense from assembled candidate scores.
+
+    The top candidate is selected only when its score margin over the runner-up
+    meets or exceeds ``margin_threshold``. Single-candidate cases resolve
+    immediately. Empty candidate sets remain unresolved.
+
+    Args:
+        candidate_scores: Final assembled candidate scores for one occurrence,
+            sorted in descending score order.
+        margin_threshold: Minimum normalised margin required to resolve a winner.
+
+    Returns:
+        The chosen sense ID when the winning margin is sufficient, otherwise
+        ``None``.
+    """
     if not candidate_scores:
         return None
     if len(candidate_scores) == 1:
@@ -61,6 +94,25 @@ def _choose_from_candidate_scores(
 
 
 def assemble_term_resolution_result(s: TermFlowState) -> TermResolutionResult:
+    """Assemble final defined-term resolutions from Tier-1 and Tier-2 outputs.
+
+    For each Tier-1-ranked occurrence, this function builds the final candidate
+    score list, selects a winning sense when the configured margin threshold is
+    met, and records unresolved cases explicitly. Tier-2 outputs are incorporated
+    only when Tier-2 was applied for that occurrence.
+
+    Args:
+        s: Current term-resolution flow state containing Tier-1 rankings,
+            optional Tier-2 rerank outputs, and the sense indexes.
+
+    Returns:
+        A ``TermResolutionResult`` containing:
+            - the term and sense indexes,
+            - final per-occurrence resolutions,
+            - ambiguous multi-sense term keys,
+            - unresolved occurrences, and
+            - Tier-2 report metadata.
+    """
     margin_threshold = float(s.ext_cfg.multi_tier.select_margin_threshold)
     resolutions: list[TermResolution] = []
     undecided: list[TermResolution] = []
