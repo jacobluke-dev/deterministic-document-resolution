@@ -2,8 +2,6 @@ from __future__ import annotations
 
 import types
 
-import pytest
-
 from plainera_unacronym.nlp.common.types import DefinedTermDetectorConfig
 from plainera_unacronym.nlp.execute_defined_terms import detect_and_resolve_terms
 

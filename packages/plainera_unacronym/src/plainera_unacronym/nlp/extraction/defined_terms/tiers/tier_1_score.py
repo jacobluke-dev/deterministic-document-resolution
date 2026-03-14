@@ -11,7 +11,6 @@ from plainera_unacronym.nlp.extraction.defined_terms.types import (
     TermTier1OccurrenceRanking,
 )
 
-
 _WORD_RE = re.compile(r"[A-Za-z][A-Za-z0-9'-]*")
 
 
@@ -119,11 +118,14 @@ def _score_candidate(
     directionality = _directionality_score(occ, sense) * cfg.directionality_weight
     proximity = _proximity_score(occ, sense)
     section = _section_proximity_score(occ, sense, structure_index) * cfg.section_proximity_weight
-    lexical = _lexical_overlap_score(
-        occ_context,
-        sense.definition_text,
-        term_surface=occ.term,
-    ) * cfg.lexical_overlap_weight
+    lexical = (
+        _lexical_overlap_score(
+            occ_context,
+            sense.definition_text,
+            term_surface=occ.term,
+        )
+        * cfg.lexical_overlap_weight
+    )
     intro_kind = _intro_kind_score(sense.intro_kind) * cfg.intro_type_weight
 
     return directionality + proximity + section + lexical + intro_kind

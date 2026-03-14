@@ -1,6 +1,6 @@
 from plainera_unacronym.nlp.detection.defined_terms.builders import (
-    build_defined_term_mention,
     build_defined_term_intro,
+    build_defined_term_mention,
 )
 
 

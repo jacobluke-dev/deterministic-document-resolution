@@ -44,6 +44,7 @@ def st_extract_term_definitions(s: TermFlowState) -> StageResult[TermFlowState]:
     s.last_info = f"definitions={len(s.definition_entries)} with_text={n_with_text}"
     return StageResult(s, s.last_info)
 
+
 def st_build_term_sense_index(s: TermFlowState) -> StageResult[TermFlowState]:
     """Build term senses from extracted definition entries."""
     s.tier_1.term_sense_index, s.tier_1.sense_index = build_term_sense_index(
@@ -75,11 +76,7 @@ def st_tier1_score_term_occurrences(s: TermFlowState) -> StageResult[TermFlowSta
     )
 
     decided = sum(1 for r in s.tier_1.ranked if r.chosen_sense_id is not None)
-    s.last_info = (
-        f"occurrences={len(s.tier_1.occurrences)} "
-        f"ranked={len(s.tier_1.ranked)} "
-        f"decided={decided}"
-    )
+    s.last_info = f"occurrences={len(s.tier_1.occurrences)} " f"ranked={len(s.tier_1.ranked)} " f"decided={decided}"
     return StageResult(s, s.last_info)
 
 

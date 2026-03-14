@@ -5,15 +5,12 @@ from dataclasses import dataclass
 
 from plainera_unacronym.nlp.common.types import Span, TextSpanTuple
 
-
 _SCHEDULE_RE = re.compile(
     r"^(?P<raw>(?P<kind>schedule|appendix|annex)\s+(?P<label>[A-Z0-9IVX]+)\b.*)$",
     re.IGNORECASE,
 )
 
-_SECTION_RE = re.compile(
-    r"^(?P<raw>(?:(?:section|clause)\s+)?(?P<label>\d+(?:\.\d+)*)(?:[.)])?\s+[A-Z][^\n]{0,160})$"
-)
+_SECTION_RE = re.compile(r"^(?P<raw>(?:(?:section|clause)\s+)?(?P<label>\d+(?:\.\d+)*)(?:[.)])?\s+[A-Z][^\n]{0,160})$")
 
 
 @dataclass(frozen=True, slots=True)

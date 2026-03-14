@@ -213,6 +213,7 @@ class DefinedTermDetectorConfig:
         max_definition_chars: Maximum number of characters to capture for a
             detected definition span before truncation or stopping rules apply.
     """
+
     enabled_domains: frozenset[str] = frozenset()
     auto_detect_domains: bool = True
     window_chars: int = 80

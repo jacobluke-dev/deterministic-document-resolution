@@ -1,4 +1,3 @@
-import pytest
 
 from plainera_unacronym.nlp.plugins.activation import autodetect_domains
 

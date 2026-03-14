@@ -8,10 +8,9 @@ from .interface import SupportsSniff
 from .registry import DOMAIN_PLUGINS
 
 
-def autodetect_domains(text: str,
-                       _cfg: AcronymDetectorConfig| DefinedTermDetectorConfig,
-                       *,
-                       cap: int = 80_000) -> FrozenSet[str]:
+def autodetect_domains(
+    text: str, _cfg: AcronymDetectorConfig | DefinedTermDetectorConfig, *, cap: int = 80_000
+) -> FrozenSet[str]:
     """Return the set of domain plugin names auto-detected for a given text.
 
     This scans a capped prefix of ``text`` (default: first 80,000 characters)

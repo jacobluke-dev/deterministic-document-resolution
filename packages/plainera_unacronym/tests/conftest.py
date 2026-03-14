@@ -1,9 +1,4 @@
 from dataclasses import replace
-
-from plainera_unacronym.nlp.common.types import DefinedTermDetectorConfig
-from plainera_unacronym.nlp.detection.defined_terms import DefinedTermDetector
-
-
 from typing import Callable
 
 import numpy as np
@@ -11,7 +6,14 @@ import plainera_unacronym.nlp.detection.acronym.detector as det
 import plainera_unacronym.nlp.detection.base as bs
 import pytest
 from plainera_unacronym.nlp.common.shared import normalize_acronym_key
-from plainera_unacronym.nlp.common.types import AcronymDetectorConfig, FirstOccurrence, Occurrence, Span
+from plainera_unacronym.nlp.common.types import (
+    AcronymDetectorConfig,
+    DefinedTermDetectorConfig,
+    FirstOccurrence,
+    Occurrence,
+    Span,
+)
+from plainera_unacronym.nlp.detection.defined_terms import DefinedTermDetector
 from plainera_unacronym.nlp.extraction import ExtractionConfig
 
 

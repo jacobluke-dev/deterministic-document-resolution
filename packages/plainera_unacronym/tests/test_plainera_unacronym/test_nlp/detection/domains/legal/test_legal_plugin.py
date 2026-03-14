@@ -4,7 +4,7 @@ from plainera_unacronym.nlp import AcronymDetector
 from plainera_unacronym.nlp.common.types import AcronymDetectorConfig
 from plainera_unacronym.nlp.detection.acronym.compiler import compile_acronym_pattern
 from plainera_unacronym.nlp.detection.domains import LegalPlugin
-from plainera_unacronym.nlp.detection.domains.legal.config import LEGAL_QUOTED_MEANS_RE, LEGAL_CONTRACT_SUBJECT_SHALL_RE
+from plainera_unacronym.nlp.detection.domains.legal.config import LEGAL_CONTRACT_SUBJECT_SHALL_RE, LEGAL_QUOTED_MEANS_RE
 from plainera_unacronym.nlp.detection.domains.legal.legal_gate import should_enable_legal
 from plainera_unacronym.nlp.detection.heuristics.core import iter_acronym_candidates
 from plainera_unacronym.nlp.plugins.activation import autodetect_domains

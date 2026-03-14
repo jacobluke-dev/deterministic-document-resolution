@@ -266,7 +266,7 @@ def _skip_ws(text: str, i: int, *, max_ws: int | None = None) -> int:
     return i
 
 
-def _best_occ_at_start(by_start: dict[int, list["Occurrence"]], start: int) -> "Occurrence | None":
+def _best_occ_at_start(by_start: dict[int, list[Occurrence]], start: int) -> Occurrence | None:
     """Pick the best occurrence among those that start at a given offset.
 
     Selection policy:
@@ -288,11 +288,11 @@ def _best_occ_at_start(by_start: dict[int, list["Occurrence"]], start: int) -> "
 
 def _find_paren_occurrence_after(
     text: str,
-    a: "Occurrence",
-    by_start: dict[int, list["Occurrence"]],
+    a: Occurrence,
+    by_start: dict[int, list[Occurrence]],
     *,
     max_ws: int,
-) -> "Occurrence | None":
+) -> Occurrence | None:
     """Find a parenthetical occurrence B immediately following occurrence A.
 
     Validates the narrow pattern:
@@ -335,10 +335,10 @@ def _find_paren_occurrence_after(
 
 def rule_token_before_paren_suffix(
     text: str,
-    occs: list["Occurrence"],
+    occs: list[Occurrence],
     *,
     max_ws: int = 2,
-) -> tuple[list["Occurrence"], list["DroppedOccurrence"]]:
+) -> tuple[list[Occurrence], list[DroppedOccurrence]]:
     """Drops an ALLCAPS token immediately before '(' when the parenthetical acronym ends with it.
 
     This rule removes “tail-word” fragment occurrences where an ALLCAPS token (A) directly

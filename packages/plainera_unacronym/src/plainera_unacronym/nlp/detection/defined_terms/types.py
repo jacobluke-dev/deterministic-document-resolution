@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from typing import Optional, Literal
+from typing import Literal, Optional
 
 IntroKind = Literal[
     "quoted_means",
@@ -9,6 +9,7 @@ IntroKind = Literal[
     "parenthetical_alias",
     "unknown",
 ]
+
 
 @dataclass(frozen=True)
 class DefinedTermIntroduction:

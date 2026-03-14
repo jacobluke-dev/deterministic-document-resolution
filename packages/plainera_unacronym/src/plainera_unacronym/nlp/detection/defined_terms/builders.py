@@ -3,7 +3,7 @@ from __future__ import annotations
 from plainera_unacronym.nlp.common.shared import strip_trailing_punct_str
 
 from .normalise import normalize_defined_term_key
-from .types import DefinedTermMention, DefinedTermIntroduction, IntroKind
+from .types import DefinedTermIntroduction, DefinedTermMention, IntroKind
 
 
 def build_defined_term_intro(

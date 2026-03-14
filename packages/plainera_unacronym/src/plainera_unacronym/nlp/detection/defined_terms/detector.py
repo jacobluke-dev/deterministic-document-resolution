@@ -8,25 +8,25 @@ from plainera_unacronym.nlp.common.types import DefinedTermDetectorConfig, Span
 from plainera_unacronym.nlp.detection.base import BaseDetector
 from plainera_unacronym.nlp.plugins.activation import autodetect_domains
 
-from .builders import build_defined_term_mention, build_defined_term_intro
+from .builders import build_defined_term_intro, build_defined_term_mention
 from .compiler import compile_defined_term_patterns
 from .normalise import normalize_defined_term_key
-from .types import DefinedTermDetectorResult, DefinedTermMention, DefinedTermIntroduction, IntroKind
+from .types import DefinedTermDetectorResult, DefinedTermIntroduction, DefinedTermMention, IntroKind
 
 _QUOTE_CHARS = {'"', "“", "”"}
 
 
 def _spans_overlap(a_start: int, a_end: int, b_start: int, b_end: int) -> bool:
     """Return whether two half-open spans overlap.
-7
-    Args:
-        a_start: Inclusive start offset of the first span.
-        a_end: Exclusive end offset of the first span.
-        b_start: Inclusive start offset of the second span.
-        b_end: Exclusive end offset of the second span.
+    7
+        Args:
+            a_start: Inclusive start offset of the first span.
+            a_end: Exclusive end offset of the first span.
+            b_start: Inclusive start offset of the second span.
+            b_end: Exclusive end offset of the second span.
 
-    Returns:
-        True if the spans overlap by at least one character; otherwise False.
+        Returns:
+            True if the spans overlap by at least one character; otherwise False.
     """
     return a_start < b_end and b_start < a_end
 
@@ -182,51 +182,81 @@ class DefinedTermDetector(BaseDetector[DefinedTermDetectorResult]):
                         term_start=term_start,
                         term_end=term_end,
                         provenance="defined_term_detector",
-                        intro_kind=pat_name
+                        intro_kind=pat_name,
                     )
                 )
         intros.sort(key=lambda intro: (intro.start_offset, intro.end_offset, intro.normalized_key))
         return intros
 
-    def _iter_references(
+    @staticmethod
+    def _append_reference_if_new(
+        occurrences: list[DefinedTermMention],
+        seen: set[Span],
+        *,
+        term: str,
+        start_offset: int,
+        end_offset: int,
+    ) -> None:
+        """Append a detected reference span if it has not already been emitted.
+
+        Uses the exact ``(start_offset, end_offset)`` span as the deduplication key.
+        When the span is new, a ``DefinedTermMention`` is built and appended to the
+        output list and the span is recorded in ``seen``.
+
+        Args:
+            occurrences: Accumulated output list of detected later references.
+            seen: Set of already-emitted spans used for deduplication.
+            term: Cleaned or resolved defined-term surface text to emit.
+            start_offset: Inclusive start offset of the reference span.
+            end_offset: Exclusive end offset of the reference span.
+        """
+        span = (start_offset, end_offset)
+        if span in seen:
+            return
+        seen.add(span)
+        occurrences.append(
+            build_defined_term_mention(
+                term=term,
+                start_offset=start_offset,
+                end_offset=end_offset,
+            )
+        )
+
+    def _iter_quoted_references(
         self,
         text: str,
         *,
         known_keys: set[str],
         intro_term_spans: set[Span],
         first_intro_end_by_key: dict[str, int],
-        cfg: DefinedTermDetectorConfig,
-        legal_active: bool,
+        seen: set[Span],
     ) -> list[DefinedTermMention]:
-        """Collect later occurrences of previously introduced defined terms.
+        """Collect quoted later references to previously introduced defined terms.
 
-        The detector first considers quoted occurrences and then, when allowed by
-        configuration, unquoted capitalised occurrences. Unquoted matches must resolve
-        back to a known term from the current run.
+        This pass scans quoted occurrence patterns, suppresses exact introduction-term
+        spans, ignores references that occur before the first introduction for a key,
+        and only emits terms already known from the current run.
 
         Args:
             text: Full source text to scan.
-            known_keys: Set of known normalised term keys introduced earlier in the
-                same run.
-            intro_term_spans: Spans occupied by introduction terms, used to avoid
-                re-emitting introductions as occurrences.
-            cfg: Active detector configuration.
-            legal_active: Whether the legal domain is currently enabled for this run.
+            known_keys: Set of known normalised defined-term keys introduced earlier in
+                the same run.
+            intro_term_spans: Exact spans occupied by introduction terms, used to
+                suppress re-emitting introductions as later references.
+            first_intro_end_by_key: Mapping from normalised key to the end offset of
+                its earliest introduction term span.
+            seen: Set of already-emitted spans used for deduplication across quoted
+                and unquoted reference passes.
 
         Returns:
-            A list of ``DefinedTermMention`` objects representing detected
-            occurrences of known terms.
+            A list of quoted ``DefinedTermMention`` objects detected in document order.
         """
         occurrences: list[DefinedTermMention] = []
-        seen: set[Span] = set()
 
-        # 1) Quoted occurrences
         for match in self._patterns.quoted_occurrence.finditer(text):
             raw_term = match.group("term")
             start_offset, end_offset = match.span("term")
 
-            # Quoted intro terms should be suppressed, but only when the span is
-            # actually the intro term span.
             if _is_intro_term_span(start_offset, end_offset, intro_term_spans):
                 continue
 
@@ -238,65 +268,153 @@ class DefinedTermDetector(BaseDetector[DefinedTermDetectorResult]):
             if normalized not in known_keys:
                 continue
 
-            span = (start_offset, end_offset)
-            if span in seen:
-                continue
-            seen.add(span)
-            occurrences.append(
-                build_defined_term_mention(
-                    term=raw_term,
-                    start_offset=start_offset,
-                    end_offset=end_offset
-                )
+            self._append_reference_if_new(
+                occurrences,
+                seen,
+                term=raw_term,
+                start_offset=start_offset,
+                end_offset=end_offset,
             )
 
-        # 2) Unquoted capitalised occurrences
-        if cfg.allow_unquoted_capitalised_terms and (
-            (not cfg.require_legal_domain_for_unquoted) or legal_active
+        return occurrences
+
+    def _iter_unquoted_references(
+        self,
+        text: str,
+        *,
+        known_keys: set[str],
+        intro_term_spans: set[Span],
+        first_intro_end_by_key: dict[str, int],
+        cfg: DefinedTermDetectorConfig,
+        legal_active: bool,
+        seen: set[Span],
+    ) -> list[DefinedTermMention]:
+        """Collect unquoted capitalised later references to introduced defined terms.
+
+        This pass is only active when unquoted-capitalised reference handling is
+        enabled by configuration and, when required, the legal domain is active.
+        Broader capitalised runs are resolved back to known term keys using suffix
+        matching, for example resolving ``"Party's Confidential Information"`` to
+        ``"Confidential Information"``.
+
+        Args:
+            text: Full source text to scan.
+            known_keys: Set of known normalised defined-term keys introduced earlier in
+                the same run.
+            intro_term_spans: Exact introduction-term spans used to suppress
+                re-emitting introduction text as later references.
+            first_intro_end_by_key: Mapping from normalised key to the end offset of
+                its earliest introduction term span.
+            cfg: Active detector configuration controlling unquoted reference
+                behaviour.
+            legal_active: Whether the legal domain is currently enabled for this run.
+            seen: Set of already-emitted spans used for deduplication across quoted
+                and unquoted reference passes.
+
+        Returns:
+            A list of unquoted ``DefinedTermMention`` objects detected in document
+            order.
+        """
+        occurrences: list[DefinedTermMention] = []
+
+        if not (
+            cfg.allow_unquoted_capitalised_terms
+            and ((not cfg.require_legal_domain_for_unquoted) or legal_active)
         ):
-            for match in self._patterns.capitalised_occurrence.finditer(text):
-                raw_term = match.group("term")
-                start_offset, end_offset = match.span("term")
+            return occurrences
 
-                tail = text[end_offset:].lstrip()
-                if tail.startswith("("):
-                    continue
+        for match in self._patterns.capitalised_occurrence.finditer(text):
+            raw_term = match.group("term")
+            start_offset, end_offset = match.span("term")
 
-                resolved = self._resolve_known_term_from_run(raw_term, known_keys)
-                if not resolved:
-                    continue
+            tail = text[end_offset:].lstrip()
+            if tail.startswith("("):
+                continue
 
-                resolved_term, resolved_key = resolved
+            resolved = self._resolve_known_term_from_run(raw_term, known_keys)
+            if not resolved:
+                continue
 
-                # Adjust span to the resolved suffix inside the broader match
-                suffix_start = raw_term.rfind(resolved_term)
-                if suffix_start == -1:
-                    continue
+            resolved_term, resolved_key = resolved
 
-                resolved_start = start_offset + suffix_start
+            suffix_start = raw_term.rfind(resolved_term)
+            if suffix_start == -1:
+                continue
 
-                first_intro_end = first_intro_end_by_key.get(resolved_key)
-                if first_intro_end is None or resolved_start < first_intro_end:
-                    continue
+            resolved_start = start_offset + suffix_start
+            resolved_end = resolved_start + len(resolved_term)
 
-                resolved_end = resolved_start + len(resolved_term)
+            first_intro_end = first_intro_end_by_key.get(resolved_key)
+            if first_intro_end is None or resolved_start < first_intro_end:
+                continue
 
-                # Only now do intro suppression, against the actual resolved term span.
-                if _overlaps_any(resolved_start, resolved_end, intro_term_spans):
-                    continue
+            if _overlaps_any(resolved_start, resolved_end, intro_term_spans):
+                continue
 
-                span = (resolved_start, resolved_end)
-                if span in seen:
-                    continue
-                seen.add(span)
+            self._append_reference_if_new(
+                occurrences,
+                seen,
+                term=resolved_term,
+                start_offset=resolved_start,
+                end_offset=resolved_end,
+            )
 
-                occurrences.append(
-                    build_defined_term_mention(
-                        term=resolved_term,
-                        start_offset=resolved_start,
-                        end_offset=resolved_end
-                    )
-                )
+        return occurrences
+
+    def _iter_references(
+        self,
+        text: str,
+        *,
+        known_keys: set[str],
+        intro_term_spans: set[Span],
+        first_intro_end_by_key: dict[str, int],
+        cfg: DefinedTermDetectorConfig,
+        legal_active: bool,
+    ) -> list[DefinedTermMention]:
+        """Collect later references to previously introduced defined terms.
+        Runs the quoted-reference pass first and then the unquoted capitalised
+        reference pass, sharing a single deduplication set so the same span is not
+        emitted twice.
+
+        Args:
+            text: Full source text to scan.
+            known_keys: Set of known normalised defined-term keys introduced earlier in
+                the same run.
+            intro_term_spans: Exact spans occupied by introduction terms, used to
+                suppress re-emitting introductions as later references.
+            first_intro_end_by_key: Mapping from normalised key to the end offset of
+                its earliest introduction term span.
+            cfg: Active detector configuration.
+            legal_active: Whether the legal domain is currently enabled for this run.
+
+        Returns:
+            A list of ``DefinedTermMention`` objects representing later references to
+            known terms.
+        """
+        occurrences: list[DefinedTermMention] = []
+        seen: set[Span] = set()
+
+        occurrences.extend(
+            self._iter_quoted_references(
+                text,
+                known_keys=known_keys,
+                intro_term_spans=intro_term_spans,
+                first_intro_end_by_key=first_intro_end_by_key,
+                seen=seen,
+            )
+        )
+
+        occurrences.extend(
+            self._iter_unquoted_references(
+                text,
+                known_keys=known_keys,
+                intro_term_spans=intro_term_spans,
+                first_intro_end_by_key=first_intro_end_by_key,
+                cfg=cfg,
+                legal_active=legal_active,
+                seen=seen,
+            )
+        )
 
         return occurrences
 

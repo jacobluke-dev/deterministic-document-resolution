@@ -24,7 +24,9 @@ def _select_final_candidate_scores_and_method(
     for sense_id, tier1_score in r1.candidate_scores.items():
         sense = s.tier_1.sense_index.get(sense_id)
         tier2_score = r2.tier2_sims.get(sense_id) if use_tier2 and r2 and r2.tier2_sims else None
-        total_score = float(r2.blended_scores[sense_id]) if use_tier2 and r2 and r2.blended_scores else float(tier1_score)
+        total_score = (
+            float(r2.blended_scores[sense_id]) if use_tier2 and r2 and r2.blended_scores else float(tier1_score)
+        )
 
         candidate_scores.append(
             TermCandidateScore(

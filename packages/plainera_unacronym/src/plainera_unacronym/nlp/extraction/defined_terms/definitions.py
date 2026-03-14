@@ -6,7 +6,6 @@ from plainera_unacronym.nlp.detection.defined_terms import DefinedTermDetectorRe
 from plainera_unacronym.nlp.extraction.defined_terms.structure import TermStructureIndex
 from plainera_unacronym.nlp.extraction.defined_terms.types import TermDefinitionEntry
 
-
 _MEANS_START_RE = re.compile(
     r'^\s*"?\s*(?:shall\s+mean|means)\b\s*',
     re.IGNORECASE,
@@ -95,9 +94,7 @@ def extract_term_definitions(
                 max_chars=max_definition_chars,
             )
             definition_span = (
-                _as_text_span(text, definition_start, definition_end)
-                if definition_end is not None
-                else None
+                _as_text_span(text, definition_start, definition_end) if definition_end is not None else None
             )
             definition_text = definition_span[0] if definition_span is not None else None
 
