@@ -4,6 +4,7 @@ from plainera_unacronym.nlp import AcronymDetector
 from plainera_unacronym.nlp.common.types import AcronymDetectorConfig
 from plainera_unacronym.nlp.detection.acronym.compiler import compile_acronym_pattern
 from plainera_unacronym.nlp.detection.domains import LegalPlugin
+from plainera_unacronym.nlp.detection.domains.legal.config import LEGAL_CONTRACT_SUBJECT_SHALL_RE, LEGAL_QUOTED_MEANS_RE
 from plainera_unacronym.nlp.detection.domains.legal.legal_gate import should_enable_legal
 from plainera_unacronym.nlp.detection.heuristics.core import iter_acronym_candidates
 from plainera_unacronym.nlp.plugins.activation import autodetect_domains
@@ -100,6 +101,44 @@ class TestLegalGate:
         assert ok is True
         assert "hereinafter" in reasons
 
+    def test_should_enable_legal_for_quoted_means(self):
+        text = '"Agreement" means this contract.'
+        ok, reasons = should_enable_legal(text)
+        assert ok is True
+        assert "quoted_means" in reasons
+
+    def test_should_enable_legal_for_contractual_shall_language(self):
+        text = 'The Services shall commence on Monday.'
+        ok, reasons = should_enable_legal(text)
+        assert ok is True
+
+    def test_should_enable_legal_for_combined_contract_signals(self):
+        text = """
+        "Agreement" means this contract.
+        "Services" means the software development services.
+        The Services shall commence on Monday.
+        """.strip()
+        ok, reasons = should_enable_legal(text)
+        assert ok is True
+
+    def test_quoted_means_is_detected(self):
+        assert LEGAL_QUOTED_MEANS_RE.search('"Agreement" means this contract.')
+
+    def test_contract_subject_shall_is_detected(self):
+        assert LEGAL_CONTRACT_SUBJECT_SHALL_RE.search("The Services shall commence on Monday.")
+
+    def test_bare_shall_phrase_is_not_detected(self):
+        assert not LEGAL_CONTRACT_SUBJECT_SHALL_RE.search("Nothing shall mean anything to anyone.")
+
+    def test_should_enable_legal_for_contract_defined_terms(self):
+        text = """
+        "Agreement" means this contract.
+        "Services" means the software development, support, and maintenance services.
+        The Services shall commence on Monday.
+        """.strip()
+
+        ok, reasons = should_enable_legal(text)
+        assert ok is True
 
 class TestLegalExtraCandidates:
     def test_extra_candidates_disabled_when_domain_not_enabled(self):

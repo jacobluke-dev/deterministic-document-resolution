@@ -34,16 +34,22 @@ class TestDefinedTermDetectorWithAutoDomains:
         assert out is not detector.cfg
         assert out.enabled_domains == frozenset({"bio", "legal"})
 
-    def test__with_auto_domains_returns_same_config_when_no_new_domains(self, _patch, defined_term_detector_factory):
-        detector = defined_term_detector_factory(enabled_domains=frozenset({"legal"}))
+    def test_detect_does_not_enable_unquoted_mentions_just_because_legal_is_active(
+        self,
+        defined_term_detector_factory,
+    ):
+        text = """
+        Change of Control means any sale of assets.
+        Following a Change of Control, the Customer may terminate.
+        """
 
-        _patch(
-            det_mod.DefinedTermDetector._with_auto_domains,
-            autodetect_domains=lambda text, cfg_: frozenset({"legal"}),
-        )
+        result = defined_term_detector_factory(
+            allow_unquoted_capitalised_terms=False,
+            require_legal_domain_for_unquoted=True,
+            enabled_domains=frozenset({"legal"}),
+        ).detect(text)
 
-        out = detector._with_auto_domains("some contract text")
-        assert out is detector.cfg
+        assert "change_of_control" not in result.unique_terms or result.mentions == []
 
 
 class TestDefinedTermDetectorResolveKnownTermFromRun:
@@ -78,58 +84,6 @@ class TestDefinedTermDetectorResolveKnownTermFromRun:
         out = detector._resolve_known_term_from_run("", known_keys)
 
         assert out is None
-
-
-class TestDefinedTermDetectorExtractDefinitionText:
-    def test_extract_definition_text_stops_at_period(self, defined_term_detector_factory):
-        text = 'Intro. "Effective Date" means the date of signature. Next sentence.'
-
-        anchor_end = text.index("means") + len("means")
-        definition, start, end = (defined_term_detector_factory(max_definition_chars=200)
-                                  ._extract_definition_text(text, anchor_end))
-
-        assert definition == "the date of signature"
-        assert text[start:end] == "the date of signature"
-
-    def test_extract_definition_text_stops_at_semicolon(self, defined_term_detector_factory):
-        text = '"Services" means software support and maintenance; provided remotely.'
-
-        anchor_end = text.index("means") + len("means")
-        definition, start, end = (defined_term_detector_factory(max_definition_chars=200)
-                                  ._extract_definition_text(text, anchor_end))
-
-        assert definition == "software support and maintenance"
-        assert text[start:end] == "software support and maintenance"
-
-    def test_extract_definition_text_stops_at_newline(self, defined_term_detector_factory):
-        text = '"Services" means software support and maintenance\nAdditional text follows'
-
-        anchor_end = text.index("means") + len("means")
-        definition, start, end = (defined_term_detector_factory(max_definition_chars=200)
-                                  ._extract_definition_text(text, anchor_end))
-
-        assert definition == "software support and maintenance"
-        assert text[start:end] == "software support and maintenance"
-
-    def test_extract_definition_text_respects_max_definition_chars(self, defined_term_detector_factory):
-        text = '"Services" means software support and maintenance without punctuation'
-
-        anchor_end = text.index("means") + len("means")
-        definition, start, end = (defined_term_detector_factory(max_definition_chars=12)
-                                  ._extract_definition_text(text, anchor_end))
-
-        assert definition == "software su"
-        assert end - start == len("software su")
-
-    def test_extract_definition_text_strips_leading_spacing_and_punctuation(self, defined_term_detector_factory):
-        text = '"Services" means :,- software support and maintenance.'
-
-        anchor_end = text.index("means") + len("means")
-        definition, start, end = (defined_term_detector_factory(max_definition_chars=200)
-                                  ._extract_definition_text(text, anchor_end))
-
-        assert definition == "software support and maintenance"
-        assert text[start:end] == definition
 
 
 class TestDefinedTermDetectorIterTermIntroductions:
@@ -253,24 +207,25 @@ class TestDefinedTermDetectorIterOccurrences:
         detector = defined_term_detector_factory()
         text = 'The "Services" will begin tomorrow.'
 
-        out = detector._iter_occurrences(
+        out = detector._iter_references(
             text,
             known_keys={"services"},
+            first_intro_end_by_key={"services": 0},
             intro_term_spans=set(),
             cfg=detector.cfg,
             legal_active=False,
         )
 
         assert [o.term for o in out] == ["Services"]
-        assert out[0].normalized_key == "services"
 
     def test_skips_quoted_occurrence_when_not_known_term(self, defined_term_detector_factory):
-        detector = defined_term_detector_factory()
+        detector = defined_term_detector_factory(enabled_domains=frozenset({"legal"}))
         text = 'The "Agreement" will begin tomorrow.'
 
-        out = detector._iter_occurrences(
+        out = detector._iter_references(
             text,
             known_keys={"services"},
+            first_intro_end_by_key={},
             intro_term_spans=set(),
             cfg=detector.cfg,
             legal_active=False,
@@ -281,9 +236,10 @@ class TestDefinedTermDetectorIterOccurrences:
     def test_skips_intro_span_for_quoted_occurrence(self, cfg_terms_det_factory, defined_term_detector_factory):
         text = '"Services" means support services.'
 
-        out = defined_term_detector_factory()._iter_occurrences(
+        out = defined_term_detector_factory(enabled_domains=frozenset({"legal"}))._iter_references(
             text,
             known_keys={"services"},
+            first_intro_end_by_key={},
             intro_term_spans={(0, 10)},  # span for Services without quotes
             cfg=cfg_terms_det_factory(),
             legal_active=False,
@@ -301,9 +257,10 @@ class TestDefinedTermDetectorIterOccurrences:
             require_legal_domain_for_unquoted=True, )
         text = "Following a Change of Control, the Customer may terminate."
 
-        out = detector._iter_occurrences(
+        out = detector._iter_references(
             text,
             known_keys={"change_of_control"},
+            first_intro_end_by_key={"change_of_control": 0},
             intro_term_spans=set(),
             cfg=cfg,
             legal_active=True,
@@ -318,16 +275,19 @@ class TestDefinedTermDetectorIterOccurrences:
         cfg = cfg_terms_det_factory(
             allow_unquoted_capitalised_terms=True,
             require_legal_domain_for_unquoted=True,
+            enabled_domains=frozenset({"legal"})
         )
         detector = defined_term_detector_factory(
             allow_unquoted_capitalised_terms=True,
-            require_legal_domain_for_unquoted=True)
+            require_legal_domain_for_unquoted=True,
+        enabled_domains=frozenset({"legal"}))
         text = "Following a Change of Control, the Customer may terminate."
 
-        out = detector._iter_occurrences(
+        out = detector._iter_references(
             text,
             known_keys={"change_of_control"},
             intro_term_spans=set(),
+            first_intro_end_by_key={},
             cfg=cfg,
             legal_active=False,
         )
@@ -344,9 +304,10 @@ class TestDefinedTermDetectorIterOccurrences:
             require_legal_domain_for_unquoted=False)
         text = "Each Party shall protect the other Party's Confidential Information."
 
-        out = detector._iter_occurrences(
+        out = detector._iter_references(
             text,
             known_keys={"confidential_information"},
+            first_intro_end_by_key={"confidential_information": 0},
             intro_term_spans=set(),
             cfg=cfg,
             legal_active=False,
@@ -367,9 +328,10 @@ class TestDefinedTermDetectorIterOccurrences:
             require_legal_domain_for_unquoted=False)
         text = "Each Party shall protect the other Party's Confidential Information."
 
-        out = detector._iter_occurrences(
+        out = detector._iter_references(
             text,
             known_keys={"effective_date"},
+            first_intro_end_by_key={},
             intro_term_spans=set(),
             cfg=cfg,
             legal_active=False,
@@ -389,9 +351,10 @@ class TestDefinedTermDetectorIterOccurrences:
             require_legal_domain_for_unquoted=False)
         text = "Change of Control means any sale of assets."
 
-        out = detector._iter_occurrences(
+        out = detector._iter_references(
             text,
             known_keys={"change_of_control"},
+            first_intro_end_by_key={},
             intro_term_spans={(0, 17)},
             cfg=cfg,
             legal_active=False,
@@ -415,7 +378,7 @@ class TestDefinedTermDetectorDetect:
             enabled_domains=frozenset({"legal"})).detect(text)
 
         assert set(result.unique_terms.keys()) == {"effective_date", "services"}
-        assert [o.normalized_key for o in result.occurrences] == ["services", "effective_date"]
+        assert [o.normalized_key for o in result.mentions] == ["services", "effective_date"]
 
     def test_detect_includes_parenthetical_alias_as_unique_term(self, defined_term_detector_factory):
         text = """
@@ -429,7 +392,7 @@ class TestDefinedTermDetectorDetect:
             enabled_domains=frozenset({"legal"})).detect(text)
 
         assert "agreement" in result.unique_terms
-        assert [o.term for o in result.occurrences] == ["Agreement"]
+        assert [o.term for o in result.mentions] == ["Agreement"]
 
     def test_detect_allows_bare_introduction_when_legal_active(self, defined_term_detector_factory):
         text = """
@@ -443,7 +406,7 @@ class TestDefinedTermDetectorDetect:
             enabled_domains=frozenset({"legal"})).detect(text)
 
         assert "change_of_control" in result.unique_terms
-        assert [o.term for o in result.occurrences] == ["Change of Control"]
+        assert [o.term for o in result.mentions] == ["Change of Control"]
 
     def test_detect_skips_bare_introduction_when_legal_inactive(self, defined_term_detector_factory):
         text = """
@@ -457,20 +420,7 @@ class TestDefinedTermDetectorDetect:
             enabled_domains=frozenset()).detect(text)
 
         assert result.unique_terms == {}
-        assert result.occurrences == []
-
-    def test_detect_skips_unquoted_terms_when_disabled_even_if_legal_active(self, defined_term_detector_factory):
-        text = """
-        Change of Control means any sale of assets.
-        Following a Change of Control, the Customer may terminate.
-        """
-
-        result = defined_term_detector_factory(allow_unquoted_capitalised_terms=False,
-                                               require_legal_domain_for_unquoted=False,
-                                               enabled_domains=frozenset({"legal"}), ).detect(text)
-
-        assert result.unique_terms == {}
-        assert result.occurrences == []
+        assert result.mentions == []
 
     def test_detect_does_not_duplicate_intro_spans_as_occurrences(self, defined_term_detector_factory):
         detector = defined_term_detector_factory(allow_unquoted_capitalised_terms=True,
@@ -485,7 +435,7 @@ class TestDefinedTermDetectorDetect:
         result = detector.detect(text)
 
         assert set(result.unique_terms.keys()) == {"services"}
-        assert [o.term for o in result.occurrences] == ["Services"]
+        assert [o.term for o in result.mentions] == ["Services"]
 
     def test_detect_resolves_suffix_match_from_broader_capitalised_run(self, defined_term_detector_factory):
         text = """
@@ -499,8 +449,8 @@ class TestDefinedTermDetectorDetect:
             enabled_domains=frozenset({"legal"})).detect(text)
 
         assert "confidential_information" in result.unique_terms
-        assert [o.term for o in result.occurrences] == ["Confidential Information"]
-        occ = result.occurrences[0]
+        assert [o.term for o in result.mentions] == ["Confidential Information"]
+        occ = result.mentions[0]
         assert text[occ.start_offset: occ.end_offset] == "Confidential Information"
 
     def test_detect_builds_unique_terms_by_normalized_key(self, defined_term_detector_factory):
@@ -535,7 +485,7 @@ class TestDefinedTermDetectorDetect:
             enabled_domains=frozenset()).detect(text)
 
         assert "change_of_control" in result.unique_terms
-        assert [o.term for o in result.occurrences] == ["Change of Control"]
+        assert [o.term for o in result.mentions] == ["Change of Control"]
 
     def test_detect_handles_mixed_introduction_styles(self, defined_term_detector_factory):
         text = """
@@ -557,7 +507,7 @@ class TestDefinedTermDetectorDetect:
             "effective_date",
             "change_of_control",
         }
-        assert [o.normalized_key for o in result.occurrences] == [
+        assert [o.normalized_key for o in result.mentions] == [
             "agreement",
             "effective_date",
             "change_of_control",

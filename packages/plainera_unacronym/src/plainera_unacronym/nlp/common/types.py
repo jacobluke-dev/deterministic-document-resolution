@@ -191,7 +191,31 @@ class AcronymDetectorResult:
 
 @dataclass(frozen=True)
 class DefinedTermDetectorConfig:
+    """Configuration for defined-term detection behaviour.
+
+    Controls which domain plugins are active, whether domain auto-detection is
+    used, and how permissive the detector should be when identifying later
+    references to previously introduced terms.
+
+    Attributes:
+        enabled_domains: Explicitly enabled domain plugin names. These are merged
+            with any auto-detected domains when `auto_detect_domains` is True.
+        auto_detect_domains: Whether to infer active domains from the document
+            text before running detection.
+        window_chars: Number of surrounding characters to capture when building
+            local context windows for detector heuristics.
+        allow_unquoted_capitalised_terms: Whether to allow unquoted capitalised
+            term references such as `The Services` or `Effective Date` to be
+            emitted as later mentions.
+        require_legal_domain_for_unquoted: Whether unquoted capitalised term
+            references should only be allowed when the legal domain is active.
+            This helps reduce false positives in non-legal text.
+        max_definition_chars: Maximum number of characters to capture for a
+            detected definition span before truncation or stopping rules apply.
+    """
+
     enabled_domains: frozenset[str] = frozenset()
+    auto_detect_domains: bool = True
     window_chars: int = 80
     allow_unquoted_capitalised_terms: bool = False
     require_legal_domain_for_unquoted: bool = True
