@@ -172,7 +172,7 @@ def score_term_occurrence_tier1(
     gap = top_score - second_score
     margin = gap / max(abs(top_score), 1.0)
 
-    chosen_sense_id = scored[0][0].sense_id
+    chosen_sense_id: str | None = scored[0][0].sense_id
     if len(scored) > 1 and margin < cfg.tier_1_margin_threshold:
         chosen_sense_id = None
 
