@@ -1,17 +1,13 @@
 from __future__ import annotations
 
 import asyncio
-from functools import lru_cache
-from typing import Any, Awaitable, Callable, Protocol
+from typing import Any, Awaitable, Callable, Iterable, Protocol
 
-from plainera_unacronym.db.models.logger import PackageLogger
-from public_api.db.models import Logger
 from sqlalchemy import create_engine, insert
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 from sqlalchemy.orm import sessionmaker
 
 from plainera_core.db_manager.config import MapperFn
-from plainera_core.db_manager.mappers import make_logger_mapper
 
 # ---- Protocol ---------------------------------------------------------------
 
@@ -71,33 +67,6 @@ class UniversalSink:
         self._sync.enqueue(payload)
 
 
-@lru_cache(maxsize=None)
-def _mapper_for(model: type[Any], default_logger_type: str) -> MapperFn:
-    return make_logger_mapper(model, default_logger_type=default_logger_type)
-
-
-_SINK_REGISTRY: dict[str, tuple[type[Any], MapperFn]] = {
-    "logger": (Logger, _mapper_for(Logger, "api")),
-    "package_logger": (PackageLogger, _mapper_for(PackageLogger, "package")),
-}
-
-
-def make_sink(sessionmaker: async_sessionmaker[AsyncSession], name: str) -> SqlAlchemyModelSink:
-    try:
-        model, mapper = _SINK_REGISTRY[name]
-    except KeyError as err:
-        valid = ", ".join(sorted(_SINK_REGISTRY.keys()))
-        raise ValueError(f"Unknown sink '{name}'. Valid: {valid}") from err
-    return SqlAlchemyModelSink(sessionmaker, model, mapper)
-
-
-def register_sink(name: str, model: type[Any], mapper: MapperFn) -> None:
-    """
-    Optional extension point at runtime/tests.
-    """
-    _SINK_REGISTRY[name] = (model, mapper)
-
-
 # ---- Fan-out and routing ----------------------------------------------------
 
 
@@ -123,8 +92,8 @@ class CompositeSink:
             an ``enqueue`` method accepting a log payload.
     """
 
-    def __init__(self):
-        self._sinks: list[DbSink] = []
+    def __init__(self, sinks: Iterable[DbSink] = ()):
+        self._sinks: list[DbSink] = list(sinks)
 
     def enqueue(self, payload: dict[str, Any]) -> None:
         """Forward a log payload to all configured sinks.
@@ -144,6 +113,7 @@ class CompositeSink:
             if asyncio.iscoroutine(rv):
                 asyncio.create_task(rv)
 
+Predicate = Callable[[dict[str, Any]], bool]
 
 class RouterSink:
     """Routing sink that forwards log payloads only to selected sinks.
@@ -159,10 +129,9 @@ class RouterSink:
         >>> info_only = lambda p: p.get("level") == "info"
         >>> sink = RouterSink([
         ...     (error_only, SqlAlchemyModelSink(...)),
-        ...     (info_only, ConsoleSink()),
+        ...     (info_only, ),
         ... ])
         >>> sink.enqueue({"event": "startup", "level": "info"})
-        # goes only to ConsoleSink
 
     Args:
         _routes (list[tuple[Predicate, DbSink]]): A list of (predicate, sink)
@@ -171,8 +140,8 @@ class RouterSink:
             method.
     """
 
-    def __init__(self):
-        self._routes: list[tuple[Callable[[dict[str, Any]], bool], DbSink]] = []
+    def __init__(self, routes: Iterable[tuple[Predicate, DbSink]] = ()):
+        self._routes: list[tuple[Predicate, DbSink]] = list(routes)
 
     def enqueue(self, payload: dict[str, Any]) -> None:
         """Forward a log payload to sinks whose predicates match.

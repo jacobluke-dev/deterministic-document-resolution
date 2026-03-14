@@ -32,6 +32,8 @@ class AppSettings(BaseSettings):
     API_KEY_HASH_SCHEME: str = "argon2id"  # argon2id|bcrypt
     API_KEY_CACHE_TTL_SECONDS: int = 60
     API_KEY_LAST_USED_ASYNC: bool = True
+    DAILY_QUOTA_DEFAULT: int = 1000
+    RATE_LIMIT_PER_MIN: int = 60
 
     TIER2_ENABLED: bool = True
     TIER2_STRICT: bool = False

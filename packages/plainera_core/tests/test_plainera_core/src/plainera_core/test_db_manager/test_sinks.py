@@ -9,7 +9,6 @@ from plainera_core.db_manager.sinks import (
     RouterSink,
     SqlAlchemyModelSink,
     UniversalSink,
-    make_sink,
 )
 
 
@@ -132,67 +131,6 @@ class TestUniversalSink:
 
         sync_sink.enqueue.assert_called_once_with(payload)
         async_sink.enqueue_async.assert_not_called()
-
-
-class TestMakeSink:
-    def test_builds_sink_from_registry_and_passes_through_args(self, monkeypatch):
-        # --- Arrange: stub registry with deterministic order
-        class ModelA: ...
-        class ModelB: ...
-
-        def mapper_a(x): return {"a": 1}
-        def mapper_b(x): return {"b": 2}
-
-        monkeypatch.setattr(
-            sinks_mod,
-            "_SINK_REGISTRY",
-            {"a": (ModelA, mapper_a), "b": (ModelB, mapper_b)},
-            raising=True,
-        )
-
-        # Test double for SqlAlchemyModelSink constructor
-        constructed = {}
-        class SinkDouble:
-            def __init__(self, sessionmaker, model, mapper):
-                constructed["sessionmaker"] = sessionmaker
-                constructed["model"] = model
-                constructed["mapper"] = mapper
-            # represent a concrete instance
-        sentinel_sessionmaker = object()
-        monkeypatch.setattr(sinks_mod, "SqlAlchemyModelSink", SinkDouble, raising=True)
-
-        # --- Act
-        sink = make_sink(sentinel_sessionmaker, "b")
-
-        # --- Assert
-        assert isinstance(sink, SinkDouble)
-        assert constructed["sessionmaker"] is sentinel_sessionmaker
-        assert constructed["model"] is ModelB
-        assert constructed["mapper"] is mapper_b
-
-    @pytest.mark.parametrize("bad_name", ["", "nope", "logger", "package"])  # names not in our stubbed registry
-    def test_raises_value_error_with_valid_names_listed(self, bad_name, monkeypatch):
-        class ModelA: ...
-        def mapper_a(x): return x
-
-        class ModelZ: ...
-        def mapper_z(x): return x
-
-        # Use unsorted keys to verify message sorts them
-        monkeypatch.setattr(
-            sinks_mod,
-            "_SINK_REGISTRY",
-            {"zeta": (ModelZ, mapper_z), "alpha": (ModelA, mapper_a)},
-            raising=True,
-        )
-
-        with pytest.raises(ValueError) as exc:
-            make_sink(object(), bad_name)
-
-        msg = str(exc.value)
-        # Mentions the bad name and the sorted valid list
-        assert "Unknown sink" in msg
-        assert "Valid: alpha, zeta" in msg
 
 
 class TestCompositeSink:
