@@ -111,8 +111,8 @@ class ApiAbuseProtectionService:
     @staticmethod
     def _increment_minute(*, session, api_key_id: int, minute_bucket: datetime) -> int:
         stmt = text(f"""
-            INSERT INTO {SCHEMA}.api_usage_minute (api_key_id, minute_bucket, request_count, created_at)
-            VALUES (:api_key_id, :minute_bucket, 1, NOW())
+            INSERT INTO {SCHEMA}.api_usage_minute (api_key_id, minute_bucket, request_count)
+            VALUES (:api_key_id, :minute_bucket, 1)
             ON CONFLICT (api_key_id, minute_bucket)
             DO UPDATE SET request_count = {SCHEMA}.api_usage_minute.request_count + 1
             RETURNING request_count
