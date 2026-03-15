@@ -15,6 +15,15 @@ def _get_fastapi_app_from_client(client):
         raise RuntimeError("client._transport missing")
     return getattr(transport, "app", None) or getattr(transport, "_app", None)
 
+_ORIGINAL_REQUEST_TIMEOUT_MS = resolve_mod.app_settings.REQUEST_TIMEOUT_MS
+
+@pytest.fixture(autouse=True)
+def _reset_settings(monkeypatch):
+    monkeypatch.setattr(
+        resolve_mod.app_settings,
+        "REQUEST_TIMEOUT_MS",
+        _ORIGINAL_REQUEST_TIMEOUT_MS,
+    )
 
 class TestV1Resolve:
     @pytest.fixture(autouse=True)
@@ -124,8 +133,7 @@ class TestV1Resolve:
 
     @pytest.mark.anyio
     async def test_timeout(self, client, monkeypatch):
-        # Force a short timeout on the exact module the handler reads
-        resolve_mod.app_settings.REQUEST_TIMEOUT_MS = 500  # 0.5s
+        monkeypatch.setattr(resolve_mod.app_settings, "REQUEST_TIMEOUT_MS", 500)
 
         # Patch the pipeline entrypoint used by ResolveService
         import public_api.core.services.resolve_service as rs
@@ -139,7 +147,7 @@ class TestV1Resolve:
         monkeypatch.setattr(rs, "detect_and_extract", slow_detect_and_extract, raising=True)
 
         r = await client.post("/v1/resolve", json={"text": "Foo (BAR)"})
-        assert r.status_code == 503
+        assert r.status_code == 503, r.text
         body = r.json()
         assert body["error"]["code"] == "SERVICE_UNAVAILABLE"
         assert body["error"]["details"]["timeout_ms"] == 500
