@@ -86,9 +86,11 @@ async def require_api_key(
 
     limiter = ApiAbuseProtectionService(dbm, sink)
     await anyio.to_thread.run_sync(
-        limiter.enforce,
-        api_key_id=rec.id,
-        daily_quota_override=rec.daily_quota,
+        partial(
+            limiter.enforce,
+            api_key_id=rec.id,
+            daily_quota_override=rec.daily_quota,
+        )
     )
 
     principal = Principal(
