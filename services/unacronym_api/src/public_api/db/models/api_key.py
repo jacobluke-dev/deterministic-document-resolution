@@ -1,13 +1,17 @@
 from __future__ import annotations
 
 from datetime import datetime
+from typing import TYPE_CHECKING
 
 from observability.db.models.base import BaseWithTimestamps
 from sqlalchemy import BigInteger, Boolean, DateTime, Integer, String, Text
 from sqlalchemy.dialects.postgresql import ARRAY
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from public_api.db.models import ApiUsageDaily, ApiUsageMinute
+if TYPE_CHECKING:
+    from .api_usage_daily import ApiUsageDaily
+    from .api_usage_minute import ApiUsageMinute
+
 
 SCHEMA = "unacronym"
 
