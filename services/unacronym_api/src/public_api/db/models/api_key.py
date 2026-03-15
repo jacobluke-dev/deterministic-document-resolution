@@ -1,11 +1,17 @@
 from __future__ import annotations
 
 from datetime import datetime
+from typing import TYPE_CHECKING
 
 from observability.db.models.base import BaseWithTimestamps
-from sqlalchemy import BigInteger, Boolean, DateTime, String, Text
+from sqlalchemy import BigInteger, Boolean, DateTime, Integer, String, Text
 from sqlalchemy.dialects.postgresql import ARRAY
-from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy.orm import Mapped, mapped_column, relationship
+
+if TYPE_CHECKING:
+    from .api_usage_daily import ApiUsageDaily
+    from .api_usage_minute import ApiUsageMinute
+
 
 SCHEMA = "unacronym"
 
@@ -27,7 +33,19 @@ class ApiKey(BaseWithTimestamps):
     scopes: Mapped[list[str]] = mapped_column(ARRAY(Text), nullable=False, default=list)
 
     is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    daily_quota: Mapped[int | None] = mapped_column(Integer, nullable=True)
 
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=True)
     last_used_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=True)
     expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=True)
+
+    usage_daily: Mapped[list[ApiUsageDaily]] = relationship(
+        "ApiUsageDaily",
+        back_populates="api_key",
+        cascade="all, delete-orphan",
+    )
+
+    usage_minute: Mapped[list[ApiUsageMinute]] = relationship(
+        "ApiUsageMinute",
+        back_populates="api_key",
+        cascade="all, delete-orphan",
+    )

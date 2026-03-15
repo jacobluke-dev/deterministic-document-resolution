@@ -41,6 +41,7 @@ class TermFlowState:
             report metadata.
         extr: Final assembled defined-term resolution result, when available.
     """
+
     text: str
     det_cfg: DefinedTermDetectorConfig
     ext_cfg: DefinedTermExtractionConfig

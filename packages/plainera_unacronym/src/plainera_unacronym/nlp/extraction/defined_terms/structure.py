@@ -23,8 +23,10 @@ class StructurePathEntry:
             ``("document",)``, ``("section:2",)``, or
             ``("schedule:A", "section:1.2")``.
     """
+
     span: Span
     path: tuple[str, ...]
+
 
 @dataclass(frozen=True, slots=True)
 class TermStructureIndex:
@@ -34,6 +36,7 @@ class TermStructureIndex:
         paths_by_span: Ordered span-to-path entries covering the detected
             structural blocks of the document.
     """
+
     paths_by_span: tuple[StructurePathEntry, ...]
 
     def path_for_offset(self, offset: int) -> tuple[str, ...]:
