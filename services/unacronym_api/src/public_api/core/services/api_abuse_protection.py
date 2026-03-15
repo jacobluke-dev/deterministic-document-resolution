@@ -4,6 +4,8 @@ from dataclasses import dataclass
 from datetime import UTC, date, datetime, time, timedelta
 
 from sqlalchemy import text
+from fastapi import Request
+from starlette.responses import JSONResponse
 
 from observability.logger.message_logger import warning
 from plainera_core.db_manager.connection import DBManager
@@ -27,6 +29,27 @@ class RateLimitExceededError(Exception):
     current_count: int
     reset_at: datetime
     retry_after: int
+
+async def quota_exceeded_handler(_: Request, exc: QuotaExceededError) -> JSONResponse:
+    return JSONResponse(
+        status_code=403,
+        content={
+            "error": "quota_exceeded",
+            "limit": exc.limit,
+            "reset_at": exc.reset_at.isoformat(),
+        },
+    )
+
+async def rate_limited_handler(_: Request, exc: RateLimitExceededError) -> JSONResponse:
+    return JSONResponse(
+        status_code=429,
+        content={
+            "error": "rate_limited",
+            "limit": exc.limit,
+            "reset_at": exc.reset_at.isoformat(),
+        },
+        headers={"Retry-After": str(exc.retry_after)},
+    )
 
 
 class ApiAbuseProtectionService:
