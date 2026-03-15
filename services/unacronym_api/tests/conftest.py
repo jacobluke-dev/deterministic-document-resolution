@@ -153,3 +153,13 @@ async def client_no_auth(engine_factory, session_factory, monkeypatch):
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://testserver") as ac:
         yield ac
+
+
+@pytest.fixture
+def _patch(monkeypatch):
+    def _apply(func, **replacements):
+        g = func.__globals__
+        for name, impl in replacements.items():
+            monkeypatch.setitem(g, name, impl)
+        return func
+    return _apply
