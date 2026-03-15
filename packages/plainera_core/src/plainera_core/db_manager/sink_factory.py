@@ -1,8 +1,6 @@
 from dataclasses import dataclass
 from typing import Any, Callable
 
-from plainera_unacronym.db.models.logger import PackageLogger
-from public_api.db.models import Logger
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from .mappers import make_logger_mapper
@@ -17,10 +15,7 @@ class SinkSpec:
     default_logger_type: str
 
 
-_REGISTRY: dict[str, SinkSpec] = {
-    "logger": SinkSpec(Logger, "api"),
-    "package_logger": SinkSpec(PackageLogger, "package"),
-}
+_REGISTRY: dict[str, SinkSpec] = {}
 
 # --- mapper cache (avoids lru_cache Hashable typing issues) -------------------
 _MAPPER_CACHE: dict[tuple[type[Any], str], MapperFn] = {}

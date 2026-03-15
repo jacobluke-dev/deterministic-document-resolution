@@ -47,6 +47,7 @@ class ApiKeyRecord:
     scopes: tuple[str, ...]
     is_active: bool
     expires_at: datetime | None
+    daily_quota: int | None
 
 
 class _TTLCache:
@@ -83,6 +84,10 @@ class _TTLCache:
             self._by_key_id.pop(key_id, None)
             return None
         return rec
+
+    def clear(self) -> None:
+        """Remove all cached entries."""
+        self._by_key_id.clear()
 
     def put(self, key_id: str, rec: ApiKeyRecord) -> None:
         """
@@ -271,12 +276,18 @@ def fetch_key_record(dbm: Any, key_id: str) -> ApiKeyRecord | None:
 
     stmt = text(
         """
-        SELECT id, user_id, prefix, key_hash, scopes, is_active, expires_at
+        SELECT id,
+               user_id,
+               prefix,
+               key_hash,
+               scopes,
+               is_active,
+               expires_at,
+               daily_quota
         FROM unacronym.api_keys
         WHERE key_id = :key_id
           AND is_active = true
-          AND (expires_at IS NULL OR expires_at > now())
-        LIMIT 1
+          AND (expires_at IS NULL OR expires_at > now()) LIMIT 1
         """
     )
 
@@ -294,6 +305,7 @@ def fetch_key_record(dbm: Any, key_id: str) -> ApiKeyRecord | None:
         scopes=tuple(row["scopes"] or []),
         is_active=bool(row["is_active"]),
         expires_at=row["expires_at"],
+        daily_quota=(int(row["daily_quota"]) if row["daily_quota"] is not None else None),
     )
     _CACHE.put(key_id, rec)
     return rec

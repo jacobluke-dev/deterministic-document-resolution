@@ -12,7 +12,9 @@ from public_api.cli.api_keys import parse_hash_scheme
 from public_api.core.auth.api_keys import Principal, fetch_key_record, parse_api_key, update_last_used, verify_secret
 from public_api.core.deps import get_dbm
 from public_api.core.deps_settings import get_settings
+from public_api.core.services.api_abuse_protection import ApiAbuseProtectionService
 from public_api.core.settings import AppSettings
+from wiring.composition import sink
 
 logger = logging.getLogger("plainera")
 
@@ -81,6 +83,15 @@ async def require_api_key(
     )
     if not ok:
         raise _unauthenticated_exc()
+
+    limiter = ApiAbuseProtectionService(dbm, sink)
+    await anyio.to_thread.run_sync(
+        partial(
+            limiter.enforce,
+            api_key_id=rec.id,
+            daily_quota_override=rec.daily_quota,
+        )
+    )
 
     principal = Principal(
         key_id=rec.id,

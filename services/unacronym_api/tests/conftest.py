@@ -29,6 +29,15 @@ def anyio_backend():
 ROOT = find_project_root(__file__, markers=(".git", "pyproject.toml"))
 ENV_PATH = ROOT / ".env"
 
+ALLOWED_TABLES = {
+    "glossary_acronym",
+    "glossary_meaning",
+    "glossary_variant",
+    "api_keys",
+    "api_usage_daily",
+    "api_usage_minute",
+}
+
 try:
     from dotenv import load_dotenv
     load_dotenv(ENV_PATH)  # loads the project-root .env
@@ -105,7 +114,7 @@ async def client(engine_factory, session_factory, monkeypatch):
         lambda test_mode=False: TestDBManager(
             engine=engine_factory,
             session_factory=session_factory,
-            allowed_tables={"glossary_entries", "acronym_aliases", "api_keys"}
+            allowed_tables=ALLOWED_TABLES
         ),
         raising=False,
     )
@@ -116,7 +125,7 @@ async def client(engine_factory, session_factory, monkeypatch):
     app.dependency_overrides[deps.get_dbm] = lambda: TestDBManager(
         engine=engine_factory,
         session_factory=session_factory,
-        allowed_tables={"glossary_entries", "acronym_aliases", "api_keys"},
+        allowed_tables=ALLOWED_TABLES,
     )
 
     transport = ASGITransport(app=app)
@@ -137,7 +146,7 @@ async def client_no_auth(engine_factory, session_factory, monkeypatch):
         lambda test_mode=False: TestDBManager(
             engine=engine_factory,
             session_factory=session_factory,
-            allowed_tables={"glossary_entries", "acronym_aliases", "api_keys"},
+            allowed_tables=ALLOWED_TABLES,
         ),
         raising=False,
     )
@@ -147,9 +156,19 @@ async def client_no_auth(engine_factory, session_factory, monkeypatch):
     app.dependency_overrides[deps.get_dbm] = lambda: TestDBManager(
         engine=engine_factory,
         session_factory=session_factory,
-        allowed_tables={"glossary_entries", "acronym_aliases", "api_keys"},
+        allowed_tables=ALLOWED_TABLES,
     )
 
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://testserver") as ac:
         yield ac
+
+
+@pytest.fixture
+def _patch(monkeypatch):
+    def _apply(func, **replacements):
+        g = func.__globals__
+        for name, impl in replacements.items():
+            monkeypatch.setitem(g, name, impl)
+        return func
+    return _apply

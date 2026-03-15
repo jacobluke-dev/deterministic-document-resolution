@@ -1,3 +1,35 @@
+"""
+Administrative CLI for managing public API keys.
+
+This module provides operator-facing commands to create, list, revoke, and rotate
+API keys stored in ``unacronym.api_keys``. Secrets are generated client-side by
+the CLI, hashed before persistence, and only shown once at creation time.
+
+Supported operations:
+  - ``create``: generate a new API key, hash the secret, persist the record, and
+    print the full key exactly once.
+  - ``list``: display non-secret metadata for existing keys.
+  - ``revoke``: deactivate an existing key and stamp ``expires_at``.
+  - ``rotate``: create a replacement key and optionally revoke the old one.
+
+Key handling model:
+  - The database stores ``key_id`` + hashed secret (``key_hash``), never the raw
+    full key.
+  - Full keys are parsed and validated against the configured prefix allowlist.
+  - Hashing uses the scheme configured by ``API_KEY_HASH_SCHEME``.
+
+Operational notes:
+  - Output from ``create`` is sensitive and should be treated like a credential.
+  - This CLI is intended for trusted administrative use, not end-user workflows.
+  - Database access is performed via ``make_dbm(test_mode=False)``.
+
+Typical usage:
+  - ``api-keys create --prefix test --name "Local dev key"``
+  - ``api-keys list``
+  - ``api-keys revoke <key_id-or-full-key>``
+  - ``api-keys rotate <key_id-or-full-key> --revoke-old``
+"""
+
 import argparse
 from dataclasses import dataclass
 from datetime import datetime, timezone

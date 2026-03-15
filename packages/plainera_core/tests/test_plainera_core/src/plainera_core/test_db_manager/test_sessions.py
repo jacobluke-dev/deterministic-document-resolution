@@ -17,7 +17,7 @@ class TestMakeAsyncSessionmaker:
         monkeypatch.setattr(sessions, "create_async_engine", m_create_async_engine)
         monkeypatch.setattr(sessions, "async_sessionmaker", m_async_sessionmaker)
 
-        rv = sessions.make_async_sessionmaker(url)
+        rv = sessions.make_async_session_maker(url)
 
         # Engine created with desired options
         m_create_async_engine.assert_called_once()
