@@ -3,7 +3,6 @@ from __future__ import annotations
 from datetime import UTC, datetime
 
 import pytest
-
 from plainera_core.db_manager.connection import DBManager
 from public_api.core.services.api_abuse_protection import (
     ApiAbuseProtectionService,
@@ -276,10 +275,12 @@ class TestResolveAbuseProtectionIntegration:
         r1 = await client.post("/v1/resolve", json=payload, headers={"X-API-Key": full_api_key})
         r2 = await client.post("/v1/resolve", json=payload, headers={"X-API-Key": full_api_key})
         r3 = await client.post("/v1/resolve", json=payload, headers={"X-API-Key": full_api_key})
+        r4 = await client.post("/v1/resolve", json=payload, headers={"X-API-Key": full_api_key})
 
         assert r1.status_code == 200, r1.text
         assert r2.status_code == 200, r2.text
         assert r3.status_code == 429, r3.text
+        assert r4.status_code == 429, r4.text
 
         body = r3.json()
         assert body["error"] == "rate_limited"
@@ -306,13 +307,16 @@ class TestResolveAbuseProtectionIntegration:
             raising=False,
         )
 
-        row, full_api_key = _seed_real_api_key(session_factory, daily_quota=1)
+        row, full_api_key = _seed_real_api_key(session_factory, daily_quota=2)
 
         payload = {"text": "Alpha Beta Charlie (ABC)."}
 
         r1 = await client.post("/v1/resolve", json=payload, headers={"X-API-Key": full_api_key})
         r2 = await client.post("/v1/resolve", json=payload, headers={"X-API-Key": full_api_key})
         r3 = await client.post("/v1/resolve", json=payload, headers={"X-API-Key": full_api_key})
+        assert r1.status_code == 200, r1.text
+        assert r2.status_code == 200, r2.text
+        assert r3.status_code == 403, r3.text
 
         # NEXT DAY
         monkeypatch.setattr(

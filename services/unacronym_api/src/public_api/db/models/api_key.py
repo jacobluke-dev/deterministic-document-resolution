@@ -38,13 +38,13 @@ class ApiKey(BaseWithTimestamps):
     last_used_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=True)
     expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=True)
 
-    usage_daily: Mapped[list["ApiUsageDaily"]] = relationship(
+    usage_daily: Mapped[list[ApiUsageDaily]] = relationship(
         "ApiUsageDaily",
         back_populates="api_key",
         cascade="all, delete-orphan",
     )
 
-    usage_minute: Mapped[list["ApiUsageMinute"]] = relationship(
+    usage_minute: Mapped[list[ApiUsageMinute]] = relationship(
         "ApiUsageMinute",
         back_populates="api_key",
         cascade="all, delete-orphan",

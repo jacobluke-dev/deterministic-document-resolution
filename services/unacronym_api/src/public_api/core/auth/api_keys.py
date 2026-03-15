@@ -85,6 +85,10 @@ class _TTLCache:
             return None
         return rec
 
+    def clear(self) -> None:
+        """Remove all cached entries."""
+        self._by_key_id.clear()
+
     def put(self, key_id: str, rec: ApiKeyRecord) -> None:
         """
         Store a key record in the cache with the configured TTL.

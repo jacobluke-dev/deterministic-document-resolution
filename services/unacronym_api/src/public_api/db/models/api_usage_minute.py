@@ -35,7 +35,7 @@ class ApiUsageMinute(Base):
     minute_bucket: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     request_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
 
-    api_key: Mapped["ApiKey"] = relationship(
+    api_key: Mapped[ApiKey] = relationship(
         "ApiKey",
         back_populates="usage_minute",
     )

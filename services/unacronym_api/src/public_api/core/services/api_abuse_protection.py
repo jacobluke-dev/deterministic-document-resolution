@@ -3,15 +3,15 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import UTC, date, datetime, time, timedelta
 
-from sqlalchemy import text
 from fastapi import Request
-from starlette.responses import JSONResponse
-
 from observability.logger.message_logger import warning
 from plainera_core.db_manager.connection import DBManager
-from plainera_core.db_manager.sink_factory import SinkSpec
-from public_api.core.settings import app_settings
+from plainera_core.db_manager.sinks import UniversalSink
+from sqlalchemy import text
+from sqlalchemy.orm import Session
+from starlette.responses import JSONResponse
 
+from public_api.core.settings import app_settings
 
 SCHEMA = "unacronym"
 
@@ -30,31 +30,39 @@ class RateLimitExceededError(Exception):
     reset_at: datetime
     retry_after: int
 
-async def quota_exceeded_handler(_: Request, exc: QuotaExceededError) -> JSONResponse:
+async def quota_exceeded_handler(_: Request, exc: Exception) -> JSONResponse:
+    err = exc if isinstance(exc, QuotaExceededError) else None
+    if err is None:
+        raise TypeError(f"Expected QuotaExceededError, got {type(exc).__name__}")
+
     return JSONResponse(
         status_code=403,
         content={
             "error": "quota_exceeded",
-            "limit": exc.limit,
-            "reset_at": exc.reset_at.isoformat(),
+            "limit": err.limit,
+            "reset_at": err.reset_at.isoformat(),
         },
     )
 
-async def rate_limited_handler(_: Request, exc: RateLimitExceededError) -> JSONResponse:
+async def rate_limited_handler(_: Request, exc: Exception) -> JSONResponse:
+    err = exc if isinstance(exc, RateLimitExceededError) else None
+    if err is None:
+        raise TypeError(f"Expected RateLimitExceededError, got {type(exc).__name__}")
+
     return JSONResponse(
         status_code=429,
         content={
             "error": "rate_limited",
-            "limit": exc.limit,
-            "reset_at": exc.reset_at.isoformat(),
+            "limit": err.limit,
+            "reset_at": err.reset_at.isoformat(),
         },
-        headers={"Retry-After": str(exc.retry_after)},
+        headers={"Retry-After": str(err.retry_after)},
     )
 
 
 class ApiAbuseProtectionService:
 
-    def __init__(self, dbm: DBManager, sink: SinkSpec) -> None:
+    def __init__(self, dbm: DBManager, sink: UniversalSink) -> None:
         self.dbm = dbm
         self.sink = sink
 
@@ -117,7 +125,7 @@ class ApiAbuseProtectionService:
                 )
 
     @staticmethod
-    def _increment_daily(*, session, api_key_id: int, usage_date: date) -> int:
+    def _increment_daily(*, session: Session, api_key_id: int, usage_date: date) -> int:
         stmt = text(f"""
             INSERT INTO {SCHEMA}.api_usage_daily (api_key_id, usage_date, request_count, created_at)
             VALUES (:api_key_id, :usage_date, 1, NOW())
@@ -132,7 +140,7 @@ class ApiAbuseProtectionService:
         return int(result.scalar_one())
 
     @staticmethod
-    def _increment_minute(*, session, api_key_id: int, minute_bucket: datetime) -> int:
+    def _increment_minute(*, session: Session, api_key_id: int, minute_bucket: datetime) -> int:
         stmt = text(f"""
             INSERT INTO {SCHEMA}.api_usage_minute (api_key_id, minute_bucket, request_count)
             VALUES (:api_key_id, :minute_bucket, 1)

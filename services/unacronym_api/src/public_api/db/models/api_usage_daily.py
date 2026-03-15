@@ -2,11 +2,10 @@ from __future__ import annotations
 
 from datetime import date
 
-
+from observability.db.models.base import BaseWithTimestamps
 from sqlalchemy import BigInteger, Date, ForeignKey, Index, Integer
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from observability.db.models.base import BaseWithTimestamps
 from public_api.db.models import ApiKey
 
 SCHEMA = "unacronym"
@@ -36,7 +35,7 @@ class ApiUsageDaily(BaseWithTimestamps):
     usage_date: Mapped[date] = mapped_column(Date, nullable=False)
     request_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
 
-    api_key: Mapped["ApiKey"] = relationship(
+    api_key: Mapped[ApiKey] = relationship(
         "ApiKey",
         back_populates="usage_daily",
     )

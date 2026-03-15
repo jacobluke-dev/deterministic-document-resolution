@@ -19,10 +19,12 @@ from public_api.api.routers.errors import map_http_exception, map_length_validat
 from public_api.api.routers.health import router as health_router
 from public_api.api.routers.resolve import router as resolve_router
 from public_api.core.logging import configure_logging
-from public_api.core.services.api_abuse_protection import (QuotaExceededError,
-                                                           RateLimitExceededError,
-                                                           quota_exceeded_handler,
-                                                           rate_limited_handler)
+from public_api.core.services.api_abuse_protection import (
+    QuotaExceededError,
+    RateLimitExceededError,
+    quota_exceeded_handler,
+    rate_limited_handler,
+)
 from public_api.core.settings import AppSettings, app_settings, db_settings
 
 __version__ = "0.1.0"
