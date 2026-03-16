@@ -7,6 +7,7 @@ from typing import Annotated, Any
 
 import anyio
 from fastapi import Depends, Header, HTTPException
+from wiring.composition import sink
 
 from public_api.cli.api_keys import parse_hash_scheme
 from public_api.core.auth.api_keys import Principal, fetch_key_record, parse_api_key, update_last_used, verify_secret
@@ -14,7 +15,6 @@ from public_api.core.deps import get_dbm
 from public_api.core.deps_settings import get_settings
 from public_api.core.services.api_abuse_protection import ApiAbuseProtectionService
 from public_api.core.settings import AppSettings
-from wiring.composition import sink
 
 logger = logging.getLogger("plainera")
 
