@@ -179,3 +179,6 @@ deps-check:
 	  packages/plainera_observability/pyproject.toml \
 	  packages/plainera_core/pyproject.toml \
 	  services/unacronym_api/pyproject.toml
+
+update_snapshots:
+	UPDATE_SNAPSHOTS=1 poetry run pytest -q services/unacronym_api/tests/test_public_api/api/test_openapi_snapshot.py

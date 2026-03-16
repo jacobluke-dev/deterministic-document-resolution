@@ -1,58 +1,15 @@
 {
   "components": {
     "schemas": {
-      "AcronymBlock": {
-        "properties": {
-          "acronym": {
-            "description": "Surface form exactly as detected (no lowercasing).",
-            "title": "Acronym",
-            "type": "string"
-          },
-          "definitions": {
-            "description": "Candidate definitions for this acronym (ranked by confidence).",
-            "items": {
-              "$ref": "#/components/schemas/Definition"
-            },
-            "title": "Definitions",
-            "type": "array"
-          },
-          "first_occurrence": {
-            "$ref": "#/components/schemas/Span",
-            "description": "First occurrence offsets in Python-slice semantics (end exclusive)."
-          },
-          "glossary": {
-            "anyOf": [
-              {
-                "$ref": "#/components/schemas/GlossaryBlock"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "description": "Curated matches present when enrichment is enabled/available."
-          },
-          "occurrences": {
-            "anyOf": [
-              {
-                "items": {
-                  "$ref": "#/components/schemas/Span"
-                },
-                "type": "array"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "description": "All occurrences when return_occurrences=true.",
-            "title": "Occurrences"
-          }
-        },
-        "required": [
-          "acronym",
-          "first_occurrence"
+      "CandidateProvenance": {
+        "enum": [
+          "document",
+          "glossary",
+          "seed",
+          "system"
         ],
-        "title": "AcronymBlock",
-        "type": "object"
+        "title": "CandidateProvenance",
+        "type": "string"
       },
       "Definition": {
         "properties": {
@@ -244,6 +201,57 @@
         "title": "HealthCheckResponse",
         "type": "object"
       },
+      "ResolveCandidate": {
+        "properties": {
+          "definition": {
+            "description": "Candidate resolved meaning.",
+            "title": "Definition",
+            "type": "string"
+          },
+          "domain": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Sense/domain tag if known, else null.",
+            "title": "Domain"
+          },
+          "provenance": {
+            "$ref": "#/components/schemas/CandidateProvenance",
+            "description": "Where the candidate came from."
+          },
+          "score": {
+            "description": "Deterministic rank score.",
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "title": "Score",
+            "type": "number"
+          },
+          "source_ref": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Optional stable source reference, e.g. text span or glossary sense id.",
+            "title": "Source Ref"
+          }
+        },
+        "required": [
+          "definition",
+          "score",
+          "provenance"
+        ],
+        "title": "ResolveCandidate",
+        "type": "object"
+      },
       "ResolveMeta": {
         "properties": {
           "input_chars": {
@@ -284,7 +292,7 @@
           },
           "max_definitions_per_acronym": {
             "default": 5,
-            "description": "Maximum candidate definitions to return per acronym.",
+            "description": "Maximum candidate definitions/senses to return per acronym.",
             "maximum": 20.0,
             "minimum": 1.0,
             "title": "Max Definitions Per Acronym",
@@ -362,25 +370,50 @@
           {
             "acronyms": [
               {
-                "acronym": "MPS",
+                "acronym": "GP",
+                "candidates": [
+                  {
+                    "definition": "General Practitioner",
+                    "provenance": "document",
+                    "score": 1.0,
+                    "source_ref": "text_span:4-24"
+                  },
+                  {
+                    "definition": "General Partner",
+                    "domain": "finance",
+                    "provenance": "glossary",
+                    "score": 0.0,
+                    "source_ref": "sense:42"
+                  }
+                ],
+                "conflict": true,
+                "conflict_count": 2,
                 "definitions": [
                   {
-                    "confidence": 0.96,
-                    "end": 31,
+                    "confidence": 0.99,
+                    "end": 24,
                     "source": "extracted",
                     "start": 4,
-                    "text": "Metropolitan Police Service"
+                    "text": "General Practitioner"
                   }
                 ],
                 "first_occurrence": {
-                  "end": 37,
-                  "start": 34
+                  "end": 35,
+                  "start": 33
                 },
                 "glossary": {
                   "matches": [
                     {
-                      "confidence": 0.99,
-                      "definition": "Metropolitan Police Service",
+                      "confidence": 0.98,
+                      "definition": "General Practitioner",
+                      "domain": "medical",
+                      "lang": "en",
+                      "source": "system"
+                    },
+                    {
+                      "confidence": 0.82,
+                      "definition": "General Partner",
+                      "domain": "finance",
                       "lang": "en",
                       "source": "system"
                     }
@@ -388,10 +421,17 @@
                 },
                 "occurrences": [
                   {
-                    "end": 37,
-                    "start": 34
+                    "end": 35,
+                    "start": 33
                   }
-                ]
+                ],
+                "selected": {
+                  "definition": "General Practitioner",
+                  "reason": "in_document_definition"
+                },
+                "selection": {
+                  "filtered_inactive_count": 0
+                }
               }
             ],
             "meta": {
@@ -404,7 +444,7 @@
         "properties": {
           "acronyms": {
             "items": {
-              "$ref": "#/components/schemas/AcronymBlock"
+              "$ref": "#/components/schemas/ResolvedAcronymBlock"
             },
             "title": "Acronyms",
             "type": "array"
@@ -418,6 +458,171 @@
         ],
         "title": "ResolveResponse",
         "type": "object"
+      },
+      "ResolvedAcronymBlock": {
+        "properties": {
+          "acronym": {
+            "description": "Surface form exactly as detected (no lowercasing).",
+            "title": "Acronym",
+            "type": "string"
+          },
+          "candidates": {
+            "description": "Ordered candidate senses, best to worst, bounded by request cap.",
+            "items": {
+              "$ref": "#/components/schemas/ResolveCandidate"
+            },
+            "title": "Candidates",
+            "type": "array"
+          },
+          "conflict": {
+            "default": false,
+            "description": "True when more than one viable candidate existed.",
+            "title": "Conflict",
+            "type": "boolean"
+          },
+          "conflict_count": {
+            "default": 0,
+            "description": "Number of viable candidates considered after filtering.",
+            "minimum": 0.0,
+            "title": "Conflict Count",
+            "type": "integer"
+          },
+          "definitions": {
+            "description": "Candidate definitions for this acronym (ranked by confidence).",
+            "items": {
+              "$ref": "#/components/schemas/Definition"
+            },
+            "title": "Definitions",
+            "type": "array"
+          },
+          "first_occurrence": {
+            "$ref": "#/components/schemas/Span",
+            "description": "First occurrence offsets in Python-slice semantics (end exclusive)."
+          },
+          "glossary": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/GlossaryBlock"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Curated matches present when enrichment is enabled/available."
+          },
+          "occurrences": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/Span"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "All occurrences when return_occurrences=true.",
+            "title": "Occurrences"
+          },
+          "selected": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/SelectedCandidate"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Chosen candidate when at least one viable sense exists."
+          },
+          "selection": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/SelectionMeta"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Additional deterministic selection metadata."
+          }
+        },
+        "required": [
+          "acronym",
+          "first_occurrence"
+        ],
+        "title": "ResolvedAcronymBlock",
+        "type": "object"
+      },
+      "SelectedCandidate": {
+        "properties": {
+          "definition": {
+            "description": "Chosen resolved meaning.",
+            "title": "Definition",
+            "type": "string"
+          },
+          "domain": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Selected sense/domain tag if known, else null.",
+            "title": "Domain"
+          },
+          "reason": {
+            "$ref": "#/components/schemas/SelectionReason",
+            "description": "Deterministic selection reason."
+          }
+        },
+        "required": [
+          "definition",
+          "reason"
+        ],
+        "title": "SelectedCandidate",
+        "type": "object"
+      },
+      "SelectionMeta": {
+        "properties": {
+          "filtered_inactive_count": {
+            "default": 0,
+            "description": "Number of inactive candidates removed before selection.",
+            "minimum": 0.0,
+            "title": "Filtered Inactive Count",
+            "type": "integer"
+          },
+          "policy_used": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Optional deterministic policy identifier used during selection.",
+            "title": "Policy Used"
+          }
+        },
+        "title": "SelectionMeta",
+        "type": "object"
+      },
+      "SelectionReason": {
+        "enum": [
+          "in_document_definition",
+          "single_candidate",
+          "highest_score",
+          "fallback_general",
+          "inactive_filtered",
+          "exact_domain_match",
+          "domain_priority_policy"
+        ],
+        "title": "SelectionReason",
+        "type": "string"
       },
       "Span": {
         "properties": {

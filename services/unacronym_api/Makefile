@@ -131,9 +131,6 @@ hooks:
 	pre-commit install
 	pre-commit install -t pre-push
 
-update_snapshots:
-	UPDATE_SNAPSHOTS=1 pytest -q services/unacronym_api/tests
-
 # --- API key management ---------------------------------------------
 
 API_KEYS_CMD := python -m public_api.cli.api_keys
