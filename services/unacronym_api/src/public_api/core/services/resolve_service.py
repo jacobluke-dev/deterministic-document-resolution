@@ -32,13 +32,30 @@ from public_api.schemas.resolve import ResolveOptions, ResolveRequest, ResolveRe
 
 
 class _SpanLike(Protocol):
+    """Protocol describing a span-like object with integer start and end offsets.
+
+    Attributes:
+      start: Inclusive start offset.
+      end: Exclusive end offset.
+    """
     start: int
     end: int
 
 def _extract_max_len(model: type[ResolveRequest], field: str) -> int | None:
-    """
-    Extract `max_length` from Pydantic v2 field metadata (with a harmless v1 fallback).
-    Used to produce 413 instead of FastAPI's default 422 for oversize text.
+    """Extract the configured maximum length for a Pydantic model field.
+
+    This primarily supports Pydantic v2 by inspecting field metadata for a
+    ``max_length`` constraint, with a harmless fallback to older attribute-based
+    access where available. The value is used to return HTTP 413 for oversized
+    input instead of FastAPI's default 422 validation response.
+
+    Args:
+      model: Pydantic model class containing the field definition.
+      field: Name of the field whose maximum length should be inspected.
+
+    Returns:
+      The configured maximum length for the field, or ``None`` if no maximum
+      length constraint is defined.
     """
     info = model.model_fields[field]
     for meta in getattr(info, "metadata", []):
@@ -51,13 +68,36 @@ TEXT_MAX_LEN = _extract_max_len(ResolveRequest, "text")
 
 
 def _lang_from_locale(locale: str) -> str:
-    # "en-GB" -> "en"
+    """Normalise a locale string to its base language code.
+
+    Examples:
+      - ``"en-GB"`` -> ``"en"``
+      - ``"fr-FR"`` -> ``"fr"``
+
+    An empty input falls back to ``"en"``.
+
+    Args:
+      locale: Locale string, typically in BCP 47 style such as ``en-GB``.
+
+    Returns:
+      Lower-cased base language code.
+    """
     if not locale:
         return "en"
     return (locale.split("-", 1)[0] or "en").lower()
 
 
 def _plainera_core_version() -> str:
+    """Return a human-readable version string for the Plainera core package.
+
+    The function tries known distribution names in order and falls back to a
+    development marker when package metadata is unavailable.
+
+    Returns:
+      Version string in the format ``<distribution>@<version>``, or
+      ``"plainera-core@dev"`` if the installed package version cannot be
+      determined.
+    """
     for dist_name in ("plainera-core", "plainera_core"):
         try:
             return f"{dist_name}@{metadata.version(dist_name)}"
@@ -68,6 +108,14 @@ def _plainera_core_version() -> str:
 
 @dataclass(frozen=True)
 class ResolveError(Exception):
+    """Structured domain exception for resolve endpoint failures.
+
+    Attributes:
+      http_status: HTTP status code to return to the caller.
+      code: Stable public error code.
+      message: Human-readable error message.
+      details: Optional structured details for diagnostics and client handling.
+    """
     http_status: int
     code: ErrorCode
     message: str
@@ -75,14 +123,11 @@ class ResolveError(Exception):
 
 
 class ResolveService:
-    """
-    Domain service for `/v1/resolve`.
+    """Domain service for ``/v1/resolve``.
 
-    Keeps route handlers thin by encapsulating:
-      - acronym detection
-      - resolver calls (+ timeout)
-      - glossary enrichment
-      - deterministic ordering + mapping into the public schema
+    Keeps route handlers thin by encapsulating request validation, acronym
+    detection, pipeline execution, glossary enrichment, deterministic ordering,
+    and mapping into the public response schema.
     """
 
     def __init__(
@@ -93,6 +138,16 @@ class ResolveService:
         request_timeout_ms: int,
         tier2_model: Any | None,
     ) -> None:
+        """Initialise the resolve service.
+
+        Args:
+          glossary_repo: Repository used to fetch glossary meanings for enrichment
+            and candidate selection.
+          semaphore: Optional global concurrency limiter used to reject work when
+            the service is overloaded.
+          request_timeout_ms: Maximum request processing time, in milliseconds.
+          tier2_model: Optional semantic reranking model passed into the pipeline.
+        """
         self._glossary_repo = glossary_repo
         self._semaphore = semaphore
         self._timeout_s = max(0.001, request_timeout_ms / 1000.0)
@@ -100,7 +155,24 @@ class ResolveService:
 
     @staticmethod
     def _validate_and_prepare(payload: ResolveRequest) -> tuple[ResolveOptions, str]:
-        """Validate semantic constraints and return normalised options + language."""
+        """Validate request semantics and derive normalised options and language.
+
+        This performs semantic checks beyond basic schema validation, including:
+          - rejecting whitespace-only text with HTTP 422
+          - rejecting oversized text with HTTP 413
+
+        Args:
+          payload: Parsed resolve request payload.
+
+        Returns:
+          A tuple of:
+            - resolved ``ResolveOptions``
+            - normalised base language code
+
+        Raises:
+          ResolveError: If the input text is empty after trimming or exceeds the
+            configured maximum length.
+        """
         # Semantic validation: whitespace-only -> 422
         if not payload.text.strip():
             raise ResolveError(
@@ -124,7 +196,12 @@ class ResolveService:
         return opts, lang
 
     def _raise_if_overloaded(self) -> None:
-        """Raise 503 if a global concurrency limiter is saturated."""
+        """Raise a service-unavailable error when the concurrency limiter is saturated.
+
+        Raises:
+          ResolveError: If a configured semaphore indicates the service is currently
+            overloaded.
+        """
         if self._semaphore is not None and getattr(self._semaphore, "locked", lambda: False)():
             raise ResolveError(
                 http_status=status.HTTP_503_SERVICE_UNAVAILABLE,
@@ -133,44 +210,21 @@ class ResolveService:
                 details={"reason": "OVERLOADED"},
             )
 
-    @staticmethod
-    def iter_unique_acronyms(
-        matches: list[Any],
-        seen: set[str],
-    ) -> Iterable[tuple[str, dict[str, int], list[dict[str, int]]]]:
-        """Yield (acronym, first_occurrence_span, sorted_occurrences) for each unique acronym."""
-        for m in matches:
-            ac = m.group(1)
-            if ac in seen:
-                continue
-            seen.add(ac)
-
-            first_occ = {"start": m.start(1), "end": m.end(1)}
-            occs = [{"start": mm.start(1), "end": mm.end(1)} for mm in matches if mm.group(1) == ac]
-            occs.sort(key=lambda s: (s["start"], s["end"]))
-
-            yield ac, first_occ, occs
-
     def _maybe_glossary_block(self, ac: str, lang: str, opts: ResolveOptions) -> dict[str, Any] | None:
-        """Return legacy glossary enrichment for an acronym, if enabled.
+        """Build the legacy glossary enrichment block for an acronym, if enabled.
 
-        This block preserves the older `glossary.matches` response shape for callers
-        that still consume curated enrichment separately from UN-75 selection metadata.
+        This preserves the older ``glossary.matches`` response shape for clients
+        that still consume curated glossary evidence separately from the newer
+        candidate selection metadata.
 
-        Behaviour:
-          - Returns `None` when glossary enrichment is disabled.
-          - Fetches all glossary meanings for the acronym via the repository.
-          - Includes only active meanings with non-empty definitions.
-          - Orders matches deterministically by:
-              1) domain (ascending, null/empty first as ""),
-              2) definition (ascending),
-              3) meaning id via repository ordering.
-          - Does not perform sense selection; it simply exposes curated matches.
+        Args:
+          ac: Acronym surface form.
+          lang: Normalised response language code.
+          opts: Effective resolve options.
 
-        Notes:
-          - `glossary.matches` is evidence/enrichment, not the final decision layer.
-          - UN-75 candidate ranking/selection is added later via
-            `_attach_resolution_metadata(...)`.
+        Returns:
+          A glossary block containing deterministically ordered matches, or ``None``
+          if enrichment is disabled or no valid active meanings exist.
         """
         if not opts.include_glossary_enrichment:
             return None
@@ -209,7 +263,16 @@ class ResolveService:
         blocks: list[dict[str, Any]],
         started: float,
     ) -> ResolveResponse:
-        """Construct the final ResolveResponse with meta."""
+        """Construct the final public response with timing and input metadata.
+
+        Args:
+          text: Original input text.
+          blocks: Mapped acronym blocks to include in the response.
+          started: ``time.perf_counter()`` timestamp taken at request start.
+
+        Returns:
+          Validated ``ResolveResponse`` containing acronym blocks and meta fields.
+        """
         processing_ms = int((time.perf_counter() - started) * 1000)
 
         return ResolveResponse.model_validate(
@@ -225,6 +288,22 @@ class ResolveService:
 
     @staticmethod
     def _span_start_end(span: Any) -> tuple[int, int]:
+        """Extract integer start and end offsets from a span-like object.
+
+        Supported forms include:
+          - a 2-tuple of ``(start, end)``
+          - an object exposing integer ``start`` and ``end`` attributes
+          - an iterable that unpacks to two values
+
+        Args:
+          span: Span-like value to normalise.
+
+        Returns:
+          A ``(start, end)`` tuple of integer offsets.
+
+        Raises:
+          TypeError: If the supplied value cannot be interpreted as a span.
+        """
         # Supports tuple-like spans (start, end) and object spans with attributes.
         if isinstance(span, tuple) and len(span) == 2:
             return int(span[0]), int(span[1])
@@ -245,12 +324,24 @@ class ResolveService:
         extr: ExtractionResult,
         opts: ResolveOptions,
     ) -> dict[str, list[dict[str, Any]]]:
-        """
-        Build acronym -> definitions list.
+        """Build a mapping of acronym to ordered extracted definition candidates.
 
-        Ordering rule:
-          1) Pick (winner) first, if present.
-          2) Remaining candidates from extr.definitions, sorted by (-confidence, text).
+        Ordering rules:
+          1. Selected winner from ``extr.picks`` first, if present.
+          2. Remaining candidates from ``extr.definitions`` ordered by descending
+             confidence and then ascending definition text.
+
+        Duplicate definition spans are removed per acronym, low-confidence
+        candidates are filtered out, and results are trimmed according to
+        ``max_definitions_per_acronym``.
+
+        Args:
+          extr: Extraction pipeline result containing picks and definition ledger
+            entries.
+          opts: Effective resolve options.
+
+        Returns:
+          Mapping of acronym surface form to public definition dictionaries.
         """
         defs_by_ac: dict[str, list[dict[str, Any]]] = {}
 
@@ -318,18 +409,26 @@ class ResolveService:
         opts: ResolveOptions,
         lang: str,
     ) -> list[dict[str, Any]]:
-        """
-        Map pipeline outputs into public API AcronymBlock objects.
+        """Map detector and extraction outputs into public acronym response blocks.
 
-        Source of truth:
-          - Occurrences come from `det_res.occurrences`.
-          - Definition candidates come from `extr.definitions`.
-          - Glossary enrichment remains separate under `glossary.matches`.
+        Occurrences are sourced from detector output, extracted definitions come
+        from the extraction result, and glossary enrichment remains separate under
+        ``glossary.matches``.
 
-        Determinism:
-          - Acronym blocks ordered by first occurrence (start_offset), tie-break by acronym text.
-          - Occurrences ordered by (start, end).
-          - Definitions ordered by (-confidence, definition text), trimmed to max_definitions_per_acronym.
+        Deterministic ordering rules:
+          - Acronym blocks ordered by first occurrence, then acronym text
+          - Occurrences ordered by ``(start, end)``
+          - Definitions ordered by the rules in
+            ``_build_definitions_by_acronym(...)``
+
+        Args:
+          det_res: Acronym detector result.
+          extr: Extraction result including selected picks and candidate ledger.
+          opts: Effective resolve options.
+          lang: Normalised response language code.
+
+        Returns:
+          List of public acronym block dictionaries.
         """
         # --- occurrences: surface acronym -> list[Span]
         occ_by_ac: dict[str, list[dict[str, int]]] = {}
@@ -380,10 +479,32 @@ class ResolveService:
 
     @staticmethod
     def _norm_definition(text: str) -> str:
+        """Normalise a definition string for de-duplication and comparison.
+
+        The normalisation trims outer whitespace, removes common trailing terminal
+        punctuation, and case-folds the result.
+
+        Args:
+          text: Raw definition text.
+
+        Returns:
+          Normalised definition string.
+        """
         return text.strip().rstrip(" .;,:").casefold()
 
     @staticmethod
     def _candidate_sort_key(c: dict[str, Any]) -> tuple[Any, ...]:
+        """Return a deterministic sort key for resolution candidates.
+
+        Candidates are ordered to prefer document provenance first, then by
+        definition text, domain, and source reference.
+
+        Args:
+          c: Candidate dictionary.
+
+        Returns:
+          Tuple suitable for stable ascending sort order.
+        """
         return (
             0 if c.get("provenance") == "document" else 1,
             str(c.get("definition") or "").casefold(),
@@ -395,12 +516,25 @@ class ResolveService:
         self,
         definitions: list[dict[str, Any]],
     ) -> tuple[list[dict[str, Any]], set[str]]:
+        """Build resolution candidates derived from in-document definitions.
+
+        Each valid extracted definition becomes a candidate with ``document``
+        provenance. A set of normalised document definitions is also returned for
+        later de-duplication against glossary meanings.
+
+        Args:
+          definitions: Public definition dictionaries already attached to an
+            acronym block.
+
+        Returns:
+          A tuple of:
+            - list of document-derived candidate dictionaries
+            - set of normalised document definition strings
+        """
         candidates: list[dict[str, Any]] = []
         seen_doc_defs: set[str] = set()
 
         for d in definitions:
-            if not isinstance(d, dict):
-                continue
 
             text = str(d.get("text") or "").strip()
             if not text:
@@ -430,6 +564,22 @@ class ResolveService:
         meanings: list[dict[str, Any]],
         seen_doc_defs: set[str],
     ) -> tuple[list[dict[str, Any]], int]:
+        """Build glossary-derived resolution candidates excluding document duplicates.
+
+        Inactive meanings are counted for selection metadata but excluded from the
+        candidate list. Active meanings with definitions already present in the
+        document candidate set are also skipped.
+
+        Args:
+          meanings: Glossary meaning records for a given acronym.
+          seen_doc_defs: Normalised document definitions already present as
+            candidates.
+
+        Returns:
+          A tuple of:
+            - list of glossary-derived candidate dictionaries
+            - count of inactive meanings filtered out
+        """
         inactive_count = sum(1 for m in meanings if not bool(m.get("is_active")))
         active_meanings = [m for m in meanings if bool(m.get("is_active"))]
 
@@ -463,6 +613,24 @@ class ResolveService:
         candidates: list[dict[str, Any]],
         inactive_count: int,
     ) -> tuple[dict[str, Any] | None, str | None]:
+        """Select the best resolution candidate and explain the selection reason.
+
+        Selection policy:
+          1. Prefer document-derived candidates.
+          2. If exactly one glossary candidate remains, select it.
+          3. Otherwise prefer glossary candidate in the ``general`` domain.
+          4. Otherwise fall back to the first deterministically ordered glossary
+             candidate.
+
+        Args:
+          candidates: All viable document and glossary candidates.
+          inactive_count: Number of inactive glossary meanings filtered out earlier.
+
+        Returns:
+          A tuple of:
+            - selected candidate dictionary, or ``None`` if no candidates exist
+            - reason string describing the selection basis, or ``None``
+        """
         document_candidates = [c for c in candidates if c.get("provenance") == "document"]
         glossary_candidates = [c for c in candidates if c.get("provenance") == "glossary"]
 
@@ -495,6 +663,19 @@ class ResolveService:
         candidates: list[dict[str, Any]],
         selected: dict[str, Any] | None,
     ) -> list[dict[str, Any]]:
+        """Order candidates deterministically and promote the selected candidate first.
+
+        The selected candidate, when present, is copied and assigned a score of
+        ``1.0``. All remaining candidates are assigned ``0.0`` and sorted by the
+        standard candidate sort key.
+
+        Args:
+          candidates: Unordered viable candidates.
+          selected: Candidate chosen by the selection policy, if any.
+
+        Returns:
+          Ordered list of candidate dictionaries suitable for the public response.
+        """
         if selected is None:
             return sorted(candidates, key=self._candidate_sort_key)
 
@@ -526,6 +707,22 @@ class ResolveService:
         blocks: list[dict[str, Any]],
         opts: ResolveOptions,
     ) -> list[dict[str, Any]]:
+        """Attach candidate, selection, and conflict metadata to acronym blocks.
+
+        For each acronym block, this method:
+          - derives document candidates from extracted definitions
+          - derives glossary candidates from curated meanings
+          - selects a winning candidate using deterministic policy
+          - attaches ordered candidates and conflict metadata
+
+        Args:
+          blocks: Public acronym blocks before resolution metadata is attached.
+          opts: Effective resolve options.
+
+        Returns:
+          New acronym blocks enriched with ``candidates``, ``selected``,
+          ``conflict``, ``conflict_count``, and ``selection`` fields.
+        """
         max_k = int(opts.max_definitions_per_acronym)
         out: list[dict[str, Any]] = []
 
@@ -569,6 +766,25 @@ class ResolveService:
         return out
 
     async def _run_pipeline(self, text: str, opts: ResolveOptions) -> tuple[AcronymDetectorResult, ExtractionResult]:
+        """Execute the acronym detection and extraction pipeline with a timeout.
+
+        The pipeline is run in a worker thread so that synchronous core logic does
+        not block the async request handler. Execution is bounded by the configured
+        request timeout.
+
+        Args:
+          text: Source text to analyse.
+          opts: Effective resolve options controlling window sizes and thresholds.
+
+        Returns:
+          A tuple of:
+            - acronym detector result
+            - extraction result
+
+        Raises:
+          TimeoutError: Propagated by ``asyncio.wait_for`` if pipeline execution
+            exceeds the configured timeout.
+        """
         return await asyncio.wait_for(
             anyio.to_thread.run_sync(
                 lambda: detect_and_extract(
@@ -588,38 +804,46 @@ class ResolveService:
 
     async def resolve(self, payload: ResolveRequest) -> ResolveResponse:
         """
-        Resolve acronyms in the given input text using the full Unacronym pipeline.
+        Resolve acronyms in input text using the Unacronym pipeline and API mapping layer.
 
-        This method is the request-scoped orchestration entrypoint for `/v1/resolve`.
-        It performs light request validation and overload checks, runs the core
-        detection + extraction pipeline once for the full text, maps the pipeline
-        outputs into the public API schema, and returns a `ResolveResponse`.
+        This is the request-scoped orchestration entrypoint for `/v1/resolve`. It validates
+        the request, applies overload protection, runs detection/extraction, maps pipeline
+        results into public API blocks, and then attaches deterministic resolution metadata.
+
+        The response now exposes three logical layers:
+          1) occurrence mapping (`acronym`, `first_occurrence`, `occurrences`);
+          2) extraction/enrichment evidence (`definitions`, optional `glossary.matches`);
+          3) deterministic resolution metadata (`candidates`, `selected`, `conflict`,
+             `conflict_count`, `selection`).
 
         Behaviour:
           - Whitespace-only text is rejected in `_validate_and_prepare` (422).
           - Oversize text is rejected in `_validate_and_prepare` (413).
           - If a global semaphore is saturated, `_raise_if_overloaded` raises (503).
+          - Small inputs are processed in a single pipeline run.
+          - Large inputs may be processed in chunked mode, with per-chunk offsets shifted
+            back into global coordinates and merged deterministically before resolution
+            metadata is attached.
           - The pipeline is executed off the event loop in a worker thread.
           - The overall request is bounded by `self._timeout_s`; timeout returns 503
             with a `timeout_ms` detail.
-          - Glossary enrichment (if enabled) is applied during mapping, without
-            persisting anything to the database (read-only lookup only).
+          - Glossary access is read-only; no server state is mutated.
 
         Args:
-            payload: Validated request object containing the raw `text` and optional
-                `ResolveOptions` (e.g. `window_chars`, `min_confidence`,
-                `include_glossary_enrichment`).
+            payload: Validated request containing raw `text` and optional `ResolveOptions`
+                such as `window_chars`, `min_confidence`, and
+                `include_glossary_enrichment`.
 
         Returns:
-            ResolveResponse: API response containing:
-              - `acronyms`: list of `AcronymBlock` objects (occurrences + candidate
-                definitions + optional glossary matches)
-              - `meta`: processing time and model version metadata
+            ResolveResponse: API response containing acronym blocks plus metadata about
+            processing time, model version, and input size.
 
         Raises:
-            ResolveError: Wrapped API errors with an HTTP status and `ErrorCode`:
-              - 503 SERVICE_UNAVAILABLE when the pipeline times out or fails
-                unexpectedly (uniform error body; no internal details leaked).
+            ResolveError: Wrapped API errors with an HTTP status and `ErrorCode`,
+            including:
+              - 422 for semantically empty text,
+              - 413 for oversized text,
+              - 503 for overload, timeout, or pipeline failure.
         """
         started = time.perf_counter()
 

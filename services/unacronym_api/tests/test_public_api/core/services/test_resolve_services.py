@@ -4,13 +4,12 @@ from dataclasses import dataclass
 from types import SimpleNamespace
 from unittest.mock import Mock
 
-import pytest
-
 import public_api.core.services.resolve_service as resolve_service_mod
-from public_api.core.services.resolve_service import ResolveService, ResolveError, _lang_from_locale
+import pytest
+from fastapi import status
+from public_api.core.services.resolve_service import ResolveError, ResolveService, _lang_from_locale
 from public_api.schemas.error import ErrorCode
 from public_api.schemas.resolve import ResolveOptions, ResolveRequest
-from fastapi import status
 
 
 @dataclass(frozen=True)
