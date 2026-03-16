@@ -1,7 +1,9 @@
 from __future__ import annotations
 
 from typing import Any, Mapping, MutableMapping, TypeAlias
+
 from observability.config import REQ_ID_HEADER
+
 from public_api.schemas.error import ErrorResponse
 
 COMMON_ERROR_RESPONSES: Mapping[int | str, dict[str, Any]] = {
@@ -30,7 +32,7 @@ ResponsesSpec: TypeAlias = dict[int | str, dict[str, Any]]
 def build_responses(
     *,
     success_status: int = 200,
-    success_headers=None,
+    success_headers: dict[str, Any] | None = None,
     extra_errors: Mapping[int | str, dict[str, Any]] | None = None,
 ) -> ResponsesSpec:
     """Compose a responses dict for FastAPI route decorators.
