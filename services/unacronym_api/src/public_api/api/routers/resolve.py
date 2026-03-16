@@ -6,6 +6,7 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, Response
 from starlette.responses import JSONResponse
 
+from observability.logger.message_logger import warning
 from public_api.api.response_types import build_responses
 from public_api.core.deps import get_resolve_service
 from public_api.core.deps_auth import require_api_key
@@ -54,6 +55,15 @@ async def resolve_acronyms(
     try:
         out = await svc.resolve(payload)
     except ResolveError as err:
+        warning(
+            "resolve request failed",
+            logger_type="public_api",
+            args={
+                "code": err.code,
+                "message": err.message,
+                "http_status": err.http_status,
+            },
+        )
         return _error_json(err)
 
     # Ensure processing_ms is sane even if the service was refactored later

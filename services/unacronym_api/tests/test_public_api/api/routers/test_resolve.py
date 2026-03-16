@@ -105,8 +105,13 @@ class TestV1Resolve:
         assert len(blocks) == 1
         assert blocks[0]["acronym"] == "MPS"
         assert blocks[0]["glossary"] is not None
-        assert blocks[0]["glossary"]["matches"]
-        assert "Metropolitan Police Service" in blocks[0]["glossary"]["matches"][0]["definition"]
+        assert blocks[0]["glossary"] is not None
+        assert "matches" in blocks[0]["glossary"]
+        assert len(blocks[0]["glossary"]["matches"]) >= 1
+        assert any(
+            "Metropolitan Police Service" in m["definition"]
+            for m in blocks[0]["glossary"]["matches"]
+        )
 
     @pytest.mark.anyio
     async def test_empty_text_422(self, client):
@@ -202,3 +207,285 @@ class TestV1Resolve:
         blk = r.json()["acronyms"][0]
         assert blk["acronym"] == "iOS"
         assert any("iPhone Operating system" in d["text"] for d in blk["definitions"])
+
+    @pytest.mark.anyio
+    async def test_happy_path_includes_resolution_metadata(self, client):
+        payload = {
+            "text": "The Metropolitan Police Service (MPS) operates in London.",
+            "options": {"include_glossary_enrichment": True},
+        }
+
+        r = await client.post("/v1/resolve", json=payload)
+        assert r.status_code == 200, r.text
+
+        block = r.json()["acronyms"][0]
+
+        assert "candidates" in block
+        assert "selected" in block
+        assert "conflict" in block
+        assert "conflict_count" in block
+        assert "selection" in block
+
+        assert isinstance(block["candidates"], list)
+        assert block["selected"] is not None
+        assert isinstance(block["conflict"], bool)
+        assert isinstance(block["conflict_count"], int)
+
+        assert block["candidates"]
+        assert block["selected"]["definition"] == block["candidates"][0]["definition"]
+        assert "reason" in block["selected"]
+
+    @pytest.mark.anyio
+    async def test_single_candidate_sets_conflict_false(self, client):
+        payload = {
+            "text": "The Metropolitan Police Service (MPS) operates in London.",
+            "options": {"include_glossary_enrichment": True},
+        }
+
+        r = await client.post("/v1/resolve", json=payload)
+        assert r.status_code == 200, r.text
+
+        block = r.json()["acronyms"][0]
+
+        assert block["conflict"] is False or block["conflict_count"] == 1
+        assert block["conflict_count"] >= 1
+
+    @pytest.mark.anyio
+    async def test_multi_sense_acronym_returns_conflict_metadata(self, client, session_factory):
+        with session_factory() as s:
+            ga = GlossaryAcronym(
+                tenant_id=None,
+                acronym="GP",
+                normalized="gp",
+                is_active=True,
+            )
+            s.add(ga)
+            s.flush()
+
+            s.add_all(
+                [
+                    GlossaryMeaning(
+                        acronym_id=ga.id,
+                        definition="General Practitioner",
+                        domain="medical",
+                        provenance="test",
+                        is_active=True,
+                    ),
+                    GlossaryMeaning(
+                        acronym_id=ga.id,
+                        definition="General Partner",
+                        domain="finance",
+                        provenance="test",
+                        is_active=True,
+                    ),
+                ]
+            )
+            s.commit()
+
+        r = await client.post(
+            "/v1/resolve",
+            json={"text": "The General Practitioner (GP) signed the report."},
+        )
+        assert r.status_code == 200, r.text
+
+        block = next(b for b in r.json()["acronyms"] if b["acronym"] == "GP")
+
+        assert len(block["candidates"]) >= 2
+        assert block["conflict"] is True
+        assert block["conflict_count"] >= 2
+        assert block["selected"]["reason"] in {
+            "in_document_definition",
+            "single_candidate",
+            "highest_score",
+            "fallback_general",
+            "inactive_filtered",
+        }
+
+    @pytest.mark.anyio
+    async def test_selected_candidate_is_first(self, client):
+        r = await client.post(
+            "/v1/resolve",
+            json={"text": "The Metropolitan Police Service (MPS) operates in London."},
+        )
+        assert r.status_code == 200, r.text
+
+        block = r.json()["acronyms"][0]
+        assert block["selected"]["definition"] == block["candidates"][0]["definition"]
+        assert block["selected"]["domain"] == block["candidates"][0]["domain"]
+
+    @pytest.mark.anyio
+    async def test_multi_sense_acronym_returns_conflict_metadata(self, client, session_factory):
+        with session_factory() as s:
+            ga = (
+                s.query(GlossaryAcronym)
+                .filter(GlossaryAcronym.tenant_id.is_(None))
+                .filter(GlossaryAcronym.normalized == "gp")
+                .first()
+            )
+
+            if ga is None:
+                ga = GlossaryAcronym(
+                    tenant_id=None,
+                    acronym="GP",
+                    normalized="gp",
+                    is_active=True,
+                )
+                s.add(ga)
+                s.flush()
+            else:
+                ga.acronym = "GP"
+                ga.is_active = True
+
+            def _upsert_meaning(definition: str, domain: str) -> None:
+                gm = (
+                    s.query(GlossaryMeaning)
+                    .filter(GlossaryMeaning.acronym_id == ga.id)
+                    .filter(GlossaryMeaning.domain == domain)
+                    .first()
+                )
+                if gm is None:
+                    s.add(
+                        GlossaryMeaning(
+                            acronym_id=ga.id,
+                            definition=definition,
+                            domain=domain,
+                            provenance="test",
+                            is_active=True,
+                        )
+                    )
+                else:
+                    gm.definition = definition
+                    gm.provenance = "test"
+                    gm.is_active = True
+
+            _upsert_meaning("General Practitioner", "medical")
+            _upsert_meaning("General Partner", "finance")
+
+            s.commit()
+
+        r = await client.post(
+            "/v1/resolve",
+            json={
+                "text": "The General Practitioner (GP) signed the report.",
+                "options": {"include_glossary_enrichment": True},
+            },
+        )
+        assert r.status_code == 200, r.text
+
+        body = r.json()
+        assert any(b["acronym"] == "GP" for b in body["acronyms"]), body
+        block = next(b for b in body["acronyms"] if b["acronym"] == "GP")
+
+        assert "candidates" in block
+        assert "selected" in block
+        assert "conflict" in block
+        assert "conflict_count" in block
+        assert "selection" in block
+
+        assert len(block["candidates"]) >= 2
+        assert block["conflict"] is True
+        assert block["conflict_count"] >= 2
+
+        assert block["selected"] is not None
+        assert block["selected"]["reason"] in {
+            "in_document_definition",
+            "single_candidate",
+            "highest_score",
+            "fallback_general",
+            "inactive_filtered",
+        }
+
+        assert block["selected"]["definition"] == block["candidates"][0]["definition"]
+        assert block["selected"]["domain"] == block["candidates"][0]["domain"]
+
+        candidate_defs = {c["definition"] for c in block["candidates"]}
+        assert "General Practitioner" in candidate_defs
+        assert "General Partner" in candidate_defs
+
+    @pytest.mark.anyio
+    async def test_glossary_block_includes_multiple_matches_for_multi_sense_acronym(self, client, session_factory):
+        with session_factory() as s:
+            ga = (
+                s.query(GlossaryAcronym)
+                .filter(GlossaryAcronym.tenant_id.is_(None))
+                .filter(GlossaryAcronym.normalized == "gp")
+                .first()
+            )
+
+            if ga is None:
+                ga = GlossaryAcronym(
+                    tenant_id=None,
+                    acronym="GP",
+                    normalized="gp",
+                    is_active=True,
+                )
+                s.add(ga)
+                s.flush()
+            else:
+                ga.acronym = "GP"
+                ga.is_active = True
+
+            def _upsert_meaning(definition: str, domain: str) -> None:
+                gm = (
+                    s.query(GlossaryMeaning)
+                    .filter(GlossaryMeaning.acronym_id == ga.id)
+                    .filter(GlossaryMeaning.domain == domain)
+                    .first()
+                )
+                if gm is None:
+                    s.add(
+                        GlossaryMeaning(
+                            acronym_id=ga.id,
+                            definition=definition,
+                            domain=domain,
+                            provenance="test",
+                            is_active=True,
+                        )
+                    )
+                else:
+                    gm.definition = definition
+                    gm.provenance = "test"
+                    gm.is_active = True
+
+            _upsert_meaning("General Practitioner", "medical")
+            _upsert_meaning("General Partner", "finance")
+            s.commit()
+
+        r = await client.post(
+            "/v1/resolve",
+            json={
+                "text": "General Practitioner (GP). The GP signed the report.",
+                "options": {"include_glossary_enrichment": True},
+            },
+        )
+        assert r.status_code == 200, r.text
+
+        body = r.json()
+        assert any(b["acronym"] == "GP" for b in body["acronyms"]), body
+        block = next(b for b in body["acronyms"] if b["acronym"] == "GP")
+
+        assert block["glossary"] is not None
+        matches = block["glossary"]["matches"]
+        assert len(matches) >= 2
+
+        defs = {m["definition"] for m in matches}
+        assert "General Practitioner" in defs
+        assert "General Partner" in defs
+
+        domains = {m["domain"] for m in matches}
+        assert "medical" in domains
+        assert "finance" in domains
+
+    @pytest.mark.anyio
+    async def test_glossary_block_omitted_when_enrichment_disabled(self, client):
+        r = await client.post(
+            "/v1/resolve",
+            json={
+                "text": "The Metropolitan Police Service (MPS) operates in London.",
+                "options": {"include_glossary_enrichment": False},
+            },
+        )
+        assert r.status_code == 200, r.text
+
+        block = r.json()["acronyms"][0]
+        assert "glossary" not in block or block["glossary"] is None

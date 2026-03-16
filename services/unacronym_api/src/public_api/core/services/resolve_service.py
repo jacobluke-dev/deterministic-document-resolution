@@ -1,3 +1,16 @@
+"""
+Resolve service orchestration for `/v1/resolve`.
+
+This module exposes three logical layers in the API response:
+1) detection/occurrence mapping (`acronym`, `first_occurrence`, `occurrences`);
+2) extraction/enrichment evidence (`definitions`, optional `glossary.matches`);
+3) deterministic resolution metadata (`candidates`, `selected`, `conflict`, `selection`).
+
+Layer 2 preserves what the pipeline found in the document and what glossary
+enrichment returned. Layer 3 does not replace that evidence; it ranks the
+available senses deterministically and exposes which candidate was selected
+and why.
+"""
 from __future__ import annotations
 
 import asyncio
@@ -139,25 +152,56 @@ class ResolveService:
             yield ac, first_occ, occs
 
     def _maybe_glossary_block(self, ac: str, lang: str, opts: ResolveOptions) -> dict[str, Any] | None:
-        """Return the glossary enrichment block if enabled and present."""
+        """Return legacy glossary enrichment for an acronym, if enabled.
+
+        This block preserves the older `glossary.matches` response shape for callers
+        that still consume curated enrichment separately from UN-75 selection metadata.
+
+        Behaviour:
+          - Returns `None` when glossary enrichment is disabled.
+          - Fetches all glossary meanings for the acronym via the repository.
+          - Includes only active meanings with non-empty definitions.
+          - Orders matches deterministically by:
+              1) domain (ascending, null/empty first as ""),
+              2) definition (ascending),
+              3) meaning id via repository ordering.
+          - Does not perform sense selection; it simply exposes curated matches.
+
+        Notes:
+          - `glossary.matches` is evidence/enrichment, not the final decision layer.
+          - UN-75 candidate ranking/selection is added later via
+            `_attach_resolution_metadata(...)`.
+        """
         if not opts.include_glossary_enrichment:
             return None
 
-        row = self._glossary_repo.get(acronym=ac)
-        if not row or not (row.get("definition") or ""):
+        meanings = self._glossary_repo.list_meanings(acronym=ac)
+        if not meanings:
             return None
 
-        return {
-            "matches": [
-                {
-                    "definition": row.get("definition") or "",
-                    "domain": None,
-                    "lang": lang,
-                    "confidence": 1.0,
-                    "source": "system",
-                }
-            ]
-        }
+        matches = [
+            {
+                "definition": str(m.get("definition") or ""),
+                "domain": m.get("domain"),
+                "lang": lang,
+                "confidence": 1.0,
+                "source": "system",
+            }
+            for m in meanings
+            if bool(m.get("is_active")) and str(m.get("definition") or "").strip()
+        ]
+
+        if not matches:
+            return None
+
+        matches.sort(
+            key=lambda x: (
+                "" if x["domain"] is None else str(x["domain"]).casefold(),
+                str(x["definition"]).casefold(),
+            )
+        )
+
+        return {"matches": matches}
 
     @staticmethod
     def _build_response(
@@ -333,6 +377,171 @@ class ResolveService:
             blocks.append(block)
 
         return blocks
+    # TODO unit tests
+    def _attach_resolution_metadata(
+        self,
+        *,
+        blocks: list[dict[str, Any]],
+        opts: ResolveOptions,
+    ) -> list[dict[str, Any]]:
+        max_k = int(opts.max_definitions_per_acronym)
+
+        def _norm_definition(text: str) -> str:
+            return text.strip().rstrip(" .;,:").casefold()
+
+        def _candidate_sort_key(c: dict[str, Any]) -> tuple[Any, ...]:
+            return (
+                0 if c.get("provenance") == "document" else 1,
+                str(c.get("definition") or "").casefold(),
+                "" if c.get("domain") is None else str(c["domain"]).casefold(),
+                str(c.get("source_ref") or ""),
+            )
+
+        out: list[dict[str, Any]] = []
+
+        for block in blocks:
+            nb = dict(block)
+            ac = str(nb.get("acronym") or "").strip()
+            if not ac:
+                out.append(nb)
+                continue
+
+            definitions = nb.get("definitions") or []
+            meanings = self._glossary_repo.list_meanings(acronym=ac)
+
+            inactive_count = sum(1 for m in meanings if not bool(m.get("is_active")))
+            active_meanings = [m for m in meanings if bool(m.get("is_active"))]
+
+            candidates: list[dict[str, Any]] = []
+
+            # 1) document/extracted candidates
+            seen_doc_defs: set[str] = set()
+            for d in definitions:
+                if not isinstance(d, dict):
+                    continue
+
+                text = str(d.get("text") or "").strip()
+                if not text:
+                    continue
+
+                start = d.get("start")
+                end = d.get("end")
+                source_ref = None
+                if isinstance(start, int) and isinstance(end, int):
+                    source_ref = f"text_span:{start}-{end}"
+
+                candidates.append(
+                    {
+                        "domain": None,
+                        "definition": text,
+                        "score": 0.0,
+                        "provenance": "document",
+                        "source_ref": source_ref,
+                    }
+                )
+                seen_doc_defs.add(_norm_definition(text))
+
+            # 2) glossary candidates
+            for m in active_meanings:
+                definition = str(m.get("definition") or "").strip()
+                if not definition:
+                    continue
+
+                if _norm_definition(definition) in seen_doc_defs:
+                    continue
+
+                meaning_id = m.get("meaning_id")
+                source_ref = f"sense:{meaning_id}" if meaning_id is not None else None
+
+                candidates.append(
+                    {
+                        "domain": m.get("domain"),
+                        "definition": definition,
+                        "score": 0.0,
+                        "provenance": "glossary",
+                        "source_ref": source_ref,
+                    }
+                )
+
+            viable_count = len(candidates)
+
+            selected: dict[str, Any] | None = None
+            reason: str | None = None
+
+            # 3) deterministic selection
+            document_candidates = [c for c in candidates if c.get("provenance") == "document"]
+            glossary_candidates = [c for c in candidates if c.get("provenance") == "glossary"]
+
+            if document_candidates:
+                document_candidates.sort(key=_candidate_sort_key)
+                selected = dict(document_candidates[0])
+                reason = "in_document_definition"
+            elif len(glossary_candidates) == 1:
+                selected = dict(glossary_candidates[0])
+                reason = "inactive_filtered" if inactive_count > 0 else "single_candidate"
+            elif glossary_candidates:
+                glossary_candidates.sort(key=_candidate_sort_key)
+
+                general_candidate = next(
+                    (c for c in glossary_candidates if str(c.get("domain") or "").casefold() == "general"),
+                    None,
+                )
+                if general_candidate is not None:
+                    selected = dict(general_candidate)
+                    reason = "fallback_general"
+                else:
+                    selected = dict(glossary_candidates[0])
+                    reason = "highest_score"
+
+            # 4) selected first, stable ordering, simple MVP scores
+            ordered_candidates: list[dict[str, Any]] = []
+            if selected is not None:
+                for c in candidates:
+                    if (
+                        c.get("definition") == selected.get("definition")
+                        and c.get("domain") == selected.get("domain")
+                        and c.get("provenance") == selected.get("provenance")
+                        and c.get("source_ref") == selected.get("source_ref")
+                    ):
+                        c["score"] = 1.0
+                    else:
+                        c["score"] = 0.0
+
+                remaining = [
+                    c
+                    for c in candidates
+                    if not (
+                        c.get("definition") == selected.get("definition")
+                        and c.get("domain") == selected.get("domain")
+                        and c.get("provenance") == selected.get("provenance")
+                        and c.get("source_ref") == selected.get("source_ref")
+                    )
+                ]
+                remaining.sort(key=_candidate_sort_key)
+
+                selected["score"] = 1.0
+                ordered_candidates = [selected, *remaining]
+            else:
+                ordered_candidates = sorted(candidates, key=_candidate_sort_key)
+
+            nb["candidates"] = ordered_candidates[:max_k] if max_k > 0 else []
+            nb["selected"] = (
+                {
+                    "domain": selected.get("domain"),
+                    "definition": selected.get("definition"),
+                    "reason": reason,
+                }
+                if selected is not None and reason is not None
+                else None
+            )
+            nb["conflict"] = viable_count > 1
+            nb["conflict_count"] = viable_count
+            nb["selection"] = {
+                "policy_used": None,
+                "filtered_inactive_count": inactive_count,
+            }
+            out.append(nb)
+        return out
 
     async def _run_pipeline(self, text: str, opts: ResolveOptions) -> tuple[AcronymDetectorResult, ExtractionResult]:
         return await asyncio.wait_for(
@@ -415,6 +624,7 @@ class ResolveService:
                 ) from exc
 
             blocks = self._map_pipeline_to_blocks(det_res=det_res, extr=extr, opts=opts, lang=lang)
+            blocks = self._attach_resolution_metadata(blocks=blocks, opts=opts)
             return self._build_response(text, blocks, started)
 
         # Large inputs: chunked mode
@@ -448,4 +658,5 @@ class ResolveService:
             all_blocks.append(shift_blocks(blocks, ch.start))
 
         merged = merge_blocks(all_blocks)
+        merged = self._attach_resolution_metadata(blocks=merged, opts=opts)
         return self._build_response(text, merged, started)

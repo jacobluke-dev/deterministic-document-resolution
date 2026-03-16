@@ -1,9 +1,7 @@
 from __future__ import annotations
 
 from typing import Any, Mapping, MutableMapping, TypeAlias
-
 from observability.config import REQ_ID_HEADER
-
 from public_api.schemas.error import ErrorResponse
 
 COMMON_ERROR_RESPONSES: Mapping[int | str, dict[str, Any]] = {
@@ -11,7 +9,7 @@ COMMON_ERROR_RESPONSES: Mapping[int | str, dict[str, Any]] = {
     413: {"model": ErrorResponse},  # Payload Too Large (text length > allowed)
     415: {"model": ErrorResponse},  # Unsupported Media Type (wrong Content-Type / encoding)
     422: {"model": ErrorResponse},  # Unprocessable Entity (semantic validation, e.g. empty text)
-    429: {"model": ErrorResponse},  # TODO Too Many Requests (rate limiting — future Epic 5)
+    429: {"model": ErrorResponse},  # Too Many Requests
     500: {"model": ErrorResponse},  # Internal Server Error (unexpected exception)
     503: {"model": ErrorResponse},  # Service Unavailable (timeout or concurrency overload)
 }
@@ -32,7 +30,7 @@ ResponsesSpec: TypeAlias = dict[int | str, dict[str, Any]]
 def build_responses(
     *,
     success_status: int = 200,
-    success_headers: Mapping[str, Any] = SUCCESS_HEADERS_SPEC,
+    success_headers=None,
     extra_errors: Mapping[int | str, dict[str, Any]] | None = None,
 ) -> ResponsesSpec:
     """Compose a responses dict for FastAPI route decorators.
@@ -45,6 +43,8 @@ def build_responses(
     Returns:
         A fresh dict suitable for `responses=...` in a route decorator.
     """
+    if success_headers is None:
+        success_headers = SUCCESS_HEADERS_SPEC
     resp: MutableMapping[int | str, dict[str, Any]] = dict(COMMON_ERROR_RESPONSES)
     if extra_errors:
         resp.update(extra_errors)
