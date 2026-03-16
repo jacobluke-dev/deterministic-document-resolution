@@ -377,7 +377,149 @@ class ResolveService:
             blocks.append(block)
 
         return blocks
-    # TODO unit tests
+
+    @staticmethod
+    def _norm_definition(text: str) -> str:
+        return text.strip().rstrip(" .;,:").casefold()
+
+    @staticmethod
+    def _candidate_sort_key(c: dict[str, Any]) -> tuple[Any, ...]:
+        return (
+            0 if c.get("provenance") == "document" else 1,
+            str(c.get("definition") or "").casefold(),
+            "" if c.get("domain") is None else str(c["domain"]).casefold(),
+            str(c.get("source_ref") or ""),
+        )
+
+    def _build_document_candidates(
+        self,
+        definitions: list[dict[str, Any]],
+    ) -> tuple[list[dict[str, Any]], set[str]]:
+        candidates: list[dict[str, Any]] = []
+        seen_doc_defs: set[str] = set()
+
+        for d in definitions:
+            if not isinstance(d, dict):
+                continue
+
+            text = str(d.get("text") or "").strip()
+            if not text:
+                continue
+
+            start = d.get("start")
+            end = d.get("end")
+            source_ref = None
+            if isinstance(start, int) and isinstance(end, int):
+                source_ref = f"text_span:{start}-{end}"
+
+            candidates.append(
+                {
+                    "domain": None,
+                    "definition": text,
+                    "score": 0.0,
+                    "provenance": "document",
+                    "source_ref": source_ref,
+                }
+            )
+            seen_doc_defs.add(self._norm_definition(text))
+
+        return candidates, seen_doc_defs
+
+    def _build_glossary_candidates(
+        self,
+        meanings: list[dict[str, Any]],
+        seen_doc_defs: set[str],
+    ) -> tuple[list[dict[str, Any]], int]:
+        inactive_count = sum(1 for m in meanings if not bool(m.get("is_active")))
+        active_meanings = [m for m in meanings if bool(m.get("is_active"))]
+
+        candidates: list[dict[str, Any]] = []
+
+        for m in active_meanings:
+            definition = str(m.get("definition") or "").strip()
+            if not definition:
+                continue
+
+            if self._norm_definition(definition) in seen_doc_defs:
+                continue
+
+            meaning_id = m.get("meaning_id")
+            source_ref = f"sense:{meaning_id}" if meaning_id is not None else None
+
+            candidates.append(
+                {
+                    "domain": m.get("domain"),
+                    "definition": definition,
+                    "score": 0.0,
+                    "provenance": "glossary",
+                    "source_ref": source_ref,
+                }
+            )
+
+        return candidates, inactive_count
+
+    def _select_resolution_candidate(
+        self,
+        candidates: list[dict[str, Any]],
+        inactive_count: int,
+    ) -> tuple[dict[str, Any] | None, str | None]:
+        document_candidates = [c for c in candidates if c.get("provenance") == "document"]
+        glossary_candidates = [c for c in candidates if c.get("provenance") == "glossary"]
+
+        if document_candidates:
+            document_candidates.sort(key=self._candidate_sort_key)
+            return dict(document_candidates[0]), "in_document_definition"
+
+        if len(glossary_candidates) == 1:
+            return (
+                dict(glossary_candidates[0]),
+                "inactive_filtered" if inactive_count > 0 else "single_candidate",
+            )
+
+        if glossary_candidates:
+            glossary_candidates.sort(key=self._candidate_sort_key)
+
+            general_candidate = next(
+                (c for c in glossary_candidates if str(c.get("domain") or "").casefold() == "general"),
+                None,
+            )
+            if general_candidate is not None:
+                return dict(general_candidate), "fallback_general"
+
+            return dict(glossary_candidates[0]), "highest_score"
+
+        return None, None
+
+    def _order_candidates(
+        self,
+        candidates: list[dict[str, Any]],
+        selected: dict[str, Any] | None,
+    ) -> list[dict[str, Any]]:
+        if selected is None:
+            return sorted(candidates, key=self._candidate_sort_key)
+
+        def _same_candidate(a: dict[str, Any], b: dict[str, Any]) -> bool:
+            return (
+                a.get("definition") == b.get("definition")
+                and a.get("domain") == b.get("domain")
+                and a.get("provenance") == b.get("provenance")
+                and a.get("source_ref") == b.get("source_ref")
+            )
+
+        remaining: list[dict[str, Any]] = []
+        for c in candidates:
+            if _same_candidate(c, selected):
+                c["score"] = 1.0
+            else:
+                c["score"] = 0.0
+                remaining.append(c)
+
+        remaining.sort(key=self._candidate_sort_key)
+
+        selected = dict(selected)
+        selected["score"] = 1.0
+        return [selected, *remaining]
+
     def _attach_resolution_metadata(
         self,
         *,
@@ -385,18 +527,6 @@ class ResolveService:
         opts: ResolveOptions,
     ) -> list[dict[str, Any]]:
         max_k = int(opts.max_definitions_per_acronym)
-
-        def _norm_definition(text: str) -> str:
-            return text.strip().rstrip(" .;,:").casefold()
-
-        def _candidate_sort_key(c: dict[str, Any]) -> tuple[Any, ...]:
-            return (
-                0 if c.get("provenance") == "document" else 1,
-                str(c.get("definition") or "").casefold(),
-                "" if c.get("domain") is None else str(c["domain"]).casefold(),
-                str(c.get("source_ref") or ""),
-            )
-
         out: list[dict[str, Any]] = []
 
         for block in blocks:
@@ -409,120 +539,14 @@ class ResolveService:
             definitions = nb.get("definitions") or []
             meanings = self._glossary_repo.list_meanings(acronym=ac)
 
-            inactive_count = sum(1 for m in meanings if not bool(m.get("is_active")))
-            active_meanings = [m for m in meanings if bool(m.get("is_active"))]
+            doc_candidates, seen_doc_defs = self._build_document_candidates(definitions)
+            glossary_candidates, inactive_count = self._build_glossary_candidates(meanings, seen_doc_defs)
 
-            candidates: list[dict[str, Any]] = []
-
-            # 1) document/extracted candidates
-            seen_doc_defs: set[str] = set()
-            for d in definitions:
-                if not isinstance(d, dict):
-                    continue
-
-                text = str(d.get("text") or "").strip()
-                if not text:
-                    continue
-
-                start = d.get("start")
-                end = d.get("end")
-                source_ref = None
-                if isinstance(start, int) and isinstance(end, int):
-                    source_ref = f"text_span:{start}-{end}"
-
-                candidates.append(
-                    {
-                        "domain": None,
-                        "definition": text,
-                        "score": 0.0,
-                        "provenance": "document",
-                        "source_ref": source_ref,
-                    }
-                )
-                seen_doc_defs.add(_norm_definition(text))
-
-            # 2) glossary candidates
-            for m in active_meanings:
-                definition = str(m.get("definition") or "").strip()
-                if not definition:
-                    continue
-
-                if _norm_definition(definition) in seen_doc_defs:
-                    continue
-
-                meaning_id = m.get("meaning_id")
-                source_ref = f"sense:{meaning_id}" if meaning_id is not None else None
-
-                candidates.append(
-                    {
-                        "domain": m.get("domain"),
-                        "definition": definition,
-                        "score": 0.0,
-                        "provenance": "glossary",
-                        "source_ref": source_ref,
-                    }
-                )
-
+            candidates = [*doc_candidates, *glossary_candidates]
             viable_count = len(candidates)
 
-            selected: dict[str, Any] | None = None
-            reason: str | None = None
-
-            # 3) deterministic selection
-            document_candidates = [c for c in candidates if c.get("provenance") == "document"]
-            glossary_candidates = [c for c in candidates if c.get("provenance") == "glossary"]
-
-            if document_candidates:
-                document_candidates.sort(key=_candidate_sort_key)
-                selected = dict(document_candidates[0])
-                reason = "in_document_definition"
-            elif len(glossary_candidates) == 1:
-                selected = dict(glossary_candidates[0])
-                reason = "inactive_filtered" if inactive_count > 0 else "single_candidate"
-            elif glossary_candidates:
-                glossary_candidates.sort(key=_candidate_sort_key)
-
-                general_candidate = next(
-                    (c for c in glossary_candidates if str(c.get("domain") or "").casefold() == "general"),
-                    None,
-                )
-                if general_candidate is not None:
-                    selected = dict(general_candidate)
-                    reason = "fallback_general"
-                else:
-                    selected = dict(glossary_candidates[0])
-                    reason = "highest_score"
-
-            # 4) selected first, stable ordering, simple MVP scores
-            ordered_candidates: list[dict[str, Any]] = []
-            if selected is not None:
-                for c in candidates:
-                    if (
-                        c.get("definition") == selected.get("definition")
-                        and c.get("domain") == selected.get("domain")
-                        and c.get("provenance") == selected.get("provenance")
-                        and c.get("source_ref") == selected.get("source_ref")
-                    ):
-                        c["score"] = 1.0
-                    else:
-                        c["score"] = 0.0
-
-                remaining = [
-                    c
-                    for c in candidates
-                    if not (
-                        c.get("definition") == selected.get("definition")
-                        and c.get("domain") == selected.get("domain")
-                        and c.get("provenance") == selected.get("provenance")
-                        and c.get("source_ref") == selected.get("source_ref")
-                    )
-                ]
-                remaining.sort(key=_candidate_sort_key)
-
-                selected["score"] = 1.0
-                ordered_candidates = [selected, *remaining]
-            else:
-                ordered_candidates = sorted(candidates, key=_candidate_sort_key)
+            selected, reason = self._select_resolution_candidate(candidates, inactive_count)
+            ordered_candidates = self._order_candidates(candidates, selected)
 
             nb["candidates"] = ordered_candidates[:max_k] if max_k > 0 else []
             nb["selected"] = (
@@ -541,6 +565,7 @@ class ResolveService:
                 "filtered_inactive_count": inactive_count,
             }
             out.append(nb)
+
         return out
 
     async def _run_pipeline(self, text: str, opts: ResolveOptions) -> tuple[AcronymDetectorResult, ExtractionResult]:
