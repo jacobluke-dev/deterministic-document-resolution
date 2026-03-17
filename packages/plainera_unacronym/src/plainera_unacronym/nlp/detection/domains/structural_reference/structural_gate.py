@@ -55,11 +55,11 @@ def structural_signal_score(text: str, cap: int = 80_000) -> tuple[int, list[str
     repeated_clause_hits = len(next(p for l, p, _ in STRUCTURAL_SUPPORT_CUES if l == "clause").findall(t))
 
     if repeated_section_hits >= 2:
-        score += 1
+        score += 2
         reasons.append("repeated_section")
 
     if repeated_clause_hits >= 2:
-        score += 1
+        score += 2
         reasons.append("repeated_clause")
 
     return score, reasons, has_strong
