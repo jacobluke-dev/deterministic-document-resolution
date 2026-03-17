@@ -51,8 +51,8 @@ def structural_signal_score(text: str, cap: int = 80_000) -> tuple[int, list[str
             support_hits += 1
 
     # repeated weak cues can also indicate formal structure
-    repeated_section_hits = len(next(p for l, p, _ in STRUCTURAL_SUPPORT_CUES if l == "section").findall(t))
-    repeated_clause_hits = len(next(p for l, p, _ in STRUCTURAL_SUPPORT_CUES if l == "clause").findall(t))
+    repeated_section_hits = len(next(pat for label, pat, _ in STRUCTURAL_SUPPORT_CUES if label == "section").findall(t))
+    repeated_clause_hits = len(next(pat for label, pat, _ in STRUCTURAL_SUPPORT_CUES if label == "clause").findall(t))
 
     if repeated_section_hits >= 2:
         score += 2
