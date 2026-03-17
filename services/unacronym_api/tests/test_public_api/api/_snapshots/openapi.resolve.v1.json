@@ -225,7 +225,7 @@
             "description": "Where the candidate came from."
           },
           "score": {
-            "description": "Deterministic rank score.",
+            "description": "Deterministic ranking score. In the MVP this is primarily used for candidate ordering, not calibrated confidence.",
             "maximum": 1.0,
             "minimum": 0.0,
             "title": "Score",

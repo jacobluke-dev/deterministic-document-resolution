@@ -17,7 +17,7 @@ import asyncio
 import time
 from dataclasses import dataclass
 from importlib import metadata
-from typing import Any, Iterable, Protocol
+from typing import Any, Protocol
 
 import anyio
 from fastapi import status
