@@ -37,7 +37,7 @@ class CandidateProvenance(str, Enum):
 class ResolveCandidate(BaseSchema):
     domain: str | None = Field(None, description="Sense/domain tag if known, else null.")
     definition: str = Field(..., description="Candidate resolved meaning.")
-    score: confloat(ge=0.0, le=1.0) = Field(..., description="Deterministic rank score.")  # type: ignore[valid-type]
+    score: confloat(ge=0.0, le=1.0) = Field(..., description="Deterministic ranking score. In the MVP this is primarily used for candidate ordering, not calibrated confidence.")  # type: ignore[valid-type]
     provenance: CandidateProvenance = Field(..., description="Where the candidate came from.")
     source_ref: str | None = Field(
         None,

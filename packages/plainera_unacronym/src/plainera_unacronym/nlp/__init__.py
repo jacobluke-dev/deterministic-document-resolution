@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-__all__ = ["AcronymDetector", "AcronymDetectorConfig", "FirstOccurrence", "Occurrence"]
+__all__ = ["AcronymDetector", "AcronymDetectorConfig", "DefinedTermDetectorConfig", "FirstOccurrence", "Occurrence"]
 
 
 def __getattr__(name: str):
@@ -10,8 +10,11 @@ def __getattr__(name: str):
         from plainera_unacronym.nlp.detection.acronym.detector import AcronymDetector
 
         return AcronymDetector
-    if name in {"AcronymDetectorConfig", "FirstOccurrence", "Occurrence"}:
-        from plainera_unacronym.nlp.common.types import AcronymDetectorConfig, FirstOccurrence, Occurrence
+    if name in {"AcronymDetectorConfig", "DefinedTermDetectorConfig", "FirstOccurrence", "Occurrence"}:
+        from plainera_unacronym.nlp.common.types import (AcronymDetectorConfig,
+                                                         DefinedTermDetectorConfig,
+                                                         FirstOccurrence,
+                                                         Occurrence)
 
         return {
             "AcronymDetectorConfig": AcronymDetectorConfig,
@@ -22,5 +25,8 @@ def __getattr__(name: str):
 
 
 if TYPE_CHECKING:
-    from plainera_unacronym.nlp.common.types import AcronymDetectorConfig, FirstOccurrence, Occurrence
+    from plainera_unacronym.nlp.common.types import (AcronymDetectorConfig,
+                                                     DefinedTermDetectorConfig,
+                                                     FirstOccurrence,
+                                                     Occurrence)
     from plainera_unacronym.nlp.detection.acronym.detector import AcronymDetector
