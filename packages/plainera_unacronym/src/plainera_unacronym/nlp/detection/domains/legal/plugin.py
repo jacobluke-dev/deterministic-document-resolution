@@ -1,4 +1,4 @@
-from plainera_unacronym.nlp import AcronymDetectorConfig
+from plainera_unacronym.nlp import DefinedTermDetectorConfig
 from plainera_unacronym.nlp.detection.domains.legal.legal_gate import should_enable_legal
 from plainera_unacronym.nlp.detection.domains.legal.patterns import legal_pattern
 from plainera_unacronym.nlp.plugins.interface import DomainPlugin
@@ -30,7 +30,7 @@ class LegalPlugin(DomainPlugin):
         ok, _reasons = should_enable_legal(t)
         return ok
 
-    def extra_candidates(self, text: str, cfg: AcronymDetectorConfig):
+    def extra_candidates(self, text: str, cfg: DefinedTermDetectorConfig):
         """Yield additional legal specific candidate spans.
 
         When the legaL domain is enabled, runs the domain regex and yields each match
@@ -38,7 +38,7 @@ class LegalPlugin(DomainPlugin):
 
         Args:
             text (str): Source document text.
-            cfg (AcronymDetectorConfig): Active detector configuration.
+            cfg (DefinedTermDetectorConfig): Active detector configuration.
 
         Yields:
             TextSpanTuple: (surface, start, end) for each domain match.
@@ -50,7 +50,7 @@ class LegalPlugin(DomainPlugin):
             s, e = m.span("legal")
             yield text[s:e], s, e
 
-    def keep_guard(self, surface: str, text: str, s: int, e: int, cfg: AcronymDetectorConfig) -> bool:
+    def keep_guard(self, surface: str, text: str, s: int, e: int, cfg: DefinedTermDetectorConfig) -> bool:
         """Domain-specific “rescue” hook for borderline candidates.
 
         This method is consulted by the generic detection pipeline when deciding whether
