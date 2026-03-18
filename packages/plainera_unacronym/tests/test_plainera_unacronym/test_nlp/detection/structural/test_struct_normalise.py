@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import pytest
 from plainera_unacronym.nlp.detection.structural import normalize_structural_reference_key
 
 

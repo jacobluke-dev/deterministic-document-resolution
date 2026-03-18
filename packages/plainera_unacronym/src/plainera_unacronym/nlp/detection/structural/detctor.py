@@ -3,11 +3,11 @@ from __future__ import annotations
 from observability.logger.decorator import logger
 
 from plainera_unacronym.nlp.detection.base import BaseDetector
-from wiring.composition import sink
+from plainera_unacronym.wiring.composition import sink
 
 from .builders import build_structural_reference
 from .structural_reference_compiler import compile_structural_reference_patterns
-from .types import StructuralReferenceDetectorResult, StructuralReference
+from .types import StructuralReference, StructuralReferenceDetectorResult
 
 
 class StructuralReferenceDetector(BaseDetector[StructuralReferenceDetectorResult]):
@@ -88,7 +88,6 @@ class StructuralReferenceDetector(BaseDetector[StructuralReferenceDetectorResult
 
         for pat in patterns:
             for match in pat.finditer(text):
-
                 kind = match.group("kind")
                 label = match.group("label")
                 start_offset, end_offset = match.span()
@@ -124,11 +123,11 @@ class StructuralReferenceDetector(BaseDetector[StructuralReferenceDetectorResult
             A ``StructuralReferenceDetectorResult`` containing all detected
             structural references.
         """
-        return StructuralReferenceDetectorResult(
-            references=self._iter_structural_references(text)
-        )
+        return StructuralReferenceDetectorResult(references=self._iter_structural_references(text))
 
-    def detect_parallel(self, text: str, threshold: int = 1000, chunk_size: int = 256) -> StructuralReferenceDetectorResult:
+    def detect_parallel(
+        self, text: str, threshold: int = 1000, chunk_size: int = 256
+    ) -> StructuralReferenceDetectorResult:
         """Detect structural references using the current single-pass implementation.
 
         This method currently delegates directly to ``detect``. The parallel entry

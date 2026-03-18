@@ -1,8 +1,9 @@
 from __future__ import annotations
 
-import pytest
-from plainera_unacronym.nlp.detection.structural.structural_reference_compiler import StructuralReferencePatterns, \
-    compile_structural_reference_patterns
+from plainera_unacronym.nlp.detection.structural.structural_reference_compiler import (
+    StructuralReferencePatterns,
+    compile_structural_reference_patterns,
+)
 
 
 class TestCompileStructuralReferencePatterns:

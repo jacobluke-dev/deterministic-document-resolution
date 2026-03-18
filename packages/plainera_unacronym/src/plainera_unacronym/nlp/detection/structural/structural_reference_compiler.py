@@ -42,6 +42,7 @@ class StructuralReferencePatterns:
         article_reference: Matches article references such as ``Article III`` or
             ``Article 2``.
     """
+
     schedule_reference: re.Pattern[str]
     exhibit_reference: re.Pattern[str]
     annex_reference: re.Pattern[str]
@@ -49,6 +50,7 @@ class StructuralReferencePatterns:
     section_reference: re.Pattern[str]
     clause_reference: re.Pattern[str]
     article_reference: re.Pattern[str]
+
 
 def compile_structural_reference_patterns() -> StructuralReferencePatterns:
     """Compile and return the regex patterns used by the structural-reference detector.
@@ -75,7 +77,7 @@ def compile_structural_reference_patterns() -> StructuralReferencePatterns:
         re.error: If any regex expression is invalid at compile time.
     """
 
-    hws = r"[ \t]+" # horizontal whitespace
+    hws = r"[ \t]+"  # horizontal whitespace
 
     alpha_label = r"[A-Z]"
     numeric_label = r"\d+"
