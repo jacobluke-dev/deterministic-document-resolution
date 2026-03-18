@@ -7,11 +7,25 @@ _NON_WORD_RE = re.compile(r"[^\w\s-]")
 
 
 def normalize_structural_reference_key(kind: str, label: str) -> str:
-    """
-    Examples:
-      - Schedule A  -> schedule_a
-      - Section 4.2 -> section_4_2
-      - Article III -> article_iii
+    """Normalise a structural reference into a stable lookup key.
+
+    Args:
+        kind: Structural reference kind to normalise, for example ``"Section"``
+            or ``"Schedule"``.
+        label: Structural reference label to normalise, for example ``"4.2"``,
+            ``"A"``, or ``"III"``.
+
+    Returns:
+        A deterministic normalised key combining the cleaned structural kind and
+        cleaned label, for example ``"section_4_2"`` or ``"schedule_a"``.
+
+    Rules:
+      - translate canonical punctuation variants using ``CANON_TABLE_DEFAULT``
+      - strip surrounding whitespace
+      - lowercase all content
+      - remove non-word punctuation from kind and label
+      - convert decimal points in labels to underscores
+      - collapse whitespace runs to underscores
     """
     kind_value = kind.translate(CANON_TABLE_DEFAULT).strip().lower()
     kind_value = _NON_WORD_RE.sub("", kind_value)

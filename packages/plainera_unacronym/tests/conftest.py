@@ -68,6 +68,33 @@ def patch_sink_and_logger(monkeypatch):
 
 @pytest.fixture
 def _patch(monkeypatch):
+    """Return a helper that patches names in a function's global namespace.
+
+    The returned helper replaces entries in ``func.__globals__`` using pytest's
+    ``monkeypatch.setitem``. This is useful when code under test resolves
+    imported symbols from the module where the function is defined, rather than
+    from the original import source. It is particularly handy for patching
+    module-level collaborators such as loggers, sinks, helper functions, or
+    imported dependencies exactly where they are used.
+
+    Args:
+        monkeypatch: Built-in pytest fixture used to apply reversible test-time
+            patches.
+
+    Returns:
+        A callable that accepts a target function plus keyword replacements, where
+        each keyword is the global name to replace and each value is the test
+        implementation to inject.
+
+    Example:
+        Patch ``message_logger`` in the globals of ``detect`` so the wrapped
+        method does not write to a real sink during tests::
+
+            _patch(
+                detector.detect.__func__,
+                message_logger=lambda *args, **kwargs: None,
+            )
+    """
     def _apply(func, **replacements):
         g = func.__globals__
         for name, impl in replacements.items():
