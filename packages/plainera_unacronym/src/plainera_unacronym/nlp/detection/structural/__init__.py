@@ -1,0 +1,12 @@
+from .structural_reference_compiler import compile_structural_reference_patterns
+from .detctor import StructuralReferenceDetector
+from .normalise import normalize_structural_reference_key
+from .types import StructuralReference, StructuralReferenceDetectorResult
+
+__all__ = [
+    "compile_structural_reference_patterns",
+    "StructuralReferenceDetector",
+    "normalize_structural_reference_key",
+    "StructuralReference",
+    "StructuralReferenceDetectorResult"
+]
