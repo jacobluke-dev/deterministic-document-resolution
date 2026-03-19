@@ -3,7 +3,7 @@ from __future__ import annotations
 import types
 
 from plainera_unacronym.nlp.common.types import DefinedTermDetectorConfig
-from plainera_unacronym.nlp.execute_defined_terms import detect_and_resolve_terms
+from plainera_unacronym.nlp.extraction.defined_terms.execute import detect_and_resolve_terms
 
 
 def _resolution_key(r) -> str | None:

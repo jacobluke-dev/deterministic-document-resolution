@@ -22,7 +22,7 @@ from typing import Any, Protocol
 import anyio
 from fastapi import status
 from plainera_unacronym.nlp.common.types import AcronymDetectorResult, ExtractionResult
-from plainera_unacronym.nlp.execute import detect_and_extract
+from plainera_unacronym.nlp.extraction.acronyms.execute import detect_and_extract
 
 from public_api.core.auth.chunking import make_chunks, merge_blocks, shift_blocks
 from public_api.core.settings import app_settings

@@ -14,11 +14,11 @@ from plainera_unacronym.nlp.common.types import (
     OccurrenceLite,
     Span,
 )
-from plainera_unacronym.nlp.execute import detect_and_extract
+from plainera_unacronym.nlp.extraction.acronyms.execute import detect_and_extract
 from plainera_unacronym.nlp.extraction import ExtractionConfig
 from plainera_unacronym.nlp.extraction.acronyms.core.defs import dedupe_defs
 from plainera_unacronym.nlp.extraction.acronyms.engine import stage_funcs as f
-from plainera_unacronym.nlp.extraction.acronyms.engine.detect_flow import ExtractionFlow
+from plainera_unacronym.nlp.extraction.acronyms.engine.extract_flow import ExtractionFlow
 from plainera_unacronym.nlp.extraction.acronyms.engine.state import FlowState
 
 from plainera_unacronym.nlp.extraction.acronyms.senses.disambiguate import choose_with_tiebreak, disambiguate_occurrences

@@ -8,7 +8,7 @@ from plainera_unacronym.nlp.common.types import (
     InTextPick,
     Occurrence,
 )
-from plainera_unacronym.nlp.execute import detect_and_extract
+from plainera_unacronym.nlp.extraction.acronyms.execute import detect_and_extract
 from plainera_unacronym.nlp.extraction import ExtractionConfig
 
 

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
-from plainera_unacronym.nlp.extraction.defined_terms.define_extract_flow import DefinedTermResolutionFlow
+from plainera_unacronym.nlp.extraction.base.base_execute import run_flow_with_options
+from plainera_unacronym.nlp.extraction.defined_terms.extract_flow import DefinedTermResolutionFlow
 from plainera_unacronym.nlp.extraction.defined_terms.state import TermFlowState
 
 
@@ -75,26 +76,10 @@ def detect_and_resolve_terms(
         ext_cfg=flow.ext_cfg,
     )
 
-    state, reports = flow.build_chain().run(state, tracer=flow._tracer)
-
-    assert state.det_res is not None and state.extr is not None
-
-    trace_events = flow._tracer.events if flow._tracer else None
-    flow.trace_events = trace_events
-
-    if return_state and return_reports and trace:
-        return state.det_res, state.extr, reports, state, trace_events
-
-    if return_state and return_reports:
-        return state.det_res, state.extr, reports, state
-
-    if return_state:
-        return state.det_res, state.extr, state
-
-    if return_reports and trace:
-        return state.det_res, state.extr, reports, trace_events
-
-    if return_reports:
-        return state.det_res, state.extr, reports
-
-    return state.det_res, state.extr
+    return run_flow_with_options(
+        flow=flow,
+        state=state,
+        return_reports=return_reports,
+        return_state=return_state,
+        trace=trace,
+    )

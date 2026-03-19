@@ -4,7 +4,7 @@ from typing import Literal
 import numpy as np
 from plainera_unacronym.nlp.common.types import AcronymDetectorConfig, AcronymSense, OccurrenceLite
 from plainera_unacronym.nlp.extraction import ExtractionConfig
-from plainera_unacronym.nlp.extraction.acronyms.engine.detect_flow import ExtractionFlow
+from plainera_unacronym.nlp.extraction.acronyms.engine.extract_flow import ExtractionFlow
 from plainera_unacronym.nlp.extraction.acronyms.engine.state import FlowState
 from plainera_unacronym.nlp.extraction.tiers.config import Tier2Config
 from plainera_unacronym.nlp.extraction.acronyms.engine import stage_funcs as f

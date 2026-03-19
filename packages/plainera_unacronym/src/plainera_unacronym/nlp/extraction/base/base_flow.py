@@ -19,6 +19,8 @@ class BaseResolutionFlow(ABC, Generic[TState, TDetRes, TExtrRes, TDetCfg, TExtCf
         self.state_cls = state_cls
         self.det_cfg = det_cfg
         self.ext_cfg = ext_cfg
+        self._tracer = None
+        self.trace_events = None
 
     @abstractmethod
     def build_chain(self) -> Chain[TState]:
@@ -36,7 +38,8 @@ class BaseResolutionFlow(ABC, Generic[TState, TDetRes, TExtrRes, TDetCfg, TExtCf
     def run(self, text: str) -> tuple[TDetRes, TExtrRes, list[StageReport]]:
         """Run the flow over the provided text."""
         state = self.make_state(text)
-        state, reports = self.build_chain().run(state)
+        tracer = getattr(self, "_tracer", None)
+        state, reports = self.build_chain().run(state, tracer=tracer)
         return self._finalize(state, reports)
 
     @abstractmethod

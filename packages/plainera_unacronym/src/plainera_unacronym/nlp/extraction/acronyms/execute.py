@@ -1,5 +1,6 @@
-from plainera_unacronym.nlp.extraction.acronyms.engine.detect_flow import ExtractionFlow
+from plainera_unacronym.nlp.extraction.acronyms.engine.extract_flow import ExtractionFlow
 from plainera_unacronym.nlp.extraction.acronyms.engine.state import FlowState
+from plainera_unacronym.nlp.extraction.base.base_execute import run_flow_with_options
 
 
 def detect_and_extract(
@@ -91,25 +92,17 @@ def detect_and_extract(
         trace_filter=trace_filter,
     )
 
-    state = FlowState(text=text, det_cfg=flow.det_cfg, ext_cfg=flow.ext_cfg, tier2_model=tier2_model)
+    state = FlowState(
+        text=text,
+        det_cfg=flow.det_cfg,
+        ext_cfg=flow.ext_cfg,
+        tier2_model=tier2_model,
+    )
 
-    state, reports = flow.build_chain().run(state, tracer=flow._tracer)
-
-    assert state.det_res is not None and state.extr is not None
-
-    if return_state and return_reports and trace:
-        return state.det_res, state.extr, reports, state, flow.trace_events
-
-    if return_state and return_reports:
-        return state.det_res, state.extr, reports, state
-
-    if return_state:
-        return state.det_res, state.extr, state
-
-    if return_reports and trace:
-        return state.det_res, state.extr, reports, flow.trace_events
-
-    if return_reports:
-        return state.det_res, state.extr, reports
-
-    return state.det_res, state.extr
+    return run_flow_with_options(
+        flow=flow,
+        state=state,
+        return_reports=return_reports,
+        return_state=return_state,
+        trace=trace,
+    )
