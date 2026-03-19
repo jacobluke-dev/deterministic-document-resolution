@@ -14,14 +14,18 @@ from plainera_unacronym.nlp.common.types import (
     OccurrenceLite,
     Span,
 )
-from plainera_unacronym.nlp.execute import detect_and_extract
-from plainera_unacronym.nlp.extraction.config import ExtractionConfig, Tier2Config
-from plainera_unacronym.nlp.extraction.core.defs import dedupe_defs
-from plainera_unacronym.nlp.extraction.engine import stage_funcs as f
-from plainera_unacronym.nlp.extraction.engine.detect_flow import ExtractionFlow
-from plainera_unacronym.nlp.extraction.engine.state import FlowState
-from plainera_unacronym.nlp.extraction.senses.disambiguate import choose_with_tiebreak, disambiguate_occurrences
-from plainera_unacronym.nlp.extraction.senses.sense_build import build_senses
+from plainera_unacronym.nlp.extraction import ExtractionConfig
+from plainera_unacronym.nlp.extraction.acronyms.core.defs import dedupe_defs
+from plainera_unacronym.nlp.extraction.acronyms.engine import stage_funcs as f
+from plainera_unacronym.nlp.extraction.acronyms.engine.extract_flow import ExtractionFlow
+from plainera_unacronym.nlp.extraction.acronyms.engine.state import FlowState
+from plainera_unacronym.nlp.extraction.acronyms.execute import detect_and_extract
+from plainera_unacronym.nlp.extraction.acronyms.senses.disambiguate import (
+    choose_with_tiebreak,
+    disambiguate_occurrences,
+)
+from plainera_unacronym.nlp.extraction.acronyms.senses.sense_build import build_senses
+from plainera_unacronym.nlp.extraction.tiers.config import Tier2Config
 
 # -----------------------
 # helpers
@@ -506,7 +510,7 @@ class TestDisambiguationE2EConfidenceContract:
         toward the higher-confidence sense (when enabled).
         """
         # Patch base scoring to guarantee a near-tie, regardless of text/layout.
-        from plainera_unacronym.nlp.extraction.senses import disambiguate as mod
+        from plainera_unacronym.nlp.extraction.acronyms.senses import disambiguate as mod
 
         def fake_base_scores_for_occurrence(*_, **__):
             # Near tie: gap = 0.01 (<= NEAR_TIE_GAP 0.06), and relative margin is small.
