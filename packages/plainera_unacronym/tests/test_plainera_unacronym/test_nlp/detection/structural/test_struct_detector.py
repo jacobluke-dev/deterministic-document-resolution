@@ -106,7 +106,7 @@ class TestStructuralReferenceDetector:
         assert len(out.references) == 1
 
         ref = out.references[0]
-        assert ref.kind == "section"
+        assert ref.kind == "Section"
         assert ref.label == "4.2"
         assert ref.normalized_key == "section_4_2"
 

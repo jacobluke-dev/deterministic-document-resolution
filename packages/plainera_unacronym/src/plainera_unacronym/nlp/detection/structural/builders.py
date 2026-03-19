@@ -73,8 +73,9 @@ def build_structural_reference(
         label, preserved source offsets, canonical normalised lookup key, and
         provenance.
     """
-    cleaned_kind = canonicalize_structural_kind(kind)
+    cleaned_kind_raw = strip_trailing_punct_str(kind.strip())
     cleaned_label = strip_trailing_punct_str(label.strip())
+    cleaned_kind = canonicalize_structural_kind(cleaned_kind_raw)
 
     return StructuralReference(
         kind=cleaned_kind,
