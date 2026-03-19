@@ -62,7 +62,7 @@ class DefinedTermResolutionFlow(
             det_cfg=det_cfg,
             ext_cfg=ext_cfg,
             trace_filter=trace_filter,
-            trace=trace
+            trace=trace,
         )
         self._ovr_margin = disambig_margin_threshold
 

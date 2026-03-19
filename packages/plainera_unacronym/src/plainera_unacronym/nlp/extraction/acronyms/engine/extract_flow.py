@@ -82,7 +82,7 @@ class ExtractionFlow(
             det_cfg=det_cfg or AcronymDetectorConfig(),
             ext_cfg=ext_cfg or ExtractionConfig(),
             trace_filter=trace_filter,
-            trace=trace
+            trace=trace,
         )
         self.window_left = window_left
         self.window_right = window_right
