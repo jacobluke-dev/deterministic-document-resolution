@@ -5,7 +5,7 @@ from observability.logger.decorator import logger
 from plainera_unacronym.nlp.detection.base import BaseDetector
 from plainera_unacronym.wiring.composition import sink
 
-from .builders import build_structural_reference
+from .builders import build_structural_reference, canonicalize_structural_kind
 from .structural_reference_compiler import compile_structural_reference_patterns
 from .types import StructuralReference, StructuralReferenceDetectorResult
 
@@ -91,10 +91,14 @@ class StructuralReferenceDetector(BaseDetector[StructuralReferenceDetectorResult
                 kind = match.group("kind")
                 label = match.group("label")
                 start_offset, end_offset = match.span()
-                if kind.lower() == "appendix" and self._is_invalid_appendix_alpha_continuation(text, label, end_offset):
+
+                canonical_kind = canonicalize_structural_kind(kind)
+
+                if (canonical_kind == "Appendix" and
+                    self._is_invalid_appendix_alpha_continuation(text, label, end_offset)):
                     continue
 
-                dedupe_key = (start_offset, end_offset, kind.lower())
+                dedupe_key = (start_offset, end_offset, canonical_kind)
                 if dedupe_key in seen:
                     continue
                 seen.add(dedupe_key)
