@@ -3,7 +3,10 @@ from __future__ import annotations
 import types
 
 from plainera_unacronym.nlp.common.types import DefinedTermDetectorConfig
+from plainera_unacronym.nlp.extraction.base.base_execute import run_flow_with_options
 from plainera_unacronym.nlp.extraction.defined_terms.execute import detect_and_resolve_terms
+from plainera_unacronym.nlp.extraction.defined_terms.extract_flow import DefinedTermResolutionFlow
+from plainera_unacronym.nlp.extraction.defined_terms.state import TermFlowState
 
 
 def _resolution_key(r) -> str | None:
@@ -429,3 +432,90 @@ class TestDefinedTermResolutionE2E:
         assert len(agreement_resolutions) == 2
         assert agreement_resolutions[0].chosen_sense_id == "term|agreement|1"
         assert agreement_resolutions[0].resolution_method in {"tier1", "tier2_blend"}
+
+    def test_detect_and_resolve_terms_returns_trace_events_when_trace_enabled(self):
+        text = '"Agreement" means this agreement. The Agreement shall apply.'
+
+        det_res, extr, reports, trace_events = detect_and_resolve_terms(
+            text,
+            return_reports=True,
+            trace=True,
+        )
+
+        assert det_res is not None
+        assert extr is not None
+        assert reports
+        assert trace_events is not None
+        assert isinstance(trace_events, list)
+
+    def test_detect_and_resolve_terms_returns_state_and_trace_events_when_requested(self):
+        text = '"Agreement" means this agreement. The Agreement shall apply.'
+
+        det_res, extr, reports, state, trace_events = detect_and_resolve_terms(
+            text,
+            return_reports=True,
+            return_state=True,
+            trace=True,
+        )
+
+        assert state.det_res is det_res
+        assert state.extr is extr
+        assert trace_events is not None
+        assert isinstance(trace_events, list)
+
+    def test_detect_and_resolve_terms_without_trace_does_not_return_trace_events(self):
+        text = '"Agreement" means this agreement. The Agreement shall apply.'
+
+        out = detect_and_resolve_terms(
+            text,
+            return_reports=True,
+            trace=False,
+        )
+
+        assert len(out) == 3
+        det_res, extr, reports = out
+        assert det_res is not None
+        assert extr is not None
+        assert reports
+
+    def test_detect_and_resolve_terms_trace_filter_restricts_trace_output(self):
+        text = (
+            '"Agreement" means this agreement. '
+            '"Services" means the services. '
+            'The Agreement and the Services shall apply.'
+        )
+
+        _, _, reports_all, trace_all = detect_and_resolve_terms(
+            text,
+            return_reports=True,
+            trace=True,
+        )
+        _, _, reports_filtered, trace_filtered = detect_and_resolve_terms(
+            text,
+            return_reports=True,
+            trace=True,
+            trace_filter=r"^agreement$",
+        )
+
+        assert reports_all
+        assert reports_filtered
+        assert trace_all is not None
+        assert trace_filtered is not None
+        assert len(trace_filtered) <= len(trace_all)
+
+    def test_run_flow_with_options_sets_flow_trace_events(self):
+        flow = DefinedTermResolutionFlow(trace=True, trace_filter=r"^agreement$")
+        state = TermFlowState(
+            text='"Agreement" means this agreement. The Agreement shall apply.',
+            det_cfg=flow.det_cfg,
+            ext_cfg=flow.ext_cfg,
+        )
+
+        det_res, extr, reports, trace_events = run_flow_with_options(
+            flow=flow,
+            state=state,
+            return_reports=True,
+            trace=True,
+        )
+
+        assert flow.trace_events == trace_events
