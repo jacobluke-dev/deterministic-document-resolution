@@ -54,4 +54,5 @@ class StructuralReferenceDetectorResult:
     Attributes:
         references: Structural references detected in source order.
     """
+
     references: list[StructuralReference]

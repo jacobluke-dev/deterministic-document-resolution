@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 
-from plainera_unacronym.nlp.extraction.config import ResolutionConfig, Tier2Config
+from plainera_unacronym.nlp.extraction.tiers.config import ResolutionConfig, Tier2Config
 
 
 @dataclass(frozen=True, slots=True)
