@@ -5,11 +5,18 @@ from collections import Counter
 from plainera_unacronym.nlp.common.types import AcronymDetectorConfig, AcronymDetectorResult, ExtractionResult
 from plainera_unacronym.nlp.extraction.config import ExtractionConfig
 from plainera_unacronym.nlp.extraction.engine import stage_funcs as f
+from plainera_unacronym.nlp.extraction.engine.base_flow import BaseResolutionFlow
 from plainera_unacronym.nlp.extraction.engine.stages import Chain, Stage, StageReport, TraceEvent, Tracer
 from plainera_unacronym.nlp.extraction.engine.state import FlowState
 
 
-class ExtractionFlow:
+class ExtractionFlow(BaseResolutionFlow[
+    FlowState,
+    AcronymDetectorResult,
+    ExtractionResult,
+    AcronymDetectorConfig,
+    ExtractionConfig,
+                     ]):
     """Run the end-to-end acronym detection and extraction pipeline.
 
     This orchestrates a staged workflow over a single input text:
@@ -61,9 +68,12 @@ class ExtractionFlow:
             trace (bool): If True, capture structured trace events for selected stage fields.
             trace_filter (str | None): Optional regex filter applied to acronym keys when tracing.
         """
+        super().__init__(
+            state_cls=FlowState,
+            det_cfg=det_cfg or AcronymDetectorConfig(),
+            ext_cfg=ext_cfg or ExtractionConfig(),
+        )
         self.trace_events: list[TraceEvent] | None = None
-        self.det_cfg = det_cfg or AcronymDetectorConfig()
-        self.ext_cfg = ext_cfg or ExtractionConfig()
         self.window_left = window_left
         self.window_right = window_right
         self._ovr_margin = disambig_margin_threshold
@@ -177,24 +187,12 @@ class ExtractionFlow:
             ]
         )
 
-    def run(self, text: str) -> tuple[AcronymDetectorResult, ExtractionResult, list[StageReport]]:
-        """Run the pipeline over `text`.
-
-        Args:
-            text (str): Source document text.
-
-        Returns:
-            tuple[AcronymDetectorResult, ExtractionResult, list[StageReport]]:
-                - DetectorResult: Raw detector output after cleanup.
-                - ExtractionResult: Final extraction output (picks, defs, senses, resolutions).
-                - list[StageReport]: Per-stage execution reports.
-
-        Raises:
-            AssertionError: If the pipeline completes without producing detector or extraction results.
-
-        """
-        state = FlowState(text=text, det_cfg=self.det_cfg, ext_cfg=self.ext_cfg)
-        state, reports = self.build_chain().run(state, tracer=self._tracer)
-        assert state.det_res and state.extr
+    def _finalize(
+        self,
+        state: FlowState,
+        reports: list[StageReport],
+    ) -> tuple[AcronymDetectorResult, ExtractionResult, list[StageReport]]:
+        """Validate final acronym flow state and return typed outputs."""
+        assert state.det_res is not None and state.extr is not None
         self.trace_events = self._tracer.events if self._tracer else None
         return state.det_res, state.extr, reports

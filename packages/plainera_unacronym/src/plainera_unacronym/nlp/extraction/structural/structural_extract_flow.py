@@ -3,6 +3,7 @@ from __future__ import annotations
 from plainera_unacronym.nlp.detection.structural.types import (
     StructuralReferenceDetectorResult,
 )
+from plainera_unacronym.nlp.extraction.engine.base_flow import BaseResolutionFlow
 from plainera_unacronym.nlp.extraction.engine.stages import (
     Chain,
     Stage,
@@ -10,7 +11,7 @@ from plainera_unacronym.nlp.extraction.engine.stages import (
 )
 from plainera_unacronym.nlp.extraction.structural import stage_funcs as f
 from plainera_unacronym.nlp.extraction.structural.config import (
-    StructuralReferenceExtractionConfig,
+    StructuralReferenceExtractionConfig, StructuralReferenceDetectorConfig,
 )
 from plainera_unacronym.nlp.extraction.structural.state import StructuralFlowState
 from plainera_unacronym.nlp.extraction.structural.types import (
@@ -18,27 +19,38 @@ from plainera_unacronym.nlp.extraction.structural.types import (
 )
 
 
-class StructuralReferenceResolutionFlow:
+class StructuralReferenceResolutionFlow(
+    BaseResolutionFlow[
+        StructuralFlowState,
+        StructuralReferenceDetectorResult,
+        StructuralReferenceResolutionResult,
+        StructuralReferenceDetectorConfig,
+        StructuralReferenceExtractionConfig,
+    ]
+):
     """Run the end-to-end structural-reference extraction pipeline."""
 
     def __init__(
         self,
-        det_cfg: object | None = None,
+        det_cfg: StructuralReferenceDetectorConfig | None = None,
         ext_cfg: StructuralReferenceExtractionConfig | None = None,
     ):
         """Initialise the structural-reference extraction flow.
 
         Args:
             det_cfg: Detector configuration for structural-reference detection.
+                If ``None``, defaults to ``StructuralReferenceDetectorConfig()``.
             ext_cfg: Extraction configuration for structural-reference
                 canonicalisation and assembly. If ``None``, defaults to
                 ``StructuralReferenceExtractionConfig()``.
         """
-        self.det_cfg = det_cfg or object()
-        self.ext_cfg = ext_cfg or StructuralReferenceExtractionConfig()
+        super().__init__(
+            state_cls=StructuralFlowState,
+            det_cfg=det_cfg or StructuralReferenceDetectorConfig(),
+            ext_cfg=ext_cfg or StructuralReferenceExtractionConfig(),
+        )
 
-    @staticmethod
-    def build_chain() -> Chain[StructuralFlowState]:
+    def build_chain(self) -> Chain[StructuralFlowState]:
         """Build the staged execution chain for structural-reference extraction."""
         return Chain(
             [
@@ -61,28 +73,15 @@ class StructuralReferenceResolutionFlow:
             ]
         )
 
-    def run(
+    def _finalize(
         self,
-        text: str,
+        state: StructuralFlowState,
+        reports: list[StageReport],
     ) -> tuple[
         StructuralReferenceDetectorResult,
         StructuralReferenceResolutionResult,
         list[StageReport],
     ]:
-        """Run structural-reference extraction over the provided text.
-
-        Args:
-            text: Source text to process.
-
-        Returns:
-            A tuple of detector result, assembled extraction result, and stage
-            reports.
-        """
-        state = StructuralFlowState(
-            text=text,
-            det_cfg=self.det_cfg,
-            ext_cfg=self.ext_cfg,
-        )
-        state, reports = self.build_chain().run(state)
+        """Validate final structural flow state and return typed outputs."""
         assert state.det_res is not None and state.extr is not None
         return state.det_res, state.extr, reports

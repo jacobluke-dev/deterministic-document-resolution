@@ -6,10 +6,19 @@ from plainera_unacronym.nlp.extraction.defined_terms import stage_funcs as f
 from plainera_unacronym.nlp.extraction.defined_terms.config import DefinedTermExtractionConfig
 from plainera_unacronym.nlp.extraction.defined_terms.state import TermFlowState
 from plainera_unacronym.nlp.extraction.defined_terms.types import TermResolutionResult
+from plainera_unacronym.nlp.extraction.engine.base_flow import BaseResolutionFlow
 from plainera_unacronym.nlp.extraction.engine.stages import Chain, Stage, StageReport, TraceEvent, Tracer
 
 
-class DefinedTermResolutionFlow:
+class DefinedTermResolutionFlow(
+    BaseResolutionFlow[
+        TermFlowState,
+        DefinedTermDetectorResult,
+        TermResolutionResult,
+        DefinedTermDetectorConfig,
+        DefinedTermExtractionConfig,
+    ]
+):
     """Run the end-to-end defined-term resolution pipeline."""
 
     def __init__(
@@ -32,9 +41,12 @@ class DefinedTermResolutionFlow:
             trace (bool): If True, capture structured trace events for selected stage fields.
             trace_filter (str | None): Optional regex filter applied to acronym keys when tracing.
         """
+        super().__init__(
+            state_cls=TermFlowState,
+            det_cfg=det_cfg or DefinedTermDetectorConfig(),
+            ext_cfg=ext_cfg or DefinedTermExtractionConfig(),
+        )
         self.trace_events: list[TraceEvent] | None = None
-        self.det_cfg = det_cfg or DefinedTermDetectorConfig()
-        self.ext_cfg = ext_cfg or DefinedTermExtractionConfig()
         self._ovr_margin = disambig_margin_threshold
         self._tracer = Tracer(trace_filter) if trace else None
 
@@ -48,8 +60,7 @@ class DefinedTermResolutionFlow:
             return 0
         return len(s.det_res.mentions)
 
-    @staticmethod
-    def build_chain() -> Chain[TermFlowState]:
+    def build_chain(self) -> Chain[TermFlowState]:
         """Build the staged execution chain for the extraction pipeline.
 
         Returns:
@@ -103,13 +114,12 @@ class DefinedTermResolutionFlow:
             ]
         )
 
-    def run(self, text: str) -> tuple[DefinedTermDetectorResult, TermResolutionResult, list[StageReport]]:
-        state = TermFlowState(
-            text=text,
-            det_cfg=self.det_cfg,
-            ext_cfg=self.ext_cfg,
-        )
-        state, reports = self.build_chain().run(state, tracer=self._tracer)
-        assert state.det_res and state.extr
+    def _finalize(
+        self,
+        state: TermFlowState,
+        reports: list[StageReport],
+    ) -> tuple[DefinedTermDetectorResult, TermResolutionResult, list[StageReport]]:
+        """Validate final structural flow state and return typed outputs."""
+        assert state.det_res is not None and state.extr is not None
         self.trace_events = self._tracer.events if self._tracer else None
         return state.det_res, state.extr, reports
