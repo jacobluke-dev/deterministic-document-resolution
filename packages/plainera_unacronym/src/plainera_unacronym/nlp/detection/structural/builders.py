@@ -19,6 +19,24 @@ _KIND_MAP: Final[dict[str, StructuralReferenceKind]] = {
 
 
 def canonicalize_structural_kind(kind: str) -> StructuralReferenceKind:
+    """Canonicalise a structural reference kind to its typed enum-like literal.
+
+    Normalises the raw detected structural kind by trimming surrounding
+    whitespace, lowercasing it, and resolving it through ``_KIND_MAP`` to one of
+    the canonical ``StructuralReferenceKind`` literal values.
+
+    Args:
+        kind: Raw structural kind text to canonicalise, for example
+            ``"section"``, ``" Section "``, or ``"ARTICLE"``.
+
+    Returns:
+        The canonical ``StructuralReferenceKind`` value, for example
+        ``"Section"`` or ``"Article"``.
+
+    Raises:
+        KeyError: If ``kind`` does not map to a supported structural reference
+            kind.
+    """
     value = kind.strip().lower()
     return _KIND_MAP[value]
 
