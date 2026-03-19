@@ -1,9 +1,26 @@
 from __future__ import annotations
 
+from typing import Final
+
 from plainera_unacronym.nlp.common.shared import strip_trailing_punct_str
 
 from .normalise import normalize_structural_reference_key
-from .types import StructuralReference
+from .types import StructuralReference, StructuralReferenceKind
+
+_KIND_MAP: Final[dict[str, StructuralReferenceKind]] = {
+    "schedule": "Schedule",
+    "exhibit": "Exhibit",
+    "annex": "Annex",
+    "appendix": "Appendix",
+    "section": "Section",
+    "clause": "Clause",
+    "article": "Article",
+}
+
+
+def canonicalize_structural_kind(kind: str) -> StructuralReferenceKind:
+    value = kind.strip().lower()
+    return _KIND_MAP[value]
 
 
 def build_structural_reference(
@@ -38,7 +55,7 @@ def build_structural_reference(
         label, preserved source offsets, canonical normalised lookup key, and
         provenance.
     """
-    cleaned_kind = strip_trailing_punct_str(kind.strip())
+    cleaned_kind = canonicalize_structural_kind(kind)
     cleaned_label = strip_trailing_punct_str(label.strip())
 
     return StructuralReference(
