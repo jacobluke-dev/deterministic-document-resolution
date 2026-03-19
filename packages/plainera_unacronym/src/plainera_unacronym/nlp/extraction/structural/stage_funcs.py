@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from plainera_unacronym.nlp.detection.structural.detector import StructuralReferenceDetector
-from plainera_unacronym.nlp.extraction.engine.stages import StageResult
+from plainera_unacronym.nlp.extraction.base.stages import StageResult
 from plainera_unacronym.nlp.extraction.structural.assemble import (
     assemble_structural_reference_resolution_result,
 )

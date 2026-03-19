@@ -1,5 +1,7 @@
 import pytest
-from plainera_unacronym.nlp.extraction.matchers.numeric_matcher import WORD_TO_DIGITS, consume_left_numeric_designator
+
+from plainera_unacronym.nlp.extraction.acronyms.matchers.numeric_matcher import consume_left_numeric_designator, \
+    WORD_TO_DIGITS
 
 
 class TestConsumeLeftNumericDesignator:

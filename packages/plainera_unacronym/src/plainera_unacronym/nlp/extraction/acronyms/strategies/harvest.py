@@ -1,11 +1,9 @@
 from plainera_unacronym.nlp.common.types import ExtractedDefinition
 from plainera_unacronym.nlp.extraction import ExtractionConfig
-from plainera_unacronym.nlp.extraction.engine.confidence import base_conf_for
-from plainera_unacronym.nlp.extraction.matchers.defs import (
-    find_parenthetical_longform_after_acr,
-    find_parenthetical_longform_before_acr,
-)
-from plainera_unacronym.nlp.extraction.matchers.tighten import tighten_label_by_acronym
+from plainera_unacronym.nlp.extraction.acronyms.engine.confidence import base_conf_for
+from plainera_unacronym.nlp.extraction.acronyms.matchers.defs import find_parenthetical_longform_before_acr, \
+    find_parenthetical_longform_after_acr
+from plainera_unacronym.nlp.extraction.acronyms.matchers.tighten import tighten_label_by_acronym
 
 
 def extract_defs_all_occurrences(text: str, occs, cfg: ExtractionConfig) -> list[ExtractedDefinition]:

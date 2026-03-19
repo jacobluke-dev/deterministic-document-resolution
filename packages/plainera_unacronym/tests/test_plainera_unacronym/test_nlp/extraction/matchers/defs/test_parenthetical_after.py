@@ -1,4 +1,4 @@
-from plainera_unacronym.nlp.extraction.matchers.defs import find_parenthetical_longform_after_acr
+from plainera_unacronym.nlp.extraction.acronyms.matchers.defs import find_parenthetical_longform_after_acr
 
 
 class TestFindParentheticalLongformAfterAcrUnit:

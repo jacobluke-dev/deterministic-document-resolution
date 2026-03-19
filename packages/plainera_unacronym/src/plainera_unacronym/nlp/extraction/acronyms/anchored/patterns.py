@@ -4,7 +4,7 @@ from dataclasses import dataclass
 from plainera_unacronym.nlp.common.constants_regex import QUOTE as QUOTE_RE
 from plainera_unacronym.nlp.common.types import Definition_strategy
 from plainera_unacronym.nlp.extraction import ExtractionConfig
-from plainera_unacronym.nlp.extraction.engine.confidence import base_conf_for
+from plainera_unacronym.nlp.extraction.acronyms.engine.confidence import base_conf_for
 
 
 @dataclass(frozen=True, slots=True)

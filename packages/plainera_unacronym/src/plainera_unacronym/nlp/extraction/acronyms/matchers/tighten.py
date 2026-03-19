@@ -3,7 +3,7 @@ from typing import Optional
 
 from plainera_unacronym.nlp.common.constants_regex import BRIDGES_DEFAULT
 from plainera_unacronym.nlp.common.shared import canonicalize, collapse_ws, strip_trailing_punct_str
-from plainera_unacronym.nlp.extraction.matchers.common import initials_seq, is_mixed_case_acronym, match_from
+from plainera_unacronym.nlp.extraction.acronyms.matchers.common import initials_seq, is_mixed_case_acronym, match_from
 
 _word_re = re.compile(r"[A-Za-z0-9'’\-\/&\.]+", flags=re.UNICODE)
 

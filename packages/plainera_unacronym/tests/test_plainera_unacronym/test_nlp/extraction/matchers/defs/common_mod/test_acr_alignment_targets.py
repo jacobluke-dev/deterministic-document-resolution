@@ -1,4 +1,4 @@
-from plainera_unacronym.nlp.extraction.matchers.defs.common import acr_alignment_targets
+from plainera_unacronym.nlp.extraction.acronyms.matchers.defs.common import acr_alignment_targets
 
 
 class TestAcrAlignmentTargets:

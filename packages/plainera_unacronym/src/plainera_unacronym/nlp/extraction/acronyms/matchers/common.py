@@ -3,7 +3,7 @@ from typing import Optional
 
 from plainera_unacronym.nlp.common.constants_regex import PUNCT_TRIM
 from plainera_unacronym.nlp.common.shared import has_letter
-from plainera_unacronym.nlp.extraction.core.normalise import has_digit
+from plainera_unacronym.nlp.extraction.acronyms.core.normalise import has_digit
 
 _ASCII_CAMEL_RE = re.compile(
     r"[A-Z]+(?=[A-Z][a-z0-9])"  # e.g., 'XML' in 'XMLHttp'

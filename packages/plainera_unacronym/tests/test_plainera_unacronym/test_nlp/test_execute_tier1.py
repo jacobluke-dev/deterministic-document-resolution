@@ -1,7 +1,7 @@
 from types import SimpleNamespace as NS
 
-import plainera_unacronym.nlp.extraction.engine.stage_funcs as stage_fxn
-import plainera_unacronym.nlp.extraction.engine.state as state
+import plainera_unacronym.nlp.extraction.acronyms.engine.stage_funcs as stage_fxn
+import plainera_unacronym.nlp.extraction.acronyms.engine.state as state
 from plainera_unacronym.nlp.common.types import (
     AcronymDetectorConfig,
     AcronymDetectorResult,

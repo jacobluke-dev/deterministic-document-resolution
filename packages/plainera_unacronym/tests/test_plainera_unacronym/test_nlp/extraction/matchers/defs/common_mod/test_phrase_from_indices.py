@@ -1,5 +1,5 @@
 import pytest
-from plainera_unacronym.nlp.extraction.matchers.defs.common import phrase_from_indices
+from plainera_unacronym.nlp.extraction.acronyms.matchers.defs.common import phrase_from_indices
 
 
 class TestPhraseFromIndices:

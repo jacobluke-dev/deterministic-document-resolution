@@ -1,10 +1,11 @@
 import re
 
 from plainera_unacronym.nlp.common.shared import collapse_ws, strip_trailing_punct_str
-from plainera_unacronym.nlp.extraction.anchored.normalise import tighten_definition_span
-from plainera_unacronym.nlp.extraction.core.normalise import normalize_definition
-from plainera_unacronym.nlp.extraction.matchers.common import is_mixed_case_acronym
-from plainera_unacronym.nlp.extraction.matchers.defs.common import (
+from plainera_unacronym.nlp.extraction.acronyms.anchored.normalise import tighten_definition_span
+from plainera_unacronym.nlp.extraction.acronyms.core.normalise import normalize_definition
+
+from plainera_unacronym.nlp.extraction.acronyms.matchers.common import is_mixed_case_acronym
+from plainera_unacronym.nlp.extraction.acronyms.matchers.defs.common import (
     LocalDefMatch,
     align_acronym_to_initials,
     build_initials_stream,

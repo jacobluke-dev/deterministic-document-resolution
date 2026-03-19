@@ -1,4 +1,4 @@
-from plainera_unacronym.nlp.extraction.matchers.defs.common import InitialsStream, _align_ltr_min_window
+from plainera_unacronym.nlp.extraction.acronyms.matchers.defs.common import InitialsStream, _align_ltr_min_window
 
 
 class TestAlignLtrMinWindowBasics:

@@ -1,4 +1,4 @@
-from plainera_unacronym.nlp.extraction.matchers.defs.common import (
+from plainera_unacronym.nlp.extraction.acronyms.matchers.defs.common import (
     AlignmentHit,
     InitialsStream,
     _align_rtl_scan_wrapper,

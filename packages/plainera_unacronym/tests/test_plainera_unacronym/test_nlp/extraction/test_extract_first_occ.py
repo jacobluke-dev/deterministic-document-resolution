@@ -1,11 +1,12 @@
 import re
 from types import SimpleNamespace as NS
 
-import plainera_unacronym.nlp.extraction.anchored.extract as ext
-import plainera_unacronym.nlp.extraction.anchored.patterns as mod
+import plainera_unacronym.nlp.extraction.acronyms.anchored.extract as ext
+import plainera_unacronym.nlp.extraction.acronyms.anchored.patterns as mod
+from plainera_unacronym.nlp.extraction.acronyms.anchored.extract import (compile_anchored_for_surface,
+                                                                         extract_near_firsts)
 from plainera_unacronym.nlp.extraction import ExtractionConfig
-from plainera_unacronym.nlp.extraction.anchored.extract import extract_near_firsts
-from plainera_unacronym.nlp.extraction.anchored.patterns import compile_anchored_for_surface
+
 
 
 def _cfg(**overrides):

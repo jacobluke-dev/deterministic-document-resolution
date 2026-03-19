@@ -2,9 +2,9 @@ import re
 
 from plainera_unacronym.nlp.common.constants_regex import QUOTE
 from plainera_unacronym.nlp.common.shared import collapse_ws, has_letter
-from plainera_unacronym.nlp.extraction.core.normalise import normalize_definition
-from plainera_unacronym.nlp.extraction.matchers.common import is_mixed_case_acronym
-from plainera_unacronym.nlp.extraction.matchers.defs.common import (
+from plainera_unacronym.nlp.extraction.acronyms.core.normalise import normalize_definition
+from plainera_unacronym.nlp.extraction.acronyms.matchers.common import is_mixed_case_acronym
+from plainera_unacronym.nlp.extraction.acronyms.matchers.defs.common import (
     LocalDefMatch,
     align_acronym_to_initials,
     build_initials_stream,
@@ -13,8 +13,8 @@ from plainera_unacronym.nlp.extraction.matchers.defs.common import (
     first_alnum_char_upper,
     get_cfg_consts,
 )
-from plainera_unacronym.nlp.extraction.matchers.defs.inline_after import scan_tokens
-from plainera_unacronym.nlp.extraction.matchers.numeric_matcher import consume_left_numeric_designator
+from plainera_unacronym.nlp.extraction.acronyms.matchers.defs.inline_after import scan_tokens
+from plainera_unacronym.nlp.extraction.acronyms.matchers.numeric_matcher import consume_left_numeric_designator
 
 _CAMEL_RE = re.compile(r"[a-z][A-Z]")
 

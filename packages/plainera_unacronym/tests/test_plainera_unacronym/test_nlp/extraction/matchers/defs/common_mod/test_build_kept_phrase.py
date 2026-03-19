@@ -1,5 +1,5 @@
 import pytest
-from plainera_unacronym.nlp.extraction.matchers.defs.common import build_kept_phrase
+from plainera_unacronym.nlp.extraction.acronyms.matchers.defs.common import build_kept_phrase
 
 
 class TestBuildKeptPhrase:

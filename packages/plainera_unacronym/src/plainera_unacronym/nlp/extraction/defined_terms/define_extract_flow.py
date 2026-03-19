@@ -6,8 +6,8 @@ from plainera_unacronym.nlp.extraction.defined_terms import stage_funcs as f
 from plainera_unacronym.nlp.extraction.defined_terms.config import DefinedTermExtractionConfig
 from plainera_unacronym.nlp.extraction.defined_terms.state import TermFlowState
 from plainera_unacronym.nlp.extraction.defined_terms.types import TermResolutionResult
-from plainera_unacronym.nlp.extraction.engine.base_flow import BaseResolutionFlow
-from plainera_unacronym.nlp.extraction.engine.stages import Chain, Stage, StageReport, TraceEvent, Tracer
+from plainera_unacronym.nlp.extraction.base.base_flow import BaseResolutionFlow
+from plainera_unacronym.nlp.extraction.base.stages import Chain, Stage, StageReport, TraceEvent, Tracer
 
 
 class DefinedTermResolutionFlow(

@@ -1,14 +1,15 @@
 from types import SimpleNamespace as NS
 
-import plainera_unacronym.nlp.extraction.core.defs as mod
+import plainera_unacronym.nlp.extraction.acronyms.core.defs as mod
+from plainera_unacronym.nlp.extraction.acronyms.core.defs import (dedupe_defs, defs_from_picks, _sense_key)
 import pytest
 from plainera_unacronym.nlp.common.types import (
     ExtractedDefinition,
     InTextPick,  # noqa: E402
     Span,
 )
-from plainera_unacronym.nlp.extraction.backref.extract import _score_backref_confidence, _valid_backref_candidate
-from plainera_unacronym.nlp.extraction.core.defs import _sense_key, dedupe_defs, defs_from_picks
+from plainera_unacronym.nlp.extraction.acronyms.backref.extract import _valid_backref_candidate, \
+    _score_backref_confidence
 
 
 def _span(text: str, needle: str) -> Span:
@@ -261,7 +262,7 @@ class TestDefsFromPicks:
     def test_returns_empty_for_empty_input(self, monkeypatch):
         # Tighten shouldn't be called, but keep deterministic just in case
         monkeypatch.setattr(mod, "tighten_label_by_acronym", lambda *a, **k: "N/A", raising=True)
-        assert defs_from_picks("", {}) == []
+        assert mod.defs_from_picks("", {}) == []
 
     def test_skips_none_and_maps_fields(self, monkeypatch):
         calls: list[tuple[str, str]] = []

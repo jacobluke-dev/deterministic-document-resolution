@@ -11,7 +11,7 @@ from plainera_unacronym.nlp.common.shared import (
     normalize_acronym_key,
     strip_trailing_punct_str,
 )
-from plainera_unacronym.nlp.extraction.anchored.normalise import tighten_definition_span
+from plainera_unacronym.nlp.extraction.acronyms.anchored.normalise import tighten_definition_span
 
 
 def _end_of(text: str, token: str) -> int:

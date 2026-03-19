@@ -77,12 +77,13 @@ from typing import Literal, Mapping
 from plainera_unacronym.nlp import FirstOccurrence
 from plainera_unacronym.nlp.common.constants_regex import HYPHEN_SPLIT_RE, TOKEN_RE
 from plainera_unacronym.nlp.common.types import ExtractedDefinition, Span
-from plainera_unacronym.nlp.extraction.anchored.clean import clean_definition
-from plainera_unacronym.nlp.extraction.anchored.normalise import tighten_definition_span
-from plainera_unacronym.nlp.extraction.backref.spans import best_span_by_initials, find_span_index, sent_spans
-from plainera_unacronym.nlp.extraction.config import ExtractionConfig
-from plainera_unacronym.nlp.extraction.core.collect import initials_match
-from plainera_unacronym.nlp.extraction.engine.confidence import base_conf_for, conf_knob
+from plainera_unacronym.nlp.extraction import ExtractionConfig
+from plainera_unacronym.nlp.extraction.acronyms.anchored.clean import clean_definition
+from plainera_unacronym.nlp.extraction.acronyms.anchored.normalise import tighten_definition_span
+from plainera_unacronym.nlp.extraction.acronyms.backref.spans import best_span_by_initials, find_span_index, sent_spans
+
+from plainera_unacronym.nlp.extraction.acronyms.core.collect import initials_match
+from plainera_unacronym.nlp.extraction.acronyms.engine.confidence import base_conf_for, conf_knob
 
 BackrefEvidence = Literal["definitionish", "initials"]
 CONF_MAX = 0.99

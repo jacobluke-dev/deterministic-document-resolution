@@ -3,7 +3,7 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from typing import Generic, TypeVar
 
-from plainera_unacronym.nlp.extraction.engine.stages import Chain, StageReport
+from plainera_unacronym.nlp.extraction.base.stages import Chain, StageReport
 
 TState = TypeVar("TState")
 TDetRes = TypeVar("TDetRes")

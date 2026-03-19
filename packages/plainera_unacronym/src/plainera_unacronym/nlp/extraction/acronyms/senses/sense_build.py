@@ -2,8 +2,8 @@ import re
 from typing import Iterable
 
 from plainera_unacronym.nlp.common.types import AcronymSense, ExtractedDefinition
-from plainera_unacronym.nlp.extraction.core.defs import dedupe_defs
-from plainera_unacronym.nlp.extraction.core.normalise import tighten_label
+from plainera_unacronym.nlp.extraction.acronyms.core.defs import dedupe_defs
+from plainera_unacronym.nlp.extraction.acronyms.core.normalise import tighten_label
 
 
 def _slug(s: str) -> str:

@@ -1,5 +1,5 @@
 import pytest
-from plainera_unacronym.nlp.extraction.matchers.defs.common import has_numeric_evidence
+from plainera_unacronym.nlp.extraction.acronyms.matchers.defs.common import has_numeric_evidence
 
 
 class TestHasNumericEvidenceIntegration:

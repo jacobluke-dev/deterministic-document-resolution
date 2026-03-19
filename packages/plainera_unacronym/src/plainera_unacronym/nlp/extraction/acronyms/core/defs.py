@@ -2,8 +2,8 @@ from typing import Optional
 
 from plainera_unacronym.nlp.common.shared import strip_trailing_punct_str
 from plainera_unacronym.nlp.common.types import ExtractedDefinition, InTextPick
-from plainera_unacronym.nlp.extraction.core.normalise import tighten_label
-from plainera_unacronym.nlp.extraction.matchers.tighten import tighten_label_by_acronym
+from plainera_unacronym.nlp.extraction.acronyms.core.normalise import tighten_label
+from plainera_unacronym.nlp.extraction.acronyms.matchers.tighten import tighten_label_by_acronym
 
 _SOURCE_PRECEDENCE: dict[str, int] = {
     "parenthetical": 5,

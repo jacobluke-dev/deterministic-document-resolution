@@ -1,7 +1,7 @@
 import re
 from types import SimpleNamespace
 
-import plainera_unacronym.nlp.extraction.anchored.extract as mod
+import plainera_unacronym.nlp.extraction.acronyms.anchored.extract as mod
 import pytest
 from plainera_unacronym.nlp.common.types import ExtractedDefinition, FirstOccurrence
 from plainera_unacronym.nlp.extraction import ExtractionConfig

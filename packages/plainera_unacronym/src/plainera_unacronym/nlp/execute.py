@@ -1,5 +1,5 @@
-from plainera_unacronym.nlp.extraction.engine.detect_flow import ExtractionFlow
-from plainera_unacronym.nlp.extraction.engine.state import FlowState
+from plainera_unacronym.nlp.extraction.acronyms.engine.detect_flow import ExtractionFlow
+from plainera_unacronym.nlp.extraction.acronyms.engine.state import FlowState
 
 
 def detect_and_extract(

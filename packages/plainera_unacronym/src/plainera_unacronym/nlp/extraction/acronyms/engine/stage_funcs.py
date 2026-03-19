@@ -6,19 +6,19 @@ from typing import Literal, cast
 from plainera_unacronym.nlp.common.types import ExtractionResult, OccurrenceLite, OccurrenceResolution
 from plainera_unacronym.nlp.detection.acronym.detector import AcronymDetector
 from plainera_unacronym.nlp.detection.cleanup.post import post_detect_cleanup
-from plainera_unacronym.nlp.extraction.anchored.extract import extract_near_firsts
-from plainera_unacronym.nlp.extraction.backref.extract import extract_sentence_backrefs
-from plainera_unacronym.nlp.extraction.core.defs import dedupe_defs, defs_from_picks
-from plainera_unacronym.nlp.extraction.engine.stages import StageResult
-from plainera_unacronym.nlp.extraction.engine.state import FlowState
-from plainera_unacronym.nlp.extraction.senses.disambiguate import (
+from plainera_unacronym.nlp.extraction.acronyms.anchored.extract import extract_near_firsts
+from plainera_unacronym.nlp.extraction.acronyms.backref.extract import extract_sentence_backrefs
+from plainera_unacronym.nlp.extraction.acronyms.core.defs import defs_from_picks, dedupe_defs
+from plainera_unacronym.nlp.extraction.base.stages import StageResult
+from plainera_unacronym.nlp.extraction.acronyms.engine.state import FlowState
+from plainera_unacronym.nlp.extraction.acronyms.senses.disambiguate import (
     NEAR_TIE_GAP,
     choose_with_tiebreak,
     disambiguate_occurrences,
 )
-from plainera_unacronym.nlp.extraction.senses.sense_build import build_senses
-from plainera_unacronym.nlp.extraction.strategies.harvest import extract_defs_all_occurrences
-from plainera_unacronym.nlp.extraction.strategies.pick_resolution import (
+from plainera_unacronym.nlp.extraction.acronyms.senses.sense_build import build_senses
+from plainera_unacronym.nlp.extraction.acronyms.strategies.harvest import extract_defs_all_occurrences
+from plainera_unacronym.nlp.extraction.acronyms.strategies.pick_resolution import (
     backfill_missing_picks_from_defs,
     build_defs_index,
     patch_pick_provenance,

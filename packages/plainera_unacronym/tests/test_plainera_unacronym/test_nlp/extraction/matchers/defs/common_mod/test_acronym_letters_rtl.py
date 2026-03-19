@@ -1,5 +1,5 @@
 import pytest
-from plainera_unacronym.nlp.extraction.matchers.defs.common import _acronym_letters_rtl
+from plainera_unacronym.nlp.extraction.acronyms.matchers.defs.common import _acronym_letters_rtl
 
 
 class TestAcronymLettersRtl:

@@ -1,6 +1,6 @@
 from types import SimpleNamespace
 
-from plainera_unacronym.nlp.extraction.engine.stages import (
+from plainera_unacronym.nlp.extraction.base.stages import (
     Chain,
     Stage,
     StageResult,

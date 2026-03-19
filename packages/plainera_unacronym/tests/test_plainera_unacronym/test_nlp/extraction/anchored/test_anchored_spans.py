@@ -1,15 +1,15 @@
 import re
 
-import plainera_unacronym.nlp.extraction.anchored.spans as mod
+import plainera_unacronym.nlp.extraction.acronyms.anchored.spans as mod
+from plainera_unacronym.nlp.extraction.acronyms.anchored.spans import _trim_span
 from plainera_unacronym.nlp.extraction import ExtractionConfig
-from plainera_unacronym.nlp.extraction.anchored.spans import _trim_span
-from plainera_unacronym.nlp.extraction.matchers.defs.common import LocalDefMatch
+from plainera_unacronym.nlp.extraction.acronyms.matchers.defs.common import LocalDefMatch
 
 
 class TestTrimSpan:
     def test_no_whitespace_no_change(self):
         seg = "abc"
-        assert _trim_span(seg, 0, 3) == (0, 3)
+        assert mod._trim_span(seg, 0, 3) == (0, 3)
 
     def test_trims_leading_spaces(self):
         seg = "   abc"

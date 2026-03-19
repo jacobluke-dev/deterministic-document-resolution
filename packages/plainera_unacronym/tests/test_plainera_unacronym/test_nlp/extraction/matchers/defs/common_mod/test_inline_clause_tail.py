@@ -1,4 +1,4 @@
-from plainera_unacronym.nlp.extraction.matchers.defs.common import inline_clause_tail
+from plainera_unacronym.nlp.extraction.acronyms.matchers.defs.common import inline_clause_tail
 
 
 class TestInlineClauseTail:
