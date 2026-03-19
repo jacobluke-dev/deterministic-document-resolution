@@ -1,5 +1,4 @@
 import pytest
-
 from plainera_unacronym.nlp.extraction.acronyms.core.collect import initials_match
 
 

@@ -8,8 +8,7 @@ from plainera_unacronym.nlp.detection.acronym.detector import AcronymDetector
 from plainera_unacronym.nlp.detection.cleanup.post import post_detect_cleanup
 from plainera_unacronym.nlp.extraction.acronyms.anchored.extract import extract_near_firsts
 from plainera_unacronym.nlp.extraction.acronyms.backref.extract import extract_sentence_backrefs
-from plainera_unacronym.nlp.extraction.acronyms.core.defs import defs_from_picks, dedupe_defs
-from plainera_unacronym.nlp.extraction.base.stages import StageResult
+from plainera_unacronym.nlp.extraction.acronyms.core.defs import dedupe_defs, defs_from_picks
 from plainera_unacronym.nlp.extraction.acronyms.engine.state import FlowState
 from plainera_unacronym.nlp.extraction.acronyms.senses.disambiguate import (
     NEAR_TIE_GAP,
@@ -23,6 +22,7 @@ from plainera_unacronym.nlp.extraction.acronyms.strategies.pick_resolution impor
     build_defs_index,
     patch_pick_provenance,
 )
+from plainera_unacronym.nlp.extraction.base.stages import StageResult
 from plainera_unacronym.nlp.extraction.tiers.tier_2 import apply_tier2_reranks, collect_tier2_inputs, embed_for_tier2
 from plainera_unacronym.nlp.extraction.tiers.types import (
     Tier1OccurrenceRanking,

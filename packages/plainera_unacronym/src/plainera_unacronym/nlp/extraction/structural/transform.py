@@ -10,11 +10,7 @@ from plainera_unacronym.nlp.extraction.structural.types import (
     StructuralReferenceResolution,
 )
 
-
-_ROMAN_STRICT_RE = re.compile(
-    r"^(M{0,3})(CM|CD|D?C{0,3})"
-    r"(XC|XL|L?X{0,3})(IX|IV|V?I{0,3})$"
-)
+_ROMAN_STRICT_RE = re.compile(r"^(M{0,3})(CM|CD|D?C{0,3})" r"(XC|XL|L?X{0,3})(IX|IV|V?I{0,3})$")
 
 
 def _is_strict_roman_numeral(value: str) -> bool:

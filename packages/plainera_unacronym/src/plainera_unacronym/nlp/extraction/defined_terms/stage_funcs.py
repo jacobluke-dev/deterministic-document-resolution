@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from plainera_unacronym.nlp.detection.defined_terms import DefinedTermDetector
+from plainera_unacronym.nlp.extraction.base.stages import StageResult
 from plainera_unacronym.nlp.extraction.defined_terms.definitions import extract_term_definitions
 from plainera_unacronym.nlp.extraction.defined_terms.senses import build_term_sense_index
 from plainera_unacronym.nlp.extraction.defined_terms.state import TermFlowState
@@ -8,7 +9,6 @@ from plainera_unacronym.nlp.extraction.defined_terms.structure import build_term
 from plainera_unacronym.nlp.extraction.defined_terms.tiers.assemble import assemble_term_resolution_result
 from plainera_unacronym.nlp.extraction.defined_terms.tiers.tier_1_score import score_term_occurrences_tier1
 from plainera_unacronym.nlp.extraction.defined_terms.tiers.tier_2 import rerank_term_occurrences_tier2
-from plainera_unacronym.nlp.extraction.base.stages import StageResult
 
 
 def st_detect_terms(s: TermFlowState) -> StageResult[TermFlowState]:

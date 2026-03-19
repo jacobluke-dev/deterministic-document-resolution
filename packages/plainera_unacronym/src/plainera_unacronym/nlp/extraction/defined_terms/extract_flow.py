@@ -2,12 +2,24 @@ from __future__ import annotations
 
 from plainera_unacronym.nlp.common.types import DefinedTermDetectorConfig
 from plainera_unacronym.nlp.detection.defined_terms import DefinedTermDetectorResult
+from plainera_unacronym.nlp.extraction.base.base_flow import BaseResolutionFlow
+from plainera_unacronym.nlp.extraction.base.stages import Chain, Stage, StageReport
 from plainera_unacronym.nlp.extraction.defined_terms import stage_funcs as f
 from plainera_unacronym.nlp.extraction.defined_terms.config import DefinedTermExtractionConfig
 from plainera_unacronym.nlp.extraction.defined_terms.state import TermFlowState
 from plainera_unacronym.nlp.extraction.defined_terms.types import TermResolutionResult
-from plainera_unacronym.nlp.extraction.base.base_flow import BaseResolutionFlow
-from plainera_unacronym.nlp.extraction.base.stages import Chain, Stage, StageReport, TraceEvent, Tracer
+
+
+def _make_term_flow_state(
+    text: str,
+    det_cfg: DefinedTermDetectorConfig,
+    ext_cfg: DefinedTermExtractionConfig,
+) -> TermFlowState:
+    return TermFlowState(
+        text=text,
+        det_cfg=det_cfg,
+        ext_cfg=ext_cfg,
+    )
 
 
 class DefinedTermResolutionFlow(
@@ -30,25 +42,29 @@ class DefinedTermResolutionFlow(
         trace: bool = False,
         trace_filter: str | None = None,
     ):
-        """Initialize an ExtractionFlow.
+        """Initialise the defined-term resolution flow.
 
         Args:
-            det_cfg (DefinedTermDetectorConfig | None): Detector config. If None, then `DetectorConfig()`.
-            ext_cfg (DefinedTermExtractionConfig | None): Extraction config.
-            If None, then `DefinedTermExtractionConfig()`.
-                when performing anchored extraction.
-                when performing anchored extraction.
-            trace (bool): If True, capture structured trace events for selected stage fields.
-            trace_filter (str | None): Optional regex filter applied to acronym keys when tracing.
+            det_cfg: Detector configuration. If omitted, a default
+                `DefinedTermDetectorConfig()` is used.
+            ext_cfg: Extraction configuration. If omitted, a default
+                `DefinedTermExtractionConfig()` is used.
+            disambig_margin_threshold: Optional override for the
+                disambiguation margin threshold.
         """
+        if det_cfg is None:
+            det_cfg = DefinedTermDetectorConfig()
+        if ext_cfg is None:
+            ext_cfg = DefinedTermExtractionConfig()
+
         super().__init__(
-            state_cls=TermFlowState,
-            det_cfg=det_cfg or DefinedTermDetectorConfig(),
-            ext_cfg=ext_cfg or DefinedTermExtractionConfig(),
+            state_factory=_make_term_flow_state,
+            det_cfg=det_cfg,
+            ext_cfg=ext_cfg,
+            trace_filter=trace_filter,
+            trace=trace
         )
-        self.trace_events: list[TraceEvent] | None = None
         self._ovr_margin = disambig_margin_threshold
-        self._tracer = Tracer(trace_filter) if trace else None
 
     @staticmethod
     def _n_term_keys(s: TermFlowState) -> int:

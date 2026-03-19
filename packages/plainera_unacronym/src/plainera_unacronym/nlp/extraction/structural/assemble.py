@@ -1,6 +1,7 @@
 from plainera_unacronym.nlp.extraction.structural.state import StructuralFlowState
 from plainera_unacronym.nlp.extraction.structural.types import (
-    StructuralReferenceResolutionResult, StructuralReferenceResolution,
+    StructuralReferenceResolution,
+    StructuralReferenceResolutionResult,
 )
 
 

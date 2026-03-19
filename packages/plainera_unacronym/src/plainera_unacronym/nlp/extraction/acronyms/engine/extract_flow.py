@@ -5,18 +5,32 @@ from collections import Counter
 from plainera_unacronym.nlp.common.types import AcronymDetectorConfig, AcronymDetectorResult, ExtractionResult
 from plainera_unacronym.nlp.extraction import ExtractionConfig
 from plainera_unacronym.nlp.extraction.acronyms.engine import stage_funcs as f
-from plainera_unacronym.nlp.extraction.base.base_flow import BaseResolutionFlow
-from plainera_unacronym.nlp.extraction.base.stages import Chain, Stage, StageReport, TraceEvent, Tracer
 from plainera_unacronym.nlp.extraction.acronyms.engine.state import FlowState
+from plainera_unacronym.nlp.extraction.base.base_flow import BaseResolutionFlow
+from plainera_unacronym.nlp.extraction.base.stages import Chain, Stage, StageReport
 
 
-class ExtractionFlow(BaseResolutionFlow[
-    FlowState,
-    AcronymDetectorResult,
-    ExtractionResult,
-    AcronymDetectorConfig,
-    ExtractionConfig,
-                     ]):
+def _make_term_flow_state(
+    text: str,
+    det_cfg: AcronymDetectorConfig,
+    ext_cfg: ExtractionConfig,
+) -> FlowState:
+    return FlowState(
+        text=text,
+        det_cfg=det_cfg,
+        ext_cfg=ext_cfg,
+    )
+
+
+class ExtractionFlow(
+    BaseResolutionFlow[
+        FlowState,
+        AcronymDetectorResult,
+        ExtractionResult,
+        AcronymDetectorConfig,
+        ExtractionConfig,
+    ]
+):
     """Run the end-to-end acronym detection and extraction pipeline.
 
     This orchestrates a staged workflow over a single input text:
@@ -39,9 +53,6 @@ class ExtractionFlow(BaseResolutionFlow[
             when building the local anchored extraction window.
         window_right (int): Characters to include to the right of a first occurrence
             when building the local anchored extraction window.
-        trace_events (list[TraceEvent] | None): Trace events captured during the last run
-            when tracing is enabled; otherwise None.
-
     """
 
     def __init__(
@@ -65,19 +76,17 @@ class ExtractionFlow(BaseResolutionFlow[
                 when performing anchored extraction.
             window_right (int): Chars to include to the right of the first occurrence
                 when performing anchored extraction.
-            trace (bool): If True, capture structured trace events for selected stage fields.
-            trace_filter (str | None): Optional regex filter applied to acronym keys when tracing.
         """
         super().__init__(
-            state_cls=FlowState,
+            state_factory=_make_term_flow_state,
             det_cfg=det_cfg or AcronymDetectorConfig(),
             ext_cfg=ext_cfg or ExtractionConfig(),
+            trace_filter=trace_filter,
+            trace=trace
         )
-        self.trace_events: list[TraceEvent] | None = None
         self.window_left = window_left
         self.window_right = window_right
         self._ovr_margin = disambig_margin_threshold
-        self._tracer = Tracer(trace_filter) if trace else None
 
     @staticmethod
     def _n_firsts(s: FlowState) -> int:

@@ -28,18 +28,12 @@ def st_build_structural_reference_resolutions(s: StructuralFlowState) -> StageRe
         cfg=s.ext_cfg,
     )
 
-    s.last_info = (
-        f"references={len(s.det_res.references)} "
-        f"resolution_entries={len(s.resolution_entries)}"
-    )
+    s.last_info = f"references={len(s.det_res.references)} " f"resolution_entries={len(s.resolution_entries)}"
     return StageResult(s, s.last_info)
 
 
 def st_assemble_structural_reference_resolutions(s: StructuralFlowState) -> StageResult[StructuralFlowState]:
     """Assemble final structural-reference resolution output."""
     s.extr = assemble_structural_reference_resolution_result(s)
-    s.last_info = (
-        f"references={len(s.extr.references)} "
-        f"unique_keys={len(s.extr.unique_keys)}"
-    )
+    s.last_info = f"references={len(s.extr.references)} " f"unique_keys={len(s.extr.unique_keys)}"
     return StageResult(s, s.last_info)

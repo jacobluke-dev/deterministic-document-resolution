@@ -1,7 +1,6 @@
 from types import SimpleNamespace as NS
 
 import pytest
-
 from plainera_unacronym.nlp.extraction.acronyms.strategies.harvest import extract_defs_all_occurrences
 
 

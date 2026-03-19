@@ -9,7 +9,10 @@ If scores are close, the near-tie tiebreak chooses the sense ≥3 chars closer; 
 
 import pytest
 from plainera_unacronym.nlp.common.types import AcronymSense, OccurrenceLite, Span
-from plainera_unacronym.nlp.extraction.acronyms.senses.disambiguate import choose_with_tiebreak, disambiguate_occurrences
+from plainera_unacronym.nlp.extraction.acronyms.senses.disambiguate import (
+    choose_with_tiebreak,
+    disambiguate_occurrences,
+)
 
 
 def S(acr: str, sid: str, definition: str, spans: list[Span]):

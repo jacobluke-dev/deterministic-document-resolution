@@ -1,5 +1,4 @@
 import pytest
-
 from plainera_unacronym.nlp.extraction.acronyms.core.normalise import tighten_label
 
 

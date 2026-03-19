@@ -1,8 +1,9 @@
 from __future__ import annotations
-import pytest
 
-from plainera_unacronym.nlp.extraction.structural.config import StructuralReferenceDetectorConfig, \
-    StructuralReferenceExtractionConfig
+from plainera_unacronym.nlp.extraction.structural.config import (
+    StructuralReferenceDetectorConfig,
+    StructuralReferenceExtractionConfig,
+)
 from plainera_unacronym.nlp.extraction.structural.execute import detect_and_resolve_structural_references
 
 

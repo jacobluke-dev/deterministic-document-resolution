@@ -11,12 +11,25 @@ from plainera_unacronym.nlp.extraction.base.stages import (
 )
 from plainera_unacronym.nlp.extraction.structural import stage_funcs as f
 from plainera_unacronym.nlp.extraction.structural.config import (
-    StructuralReferenceExtractionConfig, StructuralReferenceDetectorConfig,
+    StructuralReferenceDetectorConfig,
+    StructuralReferenceExtractionConfig,
 )
 from plainera_unacronym.nlp.extraction.structural.state import StructuralFlowState
 from plainera_unacronym.nlp.extraction.structural.types import (
     StructuralReferenceResolutionResult,
 )
+
+
+def _make_term_flow_state(
+    text: str,
+    det_cfg: StructuralReferenceDetectorConfig,
+    ext_cfg: StructuralReferenceExtractionConfig,
+) -> StructuralFlowState:
+    return StructuralFlowState(
+        text=text,
+        det_cfg=det_cfg,
+        ext_cfg=ext_cfg,
+    )
 
 
 class StructuralReferenceResolutionFlow(
@@ -45,7 +58,7 @@ class StructuralReferenceResolutionFlow(
                 ``StructuralReferenceExtractionConfig()``.
         """
         super().__init__(
-            state_cls=StructuralFlowState,
+            state_factory=_make_term_flow_state,
             det_cfg=det_cfg or StructuralReferenceDetectorConfig(),
             ext_cfg=ext_cfg or StructuralReferenceExtractionConfig(),
         )

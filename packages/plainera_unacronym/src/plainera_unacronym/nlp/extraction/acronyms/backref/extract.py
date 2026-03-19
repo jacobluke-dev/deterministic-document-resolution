@@ -81,7 +81,6 @@ from plainera_unacronym.nlp.extraction import ExtractionConfig
 from plainera_unacronym.nlp.extraction.acronyms.anchored.clean import clean_definition
 from plainera_unacronym.nlp.extraction.acronyms.anchored.normalise import tighten_definition_span
 from plainera_unacronym.nlp.extraction.acronyms.backref.spans import best_span_by_initials, find_span_index, sent_spans
-
 from plainera_unacronym.nlp.extraction.acronyms.core.collect import initials_match
 from plainera_unacronym.nlp.extraction.acronyms.engine.confidence import base_conf_for, conf_knob
 

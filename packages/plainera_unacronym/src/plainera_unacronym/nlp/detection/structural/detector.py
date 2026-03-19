@@ -94,8 +94,9 @@ class StructuralReferenceDetector(BaseDetector[StructuralReferenceDetectorResult
 
                 canonical_kind = canonicalize_structural_kind(kind)
 
-                if (canonical_kind == "Appendix" and
-                    self._is_invalid_appendix_alpha_continuation(text, label, end_offset)):
+                if canonical_kind == "Appendix" and self._is_invalid_appendix_alpha_continuation(
+                    text, label, end_offset
+                ):
                     continue
 
                 dedupe_key = (start_offset, end_offset, canonical_kind)
