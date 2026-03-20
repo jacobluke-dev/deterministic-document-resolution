@@ -188,14 +188,15 @@ class AcronymDetectorResult:
 
 # -------------------------- DEFINED TERMS ---------------------------------
 
+UnquotedCapitalisedTermsPolicy: TypeAlias = Literal["never", "legal_only", "always"]
 
 @dataclass(frozen=True)
 class DefinedTermDetectorConfig:
     """Configuration for defined-term detection behaviour.
 
     Controls which domain plugins are active, whether domain auto-detection is
-    used, and how permissive the detector should be when identifying later
-    references to previously introduced terms.
+    used, and the policy for emitting unquoted capitalised later references to
+    previously introduced terms.
 
     Attributes:
         enabled_domains: Explicitly enabled domain plugin names. These are merged
@@ -204,12 +205,11 @@ class DefinedTermDetectorConfig:
             text before running detection.
         window_chars: Number of surrounding characters to capture when building
             local context windows for detector heuristics.
-        allow_unquoted_capitalised_terms: Whether to allow unquoted capitalised
-            term references such as `The Services` or `Effective Date` to be
-            emitted as later mentions.
-        require_legal_domain_for_unquoted: Whether unquoted capitalised term
-            references should only be allowed when the legal domain is active.
-            This helps reduce false positives in non-legal text.
+        unquoted_capitalised_terms_policy: Policy controlling whether unquoted
+            capitalised later references such as `The Services` or `Effective Date`
+            are emitted as mentions. `"never"` disables them, `"legal_only"`
+            enables them only when the legal domain is active, and `"always"`
+            enables them regardless of domain.
         max_definition_chars: Maximum number of characters to capture for a
             detected definition span before truncation or stopping rules apply.
     """
@@ -217,8 +217,7 @@ class DefinedTermDetectorConfig:
     enabled_domains: frozenset[str] = frozenset()
     auto_detect_domains: bool = True
     window_chars: int = 80
-    allow_unquoted_capitalised_terms: bool = False
-    require_legal_domain_for_unquoted: bool = True
+    unquoted_capitalised_terms_policy: UnquotedCapitalisedTermsPolicy = "legal_only"
     max_definition_chars: int = 500
 
 
