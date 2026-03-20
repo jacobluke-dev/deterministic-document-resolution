@@ -52,6 +52,8 @@ def build_term_meaning_index(
             definition_span=entry.definition_span,
             definition_text=entry.definition_text,
             intro_kind=entry.intro_kind,
+            alias_target_span=entry.alias_target_span,
+            alias_target_text=entry.alias_target_text,
             section_path=entry.section_path,
         )
 
