@@ -67,8 +67,7 @@ class TestDefinedTermResolutionE2E:
         """.strip()
 
         det_cfg = DefinedTermDetectorConfig(
-            allow_unquoted_capitalised_terms=True,
-            require_legal_domain_for_unquoted=False,
+            unquoted_capitalised_terms_policy="always"
         )
 
         det_res, extr, reports, state = detect_and_resolve_terms(
@@ -97,8 +96,7 @@ class TestDefinedTermResolutionE2E:
         """.strip()
 
         det_cfg = DefinedTermDetectorConfig(
-            allow_unquoted_capitalised_terms=True,
-            require_legal_domain_for_unquoted=False,
+            unquoted_capitalised_terms_policy="always"
         )
 
         det_res, extr, reports, state = detect_and_resolve_terms(
@@ -130,8 +128,7 @@ class TestDefinedTermResolutionE2E:
         """.strip()
 
         det_cfg = DefinedTermDetectorConfig(
-            allow_unquoted_capitalised_terms=True,
-            require_legal_domain_for_unquoted=False,
+            unquoted_capitalised_terms_policy="always",
         )
 
         det_res, extr, reports, state = detect_and_resolve_terms(
@@ -166,8 +163,7 @@ class TestDefinedTermResolutionE2E:
         The Effective Date shall be recorded in writing.
         """.strip()
         det_cfg = DefinedTermDetectorConfig(
-            allow_unquoted_capitalised_terms=True,
-            require_legal_domain_for_unquoted=False,
+            unquoted_capitalised_terms_policy="always",
         )
 
         det_res, extr, reports, state = detect_and_resolve_terms(
@@ -248,8 +244,7 @@ class TestDefinedTermResolutionE2E:
         """.strip()
 
         det_cfg = DefinedTermDetectorConfig(
-            allow_unquoted_capitalised_terms=True,
-            require_legal_domain_for_unquoted=False,
+            unquoted_capitalised_terms_policy="always",
         )
 
         det_res, extr, reports, state = detect_and_resolve_terms(
@@ -335,9 +330,8 @@ class TestDefinedTermResolutionE2E:
     #     """.strip()
     #
     #     det_cfg = DefinedTermDetectorConfig(
-    #         allow_unquoted_capitalised_terms=True,
-    #         require_legal_domain_for_unquoted=False,
-    #     )
+    #     unquoted_capitalised_terms_policy="always",
+    # )
     #
     #     det_res, extr, reports, state = detect_and_resolve_terms(
     #         text,
@@ -363,8 +357,7 @@ class TestDefinedTermResolutionE2E:
         """.strip()
 
         det_cfg = DefinedTermDetectorConfig(
-            allow_unquoted_capitalised_terms=True,
-            require_legal_domain_for_unquoted=False,
+            unquoted_capitalised_terms_policy="always",
         )
 
         det_res, extr, reports, state = detect_and_resolve_terms(
@@ -414,8 +407,7 @@ class TestDefinedTermResolutionE2E:
         """.strip()
 
         det_cfg = DefinedTermDetectorConfig(
-            allow_unquoted_capitalised_terms=True,
-            require_legal_domain_for_unquoted=False,
+            unquoted_capitalised_terms_policy="always",
         )
 
         det_res, extr, reports, state = detect_and_resolve_terms(
