@@ -38,7 +38,10 @@ class TestDetectAndResolveStructuralReferences:
         assert reports
         assert [r.name for r in reports] == [
             "detect_structural_references",
-            "build_structural_reference_resolutions",
+            "build_structural_reference_entries",
+            "extract_structural_anchors",
+            "build_structural_anchor_index",
+            "link_structural_references",
             "assemble_structural_reference_resolutions",
         ]
 
@@ -148,3 +151,97 @@ class TestDetectAndResolveStructuralReferences:
 
         assert det_res.references[0].normalized_key == "appendix_c_13"
         assert extr.references[0].canonical_key == "appendix_c_13"
+
+    def test_resolve_schedule_reference(self) -> None:
+        text = (
+            "This Agreement incorporates the services described in Schedule A.\n\n"
+            "Schedule A: Services Description\n"
+            "The Supplier shall provide the Services set out below.\n"
+        )
+
+        det_res, extr = detect_and_resolve_structural_references(text)
+
+        assert len(det_res.references) == 1
+        assert det_res.references[0].normalized_key == "schedule_a"
+
+        assert len(extr.references) == 1
+        assert extr.references[0].canonical_key == "schedule_a"
+
+        assert len(extr.links) == 1
+        link = extr.links[0]
+
+        assert link.canonical_key == "schedule_a"
+        assert link.target_span is not None
+        assert link.confidence == 1.0
+
+        start, end = link.target_span
+        assert text[start:end] == "Schedule A: Services Description"
+
+    def test_resolve_section_reference(self) -> None:
+        text = (
+            "The termination rights in Section 4.2 apply in the following circumstances.\n\n"
+            "4.2 Termination\n"
+            "Either party may terminate this Agreement on written notice.\n"
+        )
+
+        det_res, extr = detect_and_resolve_structural_references(text)
+
+        assert len(det_res.references) == 1
+        assert det_res.references[0].normalized_key == "section_4_2"
+
+        assert len(extr.references) == 1
+        assert extr.references[0].canonical_key == "section_4_2"
+
+        assert len(extr.links) == 1
+        link = extr.links[0]
+
+        assert link.canonical_key == "section_4_2"
+        assert link.target_span is not None
+        assert link.confidence == 1.0
+
+        start, end = link.target_span
+        assert text[start:end] == "4.2 Termination"
+
+    def test_unresolved_reference(self) -> None:
+        text = (
+            "The parties shall comply with the obligations set out in Schedule C.\n\n"
+            "Schedule A: Services Description\n"
+            "Schedule B: Charges\n"
+        )
+
+        det_res, extr = detect_and_resolve_structural_references(text)
+
+        assert len(det_res.references) == 1
+        assert det_res.references[0].normalized_key == "schedule_c"
+
+        assert len(extr.references) == 1
+        assert extr.references[0].canonical_key == "schedule_c"
+
+        assert len(extr.links) == 1
+        link = extr.links[0]
+
+        assert link.canonical_key == "schedule_c"
+        assert link.target_span is None
+        assert link.confidence == 0.0
+
+    def test_return_state_includes_anchors_index_and_links(self) -> None:
+        text = (
+            "See Section 4.2 and Schedule A.\n\n"
+            "4.2 Termination\n"
+            "Schedule A: Services Description\n"
+        )
+
+        det_res, extr, state = detect_and_resolve_structural_references(
+            text,
+            return_state=True,
+        )
+
+        assert len(det_res.references) == 2
+        assert len(extr.references) == 2
+        assert len(extr.links) == 2
+
+        assert len(state.anchors) == 2
+        assert set(state.anchor_index) == {"section_4_2", "schedule_a"}
+
+        assert len(state.link_entries) == 2
+        assert all(link.target_span is not None for link in state.link_entries)
