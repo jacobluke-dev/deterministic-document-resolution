@@ -217,7 +217,7 @@
                 "type": "null"
               }
             ],
-            "description": "Sense/domain tag if known, else null.",
+            "description": "Meaning/domain tag if known, else null.",
             "title": "Domain"
           },
           "provenance": {
@@ -240,7 +240,7 @@
                 "type": "null"
               }
             ],
-            "description": "Optional stable source reference, e.g. text span or glossary sense id.",
+            "description": "Optional stable source reference, e.g. text span or glossary meaning id.",
             "title": "Source Ref"
           }
         },
@@ -292,7 +292,7 @@
           },
           "max_definitions_per_acronym": {
             "default": 5,
-            "description": "Maximum candidate definitions/senses to return per acronym.",
+            "description": "Maximum candidate definitions/meanings to return per acronym.",
             "maximum": 20.0,
             "minimum": 1.0,
             "title": "Max Definitions Per Acronym",
@@ -383,7 +383,7 @@
                     "domain": "finance",
                     "provenance": "glossary",
                     "score": 0.0,
-                    "source_ref": "sense:42"
+                    "source_ref": "meaning:42"
                   }
                 ],
                 "conflict": true,
@@ -467,7 +467,7 @@
             "type": "string"
           },
           "candidates": {
-            "description": "Ordered candidate senses, best to worst, bounded by request cap.",
+            "description": "Ordered candidate meaning, best to worst, bounded by request cap.",
             "items": {
               "$ref": "#/components/schemas/ResolveCandidate"
             },
@@ -534,7 +534,7 @@
                 "type": "null"
               }
             ],
-            "description": "Chosen candidate when at least one viable sense exists."
+            "description": "Chosen candidate when at least one viable meaning exists."
           },
           "selection": {
             "anyOf": [
@@ -571,7 +571,7 @@
                 "type": "null"
               }
             ],
-            "description": "Selected sense/domain tag if known, else null.",
+            "description": "Selected meaning/domain tag if known, else null.",
             "title": "Domain"
           },
           "reason": {

@@ -11,7 +11,7 @@ from plainera_unacronym.nlp.extraction.acronyms.backref.extract import (
     _score_backref_confidence,
     _valid_backref_candidate,
 )
-from plainera_unacronym.nlp.extraction.acronyms.core.defs import _sense_key, dedupe_defs, defs_from_picks
+from plainera_unacronym.nlp.extraction.acronyms.core.defs import _meaning_key, dedupe_defs, defs_from_picks
 
 
 def _span(text: str, needle: str) -> Span:
@@ -488,24 +488,24 @@ class TestDefsFromPicksIntegration:
         ]
 
 
-class TestSenseKey:
+class TestMeaningKey:
     def test_acronym_is_uppercased(self):
-        assert _sense_key("Pdf", "Portable Document Format")[0] == "PDF"
+        assert _meaning_key("Pdf", "Portable Document Format")[0] == "PDF"
 
     def test_stands_for_is_normalized(self):
-        assert _sense_key("pdf", "PDF stands for Portable Document Format")[1] == "portable document format"
+        assert _meaning_key("pdf", "PDF stands for Portable Document Format")[1] == "portable document format"
 
     def test_trailing_proper_noun_chunk(self):
-        key = _sense_key("BIC", "The British-Irish Council")
+        key = _meaning_key("BIC", "The British-Irish Council")
         assert key == ("BIC", "british-irish council")
 
     def test_leading_connectors_are_removed_then_lowered(self):
-        key = _sense_key("PDF", "And, which the Portable Document Format")
+        key = _meaning_key("PDF", "And, which the Portable Document Format")
         assert key == ("PDF", "portable document format")
 
     def test_acronym_and_label_are_independent(self):
         # Intentional mismatch: function does not relate acronym to label
-        key = _sense_key("GPU", "Portable Document Format")
+        key = _meaning_key("GPU", "Portable Document Format")
         assert key == ("GPU", "portable document format")
 
 
@@ -528,7 +528,7 @@ class TestDedupeDefsUnit:
         assert dedupe_defs([]) == []
 
     def test_keeps_first_duplicate_and_preserves_order_no_patch(self):
-        # Same sense after real normalization
+        # Same meaning after real normalization
         d1 = _ed("PDF", "Portable Document Format")
         d2 = _ed("Pdf", "And, which the Portable Document Format")  # dup of d1
         d3 = _ed("GPU", "Gamma three")  # distinct
@@ -549,17 +549,17 @@ class TestDedupeDefsUnit:
 
 class TestDedupeDefsIntegration:
     def test_dedupes_by_normalized_key_case_and_connectors(self):
-        # These two are the "same" sense after tighten_label/_sense_key normalization
+        # These two are the "same" meaning after tighten_label/_meaning_key normalization
         d_pdf_1 = _ed("Pdf", "Portable Document Format")
         d_pdf_2 = _ed("PDF", "And, which the Portable Document Format")
 
-        # Distinct sense
+        # Distinct meaning
         d_gpu = _ed("GPU", "Graphics Processing Unit")
 
         inp = [d_pdf_1, d_pdf_2, d_gpu]
         out = dedupe_defs(inp)
 
-        # Keeps first occurrence of the PDF sense, and keeps GPU
+        # Keeps first occurrence of the PDF meaning, and keeps GPU
         assert [x.acronym for x in out] == ["Pdf", "GPU"]  # original casing preserved in objects
         assert [x.definition for x in out] == [
             "Portable Document Format",

@@ -18,7 +18,7 @@ def build_defined_term_intro(
 
     The raw term text is trimmed, stripped of surrounding straight quotes, cleaned
     of trailing punctuation noise, and normalised into a stable lookup key. A
-    deterministic sense identifier is then derived from the normalised key and
+    deterministic meaning identifier is then derived from the normalised key and
     start offset.
 
     Args:

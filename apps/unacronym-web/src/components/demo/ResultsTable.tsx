@@ -67,9 +67,9 @@ export function ResultsTable({
                   <div className="flex items-center gap-2">
                     <span>{row.definition ?? "—"}</span>
 
-                    {row.senses?.length > 1 ? (
+                    {row.meanings?.length > 1 ? (
                       <span className="rounded-full bg-gray-100 px-2 py-0.5 text-xs text-gray-700">
-        +{row.senses.length - 1}
+        +{row.meanings.length - 1}
       </span>
                     ) : null}
                   </div>
@@ -114,15 +114,15 @@ export function ResultsTable({
               {isOpen ? (
                 <tr className="border-t bg-gray-50">
                   <td colSpan={6} className="px-3 py-3 space-y-4">
-                    {/* Senses / Meaning */}
-                    {row.senses?.length ? (
+                    {/* meanings / Meaning */}
+                    {row.meanings?.length ? (
                       <div>
                         <div className="text-md text-gray-600 mb-2">
-                          Meaning {row.senses.length > 1 ? `(${row.senses.length})` : ""}
+                          Meaning {row.meanings.length > 1 ? `(${row.meanings.length})` : ""}
                         </div>
 
                         <div className="space-y-2">
-                          {row.senses.map((s, idx) => {
+                          {row.meanings.map((s, idx) => {
                             const conf2 = clamp01(s.confidence ?? 0);
 
                             return (

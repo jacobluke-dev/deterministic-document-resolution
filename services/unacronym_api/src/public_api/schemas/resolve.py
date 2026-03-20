@@ -35,7 +35,7 @@ class CandidateProvenance(str, Enum):
 
 
 class ResolveCandidate(BaseSchema):
-    domain: str | None = Field(None, description="Sense/domain tag if known, else null.")
+    domain: str | None = Field(None, description="Meaning/domain tag if known, else null.")
     definition: str = Field(..., description="Candidate resolved meaning.")
     score: confloat(ge=0.0, le=1.0) = Field(..., description="Deterministic ranking score. "   # type: ignore[valid-type]
                                                              "In the MVP this is primarily used for "
@@ -43,12 +43,12 @@ class ResolveCandidate(BaseSchema):
     provenance: CandidateProvenance = Field(..., description="Where the candidate came from.")
     source_ref: str | None = Field(
         None,
-        description="Optional stable source reference, e.g. text span or glossary sense id.",
+        description="Optional stable source reference, e.g. text span or glossary meaning id.",
     )
 
 
 class SelectedCandidate(BaseSchema):
-    domain: str | None = Field(None, description="Selected sense/domain tag if known, else null.")
+    domain: str | None = Field(None, description="Selected meaning/domain tag if known, else null.")
     definition: str = Field(..., description="Chosen resolved meaning.")
     reason: SelectionReason = Field(..., description="Deterministic selection reason.")
 
@@ -67,11 +67,11 @@ class SelectionMeta(BaseSchema):
 class ResolvedAcronymBlock(AcronymBlock):
     candidates: list[ResolveCandidate] = Field(
         default_factory=list,
-        description="Ordered candidate senses, best to worst, bounded by request cap.",
+        description="Ordered candidate meaning, best to worst, bounded by request cap.",
     )
     selected: SelectedCandidate | None = Field(
         None,
-        description="Chosen candidate when at least one viable sense exists.",
+        description="Chosen candidate when at least one viable meaning exists.",
     )
     conflict: bool = Field(
         False,
@@ -96,7 +96,7 @@ class ResolveOptions(BaseSchema):
         120, description="Context window size used in responses."
     )
     max_definitions_per_acronym: conint(ge=1, le=20) = Field(  # type: ignore[valid-type]
-        5, description="Maximum candidate definitions/senses to return per acronym."
+        5, description="Maximum candidate definitions/meanings to return per acronym."
     )
     include_glossary_enrichment: bool = Field(
         True,
@@ -196,7 +196,7 @@ class ResolveResponse(BaseSchema):
                                     "definition": "General Partner",
                                     "score": 0.0,
                                     "provenance": "glossary",
-                                    "source_ref": "sense:42",
+                                    "source_ref": "meaning:42",
                                 },
                             ],
                             "selected": {

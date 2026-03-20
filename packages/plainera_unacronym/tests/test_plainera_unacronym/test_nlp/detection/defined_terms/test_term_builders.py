@@ -4,8 +4,8 @@ from plainera_unacronym.nlp.detection.defined_terms.builders import (
 )
 
 
-class TestBuildDefinedTermSense:
-    def test_build_defined_term_sense_sets_expected_fields(self):
+class TestBuildDefinedTermMeaning:
+    def test_build_defined_term_meaning_sets_expected_fields(self):
         result = build_defined_term_intro(
             term='"Effective Date"',
             term_start=10,
@@ -20,7 +20,7 @@ class TestBuildDefinedTermSense:
         assert result.normalized_key == "effective_date"
         assert result.provenance == "defined_term_detector"
 
-    def test_build_defined_term_sense_strips_trailing_punctuation_and_quotes(self):
+    def test_build_defined_term_meaning_strips_trailing_punctuation_and_quotes(self):
         result = build_defined_term_intro(
             term='"Confidential Information."',
             term_start=50,
@@ -32,7 +32,7 @@ class TestBuildDefinedTermSense:
         assert result.term == "Confidential Information"
         assert result.normalized_key == "confidential_information"
 
-    def test_build_defined_term_sense_normalizes_bridge_words(self):
+    def test_build_defined_term_meaning_normalizes_bridge_words(self):
         result = build_defined_term_intro(
             term="Change of Control",
             term_start=100,

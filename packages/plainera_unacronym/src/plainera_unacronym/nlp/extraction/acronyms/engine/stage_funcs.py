@@ -10,12 +10,12 @@ from plainera_unacronym.nlp.extraction.acronyms.anchored.extract import extract_
 from plainera_unacronym.nlp.extraction.acronyms.backref.extract import extract_sentence_backrefs
 from plainera_unacronym.nlp.extraction.acronyms.core.defs import dedupe_defs, defs_from_picks
 from plainera_unacronym.nlp.extraction.acronyms.engine.state import FlowState
-from plainera_unacronym.nlp.extraction.acronyms.senses.disambiguate import (
+from plainera_unacronym.nlp.extraction.acronyms.meanings.disambiguate import (
     NEAR_TIE_GAP,
     choose_with_tiebreak,
     disambiguate_occurrences,
 )
-from plainera_unacronym.nlp.extraction.acronyms.senses.sense_build import build_senses
+from plainera_unacronym.nlp.extraction.acronyms.meanings.meaning_build import build_meanings
 from plainera_unacronym.nlp.extraction.acronyms.strategies.harvest import extract_defs_all_occurrences
 from plainera_unacronym.nlp.extraction.acronyms.strategies.pick_resolution import (
     backfill_missing_picks_from_defs,
@@ -219,21 +219,21 @@ def st_finalise_picks(s: FlowState) -> StageResult[FlowState]:
     return StageResult(s, s.last_info)
 
 
-def st_tier1_build_senses(s: FlowState) -> StageResult[FlowState]:
+def st_tier1_build_meanings(s: FlowState) -> StageResult[FlowState]:
     """
-    Tier-1 setup: build senses and lightweight occurrences for disambiguation.
+    Tier-1 setup: build meaning and lightweight occurrences for disambiguation.
 
     Constructs the Tier-1 disambiguation working set from the current extraction
     state:
 
-    - Derives `s.tier_1.senses_by_acronym` from `s.all_defs` via
-      `build_senses()`.
-    - Builds `s.tier_1.sense_index` for O(1) lookup by `sense_id`.
+    - Derives `s.tier_1.meaning_by_acronym` from `s.all_defs` via
+      `build_meaning()`.
+    - Builds `s.tier_1.meaning_index` for O(1) lookup by `meaning_id`.
     - Projects detector occurrences (`s.det_res.occurrences`) into a minimal
       `OccurrenceLite` list (`acronym`, `start_offset`, `end_offset`) suitable
       for scoring and reranking stages.
 
-    This stage does not score or choose senses; it only prepares data structures
+    This stage does not score or choose meaning; it only prepares data structures
     consumed by subsequent Tier-1/Tier-2 stages.
 
     Args:
@@ -242,32 +242,32 @@ def st_tier1_build_senses(s: FlowState) -> StageResult[FlowState]:
 
     Returns:
         StageResult containing the mutated FlowState and a short info string
-        summarising the number of senses and occurrences prepared.
+        summarising the number of meaning and occurrences prepared.
     """
     assert s.det_res is not None
 
     t1 = s.tier_1
-    t1.senses_by_acronym = build_senses(s.all_defs)
-    t1.sense_index = {x.sense_id: x for xs in t1.senses_by_acronym.values() for x in xs}
+    t1.meaning_by_acronym = build_meanings(s.all_defs)
+    t1.meaning_index = {x.meaning_id: x for xs in t1.meaning_by_acronym.values() for x in xs}
     t1.occurrences = [OccurrenceLite(o.acronym, o.start_offset, o.end_offset) for o in s.det_res.occurrences]
 
-    s.last_info = f"senses={sum(len(v) for v in t1.senses_by_acronym.values())} occs={len(t1.occurrences)}"
+    s.last_info = f"meaning={sum(len(v) for v in t1.meaning_by_acronym.values())} occs={len(t1.occurrences)}"
     return StageResult(s, s.last_info)
 
 
 def st_tier1_score_occurrences(s: FlowState, *, window_chars: int, margin_threshold: float) -> StageResult[FlowState]:
     """
-    Tier-1: score each occurrence against candidate senses and produce a provisional choice.
+    Tier-1: score each occurrence against candidate meaning and produce a provisional choice.
 
     Runs the heuristic disambiguation pass over the prepared Tier-1 working set
-    (`s.tier_1.occurrences` and `s.tier_1.senses_by_acronym`),
+    (`s.tier_1.occurrences` and `s.tier_1.meaning_by_acronym`),
     computing per-occurrence candidate scores and (optionally) selecting a
-    provisional winning sense.
+    provisional winning meaning.
 
     The underlying scorer (`disambiguate_occurrences`) is expected to return, per
     occurrence:
-      - a stable mapping of candidate `sense_id -> score` (`candidate_scores`)
-      - a provisional winner (`chosen_sense_id`) or `None` if undecided
+      - a stable mapping of candidate `meaning_id -> score` (`candidate_scores`)
+      - a provisional winner (`chosen_meaning_id`) or `None` if undecided
       - tie diagnostics (`gap`, `margin`) used by later selection/assembly stages
 
     Results are normalised into `Tier1OccurrenceRanking` entries and stored in
@@ -276,8 +276,8 @@ def st_tier1_score_occurrences(s: FlowState, *, window_chars: int, margin_thresh
 
     Args:
         s: FlowState for the pipeline stage. Requires `s.det_res` and Tier-1
-            working data (senses/occurrences) to be prepared (typically by
-            `st_tier1_build_senses`).
+            working data (meaning/occurrences) to be prepared (typically by
+            `st_tier1_build_meaning`).
         window_chars: Number of characters to include on each side of the
             occurrence when deriving the scoring context window.
         margin_threshold: Minimum relative margin required for the heuristic
@@ -295,24 +295,24 @@ def st_tier1_score_occurrences(s: FlowState, *, window_chars: int, margin_thresh
     res = disambiguate_occurrences(
         text=s.text,
         occurrences=t1.occurrences,
-        senses=t1.senses_by_acronym,
+        meanings=t1.meaning_by_acronym,
         window_chars=window_chars,
         margin_threshold=margin_threshold,
-        senses_by_id=t1.sense_index,
+        meanings_by_id=t1.meaning_index,
     )
 
     t1.ranked = [
         Tier1OccurrenceRanking(
             occ=OccurrenceLite(r.acronym, r.start, r.end),
             candidate_scores=r.candidate_scores,
-            chosen_sense_id=r.chosen_sense_id,
+            chosen_meaning_id=r.chosen_meaning_id,
             gap=r.gap,
             margin=r.margin,
         )
         for r in res
     ]
 
-    undec = sum(1 for r in t1.ranked if r.chosen_sense_id is None)
+    undec = sum(1 for r in t1.ranked if r.chosen_meaning_id is None)
     s.last_info = f"ranked={len(t1.ranked)} undecided={undec}"
     return StageResult(s, s.last_info)
 
@@ -369,7 +369,7 @@ def st_tier2_semantic_rerank(
     model_name = str(getattr(tier2_cfg, "model_name", "all-MiniLM-L6-v2"))
 
     # IMPORTANT: normalise keys to match r1.occ.acronym.upper()
-    ambiguous_acrs = {k.upper() for k, v in t1.senses_by_acronym.items() if len(v) > 1}
+    ambiguous_acrs = {k.upper() for k, v in t1.meaning_by_acronym.items() if len(v) > 1}
 
     # Tier-2 eligibility threshold (AUTO): default to margin_threshold if unset
     auto_ceiling = getattr(tier2_cfg, "auto_margin_ceiling", None)
@@ -378,7 +378,7 @@ def st_tier2_semantic_rerank(
     ranked2, eligible = collect_tier2_inputs(
         text=s.text,
         t1_ranked=t1.ranked,
-        sense_index=t1.sense_index,
+        meaning_index=t1.meaning_index,
         ambiguous_acrs=ambiguous_acrs,
         auto_margin_ceiling=auto_ceiling,
         mode=mode,
@@ -424,7 +424,7 @@ def st_tiers_select_and_assemble(s: FlowState, *, margin_threshold: float) -> St
 
     Selection policy:
 
-    - Tier-1 produces a provisional winner (`chosen_sense_id`) and diagnostics
+    - Tier-1 produces a provisional winner (`chosen_meaning_id`) and diagnostics
       (`gap`, `margin`) per occurrence.
     - Tier-2, if applied for a given occurrence, may provide `blended_scores`
       that *reorder/adjust* candidate scores.
@@ -438,8 +438,8 @@ def st_tiers_select_and_assemble(s: FlowState, *, margin_threshold: float) -> St
     The stage then assembles:
 
     - `resolutions`: per-occurrence `OccurrenceResolution` entries
-    - `ambiguous_keys`: acronyms with multiple candidate senses
-    - `undecided`: occurrences with no chosen sense
+    - `ambiguous_keys`: acronyms with multiple candidate meaning
+    - `undecided`: occurrences with no chosen meaning
 
     and writes the final `ExtractionResult` to `s.extr`.
 
@@ -453,7 +453,7 @@ def st_tiers_select_and_assemble(s: FlowState, *, margin_threshold: float) -> St
 
     Returns:
         StageResult containing the mutated FlowState (with `s.extr` populated)
-        and a short info string summarising senses and the number of undecided
+        and a short info string summarising meaning and the number of undecided
         occurrences.
     """
     assert s.det_res is not None
@@ -495,12 +495,12 @@ def st_tiers_select_and_assemble(s: FlowState, *, margin_threshold: float) -> St
                 chosen, rel_margin, gap = choose_with_tiebreak(
                     r1.occ,
                     cand_scores,
-                    t1.sense_index,
+                    t1.meaning_index,
                     margin_threshold=margin_threshold,
                     near_tie_margin=NEAR_TIE_GAP,
                 )
         else:
-            chosen, rel_margin, gap = r1.chosen_sense_id, r1.margin, r1.gap
+            chosen, rel_margin, gap = r1.chosen_meaning_id, r1.margin, r1.gap
             cand_scores = r1.candidate_scores
 
         resolutions.append(
@@ -515,16 +515,16 @@ def st_tiers_select_and_assemble(s: FlowState, *, margin_threshold: float) -> St
             )
         )
 
-    undecided = [r for r in resolutions if r.chosen_sense_id is None]
-    ambiguous = tuple(sorted(k for k, v in t1.senses_by_acronym.items() if len(v) > 1))
+    undecided = [r for r in resolutions if r.chosen_meaning_id is None]
+    ambiguous = tuple(sorted(k for k, v in t1.meaning_by_acronym.items() if len(v) > 1))
 
     s.extr = ExtractionResult(
         picks=s.picks,
         definitions=s.all_defs,
         coverage=s.coverage,
         missing_keys=s.missing_keys,
-        senses_by_acronym=t1.senses_by_acronym,
-        sense_index=t1.sense_index,
+        meaning_by_acronym=t1.meaning_by_acronym,
+        meaning_index=t1.meaning_index,
         resolutions=resolutions,
         ambiguous_keys=ambiguous,
         undecided=undecided,
@@ -532,5 +532,5 @@ def st_tiers_select_and_assemble(s: FlowState, *, margin_threshold: float) -> St
         tier2_ranked=tuple(s.tier_2.ranked),
     )
 
-    s.last_info = f"senses={sum(len(v) for v in t1.senses_by_acronym.values())}, undecided={len(undecided)}"
+    s.last_info = f"meaning={sum(len(v) for v in t1.meaning_by_acronym.values())}, undecided={len(undecided)}"
     return StageResult(s, s.last_info)

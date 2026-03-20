@@ -1,21 +1,23 @@
 """
-Acronym sense disambiguation for documents with multiple in-text definitions.
+Acronym meaning disambiguation for documents with multiple in-text definitions.
 
 This module resolves each acronym occurrence to the most likely meaning
-(`AcronymSense`) when a document defines the same acronym more than once.
-Senses are built from extracted definitions and tracked with definition spans.
-Each occurrence is scored against candidate senses using proximity to definition
+(`AcronymMeaning`) when a document defines the same acronym more than once.
+Meanings are built from extracted definitions and tracked with definition spans.
+Each occurrence is scored against candidate meanings using proximity to definition
 spans and local context token overlap, with a conservative margin-based tiebreak.
-If no sense is clearly dominant, the occurrence is left undecided rather than
+If no meaning is clearly dominant, the occurrence is left undecided rather than
 assigned incorrectly.
 
 This stage enables per-occurrence correctness and ambiguity detection beyond
 a single global glossary pick.
 """
 
+from __future__ import annotations
+
 import re
 
-from plainera_unacronym.nlp.common.types import AcronymSense, OccurrenceLite, OccurrenceResolution, Span
+from plainera_unacronym.nlp.common.types import AcronymMeaning, OccurrenceLite, OccurrenceResolution, Span
 
 NEAR_TIE_GAP = 0.06
 
@@ -95,13 +97,13 @@ DIST_TIEBREAK_MIN_ADVANTAGE = 3
 def choose_with_tiebreak(
     occ: OccurrenceLite,
     cand_scores: dict[str, float],
-    senses_by_id: dict[str, AcronymSense],
+    meanings_by_id: dict[str, AcronymMeaning],
     *,
     margin_threshold: float = 0.10,
     near_tie_margin: float = 0.06,
 ) -> tuple[None, float, float] | tuple[str, float, float]:
     """
-    Pick a winning sense from candidate scores using a relative-margin rule first,
+    Pick a winning meaning from candidate scores using a relative-margin rule first,
     then (if needed) a spatial tiebreak using definition-span proximity.
 
     Overview
@@ -110,7 +112,7 @@ def choose_with_tiebreak(
         1) Relative margin (dimensionless):
                rel_margin = (p1 - p2) / max(p1, 1e-9)
 
-           Used to decide whether the top-scoring sense is clearly better than the runner-up.
+           Used to decide whether the top-scoring meaning is clearly better than the runner-up.
 
         2) Absolute gap (same units as the scores):
                gap = p1 - p2
@@ -122,8 +124,8 @@ def choose_with_tiebreak(
         1) Sort candidates by score descending.
            Tie keys (in order):
              - score (desc)
-             - sense_confidence (desc, if present on the sense)
-             - sense_id (desc) for deterministic ordering
+             - meaning_confidence (desc, if present on the meaning)
+             - meaning_id (desc) for deterministic ordering
 
         2) Compute:
              p1 = top score
@@ -132,13 +134,13 @@ def choose_with_tiebreak(
              rel_margin = gap / max(p1, 1e-9)
 
         3) If rel_margin >= margin_threshold:
-             accept the probabilistic winner and return the top sense.
+             accept the probabilistic winner and return the top meaning.
 
         4) Otherwise, if gap <= near_tie_margin (and there are at least two candidates):
              engage the distance tiebreak:
                - compute the occurrence centre
-               - compute each sense’s distance to its nearest definition-span centre
-               - if one sense is at least DIST_TIEBREAK_MIN_ADVANTAGE closer, choose it
+               - compute each meaning’s distance to its nearest definition-span centre
+               - if one meaning is at least DIST_TIEBREAK_MIN_ADVANTAGE closer, choose it
                - else return None (ambiguous)
 
         5) If not a near-tie (gap > near_tie_margin), return None (ambiguous).
@@ -147,12 +149,12 @@ def choose_with_tiebreak(
         occ:
             Occurrence to resolve (expects integer start/end offsets).
         cand_scores:
-            Mapping sense_id -> score. Scores are heuristic composites (distance/overlap/prior)
+            Mapping meaning_id -> score. Scores are heuristic composites (distance/overlap/prior)
             and are not calibrated probabilities.
-        senses_by_id:
-            Mapping sense_id -> AcronymSense. Used for:
+        meanings_by_id:
+            Mapping meaning_id -> AcronymMeaning. Used for:
               - definition spans (distance tiebreak)
-              - optional sense_confidence as a deterministic sorting key
+              - optional meaning_confidence as a deterministic sorting key
         margin_threshold:
             Minimum relative margin to accept the top score:
                 (p1 - p2) / max(p1, 1e-9) >= margin_threshold
@@ -162,7 +164,7 @@ def choose_with_tiebreak(
 
     Returns:
         tuple[str | None, float]:
-            (chosen_sense_id_or_none, gap)
+            (chosen_meaning_id_or_none, gap)
 
             gap is the absolute top-two score gap (p1 - p2).
             It is 0.0 when there are no candidates, and equals p1 when there is only one candidate
@@ -175,7 +177,7 @@ def choose_with_tiebreak(
     """
     items = sorted(
         cand_scores.items(),
-        key=lambda kv: (kv[1], getattr(senses_by_id.get(kv[0]), "sense_confidence", 0.0), kv[0]),
+        key=lambda kv: (kv[1], getattr(meanings_by_id.get(kv[0]), "meaning_confidence", 0.0), kv[0]),
         reverse=True,
     )
 
@@ -197,7 +199,7 @@ def choose_with_tiebreak(
         pos = _center(occ.start, occ.end)
 
         def dist_for(sid: str) -> int:
-            spans = getattr(senses_by_id.get(sid), "def_spans", None) or []
+            spans = getattr(meanings_by_id.get(sid), "def_spans", None) or []
             return _min_distance_to_spans(pos, spans)
 
         sid2 = items[1][0]
@@ -232,11 +234,11 @@ def prior_weight_for_gap(gap: float, *, max_w: float = 0.08, engage_gap: float =
     return max_w * (1.0 - (g / engage_gap))
 
 
-def sense_prior_term(*, sense_confidence: float, weight: float) -> float:
-    """Return additive prior term `weight * sense_confidence` (clamped).
+def meaning_prior_term(*, meaning_confidence: float, weight: float) -> float:
+    """Return additive prior term `weight * meaning_confidence` (clamped).
 
     Args:
-        sense_confidence: Sense confidence in [0, 1].
+        meaning_confidence: Meaning confidence in [0, 1].
         weight: Prior weight in [0, 1] (typically small).
 
     Returns:
@@ -244,7 +246,7 @@ def sense_prior_term(*, sense_confidence: float, weight: float) -> float:
     """
     if weight <= 0.0:
         return 0.0
-    c = 0.0 if sense_confidence < 0.0 else (1.0 if sense_confidence > 1.0 else sense_confidence)
+    c = 0.0 if meaning_confidence < 0.0 else (1.0 if meaning_confidence > 1.0 else meaning_confidence)
     return weight * c
 
 
@@ -261,12 +263,12 @@ def dynamic_prior_weight(
     `engage_gap`; otherwise returns 0.0.
 
     Args:
-        base_scores: Mapping of sense_id -> base score (no prior).
+        base_scores: Mapping of meaning_id -> base score (no prior).
         max_w: Maximum prior weight applied at exact tie; set 0.0 to disable.
         engage_gap: Absolute gap threshold above which prior is disabled.
 
     Returns:
-        A weight in [0.0, max_w] used to scale `sense_confidence` as an additive prior.
+        A weight in [0.0, max_w] used to scale `meaning_confidence` as an additive prior.
     """
     if max_w == 0:
         return 0.0
@@ -283,30 +285,30 @@ def dynamic_prior_weight(
 def base_scores_for_occurrence(
     *,
     occ: OccurrenceLite,
-    sense_list: list[AcronymSense],
+    meanings_list: list[AcronymMeaning],
     ctx_tokens: set[str],
     dist_weight: float,
     overlap_weight: float,
 ) -> dict[str, float]:
     """
-    Compute per-sense base scores for a single occurrence.
+    Compute per-meaning base scores for a single occurrence.
 
     Scores combine distance-to-definition-span proximity and local token overlap, with
     no confidence prior applied.
 
     Args:
         occ: Occurrence being resolved.
-        sense_list: Candidate senses for the occurrence acronym.
+        meanings_list: Candidate meanings for the occurrence acronym.
         ctx_tokens: Tokens from the occurrence context window.
         dist_weight: Weight for proximity score.
         overlap_weight: Weight for overlap score.
 
     Returns:
-        Mapping of sense_id -> base score.
+        Mapping of meaning_id -> base score.
     """
     out: dict[str, float] = {}
 
-    for s in sense_list:
+    for s in meanings_list:
         # distance score to nearest def span centre
         if s.def_spans:
             d = min(abs(occ.start - ((a + b) // 2)) for (a, b) in s.def_spans)
@@ -318,7 +320,7 @@ def base_scores_for_occurrence(
         label_tokens = set(_ascii_tokens(s.definition))
         overlap = len(label_tokens & ctx_tokens) / max(1, len(label_tokens)) if label_tokens else 0.0
 
-        out[s.sense_id] = dist_weight * dist_score + overlap_weight * overlap
+        out[s.meaning_id] = dist_weight * dist_score + overlap_weight * overlap
 
     return out
 
@@ -326,61 +328,61 @@ def base_scores_for_occurrence(
 def disambiguate_occurrences(
     text: str,
     occurrences: list[OccurrenceLite],
-    senses: dict[str, list["AcronymSense"]],
+    meanings: dict[str, list[AcronymMeaning]],
     *,
     window_chars: int = 300,
-    sense_prior_weight: float = 0.02,
+    meanings_prior_weight: float = 0.02,
     margin_threshold: float = 0.10,
     dist_weight: float = 0.75,
     overlap_weight: float = 0.25,
-    senses_by_id: dict[str, "AcronymSense"] | None = None,
+    meanings_by_id: dict[str, AcronymMeaning] | None = None,
 ) -> list[OccurrenceResolution]:
     """
-    Resolve acronym occurrences to the most likely sense using two signals:
+    Resolve acronym occurrences to the most likely meaning using two signals:
     (1) proximity to the nearest definition span center and (2) label–context
     token overlap. A probabilistic margin and spatial tiebreak decide close calls.
 
     Scoring:
         distance = 1 / (1 + d), where d = min distance from occurrence start
-                   to any definition-span center for that sense (0 if no spans).
+                   to any definition-span center for that meaning (0 if no spans).
         overlap  = |label_tokens ∩ ctx_tokens| / max(1, |label_tokens|).
         score    = dist_weight * distance + overlap_weight * overlap.
 
     Tiebreak:
         If the relative margin between top two scores
         ((p1 - p2) / max(p1, 1e-9)) ≥ margin_threshold → choose top.
-        Otherwise, compare occurrence center to each sense’s def-spans using
+        Otherwise, compare occurrence center to each meaning’s def-spans using
         _min_distance_to_spans; if one is ≥3 units closer, choose it; else None.
 
     Args:
         text: Full source text.
         occurrences: OccurrenceLite list (acronym, start, end).
-        senses: Mapping from UPPER(acronym) to candidate AcronymSense list.
+        meanings: Mapping from UPPER(acronym) to candidate AcronymMeaning list.
         window_chars: Half-window (chars) around each occurrence to form ctx_tokens.
-        sense_prior_weight: Maximum weight for an optional confidence prior.
+        meanings_prior_weight: Maximum weight for an optional confidence prior.
             The prior is applied only for near-ties: a dynamic weight `w` is derived from
-            the top-two base-score gap, then each sense score is nudged by
-            `score += w * sense_confidence`. Set to 0.0 to disable.
+            the top-two base-score gap, then each meaning score is nudged by
+            `score += w * meaning_confidence`. Set to 0.0 to disable.
         margin_threshold: Relative margin needed to accept the probabilistic winner.
         dist_weight: Weight for distance score.
         overlap_weight: Weight for overlap score.
-        senses_by_id: Optional {sense_id → AcronymSense}; if None, built from `senses`.
+        meanings_by_id: Optional {meaning_id → AcronymMeaning}; if None, built from `meanings`.
 
     Returns:
         List of OccurrenceResolution in the same order as `occurrences`. Each item
-        includes chosen_sense_id (or None), per-sense scores, and the top-two margin.
+        includes chosen_meaning_id (or None), per-meaning scores, and the top-two margin.
 
     Notes:
         - Tokenization uses `_tokens` (ASCII letters/digits leading; allows `'` and `-`).
         - Distance uses span centers; near-tie uses occurrence center vs span centers.
-        - If an occurrence’s acronym is absent from `senses`, returns an ambiguous result.
+        - If an occurrence’s acronym is absent from `meanings`, returns an ambiguous result.
     """
     results: list[OccurrenceResolution] = []
-    senses_by_id = senses_by_id or {s.sense_id: s for lst in senses.values() for s in lst}
+    meanings_by_id = meanings_by_id or {s.meaning_id: s for lst in meanings.values() for s in lst}
 
     for occ in occurrences:
-        sense_list = senses.get(occ.acronym.upper(), [])
-        if not sense_list:
+        meanings_list = meanings.get(occ.acronym.upper(), [])
+        if not meanings_list:
             results.append(OccurrenceResolution(occ.acronym, occ.start, occ.end, None, {}, 0.0, 0.0))
             continue
 
@@ -390,7 +392,7 @@ def disambiguate_occurrences(
 
         base_scores = base_scores_for_occurrence(
             occ=occ,
-            sense_list=sense_list,
+            meanings_list=meanings_list,
             ctx_tokens=ctx_tokens,
             dist_weight=dist_weight,
             overlap_weight=overlap_weight,
@@ -400,18 +402,18 @@ def disambiguate_occurrences(
             results.append(OccurrenceResolution(occ.acronym, occ.start, occ.end, None, {}, 0.0, 0.0))
             continue
 
-        w = dynamic_prior_weight(base_scores, max_w=sense_prior_weight, engage_gap=NEAR_TIE_GAP)
+        w = dynamic_prior_weight(base_scores, max_w=meanings_prior_weight, engage_gap=NEAR_TIE_GAP)
 
         cand_scores: dict[str, float] = dict(base_scores)
         if w:
             for sid in cand_scores:
-                sc = getattr(senses_by_id.get(sid), "sense_confidence", 0.0)
-                cand_scores[sid] += sense_prior_term(sense_confidence=sc, weight=w)
+                sc = getattr(meanings_by_id.get(sid), "meaning_confidence", 0.0)
+                cand_scores[sid] += meaning_prior_term(meaning_confidence=sc, weight=w)
 
         chosen, rel_margin, gap = choose_with_tiebreak(
             occ,
             cand_scores,
-            senses_by_id,
+            meanings_by_id,
             margin_threshold=margin_threshold,
             near_tie_margin=NEAR_TIE_GAP,
         )

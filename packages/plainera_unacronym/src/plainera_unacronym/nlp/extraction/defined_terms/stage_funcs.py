@@ -3,7 +3,7 @@ from __future__ import annotations
 from plainera_unacronym.nlp.detection.defined_terms import DefinedTermDetector
 from plainera_unacronym.nlp.extraction.base.stages import StageResult
 from plainera_unacronym.nlp.extraction.defined_terms.definitions import extract_term_definitions
-from plainera_unacronym.nlp.extraction.defined_terms.senses import build_term_sense_index
+from plainera_unacronym.nlp.extraction.defined_terms.meanings import build_term_meaning_index
 from plainera_unacronym.nlp.extraction.defined_terms.state import TermFlowState
 from plainera_unacronym.nlp.extraction.defined_terms.structure import build_term_structure_index
 from plainera_unacronym.nlp.extraction.defined_terms.tiers.assemble import assemble_term_resolution_result
@@ -45,9 +45,9 @@ def st_extract_term_definitions(s: TermFlowState) -> StageResult[TermFlowState]:
     return StageResult(s, s.last_info)
 
 
-def st_build_term_sense_index(s: TermFlowState) -> StageResult[TermFlowState]:
-    """Build term senses from extracted definition entries."""
-    s.tier_1.term_sense_index, s.tier_1.sense_index = build_term_sense_index(
+def st_build_term_meaning_index(s: TermFlowState) -> StageResult[TermFlowState]:
+    """Build term meanings from extracted definition entries."""
+    s.tier_1.term_meaning_index, s.tier_1.meaning_index = build_term_meaning_index(
         definition_entries=s.definition_entries,
     )
 
@@ -55,8 +55,8 @@ def st_build_term_sense_index(s: TermFlowState) -> StageResult[TermFlowState]:
         s.tier_1.occurrences = list(s.det_res.mentions)
 
     s.last_info = (
-        f"keys={len(s.tier_1.term_sense_index)} "
-        f"senses={len(s.tier_1.sense_index)} "
+        f"keys={len(s.tier_1.term_meaning_index)} "
+        f"meanings={len(s.tier_1.meaning_index)} "
         f"occurrences={len(s.tier_1.occurrences)}"
     )
     return StageResult(s, s.last_info)
@@ -70,12 +70,12 @@ def st_tier1_score_term_occurrences(s: TermFlowState) -> StageResult[TermFlowSta
     s.tier_1.ranked = score_term_occurrences_tier1(
         text=s.text,
         occurrences=s.tier_1.occurrences,
-        term_sense_index=s.tier_1.term_sense_index,
+        term_meaning_index=s.tier_1.term_meaning_index,
         structure_index=s.structure_index,
         cfg=s.ext_cfg,
     )
 
-    decided = sum(1 for r in s.tier_1.ranked if r.chosen_sense_id is not None)
+    decided = sum(1 for r in s.tier_1.ranked if r.chosen_meaning_id is not None)
     s.last_info = f"occurrences={len(s.tier_1.occurrences)} " f"ranked={len(s.tier_1.ranked)} " f"decided={decided}"
     return StageResult(s, s.last_info)
 
@@ -85,7 +85,7 @@ def st_tier2_term_semantic_rerank(s: TermFlowState) -> StageResult[TermFlowState
     ranked, report = rerank_term_occurrences_tier2(
         text=s.text,
         t1_ranked=s.tier_1.ranked,
-        sense_index=s.tier_1.sense_index,
+        meaning_index=s.tier_1.meaning_index,
         cfg=s.ext_cfg,
     )
     s.tier_2.ranked = ranked
