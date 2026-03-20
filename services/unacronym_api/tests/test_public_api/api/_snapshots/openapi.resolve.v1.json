@@ -201,6 +201,16 @@
         "title": "HealthCheckResponse",
         "type": "object"
       },
+      "ResolutionMode": {
+        "description": "Deterministic resolution policy for selecting a final acronym meaning.\n\nSTRICT:\n    Select only when the resolver can do so conservatively. Avoid permissive\n    fallback behaviour and prefer leaving the acronym unresolved when\n    multiple glossary candidates remain.\n\nDOMAIN_PRIORITY:\n    Use the standard deterministic policy. Prefer the strongest available\n    candidate according to the resolver's normal ordering and fallback\n    rules. This is the default balanced mode.\n\nFALLBACK_GENERAL:\n    Prefer returning a usable result whenever possible. If no stronger\n    candidate is available, prefer a general-domain meaning before falling\n    back to the first deterministically ordered candidate.",
+        "enum": [
+          "strict",
+          "domain_priority",
+          "fallback_general"
+        ],
+        "title": "ResolutionMode",
+        "type": "string"
+      },
       "ResolveCandidate": {
         "properties": {
           "definition": {
@@ -266,12 +276,17 @@
           "processing_ms": {
             "title": "Processing Ms",
             "type": "integer"
+          },
+          "resolution_mode": {
+            "$ref": "#/components/schemas/ResolutionMode",
+            "description": "Resolution policy applied during sense selection."
           }
         },
         "required": [
           "processing_ms",
           "model_version",
-          "input_chars"
+          "input_chars",
+          "resolution_mode"
         ],
         "title": "ResolveMeta",
         "type": "object"
@@ -334,6 +349,7 @@
               "return_occurrences": true,
               "window_chars": 120
             },
+            "resolution_mode": "domain_priority",
             "text": "The Metropolitan Police Service (MPS) operates in London."
           },
           {
@@ -350,6 +366,11 @@
                 "type": "null"
               }
             ]
+          },
+          "resolution_mode": {
+            "$ref": "#/components/schemas/ResolutionMode",
+            "default": "domain_priority",
+            "description": "Controls deterministic acronym sense selection policy."
           },
           "text": {
             "description": "Raw document content. Max length 100,000 characters.",
@@ -437,7 +458,8 @@
             "meta": {
               "input_chars": 68,
               "model_version": "plainera-core@1.0.0",
-              "processing_ms": 12
+              "processing_ms": 12,
+              "resolution_mode": "domain_priority"
             }
           }
         ],
@@ -594,18 +616,6 @@
             "minimum": 0.0,
             "title": "Filtered Inactive Count",
             "type": "integer"
-          },
-          "policy_used": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "description": "Optional deterministic policy identifier used during selection.",
-            "title": "Policy Used"
           }
         },
         "title": "SelectionMeta",
