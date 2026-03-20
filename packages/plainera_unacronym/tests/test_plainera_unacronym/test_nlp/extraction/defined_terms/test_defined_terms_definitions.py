@@ -1,8 +1,10 @@
 from __future__ import annotations
 
 from plainera_unacronym.nlp.extraction.defined_terms.definitions import (
-    _extract_parenthetical_alias_target, _find_definition_end,
+    _extract_parenthetical_alias_target,
+    _find_definition_end,
 )
+
 
 class TestFindDefinitionEnd:
     def test_stops_at_period(self):

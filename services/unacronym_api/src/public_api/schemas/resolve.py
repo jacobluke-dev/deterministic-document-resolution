@@ -9,10 +9,27 @@ from public_api.schemas.base import BaseSchema
 from public_api.schemas.glossary import AcronymBlock
 
 
-class ResolveMeta(BaseSchema):
-    processing_ms: int
-    model_version: str = Field(..., description="plainera-core version used for processing.")
-    input_chars: int
+class ResolutionMode(str, Enum):
+    """Deterministic resolution policy for selecting a final acronym meaning.
+
+    STRICT:
+        Select only when the resolver can do so conservatively. Avoid permissive
+        fallback behaviour and prefer leaving the acronym unresolved when
+        multiple glossary candidates remain.
+
+    DOMAIN_PRIORITY:
+        Use the standard deterministic policy. Prefer the strongest available
+        candidate according to the resolver's normal ordering and fallback
+        rules. This is the default balanced mode.
+
+    FALLBACK_GENERAL:
+        Prefer returning a usable result whenever possible. If no stronger
+        candidate is available, prefer a general-domain meaning before falling
+        back to the first deterministically ordered candidate.
+    """
+    STRICT = "strict"
+    DOMAIN_PRIORITY = "domain_priority"
+    FALLBACK_GENERAL = "fallback_general"
 
 
 class SelectionReason(str, Enum):
@@ -34,10 +51,20 @@ class CandidateProvenance(str, Enum):
     system = "system"
 
 
+class ResolveMeta(BaseSchema):
+    processing_ms: int
+    model_version: str = Field(..., description="plainera-core version used for processing.")
+    input_chars: int
+    resolution_mode: ResolutionMode = Field(
+        ...,
+        description="Resolution policy applied during sense selection.",
+    )
+
+
 class ResolveCandidate(BaseSchema):
     domain: str | None = Field(None, description="Meaning/domain tag if known, else null.")
     definition: str = Field(..., description="Candidate resolved meaning.")
-    score: confloat(ge=0.0, le=1.0) = Field(..., description="Deterministic ranking score. "   # type: ignore[valid-type]
+    score: confloat(ge=0.0, le=1.0) = Field(..., description="Deterministic ranking score. "  # type: ignore[valid-type]
                                                              "In the MVP this is primarily used for "
                                                              "candidate ordering, not calibrated confidence.")
     provenance: CandidateProvenance = Field(..., description="Where the candidate came from.")
@@ -54,10 +81,6 @@ class SelectedCandidate(BaseSchema):
 
 
 class SelectionMeta(BaseSchema):
-    policy_used: str | None = Field(
-        None,
-        description="Optional deterministic policy identifier used during selection.",
-    )
     filtered_inactive_count: conint(ge=0) = Field(  # type: ignore[valid-type]
         0,
         description="Number of inactive candidates removed before selection.",
@@ -122,6 +145,10 @@ class ResolveRequest(BaseSchema):
     text: constr(min_length=1, max_length=100_000) = Field(  # type: ignore[valid-type]
         ..., description="Raw document content. Max length 100,000 characters."
     )
+    resolution_mode: ResolutionMode = Field(
+        default=ResolutionMode.DOMAIN_PRIORITY,
+        description="Controls deterministic acronym sense selection policy.",
+    )
     options: ResolveOptions | None = None
 
     class Config:
@@ -129,6 +156,7 @@ class ResolveRequest(BaseSchema):
             "examples": [
                 {
                     "text": "The Metropolitan Police Service (MPS) operates in London.",
+                    "resolution_mode": "domain_priority",
                     "options": {
                         "locale": "en-GB",
                         "window_chars": 120,
@@ -207,7 +235,6 @@ class ResolveResponse(BaseSchema):
                             "conflict": True,
                             "conflict_count": 2,
                             "selection": {
-                                "policy_used": None,
                                 "filtered_inactive_count": 0,
                             },
                         }
@@ -216,7 +243,8 @@ class ResolveResponse(BaseSchema):
                         "processing_ms": 12,
                         "model_version": "plainera-core@1.0.0",
                         "input_chars": 68,
-                    },
+                        "resolution_mode": "domain_priority",
+                    }
                 }
             ]
         }
