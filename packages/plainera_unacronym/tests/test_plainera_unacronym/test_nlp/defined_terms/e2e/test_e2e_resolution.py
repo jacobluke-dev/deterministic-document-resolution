@@ -7,50 +7,8 @@ from plainera_unacronym.nlp.extraction.base.base_execute import run_flow_with_op
 from plainera_unacronym.nlp.extraction.defined_terms.execute import detect_and_resolve_terms
 from plainera_unacronym.nlp.extraction.defined_terms.extract_flow import DefinedTermResolutionFlow
 from plainera_unacronym.nlp.extraction.defined_terms.state import TermFlowState
-
-
-def _resolution_key(r) -> str | None:
-    if hasattr(r, "normalized_key"):
-        return r.normalized_key
-    if hasattr(r, "term_key"):
-        return r.term_key
-    if hasattr(r, "key"):
-        return r.key
-
-    occ = getattr(r, "occurrence", None)
-    if occ is not None and hasattr(occ, "normalized_key"):
-        return occ.normalized_key
-
-    return None
-
-
-def _chosen_meaning_ids_for_key(extr, key: str) -> list[str]:
-    return [
-        r.chosen_meaning_id
-        for r in _resolutions_for_key(extr, key)
-        if getattr(r, "chosen_meaning_id", None) is not None
-    ]
-
-
-def _resolutions_for_key(extr, key: str):
-    return [r for r in extr.term_resolutions if _resolution_key(r) == key]
-
-
-def _meaning_text_by_id(state) -> dict[str, str]:
-    out: dict[str, str] = {}
-
-    for meaning_id, meaning in state.tier_1.meaning_index.items():
-        definition_text = getattr(meaning, "definition_text", None)
-
-        if not definition_text:
-            for entry in state.definition_entries:
-                if getattr(entry, "meaning_id", None) == meaning_id:
-                    definition_text = getattr(entry, "definition_text", None)
-                    break
-
-        out[meaning_id] = (definition_text or "").lower()
-
-    return out
+from test_plainera_unacronym.test_nlp.defined_terms.e2e.defined_terms_e2e_common import chosen_meaning_ids_for_key, \
+    meaning_text_by_id, resolutions_for_key
 
 
 class TestDefinedTermResolutionE2E:
@@ -79,10 +37,10 @@ class TestDefinedTermResolutionE2E:
 
         assert len(det_res.introductions) == 2
 
-        chosen_ids = _chosen_meaning_ids_for_key(extr, "services")
+        chosen_ids = chosen_meaning_ids_for_key(extr, "services")
         assert len(chosen_ids) >= 2
 
-        meaning_text = _meaning_text_by_id(state)
+        meaning_text = meaning_text_by_id(state)
         chosen_texts = [meaning_text[sid] for sid in chosen_ids]
 
         assert any("consultancy services" in txt for txt in chosen_texts)
@@ -108,7 +66,7 @@ class TestDefinedTermResolutionE2E:
 
         assert len(det_res.introductions) == 1
 
-        effective_resolutions = _resolutions_for_key(extr, "effective_date")
+        effective_resolutions = resolutions_for_key(extr, "effective_date")
         assert len(effective_resolutions) == 1
         assert effective_resolutions[0].chosen_meaning_id is not None
 
@@ -116,7 +74,7 @@ class TestDefinedTermResolutionE2E:
         assert "effective_date" not in extr.ambiguous_keys
 
         meaning_id = effective_resolutions[0].chosen_meaning_id
-        meaning_text = _meaning_text_by_id(state)
+        meaning_text = meaning_text_by_id(state)
 
         assert "both parties sign this agreement" in meaning_text[meaning_id]
 
@@ -138,7 +96,7 @@ class TestDefinedTermResolutionE2E:
             return_state=True,
         )
         assert len(det_res.introductions) == 1
-        assert len(_resolutions_for_key(extr, "effective_date")) == 1
+        assert len(resolutions_for_key(extr, "effective_date")) == 1
 
         assert state.tier_2.report is not None
         assert state.tier_2.report.applied == 0
@@ -174,7 +132,7 @@ class TestDefinedTermResolutionE2E:
         )
         assert len(det_res.introductions) == 1
 
-        effective_resolutions = _resolutions_for_key(extr, "effective_date")
+        effective_resolutions = resolutions_for_key(extr, "effective_date")
         assert len(effective_resolutions) == 1
         assert effective_resolutions[0].chosen_meaning_id is not None
 
@@ -258,7 +216,7 @@ class TestDefinedTermResolutionE2E:
         assert len(det_res.mentions) == 1
         assert extr.ambiguous_keys == ("services",)
 
-        service_resolutions = _resolutions_for_key(extr, "services")
+        service_resolutions = resolutions_for_key(extr, "services")
         assert len(service_resolutions) == 1
         assert service_resolutions[0].chosen_meaning_id is None
         assert service_resolutions[0] in extr.undecided
@@ -371,10 +329,10 @@ class TestDefinedTermResolutionE2E:
         assert len(det_res.mentions) == 1
         assert extr.ambiguous_keys == ("services",)
 
-        chosen_ids = _chosen_meaning_ids_for_key(extr, "services")
+        chosen_ids = chosen_meaning_ids_for_key(extr, "services")
         assert len(chosen_ids) == 1
 
-        meaning_text = _meaning_text_by_id(state)
+        meaning_text = meaning_text_by_id(state)
         assert "maintenance services" in meaning_text[chosen_ids[0]]
 
     def test_quoted_later_mention_resolves(self):
@@ -393,7 +351,7 @@ class TestDefinedTermResolutionE2E:
         assert len(det_res.introductions) == 1
         assert len(det_res.mentions) == 1
 
-        conf_resolutions = _resolutions_for_key(extr, "confidential_information")
+        conf_resolutions = resolutions_for_key(extr, "confidential_information")
         assert len(conf_resolutions) == 1
         assert conf_resolutions[0].chosen_meaning_id == "term|confidential_information|1"
         assert extr.undecided == []
@@ -420,7 +378,7 @@ class TestDefinedTermResolutionE2E:
         intro_keys = {i.normalized_key for i in det_res.introductions}
         assert "agreement" in intro_keys
 
-        agreement_resolutions = _resolutions_for_key(extr, "agreement")
+        agreement_resolutions = resolutions_for_key(extr, "agreement")
         assert len(agreement_resolutions) == 2
         assert agreement_resolutions[0].chosen_meaning_id == "term|agreement|1"
         assert agreement_resolutions[0].resolution_method in {"tier1", "tier2_blend"}
