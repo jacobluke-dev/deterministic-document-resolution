@@ -32,6 +32,7 @@ class StructuralReferenceEntry:
             source text.
         provenance: Provenance tag describing how the occurrence was produced.
     """
+
     kind: StructuralReferenceKind
     label: str
     canonical_label: str
@@ -66,6 +67,7 @@ class StructuralReferenceLink:
             unresolved occurrences in the current implementation.
         provenance: Provenance tag describing how the occurrence was produced.
     """
+
     kind: StructuralReferenceKind
     label: str
     canonical_label: str
@@ -97,6 +99,7 @@ class StructuralAnchor:
         ordinal: Zero-based document-order ordinal assigned to extracted
             anchors. Used for deterministic tie-breaking.
     """
+
     label: str
     normalized_key: str
     start_offset: int
@@ -131,6 +134,7 @@ class StructuralReferenceResolutionResult:
         unique_links: Mapping from canonical key to the representative
             structural link for that key in the final deduplicated view.
     """
+
     references: list[StructuralReferenceEntry]
     links: list[StructuralReferenceLink]
     unique_keys: dict[str, StructuralReferenceEntry]

@@ -5,8 +5,10 @@ from dataclasses import dataclass, field
 from plainera_unacronym.nlp.detection.structural.types import StructuralReferenceDetectorResult
 from plainera_unacronym.nlp.extraction.structural.config import StructuralReferenceExtractionConfig
 from plainera_unacronym.nlp.extraction.structural.types import (
+    StructuralAnchor,
     StructuralReferenceEntry,
-    StructuralReferenceResolutionResult, StructuralReferenceLink, StructuralAnchor,
+    StructuralReferenceLink,
+    StructuralReferenceResolutionResult,
 )
 
 

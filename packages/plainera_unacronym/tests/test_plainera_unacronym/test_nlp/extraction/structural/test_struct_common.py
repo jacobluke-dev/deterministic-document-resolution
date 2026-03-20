@@ -1,5 +1,4 @@
 import pytest
-
 from plainera_unacronym.nlp.extraction.structural.common import roman_to_int
 
 

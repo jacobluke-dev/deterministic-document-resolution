@@ -2,8 +2,10 @@ from __future__ import annotations
 
 from plainera_unacronym.nlp.detection.structural.detector import StructuralReferenceDetector
 from plainera_unacronym.nlp.extraction.base.stages import StageResult
-from plainera_unacronym.nlp.extraction.structural.anchor import extract_structural_anchors, \
-    build_structural_anchor_index
+from plainera_unacronym.nlp.extraction.structural.anchor import (
+    build_structural_anchor_index,
+    extract_structural_anchors,
+)
 from plainera_unacronym.nlp.extraction.structural.assemble import (
     assemble_structural_reference_resolution_result,
 )
@@ -48,10 +50,7 @@ def st_extract_structural_anchors(s: StructuralFlowState) -> StageResult[Structu
 def st_build_structural_anchor_index(s: StructuralFlowState) -> StageResult[StructuralFlowState]:
     """Build lookup index for extracted structural anchors."""
     s.anchor_index = build_structural_anchor_index(s.anchors)
-    s.last_info = (
-        f"anchors={len(s.anchors)} "
-        f"anchor_keys={len(s.anchor_index)}"
-    )
+    s.last_info = f"anchors={len(s.anchors)} " f"anchor_keys={len(s.anchor_index)}"
     return StageResult(s, s.last_info)
 
 
@@ -78,8 +77,6 @@ def st_assemble_structural_reference_resolutions(s: StructuralFlowState) -> Stag
     """Assemble final structural-reference resolution output."""
     s.extr = assemble_structural_reference_resolution_result(s)
     s.last_info = (
-        f"references={len(s.extr.references)} "
-        f"links={len(s.extr.links)} "
-        f"unique_keys={len(s.extr.unique_keys)}"
+        f"references={len(s.extr.references)} " f"links={len(s.extr.links)} " f"unique_keys={len(s.extr.unique_keys)}"
     )
     return StageResult(s, s.last_info)

@@ -361,3 +361,57 @@ class TestDetectAndResolveStructuralReferences:
         assert len(state.link_entries) == 2
         assert len(extr.unique_links) == 1
         assert extr.unique_links["article_3"].target_span is not None
+
+    def test_unique_links_deduplicates_resolved_schedule_links(self) -> None:
+        text = (
+            "The parties shall comply with Schedule C.\n\n"
+            "Schedule A: Services Description\n"
+            "Schedule C: Charges\n"
+        )
+
+        det_res, extr = detect_and_resolve_structural_references(text)
+
+        assert len(det_res.references) == 3
+        assert [ref.normalized_key for ref in det_res.references] == [
+            "schedule_c",
+            "schedule_a",
+            "schedule_c",
+        ]
+
+        assert len(extr.links) == 3
+
+        schedule_c_links = [link for link in extr.links if link.canonical_key == "schedule_c"]
+        assert len(schedule_c_links) == 2
+        assert all(link.target_span is not None for link in schedule_c_links)
+        assert all(link.confidence == 1.0 for link in schedule_c_links)
+
+        assert "schedule_c" in extr.unique_links
+        unique_link = extr.unique_links["schedule_c"]
+
+        assert unique_link.target_span is not None
+        assert unique_link.confidence == 1.0
+
+        start, end = unique_link.target_span
+        assert text[start:end] == "Schedule C: Charges"
+
+    def test_unique_links_preserves_first_when_all_unresolved(self) -> None:
+        text = "The parties shall comply with Schedule C and Schedule C."
+
+        det_res, extr = detect_and_resolve_structural_references(text)
+
+        assert len(det_res.references) == 2
+        assert [ref.normalized_key for ref in det_res.references] == [
+            "schedule_c",
+            "schedule_c",
+        ]
+
+        assert len(extr.links) == 2
+        assert all(link.target_span is None for link in extr.links)
+        assert all(link.confidence == 0.0 for link in extr.links)
+
+        assert "schedule_c" in extr.unique_links
+        unique_link = extr.unique_links["schedule_c"]
+
+        assert unique_link.target_span is None
+        assert unique_link.confidence == 0.0
+        assert unique_link.reference_span == extr.links[0].reference_span

@@ -1,7 +1,6 @@
-import pytest
 from plainera_unacronym.nlp.detection.structural import StructuralReference
 from plainera_unacronym.nlp.extraction.structural.config import StructuralReferenceExtractionConfig
-from plainera_unacronym.nlp.extraction.structural.transform import _canonicalize_structural_reference, roman_to_int
+from plainera_unacronym.nlp.extraction.structural.transform import _canonicalize_structural_reference
 
 
 class TestCanonicalizeStructuralReference:
