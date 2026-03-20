@@ -14,7 +14,7 @@ from plainera_unacronym.nlp.common.types import (
     OccurrenceLite,
     Span,
 )
-from plainera_unacronym.nlp.extraction import ExtractionConfig
+from plainera_unacronym.nlp.extraction.acronyms.config import ExtractionConfig
 from plainera_unacronym.nlp.extraction.acronyms.core.defs import dedupe_defs
 from plainera_unacronym.nlp.extraction.acronyms.engine import stage_funcs as f
 from plainera_unacronym.nlp.extraction.acronyms.engine.extract_flow import ExtractionFlow

@@ -2,8 +2,12 @@ from __future__ import annotations
 
 from plainera_unacronym.nlp.common.types import DefinedTermDetectorConfig
 from plainera_unacronym.nlp.detection.defined_terms import DefinedTermDetectorResult
-from plainera_unacronym.nlp.extraction.base.base_flow import BaseResolutionFlow
-from plainera_unacronym.nlp.extraction.base.stages import Chain, Stage, StageReport
+from plainera_unacronym.nlp.extraction import (
+    BaseResolutionFlow,
+    Chain,
+    Stage,
+    StageReport,
+)
 from plainera_unacronym.nlp.extraction.defined_terms import stage_funcs as f
 from plainera_unacronym.nlp.extraction.defined_terms.config import DefinedTermExtractionConfig
 from plainera_unacronym.nlp.extraction.defined_terms.state import TermFlowState

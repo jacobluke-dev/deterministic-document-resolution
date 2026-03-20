@@ -144,11 +144,11 @@ class DefinedTermDetector(BaseDetector[DefinedTermDetectorResult]):
             legal_active: Whether the legal domain is currently enabled for this run.
 
         Returns:
-            A list of ``DefinedTermIntroduction`` objects representing introduced terms in the
-            order they were detected.
+            A list of ``DefinedTermIntroduction`` objects representing introduced terms
+            in the order they were detected.
         """
         intros: list[DefinedTermIntroduction] = []
-        INTRO_PATTERN_NAMES: tuple[IntroKind, ...] = (
+        intro_pattern_names: tuple[IntroKind, ...] = (
             "quoted_means",
             "quoted_shall_mean",
             "bare_means",
@@ -156,7 +156,10 @@ class DefinedTermDetector(BaseDetector[DefinedTermDetectorResult]):
             "parenthetical_alias",
         )
 
-        for pat_name in INTRO_PATTERN_NAMES:
+        policy = cfg.unquoted_capitalised_terms_policy
+        allow_unquoted = policy == "always" or (policy == "legal_only" and legal_active)
+
+        for pat_name in intro_pattern_names:
             pat = getattr(self._patterns, pat_name)
             for match in pat.finditer(text):
                 group_name = "term_q" if match.groupdict().get("term_q") else "term_b"
@@ -165,16 +168,13 @@ class DefinedTermDetector(BaseDetector[DefinedTermDetectorResult]):
                     continue
 
                 term_start, term_end = match.span(group_name)
-                if raw_term[:1] in {'"', "“", "”"} and raw_term[-1:] in {'"', "“", "”"}:
+                if raw_term[:1] in _QUOTE_CHARS and raw_term[-1:] in _QUOTE_CHARS:
                     term_start += 1
                     term_end -= 1
 
-                is_quoted = raw_term.startswith('"') and raw_term.endswith('"')
-                if not is_quoted:
-                    if cfg.require_legal_domain_for_unquoted and not legal_active:
-                        continue
-                    if not cfg.allow_unquoted_capitalised_terms:
-                        continue
+                is_quoted = raw_term[:1] in _QUOTE_CHARS and raw_term[-1:] in _QUOTE_CHARS
+                if not is_quoted and not allow_unquoted:
+                    continue
 
                 intros.append(
                     build_defined_term_intro(
@@ -317,7 +317,10 @@ class DefinedTermDetector(BaseDetector[DefinedTermDetectorResult]):
         """
         occurrences: list[DefinedTermMention] = []
 
-        if not (cfg.allow_unquoted_capitalised_terms and ((not cfg.require_legal_domain_for_unquoted) or legal_active)):
+        policy = cfg.unquoted_capitalised_terms_policy
+        effective_allow_unquoted = policy == "always" or (policy == "legal_only" and legal_active)
+
+        if not effective_allow_unquoted:
             return occurrences
 
         for match in self._patterns.capitalised_occurrence.finditer(text):

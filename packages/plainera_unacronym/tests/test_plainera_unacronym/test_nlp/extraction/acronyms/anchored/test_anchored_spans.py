@@ -1,8 +1,8 @@
 import re
 
 import plainera_unacronym.nlp.extraction.acronyms.anchored.spans as mod
-from plainera_unacronym.nlp.extraction import ExtractionConfig
 from plainera_unacronym.nlp.extraction.acronyms.anchored.spans import _trim_span
+from plainera_unacronym.nlp.extraction.acronyms.config import ExtractionConfig
 from plainera_unacronym.nlp.extraction.acronyms.matchers.defs.common import LocalDefMatch
 
 

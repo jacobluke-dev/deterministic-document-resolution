@@ -3,11 +3,15 @@ from __future__ import annotations
 from collections import Counter
 
 from plainera_unacronym.nlp.common.types import AcronymDetectorConfig, AcronymDetectorResult, ExtractionResult
-from plainera_unacronym.nlp.extraction import ExtractionConfig
+from plainera_unacronym.nlp.extraction import (
+    BaseResolutionFlow,
+    Chain,
+    Stage,
+    StageReport,
+)
+from plainera_unacronym.nlp.extraction.acronyms.config import ExtractionConfig
 from plainera_unacronym.nlp.extraction.acronyms.engine import stage_funcs as f
 from plainera_unacronym.nlp.extraction.acronyms.engine.state import FlowState
-from plainera_unacronym.nlp.extraction.base.base_flow import BaseResolutionFlow
-from plainera_unacronym.nlp.extraction.base.stages import Chain, Stage, StageReport
 
 
 def _make_term_flow_state(
