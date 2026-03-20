@@ -190,6 +190,7 @@ class AcronymDetectorResult:
 
 UnquotedCapitalisedTermsPolicy: TypeAlias = Literal["never", "legal_only", "always"]
 
+
 @dataclass(frozen=True)
 class DefinedTermDetectorConfig:
     """Configuration for defined-term detection behaviour.

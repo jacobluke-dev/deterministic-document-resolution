@@ -157,10 +157,7 @@ class DefinedTermDetector(BaseDetector[DefinedTermDetectorResult]):
         )
 
         policy = cfg.unquoted_capitalised_terms_policy
-        allow_unquoted = (
-            policy == "always"
-            or (policy == "legal_only" and legal_active)
-        )
+        allow_unquoted = policy == "always" or (policy == "legal_only" and legal_active)
 
         for pat_name in intro_pattern_names:
             pat = getattr(self._patterns, pat_name)
@@ -321,9 +318,7 @@ class DefinedTermDetector(BaseDetector[DefinedTermDetectorResult]):
         occurrences: list[DefinedTermMention] = []
 
         policy = cfg.unquoted_capitalised_terms_policy
-        effective_allow_unquoted = (
-            policy == "always" or (policy == "legal_only" and legal_active)
-        )
+        effective_allow_unquoted = policy == "always" or (policy == "legal_only" and legal_active)
 
         if not effective_allow_unquoted:
             return occurrences

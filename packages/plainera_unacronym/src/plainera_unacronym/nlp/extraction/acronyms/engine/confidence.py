@@ -1,7 +1,6 @@
 from typing import Optional
 
-from plainera_unacronym.nlp.extraction.acronyms.config import ExtractionConfig
-from plainera_unacronym.nlp.extraction.acronyms.config import ConfidenceConfig
+from plainera_unacronym.nlp.extraction.acronyms.config import ConfidenceConfig, ExtractionConfig
 
 
 def base_for_kind(cfg: ExtractionConfig, kind: str) -> float:

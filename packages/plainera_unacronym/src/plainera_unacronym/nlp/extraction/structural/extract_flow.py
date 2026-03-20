@@ -3,9 +3,8 @@ from __future__ import annotations
 from plainera_unacronym.nlp.detection.structural.types import (
     StructuralReferenceDetectorResult,
 )
-from plainera_unacronym.nlp.extraction import BaseResolutionFlow
-
 from plainera_unacronym.nlp.extraction import (
+    BaseResolutionFlow,
     Chain,
     Stage,
     StageReport,

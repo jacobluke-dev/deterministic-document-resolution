@@ -3,11 +3,11 @@ from types import SimpleNamespace as NS
 
 import plainera_unacronym.nlp.extraction.acronyms.anchored.extract as ext
 import plainera_unacronym.nlp.extraction.acronyms.anchored.patterns as mod
-from plainera_unacronym.nlp.extraction.acronyms.config import ExtractionConfig
 from plainera_unacronym.nlp.extraction.acronyms.anchored.extract import (
     compile_anchored_for_surface,
     extract_near_firsts,
 )
+from plainera_unacronym.nlp.extraction.acronyms.config import ExtractionConfig
 
 
 def _cfg(**overrides):
