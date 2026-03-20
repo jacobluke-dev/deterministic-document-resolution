@@ -40,8 +40,7 @@ class TestTier2:
         """.strip()
 
         det_cfg = DefinedTermDetectorConfig(
-            allow_unquoted_capitalised_terms=True,
-            require_legal_domain_for_unquoted=False,
+            unquoted_capitalised_terms_policy="legal_only"
         )
 
         def _fake_embed_texts(texts, model_name=None):
@@ -125,8 +124,7 @@ class TestTier2:
         """.strip()
 
         det_cfg = DefinedTermDetectorConfig(
-            allow_unquoted_capitalised_terms=True,
-            require_legal_domain_for_unquoted=False,
+            unquoted_capitalised_terms_policy="legal_only"
         )
 
         def _fake_embed_texts(texts, model_name=None):

@@ -34,7 +34,7 @@ class TestDefinedTermDetectorWithAutoDomains:
         assert out is not detector.cfg
         assert out.enabled_domains == frozenset({"bio", "legal"})
 
-    def test_detect_does_not_enable_unquoted_mentions_just_because_legal_is_active(
+    def test_detect_enables_unquoted_mentions_when_policy_is_legal_only_and_legal_is_active(
         self,
         defined_term_detector_factory,
     ):
@@ -44,12 +44,12 @@ class TestDefinedTermDetectorWithAutoDomains:
         """
 
         result = defined_term_detector_factory(
-            allow_unquoted_capitalised_terms=False,
-            require_legal_domain_for_unquoted=True,
+            unquoted_capitalised_terms_policy="legal_only",
             enabled_domains=frozenset({"legal"}),
         ).detect(text)
 
-        assert "change_of_control" not in result.unique_terms or result.mentions == []
+        assert "change_of_control" in result.unique_terms
+        assert any(m.normalized_key == "change_of_control" for m in result.mentions)
 
 
 class TestDefinedTermDetectorResolveKnownTermFromRun:
@@ -117,12 +117,10 @@ class TestDefinedTermDetectorIterTermIntroductions:
                                                                      cfg_terms_det_factory,
                                                                      defined_term_detector_factory):
         cfg = cfg_terms_det_factory(
-            allow_unquoted_capitalised_terms=True,
-            require_legal_domain_for_unquoted=True,
+            unquoted_capitalised_terms_policy="legal_only",
         )
         detector = defined_term_detector_factory(
-            allow_unquoted_capitalised_terms=True,
-            require_legal_domain_for_unquoted=True)
+            unquoted_capitalised_terms_policy="legal_only")
         text = "Change of Control means any sale of assets."
 
         intros = detector._iter_term_introductions(
@@ -138,12 +136,10 @@ class TestDefinedTermDetectorIterTermIntroductions:
                                                                cfg_terms_det_factory,
                                                                defined_term_detector_factory):
         cfg = cfg_terms_det_factory(
-            allow_unquoted_capitalised_terms=True,
-            require_legal_domain_for_unquoted=True,
+            unquoted_capitalised_terms_policy="legal_only",
         )
         detector = defined_term_detector_factory(
-            allow_unquoted_capitalised_terms=True,
-            require_legal_domain_for_unquoted=True, )
+            unquoted_capitalised_terms_policy="legal_only", )
         text = "Change of Control means any sale of assets."
 
         intros = detector._iter_term_introductions(
@@ -154,15 +150,17 @@ class TestDefinedTermDetectorIterTermIntroductions:
 
         assert intros == []
 
-    def test_skips_bare_means_when_unquoted_terms_disabled(self,
-                                                           cfg_terms_det_factory,
-                                                           defined_term_detector_factory):
+    def test_skips_bare_means_when_policy_is_never(
+        self,
+        cfg_terms_det_factory,
+        defined_term_detector_factory,
+    ):
         cfg = cfg_terms_det_factory(
-            allow_unquoted_capitalised_terms=False,
-            require_legal_domain_for_unquoted=False,
+            unquoted_capitalised_terms_policy="never",
         )
-        detector = defined_term_detector_factory(allow_unquoted_capitalised_terms=False,
-                                                 require_legal_domain_for_unquoted=False, )
+        detector = defined_term_detector_factory(
+            unquoted_capitalised_terms_policy="never",
+        )
         text = "Change of Control means any sale of assets."
 
         intros = detector._iter_term_introductions(
@@ -249,12 +247,10 @@ class TestDefinedTermDetectorIterOccurrences:
 
     def test_detects_unquoted_occurrence_when_legal_active(self, cfg_terms_det_factory, defined_term_detector_factory):
         cfg = cfg_terms_det_factory(
-            allow_unquoted_capitalised_terms=True,
-            require_legal_domain_for_unquoted=True,
+            unquoted_capitalised_terms_policy="legal_only",
         )
         detector = defined_term_detector_factory(
-            allow_unquoted_capitalised_terms=True,
-            require_legal_domain_for_unquoted=True, )
+            unquoted_capitalised_terms_policy="legal_only", )
         text = "Following a Change of Control, the Customer may terminate."
 
         out = detector._iter_references(
@@ -273,14 +269,12 @@ class TestDefinedTermDetectorIterOccurrences:
                                                                         cfg_terms_det_factory,
                                                                         defined_term_detector_factory):
         cfg = cfg_terms_det_factory(
-            allow_unquoted_capitalised_terms=True,
-            require_legal_domain_for_unquoted=True,
+            unquoted_capitalised_terms_policy="legal_only",
             enabled_domains=frozenset({"legal"})
         )
         detector = defined_term_detector_factory(
-            allow_unquoted_capitalised_terms=True,
-            require_legal_domain_for_unquoted=True,
-        enabled_domains=frozenset({"legal"}))
+            unquoted_capitalised_terms_policy="legal_only",
+            enabled_domains=frozenset({"legal"}))
         text = "Following a Change of Control, the Customer may terminate."
 
         out = detector._iter_references(
@@ -294,14 +288,17 @@ class TestDefinedTermDetectorIterOccurrences:
 
         assert out == []
 
-    def test_resolves_suffix_from_broader_capitalised_run(self, cfg_terms_det_factory, defined_term_detector_factory):
+    def test_resolves_suffix_from_broader_capitalised_run_when_policy_is_always(
+        self,
+        cfg_terms_det_factory,
+        defined_term_detector_factory,
+    ):
         cfg = cfg_terms_det_factory(
-            allow_unquoted_capitalised_terms=True,
-            require_legal_domain_for_unquoted=False,
+            unquoted_capitalised_terms_policy="always",
         )
         detector = defined_term_detector_factory(
-            allow_unquoted_capitalised_terms=True,
-            require_legal_domain_for_unquoted=False)
+            unquoted_capitalised_terms_policy="always",
+        )
         text = "Each Party shall protect the other Party's Confidential Information."
 
         out = detector._iter_references(
@@ -320,12 +317,10 @@ class TestDefinedTermDetectorIterOccurrences:
     def test_skips_broader_capitalised_run_when_suffix_not_known(self, cfg_terms_det_factory,
                                                                  defined_term_detector_factory):
         cfg = cfg_terms_det_factory(
-            allow_unquoted_capitalised_terms=True,
-            require_legal_domain_for_unquoted=False,
+            unquoted_capitalised_terms_policy="legal_only",
         )
         detector = defined_term_detector_factory(
-            allow_unquoted_capitalised_terms=True,
-            require_legal_domain_for_unquoted=False)
+            unquoted_capitalised_terms_policy="legal_only")
         text = "Each Party shall protect the other Party's Confidential Information."
 
         out = detector._iter_references(
@@ -343,12 +338,10 @@ class TestDefinedTermDetectorIterOccurrences:
                                                                 cfg_terms_det_factory,
                                                                 defined_term_detector_factory):
         cfg = cfg_terms_det_factory(
-            allow_unquoted_capitalised_terms=True,
-            require_legal_domain_for_unquoted=False,
+            unquoted_capitalised_terms_policy="legal_only",
         )
         detector = defined_term_detector_factory(
-            allow_unquoted_capitalised_terms=True,
-            require_legal_domain_for_unquoted=False)
+            unquoted_capitalised_terms_policy="legal_only")
         text = "Change of Control means any sale of assets."
 
         out = detector._iter_references(
@@ -373,8 +366,7 @@ class TestDefinedTermDetectorDetect:
         """
 
         result = defined_term_detector_factory(
-            allow_unquoted_capitalised_terms=True,
-            require_legal_domain_for_unquoted=False,
+            unquoted_capitalised_terms_policy="legal_only",
             enabled_domains=frozenset({"legal"})).detect(text)
 
         assert set(result.unique_terms.keys()) == {"effective_date", "services"}
@@ -387,8 +379,7 @@ class TestDefinedTermDetectorDetect:
         """
 
         result = defined_term_detector_factory(
-            allow_unquoted_capitalised_terms=True,
-            require_legal_domain_for_unquoted=True,
+            unquoted_capitalised_terms_policy="legal_only",
             enabled_domains=frozenset({"legal"})).detect(text)
 
         assert "agreement" in result.unique_terms
@@ -401,8 +392,7 @@ class TestDefinedTermDetectorDetect:
         """
 
         result = defined_term_detector_factory(
-            allow_unquoted_capitalised_terms=True,
-            require_legal_domain_for_unquoted=True,
+            unquoted_capitalised_terms_policy="legal_only",
             enabled_domains=frozenset({"legal"})).detect(text)
 
         assert "change_of_control" in result.unique_terms
@@ -415,16 +405,14 @@ class TestDefinedTermDetectorDetect:
         """
 
         result = defined_term_detector_factory(
-            allow_unquoted_capitalised_terms=True,
-            require_legal_domain_for_unquoted=True,
+            unquoted_capitalised_terms_policy="legal_only",
             enabled_domains=frozenset()).detect(text)
 
         assert result.unique_terms == {}
         assert result.mentions == []
 
     def test_detect_does_not_duplicate_intro_spans_as_occurrences(self, defined_term_detector_factory):
-        detector = defined_term_detector_factory(allow_unquoted_capitalised_terms=True,
-                                                 require_legal_domain_for_unquoted=False,
+        detector = defined_term_detector_factory(unquoted_capitalised_terms_policy="legal_only",
                                                  enabled_domains=frozenset({"legal"}), )
 
         text = """
@@ -444,8 +432,7 @@ class TestDefinedTermDetectorDetect:
         """
 
         result = defined_term_detector_factory(
-            allow_unquoted_capitalised_terms=True,
-            require_legal_domain_for_unquoted=False,
+            unquoted_capitalised_terms_policy="legal_only",
             enabled_domains=frozenset({"legal"})).detect(text)
 
         assert "confidential_information" in result.unique_terms
@@ -460,8 +447,7 @@ class TestDefinedTermDetectorDetect:
         """
 
         result = defined_term_detector_factory(
-            allow_unquoted_capitalised_terms=False,
-            require_legal_domain_for_unquoted=True,
+            unquoted_capitalised_terms_policy="legal_only",
             enabled_domains=frozenset({"legal"})).detect(text)
 
         assert sorted(result.unique_terms.keys()) == ["effective_date", "services"]
@@ -480,8 +466,7 @@ class TestDefinedTermDetectorDetect:
         """
 
         result = defined_term_detector_factory(
-            allow_unquoted_capitalised_terms=True,
-            require_legal_domain_for_unquoted=True,
+            unquoted_capitalised_terms_policy="legal_only",
             enabled_domains=frozenset()).detect(text)
 
         assert "change_of_control" in result.unique_terms
@@ -498,8 +483,7 @@ class TestDefinedTermDetectorDetect:
         """
 
         result = defined_term_detector_factory(
-            allow_unquoted_capitalised_terms=True,
-            require_legal_domain_for_unquoted=False,
+            unquoted_capitalised_terms_policy="legal_only",
             enabled_domains=frozenset({"legal"})).detect(text)
 
         assert set(result.unique_terms.keys()) == {
