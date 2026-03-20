@@ -47,6 +47,7 @@ class TermMeaning:
         alias_target_text: Antecedent phrase text immediately preceding a
             parenthetical alias introduction, when extracted.
     """
+
     meaning_id: str
     surface: str
     normalized_key: str
@@ -73,6 +74,7 @@ class TermCandidateScore:
             when available.
         components: Named score components contributing to the total score.
     """
+
     meaning_id: str
     total_score: float
     tier1_score: float
@@ -98,6 +100,7 @@ class TermResolution:
         resolution_method: Resolution path used to choose the winning meaning,
             or ``unresolved`` when no winner was selected.
     """
+
     occurrence_span: TextSpanTuple
     term: str
     normalized_key: str
@@ -131,6 +134,7 @@ class TermDefinitionEntry:
         section_path: Structural path locating the introduction within the
             document.
     """
+
     surface: str
     normalized_key: str
     intro_span: TextSpanTuple
@@ -140,6 +144,7 @@ class TermDefinitionEntry:
     alias_target_span: TextSpanTuple | None = None
     alias_target_text: str | None = None
     section_path: tuple[str, ...] = ()
+
 
 @dataclass(frozen=True)
 class TermTier1OccurrenceRanking:
@@ -153,6 +158,7 @@ class TermTier1OccurrenceRanking:
         gap: Absolute score gap between the top two candidates.
         margin: Relative confidence margin for the top-ranked candidate.
     """
+
     occ: DefinedTermMention
     candidate_scores: dict[str, float]
     chosen_meaning_id: str | None
@@ -171,6 +177,7 @@ class TermTier2OccurrenceRanking:
         tier2_sims: Raw semantic similarity scores by meaning ID when available.
         blended_scores: Final blended Tier 1 / Tier 2 scores when available.
     """
+
     occ: DefinedTermMention
     applied: bool
     skip_reason: TermTier2SkipReason | None
@@ -195,6 +202,7 @@ class TermResolutionResult:
         tier2_report: Aggregate Tier 2 application/skip report, when available.
         tier2_ranked: Per-occurrence Tier 2 reranking outcomes.
     """
+
     term_meaning_index: dict[str, tuple[TermMeaning, ...]] = field(default_factory=dict)
     meaning_index: Mapping[str, TermMeaning] = field(default_factory=dict)
     term_resolutions: list[TermResolution] = field(default_factory=list)

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import re
 
+from plainera_unacronym.nlp.common.types import TextSpanTuple
 from plainera_unacronym.nlp.detection.defined_terms import DefinedTermDetectorResult
 from plainera_unacronym.nlp.extraction.defined_terms.structure import TermStructureIndex
 from plainera_unacronym.nlp.extraction.defined_terms.types import TermDefinitionEntry
@@ -100,10 +101,35 @@ def _find_definition_end(
     end = start + (min(stop_candidates) if stop_candidates else len(chunk))
     return end if end > start else None
 
+
 def _extract_parenthetical_alias_target(
     text: str,
-    intro_span: tuple[str, int, int],
-) -> tuple[tuple[str, int, int] | None, str | None]:
+    intro_span: TextSpanTuple,
+) -> tuple[TextSpanTuple | None, str | None]:
+    """Extract the antecedent phrase for a parenthetical alias introduction.
+
+    Walks left from the alias parenthetical opening bracket and captures the
+    immediately preceding phrase up to the nearest hard boundary. This is used
+    for introduction forms such as:
+
+        This Master Services Agreement (the "Agreement")
+        Acme Limited (the "Supplier")
+
+    The extraction is intentionally conservative. It does not attempt full
+    noun-phrase parsing and stops at simple sentence or line boundaries to
+    avoid swallowing trailing clause text from earlier context.
+
+    Args:
+        text: Full source text containing the introduction.
+        intro_span: Span of the alias term itself, for example
+            ``("Agreement", 37, 46)``.
+
+    Returns:
+        A tuple of:
+            - the extracted antecedent span as ``(span_text, start, end)``, or
+              ``None`` if no plausible antecedent could be found
+            - the extracted antecedent text, or ``None`` if not found
+    """
     _, intro_start, _ = intro_span
 
     open_paren = text.rfind("(", 0, intro_start)
@@ -132,6 +158,7 @@ def _extract_parenthetical_alias_target(
     trimmed_end = trimmed_start + len(candidate)
 
     return (candidate, trimmed_start, trimmed_end), candidate
+
 
 def extract_term_definitions(
     *,
