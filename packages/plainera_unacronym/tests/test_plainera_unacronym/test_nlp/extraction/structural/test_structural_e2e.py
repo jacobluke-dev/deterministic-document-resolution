@@ -274,3 +274,90 @@ class TestDetectAndResolveStructuralReferences:
 
         assert extr.unique_links["section_4_2"].target_span is not None
         assert extr.unique_links["schedule_a"].target_span is not None
+
+    def test_resolve_article_roman_reference(self):
+        text = (
+            "The rule in Article III applies to all disputes.\n\n"
+            "Article III: Interpretation\n"
+            "Definitions and interpretive rules appear here.\n"
+        )
+
+        cfg = StructuralReferenceExtractionConfig(convert_roman_numerals=True)
+
+        det_res, extr = detect_and_resolve_structural_references(
+            text,
+            ext_cfg=cfg,
+        )
+
+        assert len(det_res.references) == 2
+        assert [ref.normalized_key for ref in det_res.references] == [
+            "article_iii",
+            "article_iii",
+        ]
+
+        assert len(extr.references) == 2
+        assert [ref.canonical_key for ref in extr.references] == [
+            "article_3",
+            "article_3",
+        ]
+
+        assert len(extr.links) == 2
+        assert len(extr.unique_links) == 1
+        assert set(extr.unique_links) == {"article_3"}
+
+        link = extr.unique_links["article_3"]
+        assert link.target_span is not None
+        assert link.confidence == 1.0
+
+        start, end = link.target_span
+        assert text[start:end] == "Article III: Interpretation"
+
+    def test_unresolved_article_roman_reference(self) -> None:
+        text = (
+            "The exception in Article IV applies in limited cases.\n\n"
+            "Article III: Interpretation\n"
+            "Schedule A: Services Description\n"
+        )
+
+        cfg = StructuralReferenceExtractionConfig(convert_roman_numerals=True)
+
+        det_res, extr = detect_and_resolve_structural_references(
+            text,
+            ext_cfg=cfg,
+        )
+
+        assert "article_iv" in [ref.normalized_key for ref in det_res.references]
+        assert "article_4" in [ref.canonical_key for ref in extr.references]
+
+        assert "article_4" in extr.unique_links
+        link = extr.unique_links["article_4"]
+
+        assert link.target_span is None
+        assert link.confidence == 0.0
+
+    def test_return_state_includes_roman_anchor_index_and_links(self) -> None:
+        text = (
+            "See Article III for interpretation.\n\n"
+            "Article III: Interpretation\n"
+        )
+
+        cfg = StructuralReferenceExtractionConfig(convert_roman_numerals=True)
+
+        det_res, extr, state = detect_and_resolve_structural_references(
+            text,
+            ext_cfg=cfg,
+            return_state=True,
+        )
+
+        assert len(det_res.references) == 2
+        assert [ref.normalized_key for ref in det_res.references] == [
+            "article_iii",
+            "article_iii",
+        ]
+
+        assert len(state.anchors) == 1
+        assert set(state.anchor_index) == {"article_3"}
+
+        assert len(state.link_entries) == 2
+        assert len(extr.unique_links) == 1
+        assert extr.unique_links["article_3"].target_span is not None
