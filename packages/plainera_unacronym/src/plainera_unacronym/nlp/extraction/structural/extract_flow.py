@@ -73,10 +73,28 @@ class StructuralReferenceResolutionFlow(
                     lambda s: s.last_info,
                 ),
                 Stage(
-                    "build_structural_reference_resolutions",
-                    f.st_build_structural_reference_resolutions,
+                    "build_structural_reference_entries",
+                    f.st_build_structural_reference_entries,
                     lambda s: s.last_info,
                     trace_fields=("resolution_entries",),
+                ),
+                Stage(
+                    "extract_structural_anchors",
+                    f.st_extract_structural_anchors,
+                    lambda s: s.last_info,
+                    trace_fields=("anchors",),
+                ),
+                Stage(
+                    "build_structural_anchor_index",
+                    f.st_build_structural_anchor_index,
+                    lambda s: s.last_info,
+                    trace_fields=("anchor_index",),
+                ),
+                Stage(
+                    "link_structural_references",
+                    f.st_link_structural_references,
+                    lambda s: s.last_info,
+                    trace_fields=("link_entries",),
                 ),
                 Stage(
                     "assemble_structural_reference_resolutions",
