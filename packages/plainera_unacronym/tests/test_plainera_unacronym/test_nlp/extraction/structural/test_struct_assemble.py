@@ -8,7 +8,7 @@ from plainera_unacronym.nlp.extraction.structural.config import (
 )
 from plainera_unacronym.nlp.extraction.structural.state import StructuralFlowState
 from plainera_unacronym.nlp.extraction.structural.types import (
-    StructuralReferenceResolution,
+    StructuralReferenceEntry,
     StructuralReferenceResolutionResult,
 )
 
@@ -26,7 +26,7 @@ class TestAssembleStructuralReferenceResolutionResult:
         )
 
         state.resolution_entries = [
-            StructuralReferenceResolution(
+            StructuralReferenceEntry(
                 kind="Section",
                 label="4.2",
                 canonical_label="4.2",
@@ -50,7 +50,7 @@ class TestAssembleStructuralReferenceResolutionResult:
         )
 
         state.resolution_entries = [
-            StructuralReferenceResolution(
+            StructuralReferenceEntry(
                 kind="Clause",
                 label="7",
                 canonical_label="7",
@@ -60,7 +60,7 @@ class TestAssembleStructuralReferenceResolutionResult:
                 end_offset=12,
                 provenance="structural_reference_detector",
             ),
-            StructuralReferenceResolution(
+            StructuralReferenceEntry(
                 kind="Section",
                 label="4.2",
                 canonical_label="4.2",
@@ -70,7 +70,7 @@ class TestAssembleStructuralReferenceResolutionResult:
                 end_offset=25,
                 provenance="structural_reference_detector",
             ),
-            StructuralReferenceResolution(
+            StructuralReferenceEntry(
                 kind="Schedule",
                 label="A",
                 canonical_label="A",
@@ -97,7 +97,7 @@ class TestAssembleStructuralReferenceResolutionResult:
             ext_cfg=StructuralReferenceExtractionConfig(),
         )
 
-        section_ref = StructuralReferenceResolution(
+        section_ref = StructuralReferenceEntry(
             kind="Section",
             label="4.2",
             canonical_label="4.2",
@@ -107,7 +107,7 @@ class TestAssembleStructuralReferenceResolutionResult:
             end_offset=15,
             provenance="structural_reference_detector",
         )
-        schedule_ref = StructuralReferenceResolution(
+        schedule_ref = StructuralReferenceEntry(
             kind="Schedule",
             label="A",
             canonical_label="A",
@@ -134,7 +134,7 @@ class TestAssembleStructuralReferenceResolutionResult:
             ext_cfg=StructuralReferenceExtractionConfig(),
         )
 
-        first_ref = StructuralReferenceResolution(
+        first_ref = StructuralReferenceEntry(
             kind="Section",
             label="4.2",
             canonical_label="4.2",
@@ -144,7 +144,7 @@ class TestAssembleStructuralReferenceResolutionResult:
             end_offset=11,
             provenance="structural_reference_detector",
         )
-        second_ref = StructuralReferenceResolution(
+        second_ref = StructuralReferenceEntry(
             kind="Section",
             label="4.2",
             canonical_label="4.2",
