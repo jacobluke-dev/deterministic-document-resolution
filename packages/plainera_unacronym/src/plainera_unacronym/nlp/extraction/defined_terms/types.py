@@ -56,7 +56,7 @@ class TermMeaning:
     definition_text: str | None
     intro_kind: str
     section_path: tuple[str, ...]
-    alias_target_span: tuple[str, int, int] | None = None
+    alias_target_span: TextSpanTuple | None = None
     alias_target_text: str | None = None
 
 
@@ -133,11 +133,11 @@ class TermDefinitionEntry:
     """
     surface: str
     normalized_key: str
-    intro_span: tuple[str, int, int]
-    definition_span: tuple[str, int, int] | None
+    intro_span: TextSpanTuple
+    definition_span: TextSpanTuple | None
     definition_text: str | None
     intro_kind: str
-    alias_target_span: tuple[str, int, int] | None = None
+    alias_target_span: TextSpanTuple | None = None
     alias_target_text: str | None = None
     section_path: tuple[str, ...] = ()
 
