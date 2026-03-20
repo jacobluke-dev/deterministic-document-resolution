@@ -3,6 +3,7 @@ from plainera_unacronym.nlp.plugins.activation import autodetect_domains
 
 
 class TestDefinedTermDetectorMentions:
+
     def test_detect_logs_later_mentions_after_introductions(self, defined_term_detector_factory):
         text = '''
         This Master Services Agreement (the "Agreement") is entered into on the "Effective Date".
@@ -18,7 +19,7 @@ class TestDefinedTermDetectorMentions:
         '''.strip()
 
         result = defined_term_detector_factory(
-            allow_unquoted_capitalised_terms=True,
+            unquoted_capitalised_terms_policy="legal_only",
             enabled_domains=frozenset({"legal"})
         ).detect(text)
 
@@ -53,11 +54,6 @@ class TestDefinedTermDetectorE2E:
         return {(intro.start_offset, intro.end_offset) for intro in result.introductions}
 
     def test_detect_collects_introductions_and_later_mentions(self, defined_term_detector_factory):
-        detector = defined_term_detector_factory(
-            allow_unquoted_capitalised_terms=True,
-            require_legal_domain_for_unquoted=False,
-        )
-
         text = """
         This Master Services Agreement (the "Agreement") is entered into on the Effective Date.
         "Effective Date" means the date on which both Parties sign this Agreement.
@@ -71,7 +67,7 @@ class TestDefinedTermDetectorE2E:
         Under this Agreement, the Services may change from time to time after the Effective Date.
         """.strip()
 
-        result = detector.detect(text)
+        result = defined_term_detector_factory(unquoted_capitalised_terms_policy="legal_only",).detect(text)
 
         assert len(result.introductions) == 4
         assert set(self._intro_keys(result)) == {
@@ -94,11 +90,6 @@ class TestDefinedTermDetectorE2E:
         assert self._intro_spans(result).isdisjoint(self._mention_spans(result))
 
     def test_detect_preserves_multiple_introductions_for_same_term(self, defined_term_detector_factory):
-        detector = defined_term_detector_factory(
-            allow_unquoted_capitalised_terms=True,
-            require_legal_domain_for_unquoted=False,
-        )
-
         text = """
         "Services" means the consultancy services described in the main body.
 
@@ -108,7 +99,7 @@ class TestDefinedTermDetectorE2E:
         The Services shall be delivered in accordance with this Agreement.
         """.strip()
 
-        result = detector.detect(text)
+        result =  defined_term_detector_factory(unquoted_capitalised_terms_policy="legal_only",).detect(text)
 
         services_intros = [i for i in result.introductions if i.normalized_key == "services"]
 
@@ -117,11 +108,6 @@ class TestDefinedTermDetectorE2E:
         assert any(m.normalized_key == "services" for m in result.mentions)
 
     def test_detect_unquoted_mentions_when_enabled(self, defined_term_detector_factory):
-        detector = defined_term_detector_factory(
-            allow_unquoted_capitalised_terms=True,
-            require_legal_domain_for_unquoted=False,
-        )
-
         text = """
         "Agreement" means this Master Services Agreement.
         "Services" means the software development services.
@@ -131,7 +117,7 @@ class TestDefinedTermDetectorE2E:
         The Services shall begin after the Effective Date.
         """.strip()
 
-        result = detector.detect(text)
+        result = defined_term_detector_factory(unquoted_capitalised_terms_policy="legal_only",).detect(text)
         mention_keys = self._mention_keys(result)
 
         assert "agreement" in mention_keys
@@ -139,11 +125,6 @@ class TestDefinedTermDetectorE2E:
         assert "effective_date" in mention_keys
 
     def test_detect_does_not_count_pre_intro_quoted_reference_as_later_mention(self, defined_term_detector_factory):
-        detector = defined_term_detector_factory(
-            allow_unquoted_capitalised_terms=True,
-            require_legal_domain_for_unquoted=False,
-        )
-
         text = """
         The parties discussed the "Effective Date" before execution.
         "Effective Date" means the date on which both Parties sign this Agreement.
@@ -151,7 +132,7 @@ class TestDefinedTermDetectorE2E:
         The Effective Date shall be recorded in writing.
         """.strip()
 
-        result = detector.detect(text)
+        result = defined_term_detector_factory(unquoted_capitalised_terms_policy="legal_only",).detect(text)
 
         effective_mentions = [m for m in result.mentions if m.normalized_key == "effective_date"]
 
@@ -160,11 +141,6 @@ class TestDefinedTermDetectorE2E:
         assert effective_mentions[0].start_offset > result.introductions[0].end_offset
 
     def test_detect_parenthetical_alias_is_introduction_not_later_mention(self, defined_term_detector_factory):
-        detector = defined_term_detector_factory(
-            allow_unquoted_capitalised_terms=True,
-            require_legal_domain_for_unquoted=False,
-        )
-
         text = """
         This Master Services Agreement (the "Agreement") is entered into on the Effective Date.
         "Effective Date" means the date on which both Parties sign this Agreement.
@@ -172,7 +148,7 @@ class TestDefinedTermDetectorE2E:
         The Agreement shall commence on the Effective Date.
         """.strip()
 
-        result = detector.detect(text)
+        result = defined_term_detector_factory(unquoted_capitalised_terms_policy="legal_only",).detect(text)
 
         agreement_intros = [i for i in result.introductions if i.normalized_key == "agreement"]
         agreement_mentions = [m for m in result.mentions if m.normalized_key == "agreement"]
@@ -186,11 +162,6 @@ class TestDefinedTermDetectorE2E:
         assert intro_span not in mention_spans
 
     def test_detect_does_not_emit_intro_spans_as_mentions(self, defined_term_detector_factory):
-        detector = defined_term_detector_factory(
-            allow_unquoted_capitalised_terms=True,
-            require_legal_domain_for_unquoted=False,
-        )
-
         text = """
         This Master Services Agreement (the "Agreement") is entered into on the Effective Date.
         "Effective Date" means the date on which both Parties sign this Agreement.
@@ -200,7 +171,7 @@ class TestDefinedTermDetectorE2E:
         The Services shall begin on the Effective Date.
         """.strip()
 
-        result = detector.detect(text)
+        result = defined_term_detector_factory(unquoted_capitalised_terms_policy="legal_only",).detect(text)
 
         intro_spans = self._intro_spans(result)
         mention_spans = set(self._mention_spans(result))
@@ -209,18 +180,13 @@ class TestDefinedTermDetectorE2E:
         assert intro_spans.isdisjoint(mention_spans)
 
     def test_detect_dedupes_same_mention_span(self, defined_term_detector_factory):
-        detector = defined_term_detector_factory(
-            allow_unquoted_capitalised_terms=True,
-            require_legal_domain_for_unquoted=False,
-        )
-
         text = """
         "Effective Date" means the date on which both Parties sign this Agreement.
 
         The "Effective Date" shall be recorded in writing.
         """.strip()
 
-        result = detector.detect(text)
+        result = defined_term_detector_factory(unquoted_capitalised_terms_policy="legal_only",).detect(text)
 
         effective_mentions = [m for m in result.mentions if m.normalized_key == "effective_date"]
         mention_spans = [(m.start_offset, m.end_offset) for m in effective_mentions]
@@ -230,8 +196,7 @@ class TestDefinedTermDetectorE2E:
 
     def test_auto_detect_domains_enables_legal_for_legalish_text(self, defined_term_detector_factory):
         detector = defined_term_detector_factory(
-            allow_unquoted_capitalised_terms=True,
-            require_legal_domain_for_unquoted=True,
+            unquoted_capitalised_terms_policy="legal_only",
             enabled_domains=frozenset(),
             auto_detect_domains=True,
         )
@@ -260,16 +225,14 @@ class TestDefinedTermDetectorE2E:
         """.strip()
 
         detector_no_legal = defined_term_detector_factory(
-            allow_unquoted_capitalised_terms=True,
-            require_legal_domain_for_unquoted=True,
+            unquoted_capitalised_terms_policy="legal_only",
             enabled_domains=frozenset({"bio"}),
             auto_detect_domains=False,
         )
         result_no_legal = detector_no_legal.detect(text)
 
         detector_legal = defined_term_detector_factory(
-            allow_unquoted_capitalised_terms=True,
-            require_legal_domain_for_unquoted=True,
+            unquoted_capitalised_terms_policy="legal_only",
             enabled_domains=frozenset({"legal"}),
             auto_detect_domains=False,
         )
@@ -289,10 +252,7 @@ class TestDefinedTermDetectorE2E:
         If any individual wishes to make any adaptations to the Agreement, this must be done with prior notice.
         """.strip()
 
-        detector = defined_term_detector_factory(
-            allow_unquoted_capitalised_terms=True,
-            require_legal_domain_for_unquoted=True,
-        )
+        detector = defined_term_detector_factory(unquoted_capitalised_terms_policy="legal_only",)
         auto = autodetect_domains(text, detector.cfg)
         assert "legal" in auto
         result = detector.detect(text)
@@ -301,11 +261,6 @@ class TestDefinedTermDetectorE2E:
         assert "agreement" in mention_keys
 
     def test_detect_does_not_emit_unknown_terms_as_mentions(self, defined_term_detector_factory):
-        detector = defined_term_detector_factory(
-            allow_unquoted_capitalised_terms=True,
-            require_legal_domain_for_unquoted=False,
-        )
-
         text = """
         "Agreement" means this Master Services Agreement.
 
@@ -314,7 +269,7 @@ class TestDefinedTermDetectorE2E:
         The Agreement shall commence on signature.
         """.strip()
 
-        result = detector.detect(text)
+        result = defined_term_detector_factory(unquoted_capitalised_terms_policy="legal_only",).detect(text)
         mention_keys = self._mention_keys(result)
 
         assert "agreement" in mention_keys
@@ -322,11 +277,6 @@ class TestDefinedTermDetectorE2E:
         assert "termination" not in mention_keys
 
     def test_detect_handles_multiple_later_mentions_of_same_term(self, defined_term_detector_factory):
-        detector = defined_term_detector_factory(
-            allow_unquoted_capitalised_terms=True,
-            require_legal_domain_for_unquoted=False,
-        )
-
         text = """
         "Services" means the software development, support, and maintenance services.
 
@@ -335,7 +285,7 @@ class TestDefinedTermDetectorE2E:
         Changes to the Services must be agreed in writing.
         """.strip()
 
-        result = detector.detect(text)
+        result = defined_term_detector_factory(unquoted_capitalised_terms_policy="legal_only",).detect(text)
 
         service_mentions = [m for m in result.mentions if m.normalized_key == "services"]
 
@@ -343,11 +293,6 @@ class TestDefinedTermDetectorE2E:
         assert len(service_mentions) == 3
 
     def test_detect_parenthetical_alias_and_means_intros_coexist(self, defined_term_detector_factory):
-        detector = defined_term_detector_factory(
-            allow_unquoted_capitalised_terms=True,
-            require_legal_domain_for_unquoted=False,
-        )
-
         text = """
         This Master Services Agreement (the "Agreement") is entered into on the Effective Date.
         "Services" means the software development services described in Schedule A.
@@ -356,7 +301,7 @@ class TestDefinedTermDetectorE2E:
         The Services shall be performed with reasonable skill and care.
         """.strip()
 
-        result = detector.detect(text)
+        result = defined_term_detector_factory(unquoted_capitalised_terms_policy="legal_only",).detect(text)
 
         intro_keys = self._intro_keys(result)
         mention_keys = self._mention_keys(result)
@@ -367,11 +312,6 @@ class TestDefinedTermDetectorE2E:
         assert "services" in mention_keys
 
     def test_detect_preserves_document_order_of_introductions(self, defined_term_detector_factory):
-        detector = defined_term_detector_factory(
-            allow_unquoted_capitalised_terms=True,
-            require_legal_domain_for_unquoted=False,
-        )
-
         text = """
         This Master Services Agreement (the "Agreement") is made on the Effective Date.
         "Services" means the consultancy services described in the main body.
@@ -380,7 +320,7 @@ class TestDefinedTermDetectorE2E:
         "Services" means the software maintenance services described in this schedule.
         """.strip()
 
-        result = detector.detect(text)
+        result = defined_term_detector_factory(unquoted_capitalised_terms_policy="legal_only",).detect(text)
 
         intro_keys = self._intro_keys(result)
         intro_starts = [intro.start_offset for intro in result.introductions]

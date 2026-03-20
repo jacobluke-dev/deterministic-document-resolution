@@ -11,7 +11,7 @@ from plainera_unacronym.nlp.common.types import (
     InTextPick,
 )
 from plainera_unacronym.nlp.detection.cleanup import DroppedOccurrence
-from plainera_unacronym.nlp.extraction import ExtractionConfig
+from plainera_unacronym.nlp.extraction.acronyms.config import ExtractionConfig
 from plainera_unacronym.nlp.extraction.tiers.types import Tier1Work, Tier2Work
 
 

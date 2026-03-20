@@ -4,8 +4,8 @@ from typing import Optional
 from plainera_unacronym.nlp.common.constants_regex import TOKEN_RE
 from plainera_unacronym.nlp.common.shared import has_letter
 from plainera_unacronym.nlp.common.types import INLINE, INLINE_BEFORE, INLINE_KINDS
-from plainera_unacronym.nlp.extraction import ExtractionConfig
 from plainera_unacronym.nlp.extraction.acronyms.anchored.normalise import tighten_definition_span
+from plainera_unacronym.nlp.extraction.acronyms.config import ExtractionConfig
 from plainera_unacronym.nlp.extraction.acronyms.core.normalise import normalize_definition
 from plainera_unacronym.nlp.extraction.acronyms.matchers.tighten import tighten_label_by_acronym
 

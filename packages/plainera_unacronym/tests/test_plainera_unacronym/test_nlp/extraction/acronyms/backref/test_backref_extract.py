@@ -1,12 +1,12 @@
 from plainera_unacronym.nlp import FirstOccurrence
 from plainera_unacronym.nlp.common.types import ExtractedDefinition
-from plainera_unacronym.nlp.extraction import ExtractionConfig
 from plainera_unacronym.nlp.extraction.acronyms.backref.extract import (
     _candidate_from_prev_sentence,
     _find_backref_candidate,
     _score_backref_confidence,
     extract_sentence_backrefs,
 )
+from plainera_unacronym.nlp.extraction.acronyms.config import ExtractionConfig
 
 
 class TestScoreBackrefConfidence:
