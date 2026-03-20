@@ -161,16 +161,25 @@ class TestDetectAndResolveStructuralReferences:
 
         det_res, extr = detect_and_resolve_structural_references(text)
 
-        assert len(det_res.references) == 1
-        assert det_res.references[0].normalized_key == "schedule_a"
+        assert len(det_res.references) == 2
+        assert [ref.normalized_key for ref in det_res.references] == [
+            "schedule_a",
+            "schedule_a",
+        ]
 
-        assert len(extr.references) == 1
-        assert extr.references[0].canonical_key == "schedule_a"
+        assert len(extr.references) == 2
+        assert [ref.canonical_key for ref in extr.references] == [
+            "schedule_a",
+            "schedule_a",
+        ]
 
-        assert len(extr.links) == 1
-        link = extr.links[0]
+        assert len(extr.links) == 2
+        assert all(link.canonical_key == "schedule_a" for link in extr.links)
 
-        assert link.canonical_key == "schedule_a"
+        assert len(extr.unique_links) == 1
+        assert set(extr.unique_links) == {"schedule_a"}
+
+        link = extr.unique_links["schedule_a"]
         assert link.target_span is not None
         assert link.confidence == 1.0
 
@@ -211,18 +220,27 @@ class TestDetectAndResolveStructuralReferences:
 
         det_res, extr = detect_and_resolve_structural_references(text)
 
-        assert len(det_res.references) == 1
-        assert det_res.references[0].normalized_key == "schedule_c"
+        assert len(det_res.references) == 3
+        assert [ref.normalized_key for ref in det_res.references] == [
+            "schedule_c",
+            "schedule_a",
+            "schedule_b",
+        ]
 
-        assert len(extr.references) == 1
-        assert extr.references[0].canonical_key == "schedule_c"
+        assert len(extr.references) == 3
+        assert [ref.canonical_key for ref in extr.references] == [
+            "schedule_c",
+            "schedule_a",
+            "schedule_b",
+        ]
 
-        assert len(extr.links) == 1
-        link = extr.links[0]
+        assert len(extr.links) == 3
+        assert len(extr.unique_links) == 3
+        assert set(extr.unique_links) == {"schedule_a", "schedule_b", "schedule_c"}
 
-        assert link.canonical_key == "schedule_c"
-        assert link.target_span is None
-        assert link.confidence == 0.0
+        unresolved = extr.unique_links["schedule_c"]
+        assert unresolved.target_span is None
+        assert unresolved.confidence == 0.0
 
     def test_return_state_includes_anchors_index_and_links(self) -> None:
         text = (
@@ -236,12 +254,23 @@ class TestDetectAndResolveStructuralReferences:
             return_state=True,
         )
 
-        assert len(det_res.references) == 2
-        assert len(extr.references) == 2
-        assert len(extr.links) == 2
+        assert len(det_res.references) == 3
+        assert [ref.normalized_key for ref in det_res.references] == [
+            "section_4_2",
+            "schedule_a",
+            "schedule_a",
+        ]
+
+        assert len(extr.references) == 3
+        assert len(extr.links) == 3
 
         assert len(state.anchors) == 2
         assert set(state.anchor_index) == {"section_4_2", "schedule_a"}
 
-        assert len(state.link_entries) == 2
-        assert all(link.target_span is not None for link in state.link_entries)
+        assert len(state.link_entries) == 3
+
+        assert len(extr.unique_links) == 2
+        assert set(extr.unique_links) == {"section_4_2", "schedule_a"}
+
+        assert extr.unique_links["section_4_2"].target_span is not None
+        assert extr.unique_links["schedule_a"].target_span is not None

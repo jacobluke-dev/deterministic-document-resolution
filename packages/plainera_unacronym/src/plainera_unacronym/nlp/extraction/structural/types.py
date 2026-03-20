@@ -44,3 +44,4 @@ class StructuralReferenceResolutionResult:
     references: list[StructuralReferenceEntry]
     links: list[StructuralReferenceLink]
     unique_keys: dict[str, StructuralReferenceEntry]
+    unique_links: dict[str, StructuralReferenceLink]
