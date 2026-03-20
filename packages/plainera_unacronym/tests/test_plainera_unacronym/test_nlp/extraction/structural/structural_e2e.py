@@ -52,7 +52,7 @@ class TestDetectAndResolveStructuralReferences:
 
         assert state.det_res is det_res
         assert state.extr is extr
-        assert len(state.resolution_entries) == 2
+        assert len(state.reference_entries) == 2
 
     def test_detect_and_resolve_structural_references_returns_reports_and_state_when_requested(self):
         text = "See Section 4.2."

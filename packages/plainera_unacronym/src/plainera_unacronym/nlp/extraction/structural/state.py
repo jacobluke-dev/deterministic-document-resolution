@@ -17,7 +17,7 @@ class StructuralFlowState:
     ext_cfg: StructuralReferenceExtractionConfig
 
     det_res: StructuralReferenceDetectorResult | None = None
-    resolution_entries: list[StructuralReferenceEntry] = field(default_factory=list)
+    reference_entries: list[StructuralReferenceEntry] = field(default_factory=list)
     extr: StructuralReferenceResolutionResult | None = None
     anchors: list[StructuralAnchor] = field(default_factory=list)
     anchor_index: dict[str, list[StructuralAnchor]] = field(default_factory=dict)

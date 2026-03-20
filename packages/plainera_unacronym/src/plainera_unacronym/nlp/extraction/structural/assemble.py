@@ -27,11 +27,11 @@ def assemble_structural_reference_resolution_result(
               corresponding structural reference entry.
     """
     unique_keys: dict[str, StructuralReferenceEntry] = {}
-    for ref in s.resolution_entries:
+    for ref in s.reference_entries:
         unique_keys.setdefault(ref.canonical_key, ref)
 
     return StructuralReferenceResolutionResult(
-        references=list(s.resolution_entries),
+        references=list(s.reference_entries),
         links=list(s.link_entries),
         unique_keys=unique_keys,
     )

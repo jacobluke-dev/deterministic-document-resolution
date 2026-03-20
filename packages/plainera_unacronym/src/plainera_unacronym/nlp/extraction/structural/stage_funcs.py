@@ -26,12 +26,12 @@ def st_build_structural_reference_entries(s: StructuralFlowState) -> StageResult
     """Build structural-reference resolution entries from detector output."""
     assert s.det_res is not None
 
-    s.resolution_entries = build_structural_reference_resolutions(
+    s.reference_entries = build_structural_reference_resolutions(
         references=s.det_res.references,
         cfg=s.ext_cfg,
     )
 
-    s.last_info = f"references={len(s.det_res.references)} " f"resolution_entries={len(s.resolution_entries)}"
+    s.last_info = f"references={len(s.det_res.references)} " f"reference_entries={len(s.reference_entries)}"
     return StageResult(s, s.last_info)
 
 
@@ -58,7 +58,7 @@ def st_build_structural_anchor_index(s: StructuralFlowState) -> StageResult[Stru
 def st_link_structural_references(s: StructuralFlowState) -> StageResult[StructuralFlowState]:
     """Resolve structural reference entries to indexed structural anchors."""
     s.link_entries = build_structural_reference_links(
-        references=s.resolution_entries,
+        references=s.reference_entries,
         anchor_index=s.anchor_index,
     )
 
@@ -66,7 +66,7 @@ def st_link_structural_references(s: StructuralFlowState) -> StageResult[Structu
     unresolved = len(s.link_entries) - resolved
 
     s.last_info = (
-        f"references={len(s.resolution_entries)} "
+        f"references={len(s.reference_entries)} "
         f"links={len(s.link_entries)} "
         f"resolved={resolved} "
         f"unresolved={unresolved}"

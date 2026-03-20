@@ -25,7 +25,7 @@ class TestAssembleStructuralReferenceResolutionResult:
             ext_cfg=StructuralReferenceExtractionConfig(),
         )
 
-        state.resolution_entries = [
+        state.reference_entries = [
             StructuralReferenceEntry(
                 kind="Section",
                 label="4.2",
@@ -49,7 +49,7 @@ class TestAssembleStructuralReferenceResolutionResult:
             ext_cfg=StructuralReferenceExtractionConfig(),
         )
 
-        state.resolution_entries = [
+        state.reference_entries = [
             StructuralReferenceEntry(
                 kind="Clause",
                 label="7",
@@ -118,7 +118,7 @@ class TestAssembleStructuralReferenceResolutionResult:
             provenance="structural_reference_detector",
         )
 
-        state.resolution_entries = [section_ref, schedule_ref]
+        state.reference_entries = [section_ref, schedule_ref]
 
         out = assemble_structural_reference_resolution_result(state)
 
@@ -155,7 +155,7 @@ class TestAssembleStructuralReferenceResolutionResult:
             provenance="structural_reference_detector",
         )
 
-        state.resolution_entries = [first_ref, second_ref]
+        state.reference_entries = [first_ref, second_ref]
 
         out = assemble_structural_reference_resolution_result(state)
 
