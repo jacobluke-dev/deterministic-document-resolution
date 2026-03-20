@@ -28,7 +28,7 @@ from public_api.core.auth.chunking import make_chunks, merge_blocks, shift_block
 from public_api.core.settings import app_settings
 from public_api.db.repos.glossary_repo import GlossaryRepository
 from public_api.schemas.error import ErrorCode
-from public_api.schemas.resolve import ResolveOptions, ResolveRequest, ResolveResponse
+from public_api.schemas.resolve import ResolveOptions, ResolveRequest, ResolveResponse, ResolutionMode
 
 
 class _SpanLike(Protocol):
@@ -182,6 +182,7 @@ class ResolveService:
                 details={"hint": "Provide non-empty 'text'"},
             )
 
+
         # Prefer 413 for oversize rather than a FastAPI/Pydantic 422
         if TEXT_MAX_LEN is not None and len(payload.text) > int(TEXT_MAX_LEN):
             raise ResolveError(
@@ -262,6 +263,7 @@ class ResolveService:
         text: str,
         blocks: list[dict[str, Any]],
         started: float,
+        resolution_mode: str,
     ) -> ResolveResponse:
         """Construct the final public response with timing and input metadata.
 
@@ -282,6 +284,7 @@ class ResolveService:
                     "processing_ms": processing_ms,
                     "model_version": _plainera_core_version(),
                     "input_chars": len(text),
+                    "resolution_mode": resolution_mode,
                 },
             }
         )
@@ -612,23 +615,36 @@ class ResolveService:
         self,
         candidates: list[dict[str, Any]],
         inactive_count: int,
+        resolution_mode: ResolutionMode,
     ) -> tuple[dict[str, Any] | None, str | None]:
         """Select the best resolution candidate and explain the selection reason.
 
-        Selection policy:
-          1. Prefer document-derived candidates.
-          2. If exactly one glossary candidate remains, select it.
-          3. Otherwise prefer glossary candidate in the ``general`` domain.
-          4. Otherwise fall back to the first deterministically ordered glossary
-             candidate.
+        Current policy is constrained by the public request model: no requested
+        domain is supplied yet, so mode-specific behaviour applies only after
+        document-derived candidates are considered.
+
+        Policy:
+          - Document candidates always win first, deterministically.
+          - STRICT:
+              * if exactly one glossary candidate exists, select it;
+              * otherwise do not fall back.
+          - DOMAIN_PRIORITY:
+              * preserve current behaviour:
+                  1. single glossary candidate
+                  2. glossary candidate in ``general`` domain
+                  3. first deterministically ordered glossary candidate
+          - FALLBACK_GENERAL:
+              * prefer glossary candidate in ``general`` domain
+              * otherwise first deterministically ordered glossary candidate
 
         Args:
           candidates: All viable document and glossary candidates.
           inactive_count: Number of inactive glossary meanings filtered out earlier.
+          resolution_mode: Deterministic resolution policy to apply.
 
         Returns:
           A tuple of:
-            - selected candidate dictionary, or ``None`` if no candidates exist
+            - selected candidate dictionary, or ``None`` if no candidate qualifies
             - reason string describing the selection basis, or ``None``
         """
         document_candidates = [c for c in candidates if c.get("provenance") == "document"]
@@ -638,15 +654,20 @@ class ResolveService:
             document_candidates.sort(key=self._candidate_sort_key)
             return dict(document_candidates[0]), "in_document_definition"
 
-        if len(glossary_candidates) == 1:
-            return (
-                dict(glossary_candidates[0]),
-                "inactive_filtered" if inactive_count > 0 else "single_candidate",
-            )
+        if not glossary_candidates:
+            return None, None
 
-        if glossary_candidates:
-            glossary_candidates.sort(key=self._candidate_sort_key)
+        glossary_candidates.sort(key=self._candidate_sort_key)
 
+        if resolution_mode == ResolutionMode.STRICT:
+            if len(glossary_candidates) == 1:
+                return (
+                    dict(glossary_candidates[0]),
+                    "inactive_filtered" if inactive_count > 0 else "single_candidate",
+                )
+            return None, None
+
+        if resolution_mode == ResolutionMode.FALLBACK_GENERAL:
             general_candidate = next(
                 (c for c in glossary_candidates if str(c.get("domain") or "").casefold() == "general"),
                 None,
@@ -656,7 +677,21 @@ class ResolveService:
 
             return dict(glossary_candidates[0]), "highest_score"
 
-        return None, None
+        # Default: DOMAIN_PRIORITY
+        if len(glossary_candidates) == 1:
+            return (
+                dict(glossary_candidates[0]),
+                "inactive_filtered" if inactive_count > 0 else "single_candidate",
+            )
+
+        general_candidate = next(
+            (c for c in glossary_candidates if str(c.get("domain") or "").casefold() == "general"),
+            None,
+        )
+        if general_candidate is not None:
+            return dict(general_candidate), "fallback_general"
+
+        return dict(glossary_candidates[0]), "highest_score"
 
     def _order_candidates(
         self,
@@ -706,6 +741,7 @@ class ResolveService:
         *,
         blocks: list[dict[str, Any]],
         opts: ResolveOptions,
+        resolution_mode: ResolutionMode,
     ) -> list[dict[str, Any]]:
         """Attach candidate, selection, and conflict metadata to acronym blocks.
 
@@ -718,6 +754,7 @@ class ResolveService:
         Args:
           blocks: Public acronym blocks before resolution metadata is attached.
           opts: Effective resolve options.
+          resolution_mode: Deterministic resolution policy to apply.
 
         Returns:
           New acronym blocks enriched with ``candidates``, ``selected``,
@@ -742,7 +779,11 @@ class ResolveService:
             candidates = [*doc_candidates, *glossary_candidates]
             viable_count = len(candidates)
 
-            selected, reason = self._select_resolution_candidate(candidates, inactive_count)
+            selected, reason = self._select_resolution_candidate(
+                candidates,
+                inactive_count,
+                resolution_mode,
+            )
             ordered_candidates = self._order_candidates(candidates, selected)
 
             nb["candidates"] = ordered_candidates[:max_k] if max_k > 0 else []
@@ -873,8 +914,17 @@ class ResolveService:
                 ) from exc
 
             blocks = self._map_pipeline_to_blocks(det_res=det_res, extr=extr, opts=opts, lang=lang)
-            blocks = self._attach_resolution_metadata(blocks=blocks, opts=opts)
-            return self._build_response(text, blocks, started)
+            blocks = self._attach_resolution_metadata(
+                blocks=blocks,
+                opts=opts,
+                resolution_mode=payload.resolution_mode,
+            )
+            return self._build_response(
+                text,
+                blocks,
+                started,
+                payload.resolution_mode,
+            )
 
         # Large inputs: chunked mode
         chunks = make_chunks(
@@ -907,5 +957,10 @@ class ResolveService:
             all_blocks.append(shift_blocks(blocks, ch.start))
 
         merged = merge_blocks(all_blocks)
-        merged = self._attach_resolution_metadata(blocks=merged, opts=opts)
-        return self._build_response(text, merged, started)
+        merged = self._attach_resolution_metadata(blocks=merged, opts=opts, resolution_mode=payload.resolution_mode)
+        return self._build_response(
+            text,
+            merged,
+            started,
+            payload.resolution_mode,
+        )
