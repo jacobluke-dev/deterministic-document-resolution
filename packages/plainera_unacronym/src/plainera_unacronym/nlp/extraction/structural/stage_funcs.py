@@ -23,7 +23,7 @@ def st_detect_structural_references(s: StructuralFlowState) -> StageResult[Struc
 
 
 def st_build_structural_reference_entries(s: StructuralFlowState) -> StageResult[StructuralFlowState]:
-    """Build structural-reference resolution entries from detector output."""
+    """Build structural-reference reference entries from detector output."""
     assert s.det_res is not None
 
     s.reference_entries = build_structural_reference_resolutions(
