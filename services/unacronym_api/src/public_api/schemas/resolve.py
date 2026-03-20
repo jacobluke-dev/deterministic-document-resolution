@@ -81,10 +81,6 @@ class SelectedCandidate(BaseSchema):
 
 
 class SelectionMeta(BaseSchema):
-    policy_used: str | None = Field(
-        None,
-        description="Optional deterministic policy identifier used during selection.",
-    )
     filtered_inactive_count: conint(ge=0) = Field(  # type: ignore[valid-type]
         0,
         description="Number of inactive candidates removed before selection.",
@@ -239,7 +235,6 @@ class ResolveResponse(BaseSchema):
                             "conflict": True,
                             "conflict_count": 2,
                             "selection": {
-                                "policy_used": None,
                                 "filtered_inactive_count": 0,
                             },
                         }

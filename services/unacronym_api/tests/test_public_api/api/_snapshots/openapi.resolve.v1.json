@@ -616,18 +616,6 @@
             "minimum": 0.0,
             "title": "Filtered Inactive Count",
             "type": "integer"
-          },
-          "policy_used": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "description": "Optional deterministic policy identifier used during selection.",
-            "title": "Policy Used"
           }
         },
         "title": "SelectionMeta",
