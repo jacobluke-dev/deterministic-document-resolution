@@ -100,6 +100,38 @@ def _find_definition_end(
     end = start + (min(stop_candidates) if stop_candidates else len(chunk))
     return end if end > start else None
 
+def _extract_parenthetical_alias_target(
+    text: str,
+    intro_span: tuple[str, int, int],
+) -> tuple[tuple[str, int, int] | None, str | None]:
+    _, intro_start, _ = intro_span
+
+    open_paren = text.rfind("(", 0, intro_start)
+    if open_paren == -1:
+        return None, None
+
+    right = open_paren
+    left = right - 1
+
+    while left >= 0 and text[left].isspace():
+        left -= 1
+
+    if left < 0:
+        return None, None
+
+    hard_stops = {".", ";", ":", "\n"}
+    while left >= 0 and text[left] not in hard_stops:
+        left -= 1
+
+    start = left + 1
+    candidate = text[start:right].strip()
+    if not candidate:
+        return None, None
+
+    trimmed_start = text.index(candidate, start, right)
+    trimmed_end = trimmed_start + len(candidate)
+
+    return (candidate, trimmed_start, trimmed_end), candidate
 
 def extract_term_definitions(
     *,
@@ -139,6 +171,14 @@ def extract_term_definitions(
             end,
             intro_kind=intro_kind,
         )
+        alias_target_span = None
+        alias_target_text = None
+
+        if intro_kind == "parenthetical_alias":
+            alias_target_span, alias_target_text = _extract_parenthetical_alias_target(
+                text=text,
+                intro_span=(intro.term, start, end),
+            )
 
         if definition_start is None:
             definition_span = None
@@ -164,6 +204,8 @@ def extract_term_definitions(
                 definition_span=definition_span,
                 definition_text=definition_text,
                 intro_kind=intro_kind,
+                alias_target_span=alias_target_span,
+                alias_target_text=alias_target_text,
                 section_path=section_path,
             )
         )
