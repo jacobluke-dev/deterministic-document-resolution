@@ -8,7 +8,7 @@ If scores are close, the near-tie tiebreak chooses the sense ≥3 chars closer; 
 """
 
 import pytest
-from plainera_unacronym.nlp.common.types import AcronymSense, OccurrenceLite, Span
+from plainera_unacronym.nlp.common.types import AcronymMeaning, OccurrenceLite, Span
 from plainera_unacronym.nlp.extraction.acronyms.senses.disambiguate import (
     choose_with_tiebreak,
     disambiguate_occurrences,
@@ -16,7 +16,7 @@ from plainera_unacronym.nlp.extraction.acronyms.senses.disambiguate import (
 
 
 def S(acr: str, sid: str, definition: str, spans: list[Span]):
-    return AcronymSense(
+    return AcronymMeaning(
         acronym=acr, definition=definition, sense_id=sid, def_spans=spans, support=1, sense_confidence=1
     )
 
@@ -197,8 +197,8 @@ class TestDisambiguateOccurrences:
 
         senses = {
             "EMA": [
-                AcronymSense("EMA", "European Medicines Agency", "ema|medicines", 1, [span_med], 2),
-                AcronymSense("EMA", "Emergency Management Australia", "ema|emergency", 2, [span_emg], 2),
+                AcronymMeaning("EMA", "European Medicines Agency", "ema|medicines", 1, [span_med], 2),
+                AcronymMeaning("EMA", "Emergency Management Australia", "ema|emergency", 2, [span_emg], 2),
             ]
         }
 
@@ -221,7 +221,7 @@ class TestDisambiguateOccurrences:
         occs = [OccurrenceLite("ABC", i1, i1 + 3), OccurrenceLite("ABC", i2, i2 + 3), OccurrenceLite("ABC", i3, i3 + 3)]
         senses_A_first = {
             "ABC": [
-                AcronymSense(
+                AcronymMeaning(
                     "ABC",
                     "Alpha Beta Council",
                     "abc|alpha_beta_council",
@@ -229,7 +229,7 @@ class TestDisambiguateOccurrences:
                     [(text.index("Org A"), text.index("Org A") + 5)],
                     1,
                 ),
-                AcronymSense(
+                AcronymMeaning(
                     "ABC",
                     "Applied Business Consortium",
                     "abc|applied_business_consortium",
@@ -255,8 +255,8 @@ class TestDisambiguateOccurrences:
         # Centers at ~50 and ~53 → d1=50, d2=53 (diff=3 > 2 bias)
         senses = {
             "ACR": [
-                AcronymSense("ACR", "Alpha Core Reader", "acr|alpha", 1, [(49, 51)], 1),  # center ~50
-                AcronymSense("ACR", "Advanced Cardiac Rehab", "acr|cardiac", 2, [(52, 54)], 1),  # center ~53
+                AcronymMeaning("ACR", "Alpha Core Reader", "acr|alpha", 1, [(49, 51)], 1),  # center ~50
+                AcronymMeaning("ACR", "Advanced Cardiac Rehab", "acr|cardiac", 2, [(52, 54)], 1),  # center ~53
             ]
         }
 
@@ -276,9 +276,9 @@ class TestDisambiguateOccurrences:
     #     ]
     #     senses = {
     #         "ZC": [
-    #             AcronymSense("ZC", "Zeta Corporation",
+    #             AcronmMeaning("ZC", "Zeta Corporation",
     #             "zc|zeta_corporation", [(text.index("Zeta"), text.index("Zeta") + 4)], 1),
-    #             AcronymSense("ZC", "Zero Cool",
+    #             AcronmMeaning("ZC", "Zero Cool",
     #             "zc|zero_cool",
     #             [(text.index("globally") + 2, text.index("globally") - 2)], 1),  # reversed endpoints on purpose
     #         ]

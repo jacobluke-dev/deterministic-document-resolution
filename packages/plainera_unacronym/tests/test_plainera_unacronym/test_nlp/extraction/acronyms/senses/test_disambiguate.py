@@ -2,7 +2,7 @@ import math
 from types import SimpleNamespace as NS
 
 import pytest
-from plainera_unacronym.nlp.common.types import AcronymSense, OccurrenceLite, Span
+from plainera_unacronym.nlp.common.types import AcronymMeaning, OccurrenceLite, Span
 from plainera_unacronym.nlp.extraction.acronyms.senses.disambiguate import (
     _ascii_tokens,
     _center,
@@ -341,7 +341,7 @@ class TestDisambiguateOccurrencesUnit:
         occs = [OccurrenceLite(acronym="EMA", start=14, end=17)]
         senses = {
             "EMA": [
-                AcronymSense(
+                AcronymMeaning(
                     acronym="EMA",
                     definition="European Medicines Agency",
                     sense_id="ema|european_medicines_agency",
@@ -349,7 +349,7 @@ class TestDisambiguateOccurrencesUnit:
                     support=1,
                     sense_confidence=0.9,
                 ),
-                AcronymSense(
+                AcronymMeaning(
                     acronym="EMA",
                     definition="Emergency Management Australia",
                     sense_id="ema|emergency_management_australia",
@@ -382,7 +382,7 @@ class TestDisambiguateOccurrencesUnit:
         occs = [OccurrenceLite(acronym="EMA", start=8, end=11)]
         senses = {
             "EMA": [
-                AcronymSense(
+                AcronymMeaning(
                     acronym="EMA",
                     definition="European Medicines Agency",
                     sense_id="ema|medicines",
@@ -390,7 +390,7 @@ class TestDisambiguateOccurrencesUnit:
                     support=2,
                     sense_confidence=0.9,
                 ),
-                AcronymSense(
+                AcronymMeaning(
                     acronym="EMA",
                     definition="Emergency Management Australia",
                     sense_id="ema|emergency",
@@ -416,8 +416,8 @@ class TestDisambiguateOccurrencesUnit:
         occs = [OccurrenceLite(acronym="ACR", start=0, end=3)]
         senses = {
             "ACR": [
-                AcronymSense("ACR", "Alpha Core Reader", "acr|alpha_core_reader", 0.9, [(0, 2)], 1),
-                AcronymSense("ACR", "Advanced Cardiac Rehab", "acr|advanced_cardiac_rehab", 0.9, [(50, 60)], 1),
+                AcronymMeaning("ACR", "Alpha Core Reader", "acr|alpha_core_reader", 0.9, [(0, 2)], 1),
+                AcronymMeaning("ACR", "Advanced Cardiac Rehab", "acr|advanced_cardiac_rehab", 0.9, [(50, 60)], 1),
             ]
         }
         # Pass senses_by_id=None to exercise the internal build
@@ -431,7 +431,7 @@ class TestDisambiguateOccurrencesUnit:
         occs = [OccurrenceLite(acronym="UKHSA", start=occ_start, end=occ_start + 5)]
         senses = {
             "UKHSA": [
-                AcronymSense(
+                AcronymMeaning(
                     "UKHSA",
                     "United Kingdom Health Security Agency",
                     "ukhsa|united_kingdom_health_security_agency",
@@ -492,18 +492,18 @@ class TestDisambiguateOccurrencesUnit:
             senses={
                 "NLP": [
                     # Only ids matter because base_scores is patched; spans won’t help now anyway.
-                    mod.AcronymSense(
+                    mod.AcronymMeaning(
                         "NLP", "Natural language processing", "nlp|natural_language_processing", 0.9, [], 1
                     ),
-                    mod.AcronymSense("NLP", "Nice Lovely Plants", "nlp|nice_lovely_plants", 0.1, [], 1),
+                    mod.AcronymMeaning("NLP", "Nice Lovely Plants", "nlp|nice_lovely_plants", 0.1, [], 1),
                 ]
             },
             sense_prior_weight=0.0,  # disable prior
             senses_by_id={
-                "nlp|natural_language_processing": mod.AcronymSense(
+                "nlp|natural_language_processing": mod.AcronymMeaning(
                     "NLP", "Natural language processing", "nlp|natural_language_processing", 0.9, [], 1
                 ),
-                "nlp|nice_lovely_plants": mod.AcronymSense(
+                "nlp|nice_lovely_plants": mod.AcronymMeaning(
                     "NLP", "Nice Lovely Plants", "nlp|nice_lovely_plants", 0.1, [], 1
                 ),
             },

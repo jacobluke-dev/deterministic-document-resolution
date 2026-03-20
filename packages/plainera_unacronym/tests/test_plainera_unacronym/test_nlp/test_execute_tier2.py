@@ -9,7 +9,7 @@ import numpy as np
 import plainera_unacronym.nlp.extraction.tiers.tier_2 as t2
 from _pytest.python_api import approx
 from plainera_unacronym.nlp.common.types import (
-    AcronymSense,
+    AcronymMeaning,
     ExtractedDefinition,
     OccurrenceLite,
     Span,
@@ -536,7 +536,7 @@ class TestDisambiguationE2EConfidenceContract:
         assert "nlp|nice_lovely_plants" in senses_by_id
 
         # Now patch confidence levels by monkeypatching the sense_index entries via replacement.
-        # If AcronymSense is mutable in your codebase, you can direct-set instead.
+        # If AcronmMeaning is mutable in your codebase, you can direct-set instead.
         s_hi = senses_by_id["nlp|natural_language_processing"]
         s_lo = senses_by_id["nlp|nice_lovely_plants"]
 
@@ -615,8 +615,8 @@ class TestDisambiguationE2EConfidenceContract:
 
         def S(
             acr: str, sense_id: str, definition: str, spans: list[Span], *, conf: float = 0.0, support: int = 1
-        ) -> AcronymSense:
-            return AcronymSense(
+        ) -> AcronymMeaning:
+            return AcronymMeaning(
                 acronym=acr,
                 definition=definition,
                 sense_id=sense_id,

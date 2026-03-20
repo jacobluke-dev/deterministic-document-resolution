@@ -1,7 +1,7 @@
 import re
 from typing import Iterable
 
-from plainera_unacronym.nlp.common.types import AcronymSense, ExtractedDefinition
+from plainera_unacronym.nlp.common.types import AcronymMeaning, ExtractedDefinition
 from plainera_unacronym.nlp.extraction.acronyms.core.defs import dedupe_defs
 from plainera_unacronym.nlp.extraction.acronyms.core.normalise import tighten_label
 
@@ -23,8 +23,8 @@ def _slug(s: str) -> str:
     return s or "x"
 
 
-def build_senses(defs: Iterable[ExtractedDefinition]) -> dict[str, list[AcronymSense]]:
-    """Build `AcronymSense` objects from definition matches.
+def build_senses(defs: Iterable[ExtractedDefinition]) -> dict[str, list[AcronymMeaning]]:
+    """Build `AcronmMeaning` objects from definition matches.
 
     Definitions are de-duplicated first. Each definition becomes a "sense" keyed by:
     `"{acr.lower()}|{slug(tighten_label(definition))}"`. Multiple defs for the same sense
@@ -35,9 +35,9 @@ def build_senses(defs: Iterable[ExtractedDefinition]) -> dict[str, list[AcronymS
             `acronym`, `definition`, `def_start`, `def_end`.
 
     Returns:
-        Mapping `{ACRONYM: [AcronymSense, ...]}` where keys are uppercased acronyms.
+        Mapping `{ACRONYM: [AcronmMeaning, ...]}` where keys are uppercased acronyms.
     """
-    senses_by: dict[str, dict[str, AcronymSense]] = {}
+    senses_by: dict[str, dict[str, AcronymMeaning]] = {}
 
     for d in dedupe_defs(list(defs)):
         acr = d.acronym.upper()
@@ -47,7 +47,7 @@ def build_senses(defs: Iterable[ExtractedDefinition]) -> dict[str, list[AcronymS
 
         sense = by_label.get(sid)
         if sense is None:
-            sense = AcronymSense(
+            sense = AcronymMeaning(
                 acronym=acr,
                 definition=label,
                 sense_id=sid,

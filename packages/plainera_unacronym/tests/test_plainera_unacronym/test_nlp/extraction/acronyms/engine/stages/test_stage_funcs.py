@@ -2,7 +2,7 @@ from dataclasses import replace
 from typing import Literal
 
 import numpy as np
-from plainera_unacronym.nlp.common.types import AcronymDetectorConfig, AcronymSense, OccurrenceLite
+from plainera_unacronym.nlp.common.types import AcronymDetectorConfig, AcronymMeaning, OccurrenceLite
 from plainera_unacronym.nlp.extraction import ExtractionConfig
 from plainera_unacronym.nlp.extraction.acronyms.engine import stage_funcs as f
 from plainera_unacronym.nlp.extraction.acronyms.engine.extract_flow import ExtractionFlow
@@ -50,8 +50,8 @@ class TestSrTier2SemanticRerank:
         # Seed Tier-1 work
         t1 = s.tier_1
         t1.sense_index = {
-            "gpu|graphics": AcronymSense("GPU", "Graphics Processing Unit", "gpu|graphics", 0.8, [], 1),
-            "gpu|general": AcronymSense("GPU", "General Purpose Unit", "gpu|general", 0.7, [], 1),
+            "gpu|graphics": AcronymMeaning("GPU", "Graphics Processing Unit", "gpu|graphics", 0.8, [], 1),
+            "gpu|general": AcronymMeaning("GPU", "General Purpose Unit", "gpu|general", 0.7, [], 1),
         }
 
         t1.senses_by_acronym = {"GPU": list(t1.sense_index.values())}
@@ -85,8 +85,8 @@ class TestSrTier2SemanticRerank:
 
         t1 = s.tier_1
         t1.sense_index = {
-            "gpu|graphics": AcronymSense("GPU", "Graphics Processing Unit", "gpu|graphics", 0.8, [], 1),
-            "gpu|general": AcronymSense("GPU", "General Purpose Unit", "gpu|general", 0.7, [], 1),
+            "gpu|graphics": AcronymMeaning("GPU", "Graphics Processing Unit", "gpu|graphics", 0.8, [], 1),
+            "gpu|general": AcronymMeaning("GPU", "General Purpose Unit", "gpu|general", 0.7, [], 1),
         }
         t1.senses_by_acronym = {"GPU": list(t1.sense_index.values())}
         t1.ranked = [
@@ -131,8 +131,8 @@ class TestStTier1SelectAndAssemble:
         t1 = s.tier_1
         t1.senses_by_acronym = {
             "GPU": [
-                AcronymSense("GPU", "Graphics Processing Unit", "gpu|graphics", 0.8, [], 1),
-                AcronymSense("GPU", "General Purpose Unit", "gpu|general", 0.7, [], 1),
+                AcronymMeaning("GPU", "Graphics Processing Unit", "gpu|graphics", 0.8, [], 1),
+                AcronymMeaning("GPU", "General Purpose Unit", "gpu|general", 0.7, [], 1),
             ]
         }
         t1.sense_index = {x.sense_id: x for xs in t1.senses_by_acronym.values() for x in xs}

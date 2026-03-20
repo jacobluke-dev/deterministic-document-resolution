@@ -56,7 +56,14 @@ core:
     POSTGRES_PASSWORD: "test-password"
   rules:
     - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+      changes:
+        - packages/plainera_core/**/*
     - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+      changes:
+        - packages/plainera_core/**/*
+        - poetry.lock
+        - pyproject.toml
+        - .gitlab-ci.yml
     - when: never
   before_script:
     - python --version
@@ -118,6 +125,9 @@ unacronym:
     - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
       changes:
         - packages/plainera_unacronym/**/*
+        - poetry.lock
+        - pyproject.toml
+        - .gitlab-ci.yml
     - when: never
   before_script:
     - python --version
@@ -179,7 +189,6 @@ observability:
         coverage_format: cobertura
         path: packages/plainera_observability/coverage.xml
     expire_in: 1 week
-
 api:
   stage: core
   image: python:3.13

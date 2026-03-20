@@ -2,7 +2,7 @@
 Acronym sense disambiguation for documents with multiple in-text definitions.
 
 This module resolves each acronym occurrence to the most likely meaning
-(`AcronymSense`) when a document defines the same acronym more than once.
+(`AcronymMeaning`) when a document defines the same acronym more than once.
 Senses are built from extracted definitions and tracked with definition spans.
 Each occurrence is scored against candidate senses using proximity to definition
 spans and local context token overlap, with a conservative margin-based tiebreak.
@@ -12,10 +12,11 @@ assigned incorrectly.
 This stage enables per-occurrence correctness and ambiguity detection beyond
 a single global glossary pick.
 """
+from __future__ import annotations
 
 import re
 
-from plainera_unacronym.nlp.common.types import AcronymSense, OccurrenceLite, OccurrenceResolution, Span
+from plainera_unacronym.nlp.common.types import AcronymMeaning, OccurrenceLite, OccurrenceResolution, Span
 
 NEAR_TIE_GAP = 0.06
 
@@ -95,7 +96,7 @@ DIST_TIEBREAK_MIN_ADVANTAGE = 3
 def choose_with_tiebreak(
     occ: OccurrenceLite,
     cand_scores: dict[str, float],
-    senses_by_id: dict[str, AcronymSense],
+    senses_by_id: dict[str, AcronymMeaning],
     *,
     margin_threshold: float = 0.10,
     near_tie_margin: float = 0.06,
@@ -150,7 +151,7 @@ def choose_with_tiebreak(
             Mapping sense_id -> score. Scores are heuristic composites (distance/overlap/prior)
             and are not calibrated probabilities.
         senses_by_id:
-            Mapping sense_id -> AcronymSense. Used for:
+            Mapping sense_id -> AcronymMeaning. Used for:
               - definition spans (distance tiebreak)
               - optional sense_confidence as a deterministic sorting key
         margin_threshold:
@@ -283,7 +284,7 @@ def dynamic_prior_weight(
 def base_scores_for_occurrence(
     *,
     occ: OccurrenceLite,
-    sense_list: list[AcronymSense],
+    sense_list: list[AcronymMeaning],
     ctx_tokens: set[str],
     dist_weight: float,
     overlap_weight: float,
@@ -326,14 +327,14 @@ def base_scores_for_occurrence(
 def disambiguate_occurrences(
     text: str,
     occurrences: list[OccurrenceLite],
-    senses: dict[str, list["AcronymSense"]],
+    senses: dict[str, list["AcronymMeaning"]],
     *,
     window_chars: int = 300,
     sense_prior_weight: float = 0.02,
     margin_threshold: float = 0.10,
     dist_weight: float = 0.75,
     overlap_weight: float = 0.25,
-    senses_by_id: dict[str, "AcronymSense"] | None = None,
+    senses_by_id: dict[str, "AcronymMeaning"] | None = None,
 ) -> list[OccurrenceResolution]:
     """
     Resolve acronym occurrences to the most likely sense using two signals:
@@ -355,7 +356,7 @@ def disambiguate_occurrences(
     Args:
         text: Full source text.
         occurrences: OccurrenceLite list (acronym, start, end).
-        senses: Mapping from UPPER(acronym) to candidate AcronymSense list.
+        senses: Mapping from UPPER(acronym) to candidate AcronymMeaning list.
         window_chars: Half-window (chars) around each occurrence to form ctx_tokens.
         sense_prior_weight: Maximum weight for an optional confidence prior.
             The prior is applied only for near-ties: a dynamic weight `w` is derived from
@@ -364,7 +365,7 @@ def disambiguate_occurrences(
         margin_threshold: Relative margin needed to accept the probabilistic winner.
         dist_weight: Weight for distance score.
         overlap_weight: Weight for overlap score.
-        senses_by_id: Optional {sense_id → AcronymSense}; if None, built from `senses`.
+        senses_by_id: Optional {sense_id → AcronymMeaning}; if None, built from `senses`.
 
     Returns:
         List of OccurrenceResolution in the same order as `occurrences`. Each item

@@ -54,11 +54,11 @@ class FirstOccurrence:
 
 
 @dataclass
-class AcronymSense:
+class AcronymMeaning:
     """
     Represents a single “meaning” (sense) of an acronym within a document.
 
-    An `AcronymSense` is constructed from one or more extracted in-text definitions
+    An `AcronmMeaning` is constructed from one or more extracted in-text definitions
     that normalise to the same `(acronym, definition)` identity (e.g. multiple
     mentions of “European Medicines Agency (EMA)” across the text). It is used as
     the unit of choice during occurrence-level disambiguation.
@@ -97,7 +97,7 @@ class OccurrenceLite:
 
     This type is intentionally lightweight: it captures only the acronym surface
     and its character offsets. It is fed into disambiguation, where each occurrence
-    is scored against candidate `AcronymSense` objects using local context windows
+    is scored against candidate `AcronmMeaning` objects using local context windows
     and distance to definition spans.
 
     Attributes:
@@ -319,8 +319,8 @@ class ExtractionResult:
     # normalized keys that had no in-text definition
     missing_keys: tuple[str, ...]
 
-    senses_by_acronym: dict[str, list[AcronymSense]] = field(default_factory=dict)
-    sense_index: Mapping[str, AcronymSense] = field(default_factory=dict)  # sense_id -> sense
+    senses_by_acronym: dict[str, list[AcronymMeaning]] = field(default_factory=dict)
+    sense_index: Mapping[str, AcronymMeaning] = field(default_factory=dict)  # sense_id -> sense
     resolutions: list[OccurrenceResolution] = field(default_factory=list)
     ambiguous_keys: tuple[str, ...] = field(default_factory=tuple)  # acronyms with >1 senses
     undecided: list[OccurrenceResolution] = field(default_factory=list)  # chosen_sense_id is None

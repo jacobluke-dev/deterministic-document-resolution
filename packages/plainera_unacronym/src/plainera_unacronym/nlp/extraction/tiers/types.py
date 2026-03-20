@@ -6,7 +6,7 @@ from typing import Literal
 import numpy as np
 from numpy.typing import NDArray
 
-from plainera_unacronym.nlp.common.types import AcronymSense, OccurrenceLite
+from plainera_unacronym.nlp.common.types import AcronymMeaning, OccurrenceLite
 
 FloatMat = NDArray[np.floating]
 FloatVec = NDArray[np.floating]
@@ -59,14 +59,14 @@ class Tier1Work:
 
     Attributes:
         senses_by_acronym: Grouped senses keyed by acronym surface/normalized key.
-        sense_index: Flat lookup of sense_id -> AcronymSense.
+        sense_index: Flat lookup of sense_id -> AcronmMeaning.
         occurrences: Minimal occurrence records used for downstream scoring.
         ranked: Tier-1 ranking result for each occurrence, including candidate
             scores, chosen sense (if any), and confidence separation metrics.
     """
 
-    senses_by_acronym: dict[str, list[AcronymSense]] = field(default_factory=dict)
-    sense_index: dict[str, AcronymSense] = field(default_factory=dict)
+    senses_by_acronym: dict[str, list[AcronymMeaning]] = field(default_factory=dict)
+    sense_index: dict[str, AcronymMeaning] = field(default_factory=dict)
     occurrences: list[OccurrenceLite] = field(default_factory=list)
     ranked: list[Tier1OccurrenceRanking] = field(default_factory=list)
 
