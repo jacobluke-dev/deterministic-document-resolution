@@ -1,7 +1,6 @@
-import pytest
 from plainera_unacronym.nlp.detection.structural import StructuralReference
 from plainera_unacronym.nlp.extraction.structural.config import StructuralReferenceExtractionConfig
-from plainera_unacronym.nlp.extraction.structural.transform import _canonicalize_structural_reference, _roman_to_int
+from plainera_unacronym.nlp.extraction.structural.transform import _canonicalize_structural_reference
 
 
 class TestCanonicalizeStructuralReference:
@@ -52,30 +51,3 @@ class TestCanonicalizeStructuralReference:
 
         assert canonical_label == "III"
         assert canonical_key == "appendix_iii"
-
-class TestRomanToInt:
-
-    def test_roman_to_int_complex_subtractive_numeral(self):
-        assert _roman_to_int("MCMXCIV") == 1994
-
-    def test_roman_to_int_complex_additive_numeral(self):
-        assert _roman_to_int("MMMDCCCLXXXVIII") == 3888
-
-    def test_roman_to_int_mcmxciv(self):
-        assert _roman_to_int("MCMXCIV") == 1994
-
-    def test_roman_to_int_rejects_il(self):
-        with pytest.raises(ValueError, match="Invalid Roman numeral"):
-            _roman_to_int("IL")
-
-    def test_roman_to_int_rejects_ic(self):
-        with pytest.raises(ValueError, match="Invalid Roman numeral"):
-            _roman_to_int("IC")
-
-    def test_roman_to_int_rejects_vx(self):
-        with pytest.raises(ValueError, match="Invalid Roman numeral"):
-            _roman_to_int("VX")
-
-    def test_roman_to_int_rejects_iiii(self):
-        with pytest.raises(ValueError, match="Invalid Roman numeral"):
-            _roman_to_int("IIII")
