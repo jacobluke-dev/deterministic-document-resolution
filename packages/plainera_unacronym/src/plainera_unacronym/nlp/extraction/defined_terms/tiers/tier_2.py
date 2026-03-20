@@ -7,7 +7,7 @@ from typing import Sequence
 from plainera_unacronym.nlp.detection.defined_terms.types import DefinedTermMention
 from plainera_unacronym.nlp.extraction.defined_terms.config import DefinedTermExtractionConfig
 from plainera_unacronym.nlp.extraction.defined_terms.types import (
-    TermSense,
+    TermMeaning,
     TermTier1OccurrenceRanking,
     TermTier2OccurrenceRanking,
     TermTier2SkipReason,
@@ -28,7 +28,7 @@ class _EligibleTermRerank:
         idx: Index of the occurrence in the original Tier-1-ranked sequence.
         r1: Tier-1 ranking output for the occurrence.
         context: Local context text used as the semantic query.
-        cand_ids: Candidate sense IDs aligned with ``cand_texts``.
+        cand_ids: Candidate meaning IDs aligned with ``cand_texts``.
         cand_texts: Candidate definition texts to embed and compare against the
             occurrence context.
     """
@@ -96,20 +96,20 @@ def _collect_tier2_eligible(
     *,
     text: str,
     t1_ranked: Sequence[TermTier1OccurrenceRanking],
-    sense_index: dict[str, TermSense],
+    meaning_index: dict[str, TermMeaning],
     cfg: DefinedTermExtractionConfig,
 ) -> tuple[list[TermTier2OccurrenceRanking], list[_EligibleTermRerank], Counter[TermTier2SkipReason]]:
     """Build initial Tier-2 outputs, skipping occurrences that are not eligible.
 
     This pass evaluates Tier-2 gating rules such as disabled mode, single-candidate
-    cases, confident Tier-1 decisions, and missing sense definition text. Eligible
+    cases, confident Tier-1 decisions, and missing meaning definition text. Eligible
     occurrences are recorded for later semantic reranking, while ineligible ones are
     emitted immediately as skipped Tier-2 results.
 
     Args:
         text: Full source text containing the term occurrences.
         t1_ranked: Tier-1 ranking outputs for each detected occurrence.
-        sense_index: Mapping from sense ID to resolved term sense metadata.
+        meaning_index: Mapping from meaning ID to resolved term meaning metadata.
         cfg: Active extraction configuration controlling Tier-2 behaviour.
 
     Returns:
@@ -140,7 +140,7 @@ def _collect_tier2_eligible(
             reasons["single_candidate"] += 1
             continue
 
-        if only_when_undecided and r1.chosen_sense_id is not None:
+        if only_when_undecided and r1.chosen_meaning_id is not None:
             ranked2.append(_skip(r1, "tier1_decided"))
             reasons["tier1_decided"] += 1
             continue
@@ -154,15 +154,15 @@ def _collect_tier2_eligible(
         cand_texts: list[str] = []
 
         for sid in cand_ids:
-            sense = sense_index.get(sid)
-            if sense is None or not sense.definition_text:
+            meaning = meaning_index.get(sid)
+            if meaning is None or not meaning.definition_text:
                 cand_texts = []
                 break
-            cand_texts.append(f"{r1.occ.term}: {sense.definition_text}")
+            cand_texts.append(f"{r1.occ.term}: {meaning.definition_text}")
 
         if not cand_texts:
-            ranked2.append(_skip(r1, "no_senses"))
-            reasons["no_senses"] += 1
+            ranked2.append(_skip(r1, "no_meanings"))
+            reasons["no_meanings"] += 1
             continue
 
         context = _term_context(
@@ -292,7 +292,7 @@ def rerank_term_occurrences_tier2(
     *,
     text: str,
     t1_ranked: Sequence[TermTier1OccurrenceRanking],
-    sense_index: dict[str, TermSense],
+    meaning_index: dict[str, TermMeaning],
     cfg: DefinedTermExtractionConfig,
 ) -> tuple[list[TermTier2OccurrenceRanking], Tier2Report]:
     """Optionally rerank ambiguous defined-term occurrences using semantic similarity.
@@ -306,7 +306,7 @@ def rerank_term_occurrences_tier2(
     Args:
         text: Full source text containing the term occurrences.
         t1_ranked: Tier-1 ranking outputs for each detected occurrence.
-        sense_index: Mapping from sense ID to resolved term sense metadata.
+        meaning_index: Mapping from meaning ID to resolved term meaning metadata.
         cfg: Active extraction configuration controlling Tier-2 mode, thresholds,
             model name, and blend weight.
 
@@ -322,7 +322,7 @@ def rerank_term_occurrences_tier2(
     ranked2, eligible, reasons = _collect_tier2_eligible(
         text=text,
         t1_ranked=t1_ranked,
-        sense_index=sense_index,
+        meaning_index=meaning_index,
         cfg=cfg,
     )
 

@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 
 import pytest
-from plainera_unacronym.nlp.extraction.acronyms.senses.sense_build import _slug, build_senses
+from plainera_unacronym.nlp.extraction.acronyms.meanings.meaning_build import _slug, build_meanings
 
 
 @dataclass(frozen=True)
@@ -36,16 +36,11 @@ class TestSlugUnit:
         assert _slug(s) == expected
 
 
-# ----------------------------
-# Unit tests: build_senses (patch deps)
-# ----------------------------
-
-
-class TestBuildSensesUnit:
+class TestBuildMeaningsUnit:
     def test_groups_by_upper_acronym_and_merges_same_sid(self, _patch):
         # Patch only dependencies to keep this unit test deterministic.
         _patch(
-            build_senses,
+            build_meanings,
             dedupe_defs=lambda xs: xs,  # identity
             tighten_label=lambda s: s.strip(),  # deterministic label
         )
@@ -55,21 +50,21 @@ class TestBuildSensesUnit:
             DummyDef("EMA", "European Medicines Agency", 30, 40),  # same label => same sid
         ]
 
-        out = build_senses(defs)
+        out = build_meanings(defs)
 
         assert set(out.keys()) == {"EMA"}
         assert len(out["EMA"]) == 1
 
-        sense = out["EMA"][0]
-        assert sense.acronym == "EMA"
-        assert sense.definition == "European Medicines Agency"
-        assert sense.sense_id == "ema|european_medicines_agency"
-        assert sense.def_spans == [(10, 20), (30, 40)]
-        assert sense.support == 2
+        meaning = out["EMA"][0]
+        assert meaning.acronym == "EMA"
+        assert meaning.definition == "European Medicines Agency"
+        assert meaning.meaning_id == "ema|european_medicines_agency"
+        assert meaning.def_spans == [(10, 20), (30, 40)]
+        assert meaning.support == 2
 
-    def test_creates_multiple_senses_per_acronym_when_labels_differ(self, _patch):
+    def test_creates_multiple_meanings_per_acronym_when_labels_differ(self, _patch):
         _patch(
-            build_senses,
+            build_meanings,
             dedupe_defs=lambda xs: xs,
             tighten_label=lambda s: s,  # no change
         )
@@ -79,14 +74,14 @@ class TestBuildSensesUnit:
             DummyDef("nlp", "Nice Lovely Plants", 20, 30),
         ]
 
-        out = build_senses(defs)
+        out = build_meanings(defs)
 
         assert set(out.keys()) == {"NLP"}
-        assert {s.sense_id for s in out["NLP"]} == {
+        assert {s.meaning_id for s in out["NLP"]} == {
             "nlp|natural_language_processing",
             "nlp|nice_lovely_plants",
         }
-        by_id = {s.sense_id: s for s in out["NLP"]}
+        by_id = {s.meaning_id: s for s in out["NLP"]}
         assert by_id["nlp|natural_language_processing"].support == 1
         assert by_id["nlp|nice_lovely_plants"].support == 1
 
@@ -94,59 +89,59 @@ class TestBuildSensesUnit:
         seen = {}
 
         def fake_dedupe(xs):
-            # build_senses should pass a list (because it does list(defs))
+            # build_meanings should pass a list (because it does list(defs))
             seen["is_list"] = isinstance(xs, list)
             seen["len"] = len(xs)
             return xs
 
         _patch(
-            build_senses,
+            build_meanings,
             dedupe_defs=fake_dedupe,
             tighten_label=lambda s: s,
         )
 
         defs = (DummyDef("A", "Alpha", 1, 2), DummyDef("A", "Alpha", 3, 4))  # tuple input
-        out = build_senses(defs)
+        out = build_meanings(defs)
 
         assert seen["is_list"] is True
         assert seen["len"] == 2
         assert "A" in out
 
-    def test_build_senses_prefers_highest_confidence_duplicate(self, _patch):
+    def test_build_meanings_prefers_highest_confidence_duplicate(self, _patch):
         # Use real dedupe_defs or patch it to pick max confidence.
         defs = [
             DummyDef("PDF", "Portable Document Format", 0, 10, definition_confidence=0.60),
             DummyDef("pdf", "And, which the Portable Document Format", 20, 30, definition_confidence=0.90),
         ]
-        senses = build_senses(defs)
-        pdf = senses["PDF"][0]
-        assert pdf.sense_confidence == 0.90
-        assert pdf.support == 1  # because dedupe collapses into one def before sense building
+        meanings = build_meanings(defs)
+        pdf = meanings["PDF"][0]
+        assert pdf.meaning_confidence == 0.90
+        assert pdf.support == 1  # because dedupe collapses into one def before meaning building
 
 
 # ----------------------------
-# Integration tests: build_senses + real tighten_label + real slugging
+# Integration tests: build_meanings + real tighten_label + real slugging
 # (patch dedupe_defs only, to avoid depending on dedupe semantics here)
 # ----------------------------
 
 
-class TestBuildSensesIntegration:
+class TestBuildMeaningsIntegration:
     def test_real_tighten_label_affects_sid(self, _patch):
         # Keep real tighten_label and _slug; only bypass dedupe behavior.
-        _patch(build_senses, dedupe_defs=lambda xs: xs)
+        _patch(build_meanings, dedupe_defs=lambda xs: xs)
 
         defs = [
             DummyDef("EMA", "The European Medicines Agency", 5, 15, 0),
             DummyDef("ema", "EMA stands for European Medicines Agency", 50, 80, 0),
         ]
 
-        out = build_senses(defs)
+        out = build_meanings(defs)
 
         assert set(out.keys()) == {"EMA"}
         # Depending on tighten_label rules, both should tighten to "European Medicines Agency"
         assert len(out["EMA"]) == 1
 
         s = out["EMA"][0]
-        assert s.sense_id == "ema|european_medicines_agency"
+        assert s.meaning_id == "ema|european_medicines_agency"
         assert s.support == 2
         assert s.def_spans == [(5, 15), (50, 80)]

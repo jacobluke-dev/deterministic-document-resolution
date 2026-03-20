@@ -100,12 +100,12 @@ class TestDetectAndExtractUnit:
         # dedupe returns what it gets
         monkeypatch.setattr(stage_fxn, "dedupe_defs", lambda defs: defs)
 
-        # build_senses: single sense per acronym
+        # build_meanings: single meaning per acronym
         monkeypatch.setattr(
-            stage_fxn, "build_senses", lambda defs: {"PDF": [NS(sense_id="PDF::Portable Document Format")]}
+            stage_fxn, "build_meanings", lambda defs: {"PDF": [NS(meaning_id="PDF::Portable Document Format")]}
         )
 
-        # disambiguate_occurrences: one resolution using that sense
+        # disambiguate_occurrences: one resolution using that meaning
         monkeypatch.setattr(
             stage_fxn,
             "disambiguate_occurrences",
@@ -114,7 +114,7 @@ class TestDetectAndExtractUnit:
                     acronym="PDF",
                     start=28,
                     end=31,
-                    chosen_sense_id="PDF::Portable Document Format",
+                    chosen_meaning_id="PDF::Portable Document Format",
                     candidate_scores={"PDF::Portable Document Format": 1.0},
                     gap=1.0,
                     margin=1.0,
@@ -126,10 +126,10 @@ class TestDetectAndExtractUnit:
 
         assert extr.missing_keys == ()
         assert 0 < extr.coverage <= 1.0
-        assert "PDF" in extr.senses_by_acronym
-        assert extr.sense_index["PDF::Portable Document Format"].sense_id == "PDF::Portable Document Format"
+        assert "PDF" in extr.meaning_by_acronym
+        assert extr.meaning_index["PDF::Portable Document Format"].meaning_id == "PDF::Portable Document Format"
         assert not extr.ambiguous_keys
-        assert all(r.chosen_sense_id for r in extr.resolutions)
+        assert all(r.chosen_meaning_id for r in extr.resolutions)
 
 
 class TestDetectAndExtractIntegration:

@@ -129,7 +129,7 @@ def extract_near_firsts(
     picks: dict[str, Optional[InTextPick]] = {}
 
     for key, fo in firsts.items():
-        acr_key = key or fo.acronym.upper()  # dict key / sense key
+        acr_key = key or fo.acronym.upper()  # dict key / meaning key
         acr_surface = fo.acronym  # what actually appears in text window
 
         left, right, seg = _build_local_window(text, fo, window_left, window_right)

@@ -24,11 +24,11 @@ def _resolution_key(r) -> str | None:
     return None
 
 
-def _chosen_sense_ids_for_key(extr, key: str) -> list[str]:
+def _chosen_meaning_ids_for_key(extr, key: str) -> list[str]:
     return [
-        r.chosen_sense_id
+        r.chosen_meaning_id
         for r in _resolutions_for_key(extr, key)
-        if getattr(r, "chosen_sense_id", None) is not None
+        if getattr(r, "chosen_meaning_id", None) is not None
     ]
 
 
@@ -36,19 +36,19 @@ def _resolutions_for_key(extr, key: str):
     return [r for r in extr.term_resolutions if _resolution_key(r) == key]
 
 
-def _sense_text_by_id(state) -> dict[str, str]:
+def _meaning_text_by_id(state) -> dict[str, str]:
     out: dict[str, str] = {}
 
-    for sense_id, sense in state.tier_1.sense_index.items():
-        definition_text = getattr(sense, "definition_text", None)
+    for meaning_id, meaning in state.tier_1.meaning_index.items():
+        definition_text = getattr(meaning, "definition_text", None)
 
         if not definition_text:
             for entry in state.definition_entries:
-                if getattr(entry, "sense_id", None) == sense_id:
+                if getattr(entry, "meaning_id", None) == meaning_id:
                     definition_text = getattr(entry, "definition_text", None)
                     break
 
-        out[sense_id] = (definition_text or "").lower()
+        out[meaning_id] = (definition_text or "").lower()
 
     return out
 
@@ -80,11 +80,11 @@ class TestDefinedTermResolutionE2E:
 
         assert len(det_res.introductions) == 2
 
-        chosen_ids = _chosen_sense_ids_for_key(extr, "services")
+        chosen_ids = _chosen_meaning_ids_for_key(extr, "services")
         assert len(chosen_ids) >= 2
 
-        sense_text = _sense_text_by_id(state)
-        chosen_texts = [sense_text[sid] for sid in chosen_ids]
+        meaning_text = _meaning_text_by_id(state)
+        chosen_texts = [meaning_text[sid] for sid in chosen_ids]
 
         assert any("consultancy services" in txt for txt in chosen_texts)
         assert any("software maintenance services" in txt for txt in chosen_texts)
@@ -112,15 +112,15 @@ class TestDefinedTermResolutionE2E:
 
         effective_resolutions = _resolutions_for_key(extr, "effective_date")
         assert len(effective_resolutions) == 1
-        assert effective_resolutions[0].chosen_sense_id is not None
+        assert effective_resolutions[0].chosen_meaning_id is not None
 
         assert extr.undecided == []
         assert "effective_date" not in extr.ambiguous_keys
 
-        sense_id = effective_resolutions[0].chosen_sense_id
-        sense_text = _sense_text_by_id(state)
+        meaning_id = effective_resolutions[0].chosen_meaning_id
+        meaning_text = _meaning_text_by_id(state)
 
-        assert "both parties sign this agreement" in sense_text[sense_id]
+        assert "both parties sign this agreement" in meaning_text[meaning_id]
 
     def test_tier2_skip_when_confident(self):
         text = """
@@ -151,7 +151,7 @@ class TestDefinedTermResolutionE2E:
     def test_model_unavailable_fallback(self, _patch):
         from plainera_unacronym.nlp.extraction.defined_terms import stage_funcs
 
-        def _fake_tier2(*, text, t1_ranked, sense_index, cfg):
+        def _fake_tier2(*, text, t1_ranked, meaning_index, cfg):
             report = types.SimpleNamespace(
                 applied=False,
                 reason="model_unavailable",
@@ -180,7 +180,7 @@ class TestDefinedTermResolutionE2E:
 
         effective_resolutions = _resolutions_for_key(extr, "effective_date")
         assert len(effective_resolutions) == 1
-        assert effective_resolutions[0].chosen_sense_id is not None
+        assert effective_resolutions[0].chosen_meaning_id is not None
 
         assert state.tier_2.report is not None
         assert state.tier_2.report.applied is False
@@ -204,7 +204,7 @@ class TestDefinedTermResolutionE2E:
         assert det_res.mentions == []
 
         assert len(state.definition_entries) == 1
-        assert len(state.tier_1.sense_index) == 1
+        assert len(state.tier_1.meaning_index) == 1
         assert len(state.tier_1.occurrences) == 0
         assert len(state.tier_1.ranked) == 0
 
@@ -215,7 +215,7 @@ class TestDefinedTermResolutionE2E:
     def test_ambiguous_term_with_no_strong_winner_stays_unresolved(self, _patch):
         from plainera_unacronym.nlp.extraction.defined_terms import stage_funcs
 
-        def _fake_tier2(*, text, t1_ranked, sense_index, cfg):
+        def _fake_tier2(*, text, t1_ranked, meaning_index, cfg):
             ranked = [
                 types.SimpleNamespace(
                     occ=r.occ,
@@ -265,7 +265,7 @@ class TestDefinedTermResolutionE2E:
 
         service_resolutions = _resolutions_for_key(extr, "services")
         assert len(service_resolutions) == 1
-        assert service_resolutions[0].chosen_sense_id is None
+        assert service_resolutions[0].chosen_meaning_id is None
         assert service_resolutions[0] in extr.undecided
 
     # TODO AS PART OF TICKET 96
@@ -274,11 +274,11 @@ class TestDefinedTermResolutionE2E:
     #
     #     original = stage_funcs.score_term_occurrences_tier1
     #
-    #     def _fake_tier1(*, text, occurrences, term_sense_index, structure_index, cfg):
+    #     def _fake_tier1(*, text, occurrences, term_meaning_index, structure_index, cfg):
     #         ranked = original(
     #             text=text,
     #             occurrences=occurrences,
-    #             term_sense_index=term_sense_index,
+    #             term_meaning_index=term_meaning_index,
     #             structure_index=structure_index,
     #             cfg=cfg,
     #         )
@@ -289,17 +289,17 @@ class TestDefinedTermResolutionE2E:
     #                 adjusted.append(r)
     #                 continue
     #
-    #             adjusted_scores = {sense_id: 1.0 for sense_id in r.candidate_scores}
+    #             adjusted_scores = {meaning_id: 1.0 for meaning_id in r.candidate_scores}
     #             adjusted.append(
     #                 types.SimpleNamespace(
     #                     occ=r.occ,
     #                     candidate_scores=adjusted_scores,
-    #                     chosen_sense_id=None,
+    #                     chosen_meaning_id=None,
     #                 )
     #             )
     #         return tuple(adjusted)
     #
-    #     def _fake_tier2(*, text, t1_ranked, sense_index, cfg):
+    #     def _fake_tier2(*, text, t1_ranked, meaning_index, cfg):
     #         ranked = [
     #             types.SimpleNamespace(
     #                 occ=r.occ,
@@ -346,7 +346,7 @@ class TestDefinedTermResolutionE2E:
     #         return_state=True,
     #     )
     #
-    #     chosen_ids = _chosen_sense_ids_for_key(extr, "services")
+    #     chosen_ids = _chosen_meaning_ids_for_key(extr, "services")
     #     assert len(chosen_ids) == 1
     #     assert chosen_ids[0] == "term|services|1"
 
@@ -378,11 +378,11 @@ class TestDefinedTermResolutionE2E:
         assert len(det_res.mentions) == 1
         assert extr.ambiguous_keys == ("services",)
 
-        chosen_ids = _chosen_sense_ids_for_key(extr, "services")
+        chosen_ids = _chosen_meaning_ids_for_key(extr, "services")
         assert len(chosen_ids) == 1
 
-        sense_text = _sense_text_by_id(state)
-        assert "maintenance services" in sense_text[chosen_ids[0]]
+        meaning_text = _meaning_text_by_id(state)
+        assert "maintenance services" in meaning_text[chosen_ids[0]]
 
     def test_quoted_later_mention_resolves(self):
         text = """
@@ -402,7 +402,7 @@ class TestDefinedTermResolutionE2E:
 
         conf_resolutions = _resolutions_for_key(extr, "confidential_information")
         assert len(conf_resolutions) == 1
-        assert conf_resolutions[0].chosen_sense_id == "term|confidential_information|1"
+        assert conf_resolutions[0].chosen_meaning_id == "term|confidential_information|1"
         assert extr.undecided == []
 
     def test_parenthetical_alias_intro_participates_in_resolution(self):
@@ -430,7 +430,7 @@ class TestDefinedTermResolutionE2E:
 
         agreement_resolutions = _resolutions_for_key(extr, "agreement")
         assert len(agreement_resolutions) == 2
-        assert agreement_resolutions[0].chosen_sense_id == "term|agreement|1"
+        assert agreement_resolutions[0].chosen_meaning_id == "term|agreement|1"
         assert agreement_resolutions[0].resolution_method in {"tier1", "tier2_blend"}
 
     def test_detect_and_resolve_terms_returns_trace_events_when_trace_enabled(self):

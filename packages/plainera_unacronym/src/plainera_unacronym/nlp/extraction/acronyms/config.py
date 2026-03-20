@@ -36,7 +36,7 @@ class ConfidenceConfig:
     dist_weight: float = 0.75
     overlap_weight: float = 0.25
     # optional prior (keep small; tie-breaker only is also fine)
-    sense_prior_weight: float = 0.0  # start 0.0; can raise later
+    meanings_prior_weight: float = 0.0  # start 0.0; can raise later
 
 
 @dataclass(frozen=True, slots=True)

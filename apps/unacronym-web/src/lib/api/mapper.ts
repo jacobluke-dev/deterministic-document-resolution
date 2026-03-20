@@ -1,6 +1,6 @@
 import type { AcronymBlock } from "@/lib/api/types";
 
-export type ResolveSense = {
+export type ResolveMeaning = {
   definition: string;
   confidence: number | null;
   source: "extracted" | "glossary";
@@ -16,7 +16,7 @@ export type ResolveRow = {
   glossaryLabel: string | null;
   occurrences: { start: number; end: number }[];
 
-  senses: ResolveSense[];          // all senses (extracted + glossary)
+  meanings: ResolveMeaning[];          // all meanings (extracted + glossary)
 };
 
 
@@ -35,9 +35,9 @@ export function toResolveRows(blocks: AcronymBlock[]): ResolveRow[] {
     }));
 
     // deterministic order: extracted ranked first (already ranked), then glossary ranked
-    const senses = [...extracted, ...glossary];
+    const meanings = [...extracted, ...glossary];
 
-    const primary = senses[0] ?? null;
+    const primary = meanings[0] ?? null;
 
     const source: ResolveRow["source"] = primary ? primary.source : "—";
     const glossaryLabel = glossary.length ? "glossary" : null;
@@ -51,7 +51,7 @@ export function toResolveRows(blocks: AcronymBlock[]): ResolveRow[] {
       source,
       glossaryLabel,
       occurrences: (b.occurrences ?? []) as { start: number; end: number }[],
-      senses,
+      meanings,
     };
   });
 }

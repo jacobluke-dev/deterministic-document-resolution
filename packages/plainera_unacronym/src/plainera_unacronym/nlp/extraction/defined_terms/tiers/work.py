@@ -4,7 +4,7 @@ from dataclasses import dataclass, field
 
 from plainera_unacronym.nlp.detection.defined_terms.types import DefinedTermMention
 from plainera_unacronym.nlp.extraction.defined_terms.types import (
-    TermSense,
+    TermMeaning,
     TermTier1OccurrenceRanking,
     TermTier2OccurrenceRanking,
 )
@@ -13,8 +13,8 @@ from plainera_unacronym.nlp.extraction.tiers.types import Tier2Report
 
 @dataclass
 class TermTier1Work:
-    term_sense_index: dict[str, tuple[TermSense, ...]] = field(default_factory=dict)
-    sense_index: dict[str, TermSense] = field(default_factory=dict)
+    term_meaning_index: dict[str, tuple[TermMeaning, ...]] = field(default_factory=dict)
+    meaning_index: dict[str, TermMeaning] = field(default_factory=dict)
     occurrences: list[DefinedTermMention] = field(default_factory=list)
     ranked: list[TermTier1OccurrenceRanking] = field(default_factory=list)
 

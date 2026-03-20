@@ -6,7 +6,7 @@ from typing import Any, Literal, Sequence
 
 import numpy as np
 
-from plainera_unacronym.nlp.common.types import AcronymSense
+from plainera_unacronym.nlp.common.types import AcronymMeaning
 from plainera_unacronym.nlp.extraction.tiers.semantic import cosine_sim01, embed_texts
 from plainera_unacronym.nlp.extraction.tiers.types import (
     FloatMat,
@@ -31,7 +31,7 @@ class _EligibleRerank:
         idx: Position of the occurrence in `t1.ranked` (and therefore in the final Tier-2 list).
         r1: Tier-1 ranking record for the occurrence.
         context: Context window string used for semantic embedding.
-        cand_ids: Candidate sense IDs in Tier-1 insertion order.
+        cand_ids: Candidate meaning IDs in Tier-1 insertion order.
         cand_texts: Candidate text strings aligned 1:1 with `cand_ids`.
     """
 
@@ -236,7 +236,7 @@ def collect_tier2_inputs(
     *,
     text: str,
     t1_ranked: Sequence[Tier1OccurrenceRanking],
-    sense_index: dict[str, AcronymSense],
+    meaning_index: dict[str, AcronymMeaning],
     auto_margin_ceiling: float,
     mode: Literal["off", "auto", "on"],
     only_when_undecided: bool,
@@ -250,8 +250,8 @@ def collect_tier2_inputs(
 
     Eligibility:
       - >=2 candidates
-      - acronym is multi-sense (in ambiguous_acrs)
-      - if only_when_undecided: Tier-1 must not have chosen (chosen_sense_id is None)
+      - acronym is multi-meaning (in ambiguous_acrs)
+      - if only_when_undecided: Tier-1 must not have chosen (chosen_meaning_id is None)
       - AUTO mode: skip if Tier-1 margin >= auto_margin_ceiling
       - ON mode: ignore margin ceiling (still respects only_when_undecided if set)
     """
@@ -272,7 +272,7 @@ def collect_tier2_inputs(
             ranked2.append(_skip_tier2(r1, "not_ambiguous"))
             continue
 
-        if mode != "on" and only_when_undecided and r1.chosen_sense_id is not None:
+        if mode != "on" and only_when_undecided and r1.chosen_meaning_id is not None:
             reasons["tier1_decided"] += 1
             ranked2.append(_skip_tier2(r1, "tier1_decided"))
             continue
@@ -287,16 +287,16 @@ def collect_tier2_inputs(
         cand_ids = list(scores.keys())
         cand_texts: list[str] = []
         for sid in cand_ids:
-            sense = sense_index.get(sid)
-            definition = getattr(sense, "definition", None) if sense is not None else None
+            meaning = meaning_index.get(sid)
+            definition = getattr(meaning, "definition", None) if meaning is not None else None
             if not definition:
-                reasons["no_senses"] += 1
+                reasons["no_meanings"] += 1
                 cand_texts = []
                 break
             cand_texts.append(f"{acr}: {definition}")
 
         if not cand_texts:
-            ranked2.append(_skip_tier2(r1, "no_senses"))
+            ranked2.append(_skip_tier2(r1, "no_meanings"))
             continue
 
         eligible.append(_EligibleRerank(i, r1, context, cand_ids, cand_texts))

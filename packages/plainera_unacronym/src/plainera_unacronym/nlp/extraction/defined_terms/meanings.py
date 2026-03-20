@@ -2,14 +2,14 @@ from __future__ import annotations
 
 from collections import defaultdict
 
-from plainera_unacronym.nlp.extraction.defined_terms.types import TermDefinitionEntry, TermSense
+from plainera_unacronym.nlp.extraction.defined_terms.types import TermDefinitionEntry, TermMeaning
 
 
-def build_term_sense_index(
+def build_term_meaning_index(
     definition_entries: list[TermDefinitionEntry],
-) -> tuple[dict[str, tuple[TermSense, ...]], dict[str, TermSense]]:
+) -> tuple[dict[str, tuple[TermMeaning, ...]], dict[str, TermMeaning]]:
     """
-    Build deterministic term senses from extracted definition entries.
+    Build deterministic term meanings from extracted definition entries.
 
     Ordinals are assigned per normalized key in document order, so repeated
     introductions of the same term become:
@@ -23,14 +23,14 @@ def build_term_sense_index(
 
     Returns:
         tuple[
-            dict[str, tuple[TermSense, ...]],
-            dict[str, TermSense],
+            dict[str, tuple[TermMeaning, ...]],
+            dict[str, TermMeaning],
         ]:
-            - grouped sense index keyed by normalized term key
-            - flat sense lookup keyed by sense_id
+            - grouped meaning index keyed by normalized term key
+            - flat meaning lookup keyed by meaning_id
     """
-    grouped: dict[str, list[TermSense]] = defaultdict(list)
-    flat: dict[str, TermSense] = {}
+    grouped: dict[str, list[TermMeaning]] = defaultdict(list)
+    flat: dict[str, TermMeaning] = {}
     ordinals_by_key: dict[str, int] = defaultdict(int)
 
     ordered_entries = sorted(
@@ -41,10 +41,10 @@ def build_term_sense_index(
     for entry in ordered_entries:
         ordinals_by_key[entry.normalized_key] += 1
         ordinal = ordinals_by_key[entry.normalized_key]
-        sense_id = f"term|{entry.normalized_key}|{ordinal}"
+        meaning_id = f"term|{entry.normalized_key}|{ordinal}"
 
-        sense = TermSense(
-            sense_id=sense_id,
+        meaning = TermMeaning(
+            meaning_id=meaning_id,
             surface=entry.surface,
             normalized_key=entry.normalized_key,
             ordinal=ordinal,
@@ -55,8 +55,8 @@ def build_term_sense_index(
             section_path=entry.section_path,
         )
 
-        grouped[entry.normalized_key].append(sense)
-        flat[sense_id] = sense
+        grouped[entry.normalized_key].append(meaning)
+        flat[meaning_id] = meaning
 
     return (
         {k: tuple(v) for k, v in grouped.items()},
