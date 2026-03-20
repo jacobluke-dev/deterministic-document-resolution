@@ -68,7 +68,7 @@ class DefinedTermResolutionFlow(
 
     @staticmethod
     def _n_term_keys(s: TermFlowState) -> int:
-        return len(s.tier_1.term_sense_index)
+        return len(s.tier_1.term_meaning_index)
 
     @staticmethod
     def _n_occurrences(s: TermFlowState) -> int:
@@ -105,10 +105,10 @@ class DefinedTermResolutionFlow(
                     trace_fields=("definition_entries",),
                 ),
                 Stage(
-                    "build_term_sense_index",
-                    f.st_build_term_sense_index,
+                    "build_term_meaning_index",
+                    f.st_build_term_meaning_index,
                     lambda s: s.last_info,
-                    trace_fields=("tier_1.term_sense_index", "tier_1.sense_index"),
+                    trace_fields=("tier_1.term_meaning_index", "tier_1.meaning_index"),
                 ),
                 Stage(
                     "tier1_score_term_occurrences",

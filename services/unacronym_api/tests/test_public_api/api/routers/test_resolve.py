@@ -251,7 +251,7 @@ class TestV1Resolve:
         assert block["conflict_count"] >= 1
 
     @pytest.mark.anyio
-    async def test_multi_sense_acronym_returns_conflict_metadata(self, client, session_factory):
+    async def test_multi_meaning_acronym_returns_conflict_metadata(self, client, session_factory):
         with session_factory() as s:
             ga = GlossaryAcronym(
                 tenant_id=None,
@@ -314,7 +314,7 @@ class TestV1Resolve:
         assert block["selected"]["domain"] == block["candidates"][0]["domain"]
 
     @pytest.mark.anyio
-    async def test_glossary_block_includes_multiple_matches_for_multi_sense_acronym(self, client, session_factory):
+    async def test_glossary_block_includes_multiple_matches_for_multi_meaning_acronym(self, client, session_factory):
         with session_factory() as s:
             ga = (
                 s.query(GlossaryAcronym)

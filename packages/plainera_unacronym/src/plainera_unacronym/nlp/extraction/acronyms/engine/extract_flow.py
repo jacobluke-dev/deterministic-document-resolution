@@ -41,7 +41,7 @@ class ExtractionFlow(
       5) Extract sentence back-references (definition appears earlier, acronym appears later).
       6) Merge and de-duplicate extracted definitions.
       7) Gap-fill missing picks using extracted definitions.
-      8) Build senses and disambiguate occurrences.
+      8) Build meanings and disambiguate occurrences.
 
     The pipeline is executed via a `Chain` of `Stage`s, producing stage reports and
     optionally trace events for debugging.
@@ -139,7 +139,7 @@ class ExtractionFlow(
                     lambda s: f"{len(s.anchored_defs)}",
                     trace_fields=("anchored_defs",),
                 ),
-                # IMPORTANT: required for multi-sense acronyms when later occurrences introduce new definitions.
+                # IMPORTANT: required for multi-meaning acronyms when later occurrences introduce new definitions.
                 Stage(
                     "defs_scan_all_occurrences",
                     f.st_defs_scan_all_occurrences,
@@ -163,8 +163,8 @@ class ExtractionFlow(
                     trace_fields=("picks",),
                 ),
                 Stage(
-                    "tier1_build_senses",
-                    f.st_tier1_build_senses,
+                    "tier1_build_meanings",
+                    f.st_tier1_build_meanings,
                     lambda s: s.last_info,
                 ),
                 Stage(

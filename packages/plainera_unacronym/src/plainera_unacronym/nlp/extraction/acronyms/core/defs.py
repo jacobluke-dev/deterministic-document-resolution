@@ -20,7 +20,7 @@ def _src_rank(src: str) -> int:
 
 def _wins(a: ExtractedDefinition, b: ExtractedDefinition) -> bool:
     """
-    Return True if `a` should replace `b` as the winner for the same sense key.
+    Return True if `a` should replace `b` as the winner for the same meaning key.
     """
     if a.definition_confidence != b.definition_confidence:
         return a.definition_confidence > b.definition_confidence
@@ -33,7 +33,7 @@ def _wins(a: ExtractedDefinition, b: ExtractedDefinition) -> bool:
     return (a.acr_start, a.acr_end) < (b.acr_start, b.acr_end)
 
 
-def _sense_key(acr: str, label: str) -> tuple[str, str]:
+def _meaning_key(acr: str, label: str) -> tuple[str, str]:
     """Build a canonical (acronym, label) key.
 
     Uppercases the acronym and returns it alongside a normalized, lowercase
@@ -49,12 +49,12 @@ def _sense_key(acr: str, label: str) -> tuple[str, str]:
         a stable dictionary key or join key.
 
     Examples:
-        >>> _sense_key("Gpu", "Graphics Processing Unit")
+        >>> _meaning_key("Gpu", "Graphics Processing Unit")
         ('GPU', 'graphics processing unit')
-        >>> _sense_key("PDF", "And, which the Portable Document Format")
+        >>> _meaning_key("PDF", "And, which the Portable Document Format")
         ('PDF', 'portable document format')
         # Acronym and label do not need to match:
-        >>> _sense_key("GPU", "Portable Document Format")
+        >>> _meaning_key("GPU", "Portable Document Format")
         ('GPU', 'portable document format')
 
     Notes:
@@ -123,10 +123,10 @@ def defs_from_picks(text: str, picks: dict[str, Optional[InTextPick]]) -> list[E
 
 
 def dedupe_defs(defs: list[ExtractedDefinition]) -> list[ExtractedDefinition]:
-    """Deduplicate extracted definitions by stable sense key.
+    """Deduplicate extracted definitions by stable meaning key.
 
-    Definitions are considered duplicates when they resolve to the same sense key,
-    computed via `_sense_key(d.acronym, d.definition)`. The first occurrence is
+    Definitions are considered duplicates when they resolve to the same meaning key,
+    computed via `_meaning_key(d.acronym, d.definition)`. The first occurrence is
     kept and subsequent duplicates are dropped. The `definition` field is preserved
     exactly as provided (it is assumed to have been tightened/normalised upstream).
 
@@ -135,17 +135,17 @@ def dedupe_defs(defs: list[ExtractedDefinition]) -> list[ExtractedDefinition]:
 
     Returns:
         list[ExtractedDefinition]: A filtered list containing only the first instance
-        of each unique `(acronym, definition)` sense key, preserving original order.
+        of each unique `(acronym, definition)` meaning key, preserving original order.
 
     Notes:
-        - Deduplication is based on `_sense_key/tighten_label`, not spans or confidence.
+        - Deduplication is based on `_meaning_key/tighten_label`, not spans or confidence.
         - Output ordering follows the input ordering (stable dedupe).
     """
     best: dict[tuple[str, str], ExtractedDefinition] = {}
     first_idx: dict[tuple[str, str], int] = {}
 
     for idx, d in enumerate(defs):
-        k = _sense_key(d.acronym, d.definition)
+        k = _meaning_key(d.acronym, d.definition)
 
         if k not in best:
             best[k] = d

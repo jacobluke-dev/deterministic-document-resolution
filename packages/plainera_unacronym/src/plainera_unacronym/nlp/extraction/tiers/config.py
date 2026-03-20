@@ -25,5 +25,5 @@ class ResolutionConfig:
     and any future tiers have produced candidate rankings.
     """
 
-    # Minimum normalized separation required to accept a final chosen sense.
+    # Minimum normalized separation required to accept a final chosen meaning.
     select_margin_threshold: float = 0.10

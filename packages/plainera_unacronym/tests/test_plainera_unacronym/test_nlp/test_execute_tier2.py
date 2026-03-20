@@ -20,11 +20,11 @@ from plainera_unacronym.nlp.extraction.acronyms.engine import stage_funcs as f
 from plainera_unacronym.nlp.extraction.acronyms.engine.extract_flow import ExtractionFlow
 from plainera_unacronym.nlp.extraction.acronyms.engine.state import FlowState
 from plainera_unacronym.nlp.extraction.acronyms.execute import detect_and_extract
-from plainera_unacronym.nlp.extraction.acronyms.senses.disambiguate import (
+from plainera_unacronym.nlp.extraction.acronyms.meanings.disambiguate import (
     choose_with_tiebreak,
     disambiguate_occurrences,
 )
-from plainera_unacronym.nlp.extraction.acronyms.senses.sense_build import build_senses
+from plainera_unacronym.nlp.extraction.acronyms.meanings.meaning_build import build_meanings
 from plainera_unacronym.nlp.extraction.tiers.config import Tier2Config
 
 # -----------------------
@@ -121,7 +121,7 @@ class TestDetectAndExtractE2ETier2Contracts:
 
     def test_tier2_skips_single_candidate_everywhere(self, _patch):
         """
-        Contract: if an acronym has only one sense, Tier-2 must not apply.
+        Contract: if an acronym has only one meaning, Tier-2 must not apply.
         """
         text = "European Medicines Agency (EMA) issued guidance. EMA guidance was updated."
 
@@ -131,8 +131,8 @@ class TestDetectAndExtractE2ETier2Contracts:
         info = _stage_info(reports, "tier2_semantic_rerank")
         # Your info string may differ; assert the intent:
         assert "applied(0)" in info or "single_candidate" in info, info
-        # sanity: only one sense
-        assert len(extr.senses_by_acronym["EMA"]) == 1
+        # sanity: only one meaning
+        assert len(extr.meaning_by_acronym["EMA"]) == 1
 
 
 # -----------------------
@@ -144,9 +144,9 @@ class TestDetectAndExtractE2ETier2AcronymWins:
     def test_tier2_can_override_distance_when_semantics_strong_gpu(self, _patch):
         """
         Scenario:
-          - Two GPU senses defined.
+          - Two GPU meanings defined.
           - Final occurrence is closer to the *wrong* definition (distance misleads Tier-1).
-          - Tier-2 semantics should rerank/blend so the correct sense wins.
+          - Tier-2 semantics should rerank/blend so the correct meaning wins.
 
         We patch sims to be “context aware” via keyword triggers.
         """
@@ -161,8 +161,8 @@ class TestDetectAndExtractE2ETier2AcronymWins:
         # Baseline: Tier-2 disabled (records what Tier-1 does)
         _det0, extr0, r0 = detect_and_extract(text, ext_cfg=_tier2_cfg(mode="off"), return_reports=True)
         last0 = _last_res(extr0, "GPU")
-        assert last0.chosen_sense_id is not None  # Tier-1 likely chooses *something*
-        baseline = last0.chosen_sense_id
+        assert last0.chosen_meaning_id is not None  # Tier-1 likely chooses *something*
+        baseline = last0.chosen_meaning_id
 
         # Tier-2 enabled with deterministic semantic sims
         def _fake_embed_texts(texts, *, model=None, model_name=None, **_kw) -> np.ndarray:
@@ -206,17 +206,17 @@ class TestDetectAndExtractE2ETier2AcronymWins:
         assert "applied(" in info, info
 
         last1 = _last_res(extr1, "GPU")
-        assert last1.chosen_sense_id is not None
+        assert last1.chosen_meaning_id is not None
 
         # Tier-2 should pull toward “graphics_processing_unit”
-        assert "graphics_processing_unit" in last1.chosen_sense_id, last1
+        assert "graphics_processing_unit" in last1.chosen_meaning_id, last1
 
         # Candidate set invariant: keys unchanged (only scores/order change)
         assert set(last1.candidate_scores.keys()) == set(last0.candidate_scores.keys())
 
         # And it should differ from baseline if baseline was the wrong one (not guaranteed, but usually true)
         # If this is flaky, keep only the positive assertion above.
-        assert last1.chosen_sense_id != baseline or "graphics_processing_unit" in baseline
+        assert last1.chosen_meaning_id != baseline or "graphics_processing_unit" in baseline
 
     def test_tier2_api_programming_interface_vs_active_pharmaceutical_ingredient(self, monkeypatch):
         import plainera_unacronym.nlp.extraction.tiers.tier_2 as t2
@@ -270,10 +270,10 @@ class TestDetectAndExtractE2ETier2AcronymWins:
         assert "applied(" in info, info
 
         r_pharma = _res_near(extr, "API", pharma_anchor)
-        assert "active_pharmaceutical_ingredient" in r_pharma.chosen_sense_id
+        assert "active_pharmaceutical_ingredient" in r_pharma.chosen_meaning_id
 
         r_rest = _res_near(extr, "API", rest_anchor)
-        assert "application_programming_interface" in r_rest.chosen_sense_id
+        assert "application_programming_interface" in r_rest.chosen_meaning_id
 
     def test_tier2_nhs_can_pick_honour_society_when_context_mentions_students(self, monkeypatch):
         import plainera_unacronym.nlp.extraction.tiers.tier_2 as t2
@@ -315,13 +315,13 @@ class TestDetectAndExtractE2ETier2AcronymWins:
         assert "applied(" in info, info
 
         r_honor = _res_near(extr, "NHS", honor_anchor)
-        assert "national_honor_society" in r_honor.chosen_sense_id
+        assert "national_honor_society" in r_honor.chosen_meaning_id
 
 
 class TestDetectAndExtractIntegrationEdgeCases:
     # this one
-    def test_ambiguous_acronym_builds_multiple_senses(self, picked_def, cfg_integrated):
-        # EMA appears with two meanings; result should have ambiguous senses for EMA
+    def test_ambiguous_acronym_builds_multiple_meanings(self, picked_def, cfg_integrated):
+        # EMA appears with two meanings; result should have ambiguous meanings for EMA
         text = (
             "EMA stands for European Medicines Agency in the EU context. "
             "On charts, EMA (Exponential Moving Average) is a common indicator."
@@ -329,9 +329,9 @@ class TestDetectAndExtractIntegrationEdgeCases:
         det_cfg, ext_cfg = cfg_integrated()
         det_res, extr = detect_and_extract(text, det_cfg=det_cfg, ext_cfg=ext_cfg)
 
-        # senses_by_acronym and ambiguous_keys should reflect two senses for EMA
-        senses = extr.senses_by_acronym.get("EMA", [])
-        assert len(senses) >= 2, f"Expected multiple senses for EMA, got {senses}"
+        # meaning_by_acronym and ambiguous_keys should reflect two meanings for EMA
+        meanings = extr.meaning_by_acronym.get("EMA", [])
+        assert len(meanings) >= 2, f"Expected multiple meanings for EMA, got {meanings}"
         assert "EMA" in extr.ambiguous_keys
 
         # And definitions should include both
@@ -363,38 +363,38 @@ class TestDetectAndExtractIntegrationEdgeCases:
 
 class TestDisambiguationE2E:
     def test_disambiguation_picks_nearest_definition_by_distance(self, picked_def):
-        # Two senses, then a later occurrence near the second definition → should pick second.
+        # Two meanings, then a later occurrence near the second definition → should pick second.
         det, extr, r = detect_and_extract(
             "Natural language processing (NLP) helps. "
             "Later we discuss Nice Lovely Plants (NLP) sold locally. "
             "These NLP are popular in spring.",
             return_reports=True,
         )
-        # The last "NLP" should resolve to the nearby "Nice Lovely Plants" sense.
+        # The last "NLP" should resolve to the nearby "Nice Lovely Plants" meaning.
         last = extr.resolutions[-1]
         assert last.acronym == "NLP"
-        assert last.chosen_sense_id is not None
-        assert "nice_lovely_plants" in last.chosen_sense_id, last
+        assert last.chosen_meaning_id is not None
+        assert "nice_lovely_plants" in last.chosen_meaning_id, last
 
-    def test_disambiguation_not_ambiguous_when_only_one_sense(self, picked_def):
+    def test_disambiguation_not_ambiguous_when_only_one_meaning(self, picked_def):
         det, extr = detect_and_extract(
             "European Medicines Agency (EMA) issued guidance. EMA guidance was updated later."
         )
-        assert "EMA" in extr.senses_by_acronym
-        assert len(extr.senses_by_acronym["EMA"]) == 1
+        assert "EMA" in extr.meaning_by_acronym
+        assert len(extr.meaning_by_acronym["EMA"]) == 1
         assert "EMA" not in set(extr.ambiguous_keys)
-        # both occurrences should be resolved (same sole sense)
+        # both occurrences should be resolved (same sole meaning)
         ema_res = [x for x in extr.resolutions if x.acronym.upper() == "EMA"]
         assert len(ema_res) >= 2
-        assert all(x.chosen_sense_id is not None for x in ema_res), ema_res
+        assert all(x.chosen_meaning_id is not None for x in ema_res), ema_res
 
-    def test_disambiguation_ambiguous_keys_flagged_when_two_senses_exist(self, picked_def):
+    def test_disambiguation_ambiguous_keys_flagged_when_two_meanings_exist(self, picked_def):
         det, extr, r = detect_and_extract(
             "Natural language processing (NLP) is common. " "Nice Lovely Plants (NLP) are sold locally.",
             return_reports=True,
         )
-        assert "NLP" in extr.senses_by_acronym
-        assert len(extr.senses_by_acronym["NLP"]) == 2
+        assert "NLP" in extr.meaning_by_acronym
+        assert len(extr.meaning_by_acronym["NLP"]) == 2
         assert "NLP" in set(extr.ambiguous_keys)
 
     def test_disambiguation_near_tie_chooses_nearest_definition(self, picked_def):
@@ -410,12 +410,12 @@ class TestDisambiguationE2E:
 
         last = nlp_res[-1]
         # Near-tie (margin below threshold) => distance tiebreak => pick nearest def span.
-        assert last.chosen_sense_id is not None
-        assert "nice_lovely_plants" in last.chosen_sense_id, last
+        assert last.chosen_meaning_id is not None
+        assert "nice_lovely_plants" in last.chosen_meaning_id, last
         assert last.margin < 0.10, last  # confirms it was in the "not confident" zone
 
     def test_disambiguation_overlap_can_win_when_distance_not_dominating(self, picked_def):
-        # Make the final NLP mention much closer (and semantically aligned) to the NLP sense,
+        # Make the final NLP mention much closer (and semantically aligned) to the NLP meaning,
         # while pushing the Plants definition far away via filler.
         filler = " ".join(["filler"] * 250)
 
@@ -434,14 +434,14 @@ class TestDisambiguationE2E:
 
         # The second occurrence is the one in the language/processing sentence in this construction.
         mid = nlp_res[1]
-        assert mid.chosen_sense_id is not None
-        assert "natural_language_processing" in mid.chosen_sense_id, mid
+        assert mid.chosen_meaning_id is not None
+        assert "natural_language_processing" in mid.chosen_meaning_id, mid
 
 
 class TestDisambiguationE2EConfidenceContract:
-    def test_merge_dedupe_prefers_higher_confidence_for_same_sense(self):
+    def test_merge_dedupe_prefers_higher_confidence_for_same_meaning(self):
         """
-        Two strategies extract the *same* (acronym, definition) sense with different
+        Two strategies extract the *same* (acronym, definition) meaning with different
         confidence. Dedupe must keep the higher-confidence definition.
         """
         det, extr, r = detect_and_extract(
@@ -449,7 +449,7 @@ class TestDisambiguationE2EConfidenceContract:
             return_reports=True,
         )
 
-        # Force a competing duplicate sense with higher confidence and a distinct source.
+        # Force a competing duplicate meaning with higher confidence and a distinct source.
         # (We inject post-extract because this is E2E against merge/dedupe behaviour,
         # not against upstream strategy extraction.)
 
@@ -473,9 +473,9 @@ class TestDisambiguationE2EConfidenceContract:
         assert winners[0].source == "injected_strategy"
         assert winners[0].definition_confidence == approx(injected.definition_confidence)
 
-    def test_build_senses_uses_max_definition_confidence_as_sense_confidence(self):
+    def test_build_meanings_uses_max_definition_confidence_as_meaning_confidence(self):
         """
-        When multiple defs collapse to the same sense_id, sense_confidence must reflect
+        When multiple defs collapse to the same meaning_id, meaning_confidence must reflect
         the best supporting definition_confidence.
         """
         det, extr, r = detect_and_extract(
@@ -498,19 +498,19 @@ class TestDisambiguationE2EConfidenceContract:
             reasons=("injected_low_conf",),
         )
 
-        senses_by = build_senses([d0, low])
-        assert "EMA" in senses_by
-        assert len(senses_by["EMA"]) == 1
-        sense = senses_by["EMA"][0]
-        assert sense.sense_confidence == approx(d0.definition_confidence)
+        meanings_by = build_meanings([d0, low])
+        assert "EMA" in meanings_by
+        assert len(meanings_by["EMA"]) == 1
+        meaning = meanings_by["EMA"][0]
+        assert meaning.meaning_confidence == approx(d0.definition_confidence)
 
-    def test_dynamic_prior_breaks_near_tie_in_favour_of_higher_confidence_sense(self, _patch):
+    def test_dynamic_prior_breaks_near_tie_in_favour_of_higher_confidence_meaning(self, _patch):
         """
         If base scores are a near tie, the confidence prior should nudge selection
-        toward the higher-confidence sense (when enabled).
+        toward the higher-confidence meaning (when enabled).
         """
         # Patch base scoring to guarantee a near-tie, regardless of text/layout.
-        from plainera_unacronym.nlp.extraction.acronyms.senses import disambiguate as mod
+        from plainera_unacronym.nlp.extraction.acronyms.meanings import disambiguate as mod
 
         def fake_base_scores_for_occurrence(*_, **__):
             # Near tie: gap = 0.01 (<= NEAR_TIE_GAP 0.06), and relative margin is small.
@@ -526,25 +526,25 @@ class TestDisambiguationE2EConfidenceContract:
             return_reports=True,
         )
 
-        # Build a minimal senses_by_id map from extraction output.
-        senses_by_id = extr.sense_index
+        # Build a minimal meanings_by_id map from extraction output.
+        meanings_by_id = extr.meaning_index
 
-        # Ensure we have both senses and that we can control their sense_confidence:
+        # Ensure we have both meanings and that we can control their meaning_confidence:
         # (E2E-friendly: mutate by rebuilding local objects if your dataclass is frozen elsewhere;
-        # here, we just assert what's already present and use patch on sense_prior term behaviour.)
-        assert "nlp|natural_language_processing" in senses_by_id
-        assert "nlp|nice_lovely_plants" in senses_by_id
+        # here, we just assert what's already present and use patch on meaning_prior term behaviour.)
+        assert "nlp|natural_language_processing" in meanings_by_id
+        assert "nlp|nice_lovely_plants" in meanings_by_id
 
-        # Now patch confidence levels by monkeypatching the sense_index entries via replacement.
+        # Now patch confidence levels by monkeypatching the meaning_index entries via replacement.
         # If AcronmMeaning is mutable in your codebase, you can direct-set instead.
-        s_hi = senses_by_id["nlp|natural_language_processing"]
-        s_lo = senses_by_id["nlp|nice_lovely_plants"]
+        s_hi = meanings_by_id["nlp|natural_language_processing"]
+        s_lo = meanings_by_id["nlp|nice_lovely_plants"]
 
         # Sanity: make sure we can see a difference (or the prior would be moot).
         # If both are equal from upstream, this test can still pass by force-setting.
         try:
-            s_hi.sense_confidence = 0.95
-            s_lo.sense_confidence = 0.40
+            s_hi.meaning_confidence = 0.95
+            s_lo.meaning_confidence = 0.40
         except Exception:
             # If frozen, rebuild lightweight namespace objects for the call below
             pass
@@ -554,33 +554,33 @@ class TestDisambiguationE2EConfidenceContract:
         out = mod.disambiguate_occurrences(
             text="x" * 50,
             occurrences=occs,
-            senses={"NLP": list(extr.senses_by_acronym["NLP"])},
-            sense_prior_weight=0.08,  # enable
-            senses_by_id=senses_by_id,
+            meanings={"NLP": list(extr.meaning_by_acronym["NLP"])},
+            meanings_prior_weight=0.08,  # enable
+            meanings_by_id=meanings_by_id,
             window_chars=10,
         )
-        assert out and out[0].chosen_sense_id is not None
-        assert "natural_language_processing" in out[0].chosen_sense_id
+        assert out and out[0].chosen_meaning_id is not None
+        assert "natural_language_processing" in out[0].chosen_meaning_id
 
     def test_dynamic_prior_disabled_keeps_near_tie_unresolved(self):
         """
         Integration-style contract:
-        - Build real senses (and real def_spans) from the pipeline.
+        - Build real meanings (and real def_spans) from the pipeline.
         - Create a synthetic occurrence positioned exactly midway between the two def spans.
         - With prior disabled and distance unable to distinguish, resolution stays undecided.
         """
 
-        # 1) Run full pipeline once to get REAL senses + REAL def_spans.
+        # 1) Run full pipeline once to get REAL meanings + REAL def_spans.
         _det, extr, _r = detect_and_extract(
             "Natural language processing (NLP) helps. " "Nice Lovely Plants (NLP) sold locally.",
             return_reports=True,
         )
 
-        senses = list(extr.senses_by_acronym["NLP"])
-        assert len(senses) == 2
-        s1, s2 = senses
+        meanings = list(extr.meaning_by_acronym["NLP"])
+        assert len(meanings) == 2
+        s1, s2 = meanings
 
-        # Take the first def span for each sense and compute span-centers (same logic as disambiguate.py)
+        # Take the first def span for each meaning and compute span-centers (same logic as disambiguate.py)
         (a1, b1) = s1.def_spans[0]
         (a2, b2) = s2.def_spans[0]
         c1 = (a1 + b1) // 2
@@ -590,23 +590,23 @@ class TestDisambiguationE2EConfidenceContract:
         mid = (c1 + c2) // 2
         occ = OccurrenceLite("NLP", mid, mid + 3)
 
-        # 3) Use dummy text with no useful overlap signal (tokens won't intersect sense definitions).
+        # 3) Use dummy text with no useful overlap signal (tokens won't intersect meaning definitions).
         text = "x" * (mid + 50)
 
         out = disambiguate_occurrences(
             text=text,
             occurrences=[occ],
-            senses={"NLP": senses},
-            senses_by_id=extr.sense_index,
+            meanings={"NLP": meanings},
+            meanings_by_id=extr.meaning_index,
             window_chars=20,
-            sense_prior_weight=0.0,  # disable prior (what we're asserting)
+            meanings_prior_weight=0.0,  # disable prior (what we're asserting)
             margin_threshold=0.10,
             dist_weight=0.75,
             overlap_weight=0.25,
         )
 
         assert out
-        assert out[0].chosen_sense_id is None, out[0]
+        assert out[0].chosen_meaning_id is None, out[0]
 
     def test_choose_with_tiebreak_margins_checked(self):
         """
@@ -614,25 +614,25 @@ class TestDisambiguationE2EConfidenceContract:
         """
 
         def S(
-            acr: str, sense_id: str, definition: str, spans: list[Span], *, conf: float = 0.0, support: int = 1
+            acr: str, meaning_id: str, definition: str, spans: list[Span], *, conf: float = 0.0, support: int = 1
         ) -> AcronymMeaning:
             return AcronymMeaning(
                 acronym=acr,
                 definition=definition,
-                sense_id=sense_id,
-                sense_confidence=conf,
+                meaning_id=meaning_id,
+                meaning_confidence=conf,
                 def_spans=list(spans),
                 support=support,
             )
 
         occ = OccurrenceLite("PDF", 10, 13)
-        senses_by_id = {
+        meanings_by_id = {
             "s1": S("PDF", "s1", "Portable Document Format", [(0, 1)]),
             "s2": S("PDF", "s2", "Other", [(0, 1)]),
         }
         cand = {"s1": 0.80, "s2": 0.60}
 
-        chosen, rel_margin, abs_margin = choose_with_tiebreak(occ, cand, senses_by_id, margin_threshold=0.10)
+        chosen, rel_margin, abs_margin = choose_with_tiebreak(occ, cand, meanings_by_id, margin_threshold=0.10)
         assert chosen == "s1"
 
         assert abs_margin == approx(0.200000, abs=1e-6)
@@ -708,26 +708,26 @@ def _tier2_report(state: FlowState) -> Any:
     return rep
 
 
-def _iter_senses_with_ids(extr: Any):
-    senses = getattr(extr, "senses", None)
-    if senses is None:
+def _iter_meanings_with_ids(extr: Any):
+    meanings = getattr(extr, "meanings", None)
+    if meanings is None:
         return
 
-    if isinstance(senses, dict):
-        for v in senses.values():
+    if isinstance(meanings, dict):
+        for v in meanings.values():
             if isinstance(v, dict):
                 for sid, s in v.items():
                     yield sid, s
             elif isinstance(v, (list, tuple)):
                 for s in v:
-                    yield _sense_id(s), s
+                    yield _meaning_id(s), s
             else:
-                yield _sense_id(v), v
+                yield _meaning_id(v), v
         return
 
-    if isinstance(senses, (list, tuple)):
-        for s in senses:
-            yield _sense_id(s), s
+    if isinstance(meanings, (list, tuple)):
+        for s in meanings:
+            yield _meaning_id(s), s
         return
 
 
@@ -735,18 +735,18 @@ def _norm(s: str) -> str:
     return re.sub(r"[^a-z0-9]+", "", s.lower())
 
 
-def _sense_id(sense: Any) -> str | None:
-    for attr in ("sense_id", "id", "key"):
-        v = getattr(sense, attr, None)
+def _meaning_id(meaning: Any) -> str | None:
+    for attr in ("meaning_id", "id", "key"):
+        v = getattr(meaning, attr, None)
         if isinstance(v, str) and v:
             return v
     return None
 
 
-def _sense_text(sense: Any) -> str:
+def _meaning_text(meaning: Any) -> str:
     # direct strings
     for attr in ("definition", "definition_text", "expanded", "expansion", "long_form", "text", "label"):
-        v = getattr(sense, attr, None)
+        v = getattr(meaning, attr, None)
         if isinstance(v, str) and v.strip():
             return v
 
@@ -760,9 +760,9 @@ def _sense_text(sense: Any) -> str:
     return ""
 
 
-def _sense_index(state: FlowState) -> dict[str, Any]:
-    idx = _get(state, "disambig.sense_index")
-    assert isinstance(idx, dict) and idx, "Expected state.disambig.sense_index to exist."
+def _meaning_index(state: FlowState) -> dict[str, Any]:
+    idx = _get(state, "disambig.meaning_index")
+    assert isinstance(idx, dict) and idx, "Expected state.disambig.meaning_index to exist."
     return idx
 
 
@@ -807,7 +807,7 @@ def _find_sid_by_slug(state: FlowState, *, acr: str, contains: str) -> str:
             if needle in _norm(sid):
                 return sid
 
-    raise AssertionError(f"Couldn't find sense id for {acr} containing {contains!r}")
+    raise AssertionError(f"Couldn't find meaning id for {acr} containing {contains!r}")
 
 
 def _iter_resolutions(extr: Any) -> Iterable[Any]:
@@ -851,8 +851,8 @@ def _res_pos(r: Any) -> int | None:
     return None
 
 
-def _chosen_sense_id(r: Any) -> str | None:
-    for attr in ("chosen_sense_id", "sense_id", "chosen"):
+def _chosen_meaning_id(r: Any) -> str | None:
+    for attr in ("chosen_meaning_id", "meaning_id", "chosen"):
         v = getattr(r, attr, None)
         if isinstance(v, str) and v:
             return v
@@ -931,8 +931,8 @@ class TestTier2E2e:
 
         for r in api_res:
             pos = _res_pos(r)
-            chosen = _chosen_sense_id(r)
-            assert chosen is not None, "Expected chosen_sense_id to be set for API occurrences."
+            chosen = _chosen_meaning_id(r)
+            assert chosen is not None, "Expected chosen_meaning_id to be set for API occurrences."
 
             if pos is not None and pos < boundary:
                 assert chosen == sid_software
@@ -980,7 +980,7 @@ class TestTier2E2e:
 
         for r in pdf_res:
             pos = _res_pos(r)
-            chosen = _chosen_sense_id(r)
+            chosen = _chosen_meaning_id(r)
             assert chosen is not None
             if pos is not None and pos < boundary:
                 assert chosen == sid_docs
@@ -1037,7 +1037,7 @@ class TestTier2E2e:
         pos_on = _res_pos(r_on)
         assert pos_on is not None
 
-        chosen_on = _chosen_sense_id(r_on)
+        chosen_on = _chosen_meaning_id(r_on)
         assert chosen_on is not None
 
         assert chosen_on == sid_pharma, f"Expected Tier-2 final choice to be pharma; got {chosen_on!r}"

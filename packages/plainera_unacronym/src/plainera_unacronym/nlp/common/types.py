@@ -56,7 +56,7 @@ class FirstOccurrence:
 @dataclass
 class AcronymMeaning:
     """
-    Represents a single “meaning” (sense) of an acronym within a document.
+    Represents a single “meaning” (meaning) of an acronym within a document.
 
     An `AcronmMeaning` is constructed from one or more extracted in-text definitions
     that normalise to the same `(acronym, definition)` identity (e.g. multiple
@@ -64,30 +64,30 @@ class AcronymMeaning:
     the unit of choice during occurrence-level disambiguation.
 
     Key ideas:
-      - `sense_id` is a stable identifier (typically derived from the acronym plus a
+      - `meaning_id` is a stable identifier (typically derived from the acronym plus a
         slug of the tightened definition) used for indexing and resolution outputs.
-      - `def_spans` records where this sense was defined in the source text; these
+      - `def_spans` records where this meaning was defined in the source text; these
         spans drive proximity-based scoring and distance tie-breaks.
-      - `sense_confidence` is a deterministic strength signal for the sense (e.g. the
+      - `meaning_confidence` is a deterministic strength signal for the meaning (e.g. the
         max confidence among supporting definitions). It may be used as a small prior
         for near-tie breaking, but should not override structural validity gates.
-      - `support` counts how many definition instances were merged into this sense.
+      - `support` counts how many definition instances were merged into this meaning.
 
     Attributes:
         acronym: Uppercased acronym string (e.g. "EMA").
-        definition: Tightened/normalised definition label for this sense.
-        sense_id: Stable key for this sense (e.g. "ema|european_medicines_agency").
-        sense_confidence: Deterministic confidence scalar in [0, 1] for this sense.
-        def_spans: List of (start, end) spans where this sense is defined in the text.
-        support: Number of definition instances merged into this sense.
+        definition: Tightened/normalised definition label for this meaning.
+        meaning_id: Stable key for this meaning (e.g. "ema|european_medicines_agency").
+        meaning_confidence: Deterministic confidence scalar in [0, 1] for this meaning.
+        def_spans: List of (start, end) spans where this meaning is defined in the text.
+        support: Number of definition instances merged into this meaning.
     """
 
     acronym: str
     definition: str  # tightened, normalized label ("European Medicines Agency")
-    sense_id: str  # stable key, e.g., "ema|european_medicines_agency"
-    sense_confidence: float
-    def_spans: list[Span]  # locations where this sense was defined
-    support: int  # number of defining mentions merged into this sense
+    meaning_id: str  # stable key, e.g., "ema|european_medicines_agency"
+    meaning_confidence: float
+    def_spans: list[Span]  # locations where this meaning was defined
+    support: int  # number of defining mentions merged into this meaning
 
 
 @dataclass
@@ -116,14 +116,14 @@ class OccurrenceResolution:
     """
     Resolution result for a single acronym occurrence.
 
-    Holds the chosen sense (or None) plus per-sense scores and the top-two score gap.
+    Holds the chosen meaning (or None) plus per-meaning scores and the top-two score gap.
 
     Args:
         acronym: Acronym surface for this occurrence.
         start: Start offset (inclusive) in the source text.
         end: End offset (exclusive) in the source text.
-        chosen_sense_id: Selected sense_id, or None if ambiguous.
-        candidate_scores: Mapping of sense_id -> score in [0.0, 0.99].
+        chosen_meaning_id: Selected meaning_id, or None if ambiguous.
+        candidate_scores: Mapping of meaning_id -> score in [0.0, 0.99].
         gap: Absolute gap (top_score - second_score), 0.0 if <2 candidates.
         margin:
     """
@@ -131,7 +131,7 @@ class OccurrenceResolution:
     acronym: str
     start: int
     end: int
-    chosen_sense_id: str | None
+    chosen_meaning_id: str | None
     candidate_scores: dict[str, float]
     gap: float
     margin: float
@@ -231,7 +231,7 @@ class ExtractedDefinition:
     Normalised definition evidence produced by an extraction strategy.
     Carries absolute spans into the source text plus provenance and confidence.
     This is the “ledger” of all candidates considered, not necessarily the final pick.
-    Used for dedupe/merge, sense building, debugging, and traceability.
+    Used for dedupe/merge, meaning building, debugging, and traceability.
 
     Args:
         acronym: Acronym key/surface for this definition evidence.
@@ -295,18 +295,18 @@ class ExtractionResult:
     Output bundle for Tier-1 extraction and selection.
     Provides per-acronym winners plus the full set of definition evidence observed.
     `picks` is the consumer-facing map; `definitions` is the evidence ledger.
-    Includes coverage/missing metrics and optional sense-resolution artefacts.
+    Includes coverage/missing metrics and optional meaning-resolution artefacts.
 
     Args:
         picks: Normalised acronym key -> selected in-text pick or None.
         definitions: All extracted definition evidence from all strategies.
         coverage: Fraction of acronym keys with a non-null pick.
         missing_keys: Normalised keys with no pick after all selection steps.
-        senses_by_acronym: Candidate senses grouped by acronym key.
-        sense_index: Global sense lookup by sense_id.
+        meaning_by_acronym: Candidate meanings grouped by acronym key.
+        meaning_index: Global meaning lookup by meaning_id.
         resolutions: Per-occurrence resolution decisions.
-        ambiguous_keys: Keys with more than one viable sense.
-        undecided: Resolutions where no sense could be chosen deterministically.
+        ambiguous_keys: Keys with more than one viable meaning.
+        undecided: Resolutions where no meaning could be chosen deterministically.
     """
 
     # map normalized_key -> pick (nearest in-text definition) or None if not found
@@ -319,11 +319,11 @@ class ExtractionResult:
     # normalized keys that had no in-text definition
     missing_keys: tuple[str, ...]
 
-    senses_by_acronym: dict[str, list[AcronymMeaning]] = field(default_factory=dict)
-    sense_index: Mapping[str, AcronymMeaning] = field(default_factory=dict)  # sense_id -> sense
+    meaning_by_acronym: dict[str, list[AcronymMeaning]] = field(default_factory=dict)
+    meaning_index: Mapping[str, AcronymMeaning] = field(default_factory=dict)  # meaning_id -> meaning
     resolutions: list[OccurrenceResolution] = field(default_factory=list)
-    ambiguous_keys: tuple[str, ...] = field(default_factory=tuple)  # acronyms with >1 senses
-    undecided: list[OccurrenceResolution] = field(default_factory=list)  # chosen_sense_id is None
+    ambiguous_keys: tuple[str, ...] = field(default_factory=tuple)  # acronyms with >1 meanings
+    undecided: list[OccurrenceResolution] = field(default_factory=list)  # chosen_meaning_id is None
     tier2_report: Tier2Report | None = None
     tier2_ranked: tuple[Tier2OccurrenceRanking, ...] = ()
 

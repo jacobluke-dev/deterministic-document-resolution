@@ -1,15 +1,15 @@
 """
-Integration tests for acronym sense disambiguation (distance + token overlap + near-tie tiebreak).
+Integration tests for acronym meaning disambiguation (distance + token overlap + near-tie tiebreak).
 
-Example: senses for "NLP" = Natural Language Processing vs Nice Lovely Plants; pick the sense whose label
+Example: meanings for "NLP" = Natural Language Processing vs Nice Lovely Plants; pick the meaning whose label
 overlaps the local context more, and/or whose definition span is nearer to the occurrence.
-Numbers: occurrence NLP at [100,103]; Sense A spans [(98,110)] (centre≈104) vs Sense B [(10,20)] (centre≈15).
-If scores are close, the near-tie tiebreak chooses the sense ≥3 chars closer; otherwise return None.
+Numbers: occurrence NLP at [100,103]; Meaning A spans [(98,110)] (centre≈104) vs Meaning B [(10,20)] (centre≈15).
+If scores are close, the near-tie tiebreak chooses the meaning ≥3 chars closer; otherwise return None.
 """
 
 import pytest
 from plainera_unacronym.nlp.common.types import AcronymMeaning, OccurrenceLite, Span
-from plainera_unacronym.nlp.extraction.acronyms.senses.disambiguate import (
+from plainera_unacronym.nlp.extraction.acronyms.meanings.disambiguate import (
     choose_with_tiebreak,
     disambiguate_occurrences,
 )
@@ -17,7 +17,7 @@ from plainera_unacronym.nlp.extraction.acronyms.senses.disambiguate import (
 
 def S(acr: str, sid: str, definition: str, spans: list[Span]):
     return AcronymMeaning(
-        acronym=acr, definition=definition, sense_id=sid, def_spans=spans, support=1, sense_confidence=1
+        acronym=acr, definition=definition, meaning_id=sid, def_spans=spans, support=1, meaning_confidence=1
     )
 
 
@@ -29,11 +29,11 @@ def _get_attr_any(obj, names: list[str]):
 
 
 def _chosen_id(res) -> str | None:
-    return _get_attr_any(res, ["chosen_sense_id", "sense_id", "chosen", "resolved_sense_id"])
+    return _get_attr_any(res, ["chosen_meaning_id", "meaning_id", "chosen", "resolved_meaning_id"])
 
 
 def _scores(res) -> dict[str, float]:
-    return _get_attr_any(res, ["candidate_scores", "scores", "cand_scores", "per_sense_scores"])
+    return _get_attr_any(res, ["candidate_scores", "scores", "cand_scores", "per_meaning_scores"])
 
 
 def _margin(res) -> float:
@@ -56,27 +56,27 @@ class TestChooseWithTiebreak:
     def test_accepts_probabilistic_winner_when_margin_exceeds_threshold(self):
         occ = OccurrenceLite("PDF", 10, 13)
 
-        senses_by_id = {
+        meanings_by_id = {
             "s1": S("PDF", "s1", "Portable Document Format", [(0, 1)]),
             "s2": S("PDF", "s2", "Other", [(0, 1)]),
         }
         cand = {"s1": 0.80, "s2": 0.60}
 
-        chosen, rel_margin, abs_margin = choose_with_tiebreak(occ, cand, senses_by_id, margin_threshold=0.10)
+        chosen, rel_margin, abs_margin = choose_with_tiebreak(occ, cand, meanings_by_id, margin_threshold=0.10)
         assert chosen == "s1"
         assert abs_margin == pytest.approx(0.80 - 0.60, rel=0, abs=1e-9)
         assert rel_margin == pytest.approx(0.25000, abs=1e-4)
 
     def test_returns_none_when_margin_low_and_not_near_tie(self):
         occ = OccurrenceLite("PDF", 10, 13)
-        senses_by_id = {
+        meanings_by_id = {
             "s1": S("PDF", "s1", "Portable Document Format", [(0, 1)]),
             "s2": S("PDF", "s2", "Personal Data File", [(0, 1)]),
         }
         cand = {"s1": 0.50, "s2": 0.43}  # diff=0.07 > 0.06 => no distance tiebreak
 
         chosen, rel_margin, abs_margin = choose_with_tiebreak(
-            occ, cand, senses_by_id, margin_threshold=0.20, near_tie_margin=0.06
+            occ, cand, meanings_by_id, margin_threshold=0.20, near_tie_margin=0.06
         )
         assert chosen is None
         assert abs_margin == pytest.approx(0.50 - 0.43, rel=0, abs=1e-9)
@@ -84,24 +84,24 @@ class TestChooseWithTiebreak:
 
     def test_near_tie_distance_tiebreak_picks_closer_when_advantage_ge_3(self):
         occ = OccurrenceLite("NLP", 100, 103)
-        senses_by_id = {
-            "near": S("NLP", "near", "Near Sense", [(100, 102)]),
-            "far": S("NLP", "far", "Far Sense", [(50, 52)]),
+        meanings_by_id = {
+            "near": S("NLP", "near", "Near Meaning", [(100, 102)]),
+            "far": S("NLP", "far", "Far Meaning", [(50, 52)]),
         }
         cand = {"near": 0.50, "far": 0.47}  # diff=0.03 => engage distance tiebreak
 
-        chosen, _, _ = choose_with_tiebreak(occ, cand, senses_by_id, margin_threshold=0.10, near_tie_margin=0.06)
+        chosen, _, _ = choose_with_tiebreak(occ, cand, meanings_by_id, margin_threshold=0.10, near_tie_margin=0.06)
         assert chosen == "near"
 
     def test_near_tie_distance_tiebreak_returns_none_when_distances_too_close(self):
         occ = OccurrenceLite("NLP", 100, 103)
-        senses_by_id = {
+        meanings_by_id = {
             "a": S("NLP", "a", "A", [(100, 102)]),
             "b": S("NLP", "b", "B", [(98, 100)]),
         }
         cand = {"a": 0.50, "b": 0.48}
 
-        chosen, _, _ = choose_with_tiebreak(occ, cand, senses_by_id, margin_threshold=0.10, near_tie_margin=0.06)
+        chosen, _, _ = choose_with_tiebreak(occ, cand, meanings_by_id, margin_threshold=0.10, near_tie_margin=0.06)
         assert chosen is None
 
 
@@ -114,9 +114,9 @@ class TestDisambiguateOccurrences:
     def test_unknown_acronym_returns_ambiguous_resolution(self):
         text = "Nothing to see here."
         occs = [OccurrenceLite("XYZ", 0, 3)]
-        senses = {}
+        meanings = {}
 
-        out = disambiguate_occurrences(text, occs, senses)
+        out = disambiguate_occurrences(text, occs, meanings)
         assert len(out) == 1
         assert _chosen_id(out[0]) is None
         assert _scores(out[0]) == {}
@@ -128,9 +128,9 @@ class TestDisambiguateOccurrences:
 
         s_near = S("PDF", "near", "Portable Document Format", [(40, 43)])
         s_far = S("PDF", "far", "Personal Data File", [(0, 3)])
-        senses = {"PDF": [s_near, s_far]}
+        meanings = {"PDF": [s_near, s_far]}
 
-        out = disambiguate_occurrences(text, occs, senses, margin_threshold=0.10)
+        out = disambiguate_occurrences(text, occs, meanings, margin_threshold=0.10)
         assert len(out) == 1
         assert _chosen_id(out[0]) == "near"
         assert set(_scores(out[0]).keys()) == {"near", "far"}
@@ -141,9 +141,9 @@ class TestDisambiguateOccurrences:
 
         s_good = S("NLP", "s1", "natural language processing", [])
         s_bad = S("NLP", "s2", "nice lovely plants", [])
-        senses = {"NLP": [s_good, s_bad]}
+        meanings = {"NLP": [s_good, s_bad]}
 
-        out = disambiguate_occurrences(text, occs, senses, window_chars=50, margin_threshold=0.10)
+        out = disambiguate_occurrences(text, occs, meanings, window_chars=50, margin_threshold=0.10)
         assert len(out) == 1
         assert _chosen_id(out[0]) == "s1"
 
@@ -154,14 +154,14 @@ class TestDisambiguateOccurrences:
 
         s1 = S("NLP", "a", "alpha beta", [(occ_pos - 2, occ_pos + 2)])
         s2 = S("NLP", "b", "gamma delta", [(occ_pos - 3, occ_pos + 1)])
-        senses = {"NLP": [s1, s2]}
+        meanings = {"NLP": [s1, s2]}
 
-        out = disambiguate_occurrences(text, occs, senses, window_chars=30, margin_threshold=0.50)
+        out = disambiguate_occurrences(text, occs, meanings, window_chars=30, margin_threshold=0.50)
         assert len(out) == 1
         assert _chosen_id(out[0]) is None
         assert set(_scores(out[0]).keys()) == {"a", "b"}
 
-    def test_multiple_occurrences_switch_between_senses_and_can_be_ambiguous(self):
+    def test_multiple_occurrences_switch_between_meanings_and_can_be_ambiguous(self):
         s1 = "The European Medicines Agency (EMA) set guidance. "
         s2 = "Later, Emergency Management Australia (EMA) responded. "
         text = s1 + s2
@@ -195,31 +195,31 @@ class TestDisambiguateOccurrences:
             OccurrenceLite("EMA", occ3_i, occ3_i + 3),
         ]
 
-        senses = {
+        meanings = {
             "EMA": [
                 AcronymMeaning("EMA", "European Medicines Agency", "ema|medicines", 1, [span_med], 2),
                 AcronymMeaning("EMA", "Emergency Management Australia", "ema|emergency", 2, [span_emg], 2),
             ]
         }
 
-        out = disambiguate_occurrences(text, occs, senses, dist_weight=1.0, overlap_weight=0.0, margin_threshold=0.10)
+        out = disambiguate_occurrences(text, occs, meanings, dist_weight=1.0, overlap_weight=0.0, margin_threshold=0.10)
 
         assert len(out) == 3
-        assert out[0].chosen_sense_id == "ema|medicines"
-        assert out[1].chosen_sense_id == "ema|emergency"
+        assert out[0].chosen_meaning_id == "ema|medicines"
+        assert out[1].chosen_meaning_id == "ema|emergency"
 
         # The *point*: midpoint occurrence is equidistant => no decisive advantage => None.
-        assert out[2].chosen_sense_id is None
+        assert out[2].chosen_meaning_id is None
         assert set(out[2].candidate_scores.keys()) == {"ema|medicines", "ema|emergency"}
         assert 0.0 <= out[2].margin < 0.10
 
-    def test_order_independence_of_senses_and_robust_scoring(self):
+    def test_order_independence_of_meanings_and_robust_scoring(self):
         text = "Org A (ABC) meets Org B (ABC). Later ABC again."
         i1 = text.index("(ABC)") + 1
         i2 = text.index("B (ABC)") + 3
         i3 = text.rindex("ABC")
         occs = [OccurrenceLite("ABC", i1, i1 + 3), OccurrenceLite("ABC", i2, i2 + 3), OccurrenceLite("ABC", i3, i3 + 3)]
-        senses_A_first = {
+        meanings_A_first = {
             "ABC": [
                 AcronymMeaning(
                     "ABC",
@@ -239,13 +239,13 @@ class TestDisambiguateOccurrences:
                 ),
             ]
         }
-        senses_B_first = {"ABC": list(reversed(senses_A_first["ABC"]))}
+        meanings_B_first = {"ABC": list(reversed(meanings_A_first["ABC"]))}
 
-        out1 = disambiguate_occurrences(text, occs, senses_A_first)
-        out2 = disambiguate_occurrences(text, occs, senses_B_first)
+        out1 = disambiguate_occurrences(text, occs, meanings_A_first)
+        out2 = disambiguate_occurrences(text, occs, meanings_B_first)
 
-        # Results should be identical even if senses list order is reversed
-        assert [r.chosen_sense_id for r in out1] == [r.chosen_sense_id for r in out2]
+        # Results should be identical even if meanings list order is reversed
+        assert [r.chosen_meaning_id for r in out1] == [r.chosen_meaning_id for r in out2]
 
     def test_near_tie_distance_tiebreak_with_bias_window(self):
         text = "ACR ... many dots ..."
@@ -253,16 +253,16 @@ class TestDisambiguateOccurrences:
         occs = [OccurrenceLite("ACR", start=0, end=2)]  # pos ~0
 
         # Centers at ~50 and ~53 → d1=50, d2=53 (diff=3 > 2 bias)
-        senses = {
+        meanings = {
             "ACR": [
                 AcronymMeaning("ACR", "Alpha Core Reader", "acr|alpha", 1, [(49, 51)], 1),  # center ~50
                 AcronymMeaning("ACR", "Advanced Cardiac Rehab", "acr|cardiac", 2, [(52, 54)], 1),  # center ~53
             ]
         }
 
-        out = disambiguate_occurrences(text, occs, senses, dist_weight=1.0, overlap_weight=0.0, margin_threshold=0.10)
+        out = disambiguate_occurrences(text, occs, meanings, dist_weight=1.0, overlap_weight=0.0, margin_threshold=0.10)
         # Near tie on probs, distance decides; alpha is nearer (50 vs 53)
-        assert out[0].chosen_sense_id == "acr|alpha"
+        assert out[0].chosen_meaning_id == "acr|alpha"
 
         # And now the margin should indeed be small (< 0.10)
         assert 0.0 <= out[0].margin < 0.10
@@ -274,7 +274,7 @@ class TestDisambiguateOccurrences:
     #         OccurrenceLite("ZC", text.index("(ZC)") + 1, text.index("(ZC)") + 3),
     #         OccurrenceLite("ZC", text.rindex("ZC"), text.rindex("ZC") + 2),
     #     ]
-    #     senses = {
+    #     meanings = {
     #         "ZC": [
     #             AcronmMeaning("ZC", "Zeta Corporation",
     #             "zc|zeta_corporation", [(text.index("Zeta"), text.index("Zeta") + 4)], 1),
@@ -283,8 +283,8 @@ class TestDisambiguateOccurrences:
     #             [(text.index("globally") + 2, text.index("globally") - 2)], 1),  # reversed endpoints on purpose
     #         ]
     #     }
-    #     out = disambiguate_occurrences(text, occs, senses, dist_weight=1.0, overlap_weight=0.0)
+    #     out = disambiguate_occurrences(text, occs, meanings, dist_weight=1.0, overlap_weight=0.0)
     #     # Should not crash; should still choose the appropriate nearest
     #     assert len(out) == 2
-    #     assert out[0].chosen_sense_id == "zc|zeta_corporation"
-    #     assert out[1].chosen_sense_id in {"zc|zeta_corporation", "zc|zero_cool"}
+    #     assert out[0].chosen_meaning_id == "zc|zeta_corporation"
+    #     assert out[1].chosen_meaning_id in {"zc|zeta_corporation", "zc|zero_cool"}

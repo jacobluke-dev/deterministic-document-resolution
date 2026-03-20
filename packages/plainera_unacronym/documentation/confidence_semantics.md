@@ -1,4 +1,4 @@
-# Architecture Decision Record, ADR: Confidence semantics in extraction + sense resolution
+# Architecture Decision Record, ADR: Confidence semantics in extraction + meaning resolution
 
 ## Context
 We compute confidence values for extracted acronym definitions across multiple strategies, on
@@ -18,12 +18,12 @@ Confidence is treated as a deterministic *ranking signal* among structurally val
    - A structurally valid candidate is never dropped solely due to low confidence.
 
 2. **Winner selection / dedupe**
-   - When two definitions collapse to the same sense key, the winner is the one with higher
+   - When two definitions collapse to the same meaning key, the winner is the one with higher
      `definition_confidence`. Tie-break remains deterministic (first-seen unless otherwise stated).
 
-3. **Sense-level confidence**
-   - A sense carries `sense_confidence` equal to the maximum `definition_confidence` among merged
-     supports for that sense.
+3. **Meaning-level confidence**
+   - A meaning carries `meaning_confidence` equal to the maximum `definition_confidence` among merged
+     supports for that meaning.
 
 4. **Disambiguation tie-break**
    - Occurrence resolution uses distance/overlap scoring as primary signals.

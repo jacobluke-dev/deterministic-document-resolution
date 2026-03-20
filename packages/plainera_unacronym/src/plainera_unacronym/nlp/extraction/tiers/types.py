@@ -19,7 +19,7 @@ Tier2SkipReason = Literal[
     "not_ambiguous",
     "tier1_decided",
     "tier1_confident",
-    "no_senses",
+    "no_meanings",
 ]
 
 
@@ -27,7 +27,7 @@ Tier2SkipReason = Literal[
 class Tier1OccurrenceRanking:
     occ: OccurrenceLite
     candidate_scores: dict[str, float]  # preserve insertion order
-    chosen_sense_id: str | None
+    chosen_meaning_id: str | None
     gap: float
     margin: float
 
@@ -51,22 +51,22 @@ class Tier2Report:
 @dataclass
 class Tier1Work:
     """
-    Tier-1 deterministic sense-building and occurrence-ranking workspace.
+    Tier-1 deterministic meaning-building and occurrence-ranking workspace.
 
-    Holds the acronym sense inventory derived from extracted definitions, along
+    Holds the acronym meaning inventory derived from extracted definitions, along
     with the lightweight occurrence list and the Tier-1 ranking result for each
     occurrence.
 
     Attributes:
-        senses_by_acronym: Grouped senses keyed by acronym surface/normalized key.
-        sense_index: Flat lookup of sense_id -> AcronmMeaning.
+        meaning_by_acronym: Grouped meanings keyed by acronym surface/normalized key.
+        meaning_index: Flat lookup of meaning_id -> AcronmMeaning.
         occurrences: Minimal occurrence records used for downstream scoring.
         ranked: Tier-1 ranking result for each occurrence, including candidate
-            scores, chosen sense (if any), and confidence separation metrics.
+            scores, chosen meaning (if any), and confidence separation metrics.
     """
 
-    senses_by_acronym: dict[str, list[AcronymMeaning]] = field(default_factory=dict)
-    sense_index: dict[str, AcronymMeaning] = field(default_factory=dict)
+    meaning_by_acronym: dict[str, list[AcronymMeaning]] = field(default_factory=dict)
+    meaning_index: dict[str, AcronymMeaning] = field(default_factory=dict)
     occurrences: list[OccurrenceLite] = field(default_factory=list)
     ranked: list[Tier1OccurrenceRanking] = field(default_factory=list)
 

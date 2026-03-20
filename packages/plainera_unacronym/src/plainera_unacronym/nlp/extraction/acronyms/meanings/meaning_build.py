@@ -16,18 +16,18 @@ def _slug(s: str) -> str:
         s: Input string.
 
     Returns:
-        A slug string suitable for building stable sense IDs.
+        A slug string suitable for building stable meaning IDs.
     """
     s = s.lower()
     s = re.sub(r"[^a-z0-9]+", "_", s).strip("_")
     return s or "x"
 
 
-def build_senses(defs: Iterable[ExtractedDefinition]) -> dict[str, list[AcronymMeaning]]:
-    """Build `AcronmMeaning` objects from definition matches.
+def build_meanings(defs: Iterable[ExtractedDefinition]) -> dict[str, list[AcronymMeaning]]:
+    """Build `AcronymMeaning` objects from definition matches.
 
-    Definitions are de-duplicated first. Each definition becomes a "sense" keyed by:
-    `"{acr.lower()}|{slug(tighten_label(definition))}"`. Multiple defs for the same sense
+    Definitions are de-duplicated first. Each definition becomes a "meaning" keyed by:
+    `"{acr.lower()}|{slug(tighten_label(definition))}"`. Multiple defs for the same meaning
     are merged by appending spans and incrementing `support`.
 
     Args:
@@ -37,30 +37,30 @@ def build_senses(defs: Iterable[ExtractedDefinition]) -> dict[str, list[AcronymM
     Returns:
         Mapping `{ACRONYM: [AcronmMeaning, ...]}` where keys are uppercased acronyms.
     """
-    senses_by: dict[str, dict[str, AcronymMeaning]] = {}
+    meamings_by: dict[str, dict[str, AcronymMeaning]] = {}
 
     for d in dedupe_defs(list(defs)):
         acr = d.acronym.upper()
         label = tighten_label(d.definition)
         sid = f"{acr.lower()}|{_slug(label)}"
-        by_label = senses_by.setdefault(acr, {})
+        by_label = meamings_by.setdefault(acr, {})
 
-        sense = by_label.get(sid)
-        if sense is None:
-            sense = AcronymMeaning(
+        meaning = by_label.get(sid)
+        if meaning is None:
+            meaning = AcronymMeaning(
                 acronym=acr,
                 definition=label,
-                sense_id=sid,
+                meaning_id=sid,
                 def_spans=[],
                 support=0,
-                sense_confidence=d.definition_confidence,
+                meaning_confidence=d.definition_confidence,
             )
-            by_label[sid] = sense
+            by_label[sid] = meaning
 
-        sense.def_spans.append((d.def_start, d.def_end))
-        sense.support += 1
+        meaning.def_spans.append((d.def_start, d.def_end))
+        meaning.support += 1
         # important when multiple defs collapse to same sid across pipeline:
-        if d.definition_confidence > sense.sense_confidence:
-            sense.sense_confidence = d.definition_confidence
+        if d.definition_confidence > meaning.meaning_confidence:
+            meaning.meaning_confidence = d.definition_confidence
 
-    return {acr: list(by.values()) for acr, by in senses_by.items()}
+    return {acr: list(by.values()) for acr, by in meamings_by.items()}

@@ -87,7 +87,7 @@ def main(force: bool = False) -> None:
 
             # Upsert meanings by (acronym_id, domain)
             for domain, definition in meanings:
-                sense = (
+                meaning = (
                     s.execute(
                         select(GlossaryMeaning).where(
                             GlossaryMeaning.acronym_id == existing.id,
@@ -97,7 +97,7 @@ def main(force: bool = False) -> None:
                     .scalar_one_or_none()
                 )
 
-                if sense is None:
+                if meaning is None:
                     s.add(
                         GlossaryMeaning(
                             acronym_id=existing.id,
@@ -108,9 +108,9 @@ def main(force: bool = False) -> None:
                         )
                     )
                 else:
-                    sense.definition = definition
-                    sense.provenance = src
-                    sense.is_active = True
+                    meaning.definition = definition
+                    meaning.provenance = src
+                    meaning.is_active = True
 
             # Idempotent variant insert (case-insensitive to match your unique index)
             existing_variants = {

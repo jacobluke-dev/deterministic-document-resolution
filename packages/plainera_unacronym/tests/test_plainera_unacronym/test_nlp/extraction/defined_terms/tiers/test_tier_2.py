@@ -105,10 +105,10 @@ class TestTier2:
         assert len(service_resolutions) == 1
 
         resolution = service_resolutions[0]
-        assert resolution.chosen_sense_id == "term|services|2"
+        assert resolution.chosen_meaning_id == "term|services|2"
         assert resolution.resolution_method == "tier2_blend"
 
-        scores_by_id = {c.sense_id: c for c in resolution.candidate_scores}
+        scores_by_id = {c.meaning_id: c for c in resolution.candidate_scores}
         assert scores_by_id["term|services|2"].tier2_score > scores_by_id["term|services|1"].tier2_score
         assert scores_by_id["term|services|2"].total_score > scores_by_id["term|services|1"].total_score
 
@@ -192,9 +192,9 @@ class TestTier2:
 
         resolution = service_resolutions[0]
         assert resolution.resolution_method == "tier2_blend"
-        assert resolution.chosen_sense_id == "term|services|2"
+        assert resolution.chosen_meaning_id == "term|services|2"
 
-        scores_by_id = {c.sense_id: c for c in resolution.candidate_scores}
+        scores_by_id = {c.meaning_id: c for c in resolution.candidate_scores}
         assert scores_by_id["term|services|2"].tier2_score is not None
         assert scores_by_id["term|services|1"].tier2_score is not None
         assert scores_by_id["term|services|2"].tier2_score > scores_by_id["term|services|1"].tier2_score

@@ -7,7 +7,7 @@ from plainera_unacronym.nlp.detection.defined_terms import DefinedTermDetectorRe
 from plainera_unacronym.nlp.extraction.defined_terms.config import DefinedTermExtractionConfig
 from plainera_unacronym.nlp.extraction.defined_terms.structure import TermStructureIndex
 from plainera_unacronym.nlp.extraction.defined_terms.tiers.work import TermTier1Work, TermTier2Work
-from plainera_unacronym.nlp.extraction.defined_terms.types import TermDefinitionEntry, TermResolutionResult, TermSense
+from plainera_unacronym.nlp.extraction.defined_terms.types import TermDefinitionEntry, TermMeaning, TermResolutionResult
 
 
 @dataclass
@@ -28,14 +28,14 @@ class TermFlowState:
             completed stage.
         det_res: Detector output containing introductions, mentions, and
             unique-term mappings.
-        term_sense_index: Legacy or transitional top-level mapping from
-            normalised term key to candidate senses. Current Tier-1 work
-            generally stores the active sense index data.
+        term_meaning_index: Legacy or transitional top-level mapping from
+            normalised term key to candidate meanings. Current Tier-1 work
+            generally stores the active meaning index data.
         structure_index: Optional document structure index used for section-path
             aware scoring and extraction.
         definition_entries: Extracted definition entries derived from detected
             introductions.
-        tier_1: Tier-1 working state containing candidate senses, occurrences,
+        tier_1: Tier-1 working state containing candidate meanings, occurrences,
             and deterministic ranking outputs.
         tier_2: Tier-2 working state containing semantic rerank outputs and
             report metadata.
@@ -49,7 +49,7 @@ class TermFlowState:
 
     det_res: DefinedTermDetectorResult | None = None
 
-    term_sense_index: dict[str, tuple[TermSense, ...]] = field(default_factory=dict)
+    term_meaning_index: dict[str, tuple[TermMeaning, ...]] = field(default_factory=dict)
     structure_index: TermStructureIndex | None = None
     definition_entries: list[TermDefinitionEntry] = field(default_factory=list)
 

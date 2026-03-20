@@ -59,7 +59,7 @@ class DefinedTermDetector(BaseDetector[DefinedTermDetectorResult]):
     automatic domain activation.
 
     This detector returns:
-        * ``unique_terms``: canonical defined-term senses keyed by normalised term.
+        * ``unique_terms``: canonical defined-term meanings keyed by normalised term.
         * ``occurrences``: later references to previously introduced terms.
     """
 

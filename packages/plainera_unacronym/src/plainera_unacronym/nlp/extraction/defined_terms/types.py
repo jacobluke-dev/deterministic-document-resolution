@@ -15,13 +15,13 @@ TermTier2SkipReason = Literal[
     "not_ambiguous",
     "tier1_decided",
     "tier1_confident",
-    "no_senses",
+    "no_meanings",
 ]
 
 
 @dataclass(frozen=True)
-class TermSense:
-    sense_id: str
+class TermMeaning:
+    meaning_id: str
     surface: str
     normalized_key: str
     ordinal: int
@@ -34,7 +34,7 @@ class TermSense:
 
 @dataclass(frozen=True)
 class TermCandidateScore:
-    sense_id: str
+    meaning_id: str
     total_score: float
     tier1_score: float
     tier2_score: float | None
@@ -47,7 +47,7 @@ class TermResolution:
     occurrence_span: TextSpanTuple
     term: str
     normalized_key: str
-    chosen_sense_id: str | None
+    chosen_meaning_id: str | None
     chosen_definition_span: TextSpanTuple | None
     candidate_scores: tuple[TermCandidateScore, ...]
     resolution_method: Literal["tier1", "tier2_blend", "unresolved"]
@@ -68,7 +68,7 @@ class TermDefinitionEntry:
 class TermTier1OccurrenceRanking:
     occ: DefinedTermMention
     candidate_scores: dict[str, float]
-    chosen_sense_id: str | None
+    chosen_meaning_id: str | None
     gap: float
     margin: float
 
@@ -84,8 +84,8 @@ class TermTier2OccurrenceRanking:
 
 @dataclass(frozen=True, slots=True)
 class TermResolutionResult:
-    term_sense_index: dict[str, tuple[TermSense, ...]] = field(default_factory=dict)
-    sense_index: Mapping[str, TermSense] = field(default_factory=dict)
+    term_meaning_index: dict[str, tuple[TermMeaning, ...]] = field(default_factory=dict)
+    meaning_index: Mapping[str, TermMeaning] = field(default_factory=dict)
     term_resolutions: list[TermResolution] = field(default_factory=list)
     ambiguous_keys: tuple[str, ...] = field(default_factory=tuple)
     undecided: list[TermResolution] = field(default_factory=list)

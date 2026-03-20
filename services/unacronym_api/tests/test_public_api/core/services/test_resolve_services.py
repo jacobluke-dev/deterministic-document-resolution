@@ -593,7 +593,7 @@ class TestAttachResolutionMetaData:
                 "definition": "Another meaning",
                 "score": 0.0,
                 "provenance": "glossary",
-                "source_ref": "sense:2",
+                "source_ref": "meaning:2",
             },
         ]
 
@@ -632,7 +632,7 @@ class TestAttachResolutionMetaData:
             "definition": "General meaning",
             "score": 1.0,
             "provenance": "glossary",
-            "source_ref": "sense:11",
+            "source_ref": "meaning:11",
         }
 
     def test_attach_resolution_metadata_uses_highest_score_fallback_when_no_general_candidate(
@@ -675,14 +675,14 @@ class TestAttachResolutionMetaData:
                 "definition": "Alpha meaning",
                 "score": 1.0,
                 "provenance": "glossary",
-                "source_ref": "sense:20",
+                "source_ref": "meaning:20",
             },
             {
                 "domain": "alpha",
                 "definition": "Beta meaning",
                 "score": 0.0,
                 "provenance": "glossary",
-                "source_ref": "sense:21",
+                "source_ref": "meaning:21",
             },
         ]
 

@@ -29,7 +29,7 @@ class TestSrTier2SemanticRerank:
             Tier1OccurrenceRanking(
                 occ=OccurrenceLite("GPU", 5, 8),
                 candidate_scores={"gpu|graphics": 0.5, "gpu|general": 0.49},
-                chosen_sense_id=None,
+                chosen_meaning_id=None,
                 gap=0.01,
                 margin=0.02,
             )
@@ -49,18 +49,18 @@ class TestSrTier2SemanticRerank:
 
         # Seed Tier-1 work
         t1 = s.tier_1
-        t1.sense_index = {
+        t1.meaning_index = {
             "gpu|graphics": AcronymMeaning("GPU", "Graphics Processing Unit", "gpu|graphics", 0.8, [], 1),
             "gpu|general": AcronymMeaning("GPU", "General Purpose Unit", "gpu|general", 0.7, [], 1),
         }
 
-        t1.senses_by_acronym = {"GPU": list(t1.sense_index.values())}
+        t1.meaning_by_acronym = {"GPU": list(t1.meaning_index.values())}
 
         t1.ranked = [
             Tier1OccurrenceRanking(
                 occ=OccurrenceLite("GPU", 5, 8),
                 candidate_scores={"gpu|graphics": 0.5, "gpu|general": 0.5},
-                chosen_sense_id=None,
+                chosen_meaning_id=None,
                 gap=0.0,
                 margin=0.0,
             )
@@ -84,16 +84,16 @@ class TestSrTier2SemanticRerank:
         s.text = "kernel launch overhead ... GPU ..."
 
         t1 = s.tier_1
-        t1.sense_index = {
+        t1.meaning_index = {
             "gpu|graphics": AcronymMeaning("GPU", "Graphics Processing Unit", "gpu|graphics", 0.8, [], 1),
             "gpu|general": AcronymMeaning("GPU", "General Purpose Unit", "gpu|general", 0.7, [], 1),
         }
-        t1.senses_by_acronym = {"GPU": list(t1.sense_index.values())}
+        t1.meaning_by_acronym = {"GPU": list(t1.meaning_index.values())}
         t1.ranked = [
             Tier1OccurrenceRanking(
                 occ=OccurrenceLite("GPU", 10, 13),
                 candidate_scores={"gpu|graphics": 0.40, "gpu|general": 0.60},
-                chosen_sense_id=None,
+                chosen_meaning_id=None,
                 gap=0.20,
                 margin=0.0,
             )
@@ -129,18 +129,18 @@ class TestStTier1SelectAndAssemble:
         s.det_res = object()
 
         t1 = s.tier_1
-        t1.senses_by_acronym = {
+        t1.meaning_by_acronym = {
             "GPU": [
                 AcronymMeaning("GPU", "Graphics Processing Unit", "gpu|graphics", 0.8, [], 1),
                 AcronymMeaning("GPU", "General Purpose Unit", "gpu|general", 0.7, [], 1),
             ]
         }
-        t1.sense_index = {x.sense_id: x for xs in t1.senses_by_acronym.values() for x in xs}
+        t1.meaning_index = {x.meaning_id: x for xs in t1.meaning_by_acronym.values() for x in xs}
         t1.ranked = [
             Tier1OccurrenceRanking(
                 occ=OccurrenceLite("GPU", 0, 3),
                 candidate_scores={"gpu|graphics": 0.9, "gpu|general": 0.1},
-                chosen_sense_id="gpu|graphics",
+                chosen_meaning_id="gpu|graphics",
                 gap=0.8,
                 margin=0.88,
             )
@@ -149,7 +149,7 @@ class TestStTier1SelectAndAssemble:
         f.st_tiers_select_and_assemble(s, margin_threshold=0.2)
 
         assert s.extr is not None
-        assert s.extr.resolutions[0].chosen_sense_id == "gpu|graphics"
+        assert s.extr.resolutions[0].chosen_meaning_id == "gpu|graphics"
         assert s.extr.resolutions[0].candidate_scores == {"gpu|graphics": 0.9, "gpu|general": 0.1}
 
 

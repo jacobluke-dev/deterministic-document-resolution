@@ -8,7 +8,7 @@ This module exposes three logical layers in the API response:
 
 Layer 2 preserves what the pipeline found in the document and what glossary
 enrichment returned. Layer 3 does not replace that evidence; it ranks the
-available senses deterministically and exposes which candidate was selected
+available meanings deterministically and exposes which candidate was selected
 and why.
 """
 from __future__ import annotations
@@ -594,7 +594,7 @@ class ResolveService:
                 continue
 
             meaning_id = m.get("meaning_id")
-            source_ref = f"sense:{meaning_id}" if meaning_id is not None else None
+            source_ref = f"meaning:{meaning_id}" if meaning_id is not None else None
 
             candidates.append(
                 {
