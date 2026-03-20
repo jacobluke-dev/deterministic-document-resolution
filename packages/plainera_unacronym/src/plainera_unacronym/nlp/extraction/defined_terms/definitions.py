@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import re
 
-from plainera_unacronym.nlp.common.types import TextSpanTuple, Span
+from plainera_unacronym.nlp.common.types import TextSpanTuple
 from plainera_unacronym.nlp.detection.defined_terms import DefinedTermDetectorResult
 from plainera_unacronym.nlp.extraction.defined_terms.structure import TermStructureIndex
 from plainera_unacronym.nlp.extraction.defined_terms.types import TermDefinitionEntry

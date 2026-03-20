@@ -28,7 +28,7 @@ from public_api.core.auth.chunking import make_chunks, merge_blocks, shift_block
 from public_api.core.settings import app_settings
 from public_api.db.repos.glossary_repo import GlossaryRepository
 from public_api.schemas.error import ErrorCode
-from public_api.schemas.resolve import ResolveOptions, ResolveRequest, ResolveResponse, ResolutionMode
+from public_api.schemas.resolve import ResolutionMode, ResolveOptions, ResolveRequest, ResolveResponse
 
 
 class _SpanLike(Protocol):

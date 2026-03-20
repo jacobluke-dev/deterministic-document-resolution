@@ -9,7 +9,7 @@ import pytest
 from fastapi import status
 from public_api.core.services.resolve_service import ResolveError, ResolveService, _lang_from_locale
 from public_api.schemas.error import ErrorCode
-from public_api.schemas.resolve import ResolveOptions, ResolveRequest, ResolutionMode
+from public_api.schemas.resolve import ResolutionMode, ResolveOptions, ResolveRequest
 
 
 @dataclass(frozen=True)
