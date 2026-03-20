@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from plainera_unacronym.nlp.extraction.base.base_execute import run_flow_with_options
+from plainera_unacronym.nlp.extraction import run_flow_with_options
 from plainera_unacronym.nlp.extraction.defined_terms.extract_flow import DefinedTermResolutionFlow
 from plainera_unacronym.nlp.extraction.defined_terms.state import TermFlowState
 

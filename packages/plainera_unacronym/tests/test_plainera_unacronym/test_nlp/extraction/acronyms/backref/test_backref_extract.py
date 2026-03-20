@@ -1,6 +1,6 @@
 from plainera_unacronym.nlp import FirstOccurrence
 from plainera_unacronym.nlp.common.types import ExtractedDefinition
-from plainera_unacronym.nlp.extraction import ExtractionConfig
+from plainera_unacronym.nlp.extraction.acronyms.config import ExtractionConfig
 from plainera_unacronym.nlp.extraction.acronyms.backref.extract import (
     _candidate_from_prev_sentence,
     _find_backref_candidate,

@@ -4,7 +4,7 @@ from types import SimpleNamespace
 import plainera_unacronym.nlp.extraction.acronyms.anchored.extract as mod
 import pytest
 from plainera_unacronym.nlp.common.types import ExtractedDefinition, FirstOccurrence
-from plainera_unacronym.nlp.extraction import ExtractionConfig
+from plainera_unacronym.nlp.extraction.acronyms.config import ExtractionConfig
 
 
 def _fo(acr: str, start: int, end: int, *, norm: str | None = None):

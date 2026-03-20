@@ -1,5 +1,5 @@
 from plainera_unacronym.nlp.common.types import ExtractedDefinition
-from plainera_unacronym.nlp.extraction import ExtractionConfig
+from plainera_unacronym.nlp.extraction.acronyms.config import ExtractionConfig
 from plainera_unacronym.nlp.extraction.acronyms.engine.confidence import base_conf_for
 from plainera_unacronym.nlp.extraction.acronyms.matchers.defs import (
     find_parenthetical_longform_after_acr,

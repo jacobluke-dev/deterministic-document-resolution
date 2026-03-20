@@ -1,4 +1,4 @@
-from plainera_unacronym.nlp.extraction import ExtractionConfig
+from plainera_unacronym.nlp.extraction.acronyms.config import ExtractionConfig
 from plainera_unacronym.nlp.extraction.acronyms.anchored.patterns import compile_anchored_for_surface
 from plainera_unacronym.nlp.extraction.acronyms.anchored.spans import resolve_def_span
 

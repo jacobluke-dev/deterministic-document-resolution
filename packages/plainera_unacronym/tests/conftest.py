@@ -14,7 +14,7 @@ from plainera_unacronym.nlp.common.types import (
     Span,
 )
 from plainera_unacronym.nlp.detection.defined_terms import DefinedTermDetector
-from plainera_unacronym.nlp.extraction import ExtractionConfig
+from plainera_unacronym.nlp.extraction.acronyms.config import ExtractionConfig
 
 
 @pytest.fixture

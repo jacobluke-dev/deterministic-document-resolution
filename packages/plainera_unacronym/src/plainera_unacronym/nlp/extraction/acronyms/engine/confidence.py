@@ -1,6 +1,6 @@
 from typing import Optional
 
-from plainera_unacronym.nlp.extraction import ExtractionConfig
+from plainera_unacronym.nlp.extraction.acronyms.config import ExtractionConfig
 from plainera_unacronym.nlp.extraction.acronyms.config import ConfidenceConfig
 
 

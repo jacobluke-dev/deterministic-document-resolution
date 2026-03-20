@@ -4,7 +4,7 @@ import re
 from typing import Optional
 
 from plainera_unacronym.nlp.common.types import Span
-from plainera_unacronym.nlp.extraction import ExtractionConfig
+from plainera_unacronym.nlp.extraction.acronyms.config import ExtractionConfig
 from plainera_unacronym.nlp.extraction.acronyms.core.collect import initials_match
 from plainera_unacronym.nlp.extraction.acronyms.matchers.defs import (
     find_inline_longform_after_acr,

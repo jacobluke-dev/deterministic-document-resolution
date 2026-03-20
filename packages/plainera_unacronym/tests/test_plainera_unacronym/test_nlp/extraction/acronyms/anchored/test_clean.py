@@ -1,6 +1,6 @@
 import pytest
 from plainera_unacronym.nlp.common.types import INLINE
-from plainera_unacronym.nlp.extraction import ExtractionConfig
+from plainera_unacronym.nlp.extraction.acronyms.config import ExtractionConfig
 from plainera_unacronym.nlp.extraction.acronyms.anchored.clean import _strip_leading_determiner, clean_definition
 
 
