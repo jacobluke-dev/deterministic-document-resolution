@@ -758,3 +758,37 @@ class TestAttachResolutionMetaData:
         assert out[0]["selected"] is None
         assert out[0]["conflict"] is True
         assert out[0]["conflict_count"] == 2
+
+    def test_attach_resolution_metadata_fallback_general_prefers_general_candidate(
+        self,
+        service_factory,
+        opts_factory,
+    ):
+        svc, _ = service_factory(
+            meanings=[
+                {"meaning_id": 10, "definition": "Specific meaning", "domain": "finance", "is_active": True},
+                {"meaning_id": 11, "definition": "General meaning", "domain": "general", "is_active": True},
+            ]
+        )
+
+        blocks = [
+            {
+                "acronym": "ABC",
+                "first_occurrence": {"start": 0, "end": 3},
+                "definitions": [],
+            }
+        ]
+
+        out = svc._attach_resolution_metadata(
+            blocks=blocks,
+            opts=opts_factory(max_definitions_per_acronym=10),
+            resolution_mode=ResolutionMode.FALLBACK_GENERAL,
+        )
+
+        assert out[0]["selected"] == {
+            "domain": "general",
+            "definition": "General meaning",
+            "reason": "fallback_general",
+        }
+        assert out[0]["conflict"] is True
+        assert out[0]["conflict_count"] == 2
