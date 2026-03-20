@@ -34,6 +34,17 @@ _NUMBERED_SECTION_HEADING_RE = re.compile(
 
 
 def _slug(value: str) -> str:
+    """Normalize free-form text into a lowercase underscore slug.
+
+    Non-alphanumeric runs are collapsed to underscores, repeated underscores
+    are squashed, and leading or trailing underscores are removed.
+
+    Args:
+        value: Raw text to normalize.
+
+    Returns:
+        Normalized slug value suitable for structural lookup keys.
+    """
     return re.sub(r"_+", "_", re.sub(r"[^a-z0-9]+", "_", value.lower())).strip("_")
 
 
@@ -43,6 +54,22 @@ def _build_anchor_key(
     label: str,
     cfg: StructuralReferenceExtractionConfig,
 ) -> str:
+    """Build the deterministic lookup key for a structural anchor.
+
+    The key format mirrors structural-reference canonical keys so that
+    downstream linking can match references to anchors directly. When Roman
+    numeral conversion is enabled, article labels such as ``III`` are
+    converted to numeric form, for example ``article_3``.
+
+    Args:
+        kind: Structural heading kind, for example ``"Schedule"`` or
+            ``"Article"``.
+        label: Heading label extracted from the source line.
+        cfg: Extraction configuration controlling Roman numeral handling.
+
+    Returns:
+        Canonicalized lookup key for the anchor.
+    """
     normalized_kind = kind.lower()
     normalized_label = label.strip()
 
@@ -60,6 +87,24 @@ def _named_anchor_from_line(
     ordinal: int,
     cfg: StructuralReferenceExtractionConfig,
 ) -> StructuralAnchor | None:
+    """Build an anchor from a named structural heading line.
+
+    Supports headings such as ``Schedule A``, ``Section 4.2``,
+    ``Article III``, and variants with trailing descriptive titles.
+
+    Args:
+        line: Candidate heading line with surrounding whitespace removed.
+        start_offset: Start character offset of the stripped line in the
+            original text.
+        end_offset: End character offset of the stripped line in the
+            original text.
+        ordinal: Zero-based ordinal of the anchor within document order.
+        cfg: Extraction configuration controlling key canonicalization.
+
+    Returns:
+        A ``StructuralAnchor`` if the line matches a named heading pattern;
+        otherwise ``None``.
+    """
     match = _NAMED_HEADING_RE.match(line)
     if match is None:
         return None
@@ -85,6 +130,24 @@ def _numbered_section_anchor_from_line(
     ordinal: int,
     cfg: StructuralReferenceExtractionConfig,
 ) -> StructuralAnchor | None:
+    """Build an anchor from a bare numbered section heading line.
+
+    Supports headings such as ``4.2 Termination`` by treating the numeric
+    prefix as a section-style structural label.
+
+    Args:
+        line: Candidate heading line with surrounding whitespace removed.
+        start_offset: Start character offset of the stripped line in the
+            original text.
+        end_offset: End character offset of the stripped line in the
+            original text.
+        ordinal: Zero-based ordinal of the anchor within document order.
+        cfg: Extraction configuration controlling key canonicalization.
+
+    Returns:
+        A ``StructuralAnchor`` if the line matches a numbered heading pattern;
+        otherwise ``None``.
+    """
     match = _NUMBERED_SECTION_HEADING_RE.match(line)
     if match is None:
         return None
@@ -109,6 +172,24 @@ def _anchor_from_line(
     ordinal: int,
     cfg: StructuralReferenceExtractionConfig,
 ) -> StructuralAnchor | None:
+    """Build a structural anchor from a candidate line.
+
+    Named structural headings are attempted first. If no named heading is
+    found, the line is tested as a bare numbered section heading.
+
+    Args:
+        line: Candidate heading line with surrounding whitespace removed.
+        start_offset: Start character offset of the stripped line in the
+            original text.
+        end_offset: End character offset of the stripped line in the
+            original text.
+        ordinal: Zero-based ordinal of the anchor within document order.
+        cfg: Extraction configuration controlling key canonicalization.
+
+    Returns:
+        A ``StructuralAnchor`` when the line represents a supported structural
+        heading; otherwise ``None``.
+    """
     anchor = _named_anchor_from_line(
         line=line,
         start_offset=start_offset,
@@ -136,8 +217,16 @@ def extract_structural_anchors(
     """Extract heading-like structural anchors from document text.
 
     Anchors are derived from line-oriented heading patterns such as
-    ``Schedule A: Services Description`` or ``4.2 Termination``.
-    Output order is document order and ordinals are assigned sequentially.
+    ``Schedule A: Services Description`` and ``4.2 Termination``.
+    Returned anchors preserve document order, and ordinals are assigned
+    sequentially across matched headings only.
+
+    Args:
+        text: Source document text to scan.
+        cfg: Extraction configuration controlling key canonicalization.
+
+    Returns:
+        Ordered list of extracted structural anchors.
     """
     anchors: list[StructuralAnchor] = []
     ordinal = 0
@@ -167,20 +256,21 @@ def extract_structural_anchors(
 
     return anchors
 
+
 def build_structural_anchor_index(
     anchors: list[StructuralAnchor],
 ) -> dict[str, list[StructuralAnchor]]:
     """Group structural anchors by lookup key in document order.
 
-    Anchors are indexed by ``normalized_key`` and preserved in input order.
-    This supports deterministic downstream linking and proximity-based
-    tie-breaking across repeated headings.
+    Anchors are indexed by the lookup key stored in ``normalized_key``.
+    Input order is preserved within each group to support deterministic
+    downstream linking and proximity-based tie-breaking.
 
     Args:
         anchors: Structural anchors in document order.
 
     Returns:
-        Mapping from anchor lookup key to the ordered anchors sharing that key.
+        Mapping from lookup key to the ordered anchors sharing that key.
     """
     out: dict[str, list[StructuralAnchor]] = {}
 
