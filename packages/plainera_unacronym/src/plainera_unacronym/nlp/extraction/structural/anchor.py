@@ -132,8 +132,11 @@ def _numbered_section_anchor_from_line(
 ) -> StructuralAnchor | None:
     """Build an anchor from a bare numbered section heading line.
 
-    Supports headings such as ``4.2 Termination`` by treating the numeric
-    prefix as a section-style structural label.
+    Supports headings such as ``4.2 Termination`` by applying the current
+    deterministic default rule that bare numbered headings are interpreted as
+    ``Section`` anchors. This default preserves stable structural lookup
+    behaviour, but does not imply that explicit cross-kind linking between
+    ``Clause`` and ``Section`` references is allowed.
 
     Args:
         line: Candidate heading line with surrounding whitespace removed.
