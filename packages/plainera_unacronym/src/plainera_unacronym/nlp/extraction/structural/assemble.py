@@ -37,11 +37,15 @@ def assemble_structural_reference_resolution_result(
     unique_links: dict[str, StructuralReferenceLink] = {}
     for link in s.link_entries:
         existing = unique_links.get(link.canonical_key)
+
         if existing is None:
             unique_links[link.canonical_key] = link
             continue
 
-        if existing.target_span is None and link.target_span is not None:
+        existing_is_resolved = existing.target_span is not None
+        candidate_is_resolved = link.target_span is not None
+
+        if not existing_is_resolved and candidate_is_resolved:
             unique_links[link.canonical_key] = link
 
     return StructuralReferenceResolutionResult(

@@ -9,7 +9,7 @@ from plainera_unacronym.nlp.extraction.structural.config import (
 from plainera_unacronym.nlp.extraction.structural.state import StructuralFlowState
 from plainera_unacronym.nlp.extraction.structural.types import (
     StructuralReferenceEntry,
-    StructuralReferenceResolutionResult,
+    StructuralReferenceResolutionResult, StructuralReferenceLink,
 )
 
 
@@ -173,3 +173,114 @@ class TestAssembleStructuralReferenceResolutionResult:
 
         assert out.references == []
         assert out.unique_keys == {}
+
+    def test_unique_links_prefers_resolved_link_over_earlier_unresolved_link(self):
+        state = StructuralFlowState(
+            text="Section 4.2 is mentioned twice.",
+            det_cfg=_DetCfg(),
+            ext_cfg=StructuralReferenceExtractionConfig(),
+        )
+
+        first_link = StructuralReferenceLink(
+            kind="Section",
+            label="4.2",
+            canonical_label="4.2",
+            normalized_key="section_4_2",
+            canonical_key="section_4_2",
+            reference_span=(0, 11,),
+            target_span=None,
+            confidence=0.0,
+            provenance="structural_reference_linker",
+        )
+        second_link = StructuralReferenceLink(
+            kind="Section",
+            label="4.2",
+            canonical_label="4.2",
+            normalized_key="section_4_2",
+            canonical_key="section_4_2",
+            reference_span=(24, 35,),
+            target_span=(100, 120,),
+            confidence=1.0,
+            provenance="structural_reference_linker",
+        )
+
+        state.link_entries = [first_link, second_link]
+
+        out = assemble_structural_reference_resolution_result(state)
+
+        assert out.links == [first_link, second_link]
+        assert out.unique_links == {"section_4_2": second_link}
+
+    def test_unique_links_preserves_first_when_all_unresolved(self):
+        state = StructuralFlowState(
+            text="Section 4.2 is mentioned twice.",
+            det_cfg=_DetCfg(),
+            ext_cfg=StructuralReferenceExtractionConfig(),
+        )
+
+        first_link = StructuralReferenceLink(
+            kind="Section",
+            label="4.2",
+            canonical_label="4.2",
+            normalized_key="section_4_2",
+            canonical_key="section_4_2",
+            reference_span=(0, 11,),
+            target_span=None,
+            confidence=0.0,
+            provenance="structural_reference_linker",
+        )
+        second_link = StructuralReferenceLink(
+            kind="Section",
+            label="4.2",
+            canonical_label="4.2",
+            normalized_key="section_4_2",
+            canonical_key="section_4_2",
+            reference_span=(24, 35,),
+            target_span=None,
+            confidence=0.0,
+            provenance="structural_reference_linker",
+        )
+
+        state.link_entries = [first_link, second_link]
+
+        out = assemble_structural_reference_resolution_result(state)
+
+        assert out.links == [first_link, second_link]
+        assert out.unique_links == {"section_4_2": first_link}
+
+    def test_unique_links_keeps_first_when_multiple_resolved_links_exist(self):
+        state = StructuralFlowState(
+            text="Section 4.2 is mentioned twice.",
+            det_cfg=_DetCfg(),
+            ext_cfg=StructuralReferenceExtractionConfig(),
+        )
+
+        first_link = StructuralReferenceLink(
+            kind="Section",
+            label="4.2",
+            canonical_label="4.2",
+            normalized_key="section_4_2",
+            canonical_key="section_4_2",
+            reference_span=(0, 11,),
+            target_span=(100, 120,),
+            confidence=1.0,
+            provenance="structural_reference_linker",
+        )
+        second_link = StructuralReferenceLink(
+            kind="Section",
+            label="4.2",
+            canonical_label="4.2",
+            normalized_key="section_4_2",
+            canonical_key="section_4_2",
+            reference_span=(24, 35,),
+            target_span=(200, 220,),
+            confidence=1.0,
+            provenance="structural_reference_linker",
+        )
+
+        state.link_entries = [first_link, second_link]
+
+        out = assemble_structural_reference_resolution_result(state)
+
+        assert out.links == [first_link, second_link]
+        assert out.unique_links == {"section_4_2": first_link}
