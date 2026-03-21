@@ -196,3 +196,63 @@ class TestBuildStructuralReferenceLinks:
         assert len(out) == 1
         assert out[0].target_span == (40, 55)
         assert out[0].confidence == 1.0
+
+    def test_clause_reference_does_not_link_to_section_anchor_by_default(self) -> None:
+        ref = StructuralReferenceEntry(
+            kind="Clause",
+            label="4.2",
+            canonical_label="4.2",
+            normalized_key="clause_4_2",
+            canonical_key="clause_4_2",
+            start_offset=5,
+            end_offset=15,
+            provenance="detected",
+        )
+        anchor = StructuralAnchor(
+            label="4.2",
+            normalized_key="section_4_2",
+            start_offset=40,
+            end_offset=70,
+            ordinal=0,
+        )
+
+        out = build_structural_reference_links(
+            references=[ref],
+            anchor_index={"section_4_2": [anchor]},
+        )
+
+        assert len(out) == 1
+        assert out[0].canonical_key == "clause_4_2"
+        assert out[0].reference_span == (5, 15)
+        assert out[0].target_span is None
+        assert out[0].confidence == 0.0
+
+    def test_matching_kind_links_successfully(self) -> None:
+        ref = StructuralReferenceEntry(
+            kind="Section",
+            label="4.2",
+            canonical_label="4.2",
+            normalized_key="section_4_2",
+            canonical_key="section_4_2",
+            start_offset=5,
+            end_offset=15,
+            provenance="detected",
+        )
+        anchor = StructuralAnchor(
+            label="4.2",
+            normalized_key="section_4_2",
+            start_offset=40,
+            end_offset=70,
+            ordinal=0,
+        )
+
+        out = build_structural_reference_links(
+            references=[ref],
+            anchor_index={"section_4_2": [anchor]},
+        )
+
+        assert len(out) == 1
+        assert out[0].canonical_key == "section_4_2"
+        assert out[0].reference_span == (5, 15)
+        assert out[0].target_span == (40, 70)
+        assert out[0].confidence == 1.0
