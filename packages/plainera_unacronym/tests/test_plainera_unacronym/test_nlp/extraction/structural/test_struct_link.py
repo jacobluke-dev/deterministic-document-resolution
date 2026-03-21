@@ -39,7 +39,7 @@ class TestSelectBestAnchor:
             ),
         ]
 
-        out = _select_best_anchor(ref=ref, candidates=candidates)
+        out, _ = _select_best_anchor(ref=ref, candidates=candidates)
 
         assert out.start_offset == 30
         assert out.end_offset == 45
@@ -73,7 +73,7 @@ class TestSelectBestAnchor:
             ),
         ]
 
-        out = _select_best_anchor(ref=ref, candidates=candidates)
+        out, _ = _select_best_anchor(ref=ref, candidates=candidates)
 
         assert out.start_offset == 70
         assert out.end_offset == 90
@@ -107,7 +107,7 @@ class TestSelectBestAnchor:
             ),
         ]
 
-        out = _select_best_anchor(ref=ref, candidates=candidates)
+        out, _ = _select_best_anchor(ref=ref, candidates=candidates)
 
         assert out.ordinal == 1
 
@@ -256,3 +256,108 @@ class TestBuildStructuralReferenceLinks:
         assert out[0].reference_span == (5, 15)
         assert out[0].target_span == (40, 70)
         assert out[0].confidence == 1.0
+
+    def test_exact_forward_match_has_high_confidence(self) -> None:
+        ref = StructuralReferenceEntry(
+            kind="Section",
+            label="4.2",
+            canonical_label="4.2",
+            normalized_key="section_4_2",
+            canonical_key="section_4_2",
+            start_offset=10,
+            end_offset=20,
+            provenance="detected",
+        )
+        anchor = StructuralAnchor(
+            label="4.2",
+            normalized_key="section_4_2",
+            start_offset=30,
+            end_offset=45,
+            ordinal=0,
+        )
+
+        out = build_structural_reference_links(
+            references=[ref],
+            anchor_index={"section_4_2": [anchor]},
+        )
+
+        assert len(out) == 1
+        assert out[0].target_span == (30, 45)
+        assert out[0].confidence == 1.0
+
+    def test_backward_fallback_has_lower_confidence(self) -> None:
+        ref = StructuralReferenceEntry(
+            kind="Section",
+            label="4.2",
+            canonical_label="4.2",
+            normalized_key="section_4_2",
+            canonical_key="section_4_2",
+            start_offset=100,
+            end_offset=110,
+            provenance="detected",
+        )
+        anchor = StructuralAnchor(
+            label="4.2",
+            normalized_key="section_4_2",
+            start_offset=70,
+            end_offset=90,
+            ordinal=0,
+        )
+
+        out = build_structural_reference_links(
+            references=[ref],
+            anchor_index={"section_4_2": [anchor]},
+        )
+
+        assert len(out) == 1
+        assert out[0].target_span == (70, 90)
+        assert out[0].confidence == 0.75
+
+    def test_unresolved_link_has_zero_confidence(self) -> None:
+        ref = StructuralReferenceEntry(
+            kind="Section",
+            label="4.2",
+            canonical_label="4.2",
+            normalized_key="section_4_2",
+            canonical_key="section_4_2",
+            start_offset=10,
+            end_offset=20,
+            provenance="detected",
+        )
+
+        out = build_structural_reference_links(
+            references=[ref],
+            anchor_index={},
+        )
+
+        assert len(out) == 1
+        assert out[0].target_span is None
+        assert out[0].confidence == 0.0
+
+    def test_overlap_fallback_has_low_nonzero_confidence(self) -> None:
+        ref = StructuralReferenceEntry(
+            kind="Section",
+            label="4.2",
+            canonical_label="4.2",
+            normalized_key="section_4_2",
+            canonical_key="section_4_2",
+            start_offset=50,
+            end_offset=60,
+            provenance="detected",
+        )
+        anchor = StructuralAnchor(
+            label="4.2",
+            normalized_key="section_4_2",
+            start_offset=48,
+            end_offset=58,
+            ordinal=0,
+        )
+
+        out = build_structural_reference_links(
+            references=[ref],
+            anchor_index={"section_4_2": [anchor]},
+        )
+
+        assert len(out) == 1
+        assert out[0].target_span == (48, 58)
+        assert out[0].confidence == 0.5

@@ -383,7 +383,7 @@ class TestDetectAndResolveStructuralReferences:
         schedule_c_links = [link for link in extr.links if link.canonical_key == "schedule_c"]
         assert len(schedule_c_links) == 2
         assert all(link.target_span is not None for link in schedule_c_links)
-        assert all(link.confidence == 1.0 for link in schedule_c_links)
+        assert [link.confidence for link in schedule_c_links] == [1.0, 0.5]
 
         assert "schedule_c" in extr.unique_links
         unique_link = extr.unique_links["schedule_c"]
