@@ -40,6 +40,7 @@ class TestSelectBestAnchor:
                 start_offset=80,
                 end_offset=95,
                 ordinal=1,
+                title=None,
             ),
             StructuralAnchor(
                 label="4.2",
@@ -47,6 +48,7 @@ class TestSelectBestAnchor:
                 start_offset=30,
                 end_offset=45,
                 ordinal=0,
+                title=None,
             ),
         ]
 
@@ -74,6 +76,7 @@ class TestSelectBestAnchor:
                 start_offset=10,
                 end_offset=20,
                 ordinal=0,
+                title=None,
             ),
             StructuralAnchor(
                 label="4.2",
@@ -81,6 +84,7 @@ class TestSelectBestAnchor:
                 start_offset=70,
                 end_offset=90,
                 ordinal=1,
+                title=None,
             ),
         ]
 
@@ -108,6 +112,7 @@ class TestSelectBestAnchor:
                 start_offset=45,
                 end_offset=55,
                 ordinal=3,
+                title=None
             ),
             StructuralAnchor(
                 label="4.2",
@@ -115,6 +120,7 @@ class TestSelectBestAnchor:
                 start_offset=48,
                 end_offset=58,
                 ordinal=1,
+                title=None,
             ),
         ]
 
@@ -125,7 +131,7 @@ class TestSelectBestAnchor:
 
 class TestBuildStructuralReferenceLinks:
 
-    def test_builds_resolved_link_when_matching_anchor_exists(self, _patch, log_spy,  patch_sink) -> None:
+    def test_builds_resolved_link_when_matching_anchor_exists(self, _patch, log_spy, patch_sink) -> None:
         logs, spy_logger = log_spy
 
         _patch(
@@ -150,6 +156,7 @@ class TestBuildStructuralReferenceLinks:
             start_offset=40,
             end_offset=70,
             ordinal=0,
+            title=None,
         )
 
         out = build_structural_reference_links(
@@ -163,7 +170,7 @@ class TestBuildStructuralReferenceLinks:
         assert out[0].target_span == (40, 70)
         assert out[0].strength == 1.0
 
-    def test_builds_unresolved_link_when_no_matching_anchor_exists(self, _patch, log_spy,  patch_sink) -> None:
+    def test_builds_unresolved_link_when_no_matching_anchor_exists(self, _patch, log_spy, patch_sink) -> None:
         logs, spy_logger = log_spy
 
         _patch(
@@ -194,7 +201,7 @@ class TestBuildStructuralReferenceLinks:
         assert out[0].target_span is None
         assert out[0].strength == 0.0
 
-    def test_uses_canonical_key_for_lookup(self, _patch, log_spy,  patch_sink) -> None:
+    def test_uses_canonical_key_for_lookup(self, _patch, log_spy, patch_sink) -> None:
         logs, spy_logger = log_spy
 
         _patch(
@@ -218,6 +225,7 @@ class TestBuildStructuralReferenceLinks:
             start_offset=40,
             end_offset=55,
             ordinal=0,
+            title=None,
         )
 
         out = build_structural_reference_links(
@@ -232,7 +240,7 @@ class TestBuildStructuralReferenceLinks:
         assert out[0].target_span == (40, 55)
         assert out[0].strength == 1.0
 
-    def test_clause_reference_does_not_link_to_section_anchor_by_default(self, _patch, log_spy,  patch_sink) -> None:
+    def test_clause_reference_does_not_link_to_section_anchor_by_default(self, _patch, log_spy, patch_sink) -> None:
         logs, spy_logger = log_spy
 
         _patch(
@@ -256,6 +264,7 @@ class TestBuildStructuralReferenceLinks:
             start_offset=40,
             end_offset=70,
             ordinal=0,
+            title=None,
         )
 
         out = build_structural_reference_links(
@@ -269,7 +278,7 @@ class TestBuildStructuralReferenceLinks:
         assert out[0].target_span is None
         assert out[0].strength == 0.0
 
-    def test_matching_kind_links_successfully(self, _patch, log_spy,  patch_sink) -> None:
+    def test_matching_kind_links_successfully(self, _patch, log_spy, patch_sink) -> None:
         logs, spy_logger = log_spy
 
         _patch(
@@ -293,6 +302,7 @@ class TestBuildStructuralReferenceLinks:
             start_offset=40,
             end_offset=70,
             ordinal=0,
+            title=None,
         )
 
         out = build_structural_reference_links(
@@ -306,7 +316,7 @@ class TestBuildStructuralReferenceLinks:
         assert out[0].target_span == (40, 70)
         assert out[0].strength == 1.0
 
-    def test_exact_forward_match_has_high_confidence(self, _patch, log_spy,  patch_sink) -> None:
+    def test_exact_forward_match_has_high_confidence(self, _patch, log_spy, patch_sink) -> None:
         logs, spy_logger = log_spy
 
         _patch(
@@ -330,6 +340,7 @@ class TestBuildStructuralReferenceLinks:
             start_offset=30,
             end_offset=45,
             ordinal=0,
+            title=None,
         )
 
         out = build_structural_reference_links(
@@ -341,7 +352,7 @@ class TestBuildStructuralReferenceLinks:
         assert out[0].target_span == (30, 45)
         assert out[0].strength == 1.0
 
-    def test_backward_fallback_has_lower_confidence(self, _patch, log_spy,  patch_sink) -> None:
+    def test_backward_fallback_has_lower_confidence(self, _patch, log_spy, patch_sink) -> None:
         logs, spy_logger = log_spy
 
         _patch(
@@ -365,6 +376,7 @@ class TestBuildStructuralReferenceLinks:
             start_offset=70,
             end_offset=90,
             ordinal=0,
+            title=None,
         )
 
         out = build_structural_reference_links(
@@ -376,7 +388,7 @@ class TestBuildStructuralReferenceLinks:
         assert out[0].target_span == (70, 90)
         assert out[0].strength == 0.75
 
-    def test_unresolved_link_has_zero_confidence(self, _patch, log_spy,  patch_sink) -> None:
+    def test_unresolved_link_has_zero_confidence(self, _patch, log_spy, patch_sink) -> None:
         logs, spy_logger = log_spy
 
         _patch(
@@ -433,6 +445,7 @@ class TestBuildStructuralReferenceLinks:
             start_offset=30,
             end_offset=45,
             ordinal=0,
+            title=None,
         )
 
         out = build_structural_reference_links(
@@ -476,6 +489,7 @@ class TestBuildStructuralReferenceLinks:
             start_offset=30,
             end_offset=45,
             ordinal=0,
+            title=None,
         )
 
         out = build_structural_reference_links(
@@ -514,6 +528,7 @@ class TestBuildStructuralReferenceLinks:
             start_offset=48,
             end_offset=58,
             ordinal=0,
+            title=None,
         )
 
         out = build_structural_reference_links(
@@ -526,3 +541,61 @@ class TestBuildStructuralReferenceLinks:
         assert out[0].match_strategy == "overlap"
         assert out[0].strength == 0.5
         assert logs == []
+
+    def test_structural_linking_remains_unchanged_when_title_is_present(self) -> None:
+        ref = StructuralReferenceEntry(
+            kind="Schedule",
+            label="A",
+            canonical_label="A",
+            normalized_key="schedule_a",
+            canonical_key="schedule_a",
+            start_offset=5,
+            end_offset=15,
+            provenance="detected",
+        )
+        anchor = StructuralAnchor(
+            label="A",
+            title="Services Description",
+            normalized_key="schedule_a",
+            start_offset=40,
+            end_offset=70,
+            ordinal=0,
+        )
+
+        out = build_structural_reference_links(
+            references=[ref],
+            anchor_index={"schedule_a": [anchor]},
+        )
+
+        assert len(out) == 1
+        assert out[0].canonical_key == "schedule_a"
+        assert out[0].target_span == (40, 70)
+
+    def test_linking_ignores_anchor_title_when_keys_match(self) -> None:
+        ref = StructuralReferenceEntry(
+            kind="Schedule",
+            label="A",
+            canonical_label="A",
+            normalized_key="schedule_a",
+            canonical_key="schedule_a",
+            start_offset=5,
+            end_offset=15,
+            provenance="detected",
+        )
+        anchor = StructuralAnchor(
+            label="A",
+            title="Completely Different Heading Title",
+            normalized_key="schedule_a",
+            start_offset=40,
+            end_offset=70,
+            ordinal=0,
+        )
+
+        out = build_structural_reference_links(
+            references=[ref],
+            anchor_index={"schedule_a": [anchor]},
+        )
+
+        assert len(out) == 1
+        assert out[0].canonical_key == "schedule_a"
+        assert out[0].target_span == (40, 70)
