@@ -113,6 +113,7 @@ class StructuralAnchor:
     start_offset: int
     end_offset: int
     ordinal: int
+    title: str | None
 
 
 @dataclass(frozen=True)

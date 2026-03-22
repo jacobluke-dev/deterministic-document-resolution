@@ -15,7 +15,7 @@ _NAMED_HEADING_RE = re.compile(
     \s+
     (?P<label>[A-Za-z0-9]+(?:\.[A-Za-z0-9]+)*)
     \b
-    (?:\s*[:.\-–]\s*.*)?   # optional title suffix
+    (?:\s*[:.\-–]\s*(?P<title>\S.*))?
     $
     """,
     re.IGNORECASE | re.VERBOSE,
@@ -79,6 +79,53 @@ def _build_anchor_key(
     return f"{normalized_kind}_{_slug(normalized_label)}"
 
 
+def _build_anchor(
+    *,
+    label: str,
+    title: str | None,
+    kind: str,
+    start_offset: int,
+    end_offset: int,
+    ordinal: int,
+    cfg: StructuralReferenceExtractionConfig,
+) -> StructuralAnchor:
+    """Build a structural anchor from parsed heading components.
+
+    Normalizes optional heading title text and derives the deterministic
+    structural lookup key from heading kind + label only. Title text is
+    preserved for display and traceability, but does not affect anchor
+    matching.
+
+    Args:
+        label: Structural label extracted from the heading, for example
+            ``"4.2"`` or ``"A"``.
+        title: Optional descriptive heading suffix, for example
+            ``"Termination"`` or ``"Services Description"``.
+        kind: Structural heading kind used for lookup-key construction, for
+            example ``"Section"`` or ``"Schedule"``.
+        start_offset: Inclusive start character offset of the heading.
+        end_offset: Exclusive end character offset of the heading.
+        ordinal: Zero-based document-order ordinal assigned to the anchor.
+        cfg: Extraction configuration controlling key canonicalization.
+
+    Returns:
+        A ``StructuralAnchor`` with normalized title text and deterministic
+        lookup key.
+    """
+    normalized_title = title.strip() if title is not None else None
+    if normalized_title == "":
+        normalized_title = None
+
+    return StructuralAnchor(
+        label=label,
+        title=normalized_title,
+        normalized_key=_build_anchor_key(kind=kind, label=label, cfg=cfg),
+        start_offset=start_offset,
+        end_offset=end_offset,
+        ordinal=ordinal,
+    )
+
+
 def _named_anchor_from_line(
     *,
     line: str,
@@ -109,16 +156,14 @@ def _named_anchor_from_line(
     if match is None:
         return None
 
-    kind = match.group("kind")
-    label = match.group("label")
-    key = _build_anchor_key(kind=kind, label=label, cfg=cfg)
-
-    return StructuralAnchor(
-        label=label,
-        normalized_key=key,
+    return _build_anchor(
+        kind=match.group("kind"),
+        label=match.group("label"),
+        title=match.group("title"),
         start_offset=start_offset,
         end_offset=end_offset,
         ordinal=ordinal,
+        cfg=cfg,
     )
 
 
@@ -155,15 +200,14 @@ def _numbered_section_anchor_from_line(
     if match is None:
         return None
 
-    label = match.group("label")
-    key = _build_anchor_key(kind="Section", label=label, cfg=cfg)
-
-    return StructuralAnchor(
-        label=label,
-        normalized_key=key,
+    return _build_anchor(
+        kind="Section",
+        label=match.group("label"),
+        title=match.group("title"),
         start_offset=start_offset,
         end_offset=end_offset,
         ordinal=ordinal,
+        cfg=cfg,
     )
 
 
