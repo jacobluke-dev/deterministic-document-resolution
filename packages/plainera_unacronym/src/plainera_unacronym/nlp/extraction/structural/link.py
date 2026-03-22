@@ -2,11 +2,12 @@ from __future__ import annotations
 
 from observability.logger.levels import LogLevel
 from observability.logger.message_logger import message_logger
+
 from plainera_unacronym.nlp.extraction.structural.types import (
+    MATCH_STRATEGY,
     StructuralAnchor,
     StructuralReferenceEntry,
     StructuralReferenceLink,
-    MATCH_STRATEGY,
 )
 from plainera_unacronym.wiring.composition import sink
 
@@ -77,6 +78,7 @@ def _strength_and_strategy_for_tier(tier: str) -> tuple[float, MATCH_STRATEGY]:
     if tier == "overlap":
         return 0.5, "overlap"
     return 0.0, "unresolved"
+
 
 def _select_best_anchor(
     *,

@@ -7,7 +7,6 @@ from plainera_unacronym.nlp.common.types import Span
 from plainera_unacronym.nlp.detection.structural.types import StructuralReferenceKind
 
 
-
 @dataclass(frozen=True)
 class StructuralReferenceEntry:
     """Occurrence-level structural reference extracted from source text.
@@ -46,6 +45,7 @@ class StructuralReferenceEntry:
 
 
 type MATCH_STRATEGY = Literal["forward", "backward", "overlap", "unresolved"]
+
 
 @dataclass(frozen=True)
 class StructuralReferenceLink:

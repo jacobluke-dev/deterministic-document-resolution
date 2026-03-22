@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import pytest
-
 from plainera_unacronym.nlp.extraction.structural.link import (
     _select_best_anchor,
     build_structural_reference_links,

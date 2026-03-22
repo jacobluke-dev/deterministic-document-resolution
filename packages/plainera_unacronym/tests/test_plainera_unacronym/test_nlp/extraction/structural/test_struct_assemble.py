@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-import pytest
-
 from plainera_unacronym.nlp.extraction.structural.assemble import (
     assemble_structural_reference_resolution_result,
 )
@@ -11,7 +9,8 @@ from plainera_unacronym.nlp.extraction.structural.config import (
 from plainera_unacronym.nlp.extraction.structural.state import StructuralFlowState
 from plainera_unacronym.nlp.extraction.structural.types import (
     StructuralReferenceEntry,
-    StructuralReferenceResolutionResult, StructuralReferenceLink,
+    StructuralReferenceLink,
+    StructuralReferenceResolutionResult,
 )
 
 
