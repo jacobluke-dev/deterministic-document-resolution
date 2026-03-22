@@ -9,7 +9,8 @@ from plainera_unacronym.nlp.extraction.structural.config import (
 from plainera_unacronym.nlp.extraction.structural.state import StructuralFlowState
 from plainera_unacronym.nlp.extraction.structural.types import (
     StructuralReferenceEntry,
-    StructuralReferenceResolutionResult, StructuralReferenceLink,
+    StructuralReferenceLink,
+    StructuralReferenceResolutionResult,
 )
 
 
@@ -189,7 +190,8 @@ class TestAssembleStructuralReferenceResolutionResult:
             canonical_key="section_4_2",
             reference_span=(0, 11,),
             target_span=None,
-            confidence=0.0,
+            match_strategy="forward",
+            strength=0.0,
             provenance="structural_reference_linker",
         )
         second_link = StructuralReferenceLink(
@@ -200,7 +202,8 @@ class TestAssembleStructuralReferenceResolutionResult:
             canonical_key="section_4_2",
             reference_span=(24, 35,),
             target_span=(100, 120,),
-            confidence=1.0,
+            match_strategy="forward",
+            strength=1.0,
             provenance="structural_reference_linker",
         )
 
@@ -226,7 +229,8 @@ class TestAssembleStructuralReferenceResolutionResult:
             canonical_key="section_4_2",
             reference_span=(0, 11,),
             target_span=None,
-            confidence=0.0,
+            match_strategy="forward",
+            strength=1,
             provenance="structural_reference_linker",
         )
         second_link = StructuralReferenceLink(
@@ -237,7 +241,8 @@ class TestAssembleStructuralReferenceResolutionResult:
             canonical_key="section_4_2",
             reference_span=(24, 35,),
             target_span=None,
-            confidence=0.0,
+            match_strategy="unresolved",
+            strength=0.0,
             provenance="structural_reference_linker",
         )
 
@@ -263,7 +268,8 @@ class TestAssembleStructuralReferenceResolutionResult:
             canonical_key="section_4_2",
             reference_span=(0, 11,),
             target_span=(100, 120,),
-            confidence=1.0,
+            match_strategy="forward",
+            strength=1.0,
             provenance="structural_reference_linker",
         )
         second_link = StructuralReferenceLink(
@@ -274,7 +280,8 @@ class TestAssembleStructuralReferenceResolutionResult:
             canonical_key="section_4_2",
             reference_span=(24, 35,),
             target_span=(200, 220,),
-            confidence=1.0,
+            match_strategy="forward",
+            strength=1.0,
             provenance="structural_reference_linker",
         )
 

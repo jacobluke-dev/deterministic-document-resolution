@@ -11,7 +11,7 @@ from plainera_unacronym.nlp.common.types import AcronymMeaning, OccurrenceLite
 FloatMat = NDArray[np.floating]
 FloatVec = NDArray[np.floating]
 
-Tier2SkipReason = Literal[
+type Tier2SkipReason = Literal[
     "disabled",
     "pending",
     "model_unavailable",

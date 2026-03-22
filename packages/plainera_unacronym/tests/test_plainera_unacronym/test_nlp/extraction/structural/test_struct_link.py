@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import pytest
 from plainera_unacronym.nlp.extraction.structural.link import (
     _select_best_anchor,
     build_structural_reference_links,
@@ -8,6 +9,16 @@ from plainera_unacronym.nlp.extraction.structural.types import (
     StructuralAnchor,
     StructuralReferenceEntry,
 )
+
+
+@pytest.fixture
+def log_spy():
+    calls = []
+
+    def _log(message, *a, **kw):
+        calls.append({"message": message, **kw})
+
+    return calls, _log
 
 
 class TestSelectBestAnchor:
@@ -39,7 +50,7 @@ class TestSelectBestAnchor:
             ),
         ]
 
-        out = _select_best_anchor(ref=ref, candidates=candidates)
+        out, _ = _select_best_anchor(ref=ref, candidates=candidates)
 
         assert out.start_offset == 30
         assert out.end_offset == 45
@@ -73,7 +84,7 @@ class TestSelectBestAnchor:
             ),
         ]
 
-        out = _select_best_anchor(ref=ref, candidates=candidates)
+        out, _ = _select_best_anchor(ref=ref, candidates=candidates)
 
         assert out.start_offset == 70
         assert out.end_offset == 90
@@ -107,13 +118,22 @@ class TestSelectBestAnchor:
             ),
         ]
 
-        out = _select_best_anchor(ref=ref, candidates=candidates)
+        out, _ = _select_best_anchor(ref=ref, candidates=candidates)
 
         assert out.ordinal == 1
 
 
 class TestBuildStructuralReferenceLinks:
-    def test_builds_resolved_link_when_matching_anchor_exists(self) -> None:
+
+    def test_builds_resolved_link_when_matching_anchor_exists(self, _patch, log_spy,  patch_sink) -> None:
+        logs, spy_logger = log_spy
+
+        _patch(
+            build_structural_reference_links,
+            message_logger=spy_logger,
+            sink=patch_sink,
+        )
+
         ref = StructuralReferenceEntry(
             kind="Schedule",
             label="A",
@@ -141,9 +161,17 @@ class TestBuildStructuralReferenceLinks:
         assert out[0].canonical_key == "schedule_a"
         assert out[0].reference_span == (5, 15)
         assert out[0].target_span == (40, 70)
-        assert out[0].confidence == 1.0
+        assert out[0].strength == 1.0
 
-    def test_builds_unresolved_link_when_no_matching_anchor_exists(self) -> None:
+    def test_builds_unresolved_link_when_no_matching_anchor_exists(self, _patch, log_spy,  patch_sink) -> None:
+        logs, spy_logger = log_spy
+
+        _patch(
+            build_structural_reference_links,
+            message_logger=spy_logger,
+            sink=patch_sink,
+        )
+
         ref = StructuralReferenceEntry(
             kind="Schedule",
             label="C",
@@ -164,9 +192,16 @@ class TestBuildStructuralReferenceLinks:
         assert out[0].canonical_key == "schedule_c"
         assert out[0].reference_span == (5, 15)
         assert out[0].target_span is None
-        assert out[0].confidence == 0.0
+        assert out[0].strength == 0.0
 
-    def test_uses_canonical_key_for_lookup(self) -> None:
+    def test_uses_canonical_key_for_lookup(self, _patch, log_spy,  patch_sink) -> None:
+        logs, spy_logger = log_spy
+
+        _patch(
+            build_structural_reference_links,
+            message_logger=spy_logger,
+            sink=patch_sink,
+        )
         ref = StructuralReferenceEntry(
             kind="Article",
             label="III",
@@ -195,9 +230,16 @@ class TestBuildStructuralReferenceLinks:
 
         assert len(out) == 1
         assert out[0].target_span == (40, 55)
-        assert out[0].confidence == 1.0
+        assert out[0].strength == 1.0
 
-    def test_clause_reference_does_not_link_to_section_anchor_by_default(self) -> None:
+    def test_clause_reference_does_not_link_to_section_anchor_by_default(self, _patch, log_spy,  patch_sink) -> None:
+        logs, spy_logger = log_spy
+
+        _patch(
+            build_structural_reference_links,
+            message_logger=spy_logger,
+            sink=patch_sink,
+        )
         ref = StructuralReferenceEntry(
             kind="Clause",
             label="4.2",
@@ -225,9 +267,16 @@ class TestBuildStructuralReferenceLinks:
         assert out[0].canonical_key == "clause_4_2"
         assert out[0].reference_span == (5, 15)
         assert out[0].target_span is None
-        assert out[0].confidence == 0.0
+        assert out[0].strength == 0.0
 
-    def test_matching_kind_links_successfully(self) -> None:
+    def test_matching_kind_links_successfully(self, _patch, log_spy,  patch_sink) -> None:
+        logs, spy_logger = log_spy
+
+        _patch(
+            build_structural_reference_links,
+            message_logger=spy_logger,
+            sink=patch_sink,
+        )
         ref = StructuralReferenceEntry(
             kind="Section",
             label="4.2",
@@ -255,4 +304,225 @@ class TestBuildStructuralReferenceLinks:
         assert out[0].canonical_key == "section_4_2"
         assert out[0].reference_span == (5, 15)
         assert out[0].target_span == (40, 70)
-        assert out[0].confidence == 1.0
+        assert out[0].strength == 1.0
+
+    def test_exact_forward_match_has_high_confidence(self, _patch, log_spy,  patch_sink) -> None:
+        logs, spy_logger = log_spy
+
+        _patch(
+            build_structural_reference_links,
+            message_logger=spy_logger,
+            sink=patch_sink,
+        )
+        ref = StructuralReferenceEntry(
+            kind="Section",
+            label="4.2",
+            canonical_label="4.2",
+            normalized_key="section_4_2",
+            canonical_key="section_4_2",
+            start_offset=10,
+            end_offset=20,
+            provenance="detected",
+        )
+        anchor = StructuralAnchor(
+            label="4.2",
+            normalized_key="section_4_2",
+            start_offset=30,
+            end_offset=45,
+            ordinal=0,
+        )
+
+        out = build_structural_reference_links(
+            references=[ref],
+            anchor_index={"section_4_2": [anchor]},
+        )
+
+        assert len(out) == 1
+        assert out[0].target_span == (30, 45)
+        assert out[0].strength == 1.0
+
+    def test_backward_fallback_has_lower_confidence(self, _patch, log_spy,  patch_sink) -> None:
+        logs, spy_logger = log_spy
+
+        _patch(
+            build_structural_reference_links,
+            message_logger=spy_logger,
+            sink=patch_sink,
+        )
+        ref = StructuralReferenceEntry(
+            kind="Section",
+            label="4.2",
+            canonical_label="4.2",
+            normalized_key="section_4_2",
+            canonical_key="section_4_2",
+            start_offset=100,
+            end_offset=110,
+            provenance="detected",
+        )
+        anchor = StructuralAnchor(
+            label="4.2",
+            normalized_key="section_4_2",
+            start_offset=70,
+            end_offset=90,
+            ordinal=0,
+        )
+
+        out = build_structural_reference_links(
+            references=[ref],
+            anchor_index={"section_4_2": [anchor]},
+        )
+
+        assert len(out) == 1
+        assert out[0].target_span == (70, 90)
+        assert out[0].strength == 0.75
+
+    def test_unresolved_link_has_zero_confidence(self, _patch, log_spy,  patch_sink) -> None:
+        logs, spy_logger = log_spy
+
+        _patch(
+            build_structural_reference_links,
+            message_logger=spy_logger,
+            sink=patch_sink,
+        )
+        ref = StructuralReferenceEntry(
+            kind="Section",
+            label="4.2",
+            canonical_label="4.2",
+            normalized_key="section_4_2",
+            canonical_key="section_4_2",
+            start_offset=10,
+            end_offset=20,
+            provenance="detected",
+        )
+
+        out = build_structural_reference_links(
+            references=[ref],
+            anchor_index={},
+        )
+
+        assert len(out) == 1
+        assert out[0].target_span is None
+        assert out[0].strength == 0.0
+
+    def test_unknown_match_tier_logs_and_defaults_to_unresolved(self, _patch, log_spy, patch_sink) -> None:
+        logs, spy_logger = log_spy
+
+        def _bad_select_best_anchor(*, ref, candidates):
+            return candidates[0], "sideways"
+
+        _patch(
+            build_structural_reference_links,
+            message_logger=spy_logger,
+            sink=patch_sink,
+            _select_best_anchor=_bad_select_best_anchor,
+        )
+
+        ref = StructuralReferenceEntry(
+            kind="Section",
+            label="4.2",
+            canonical_label="4.2",
+            normalized_key="section_4_2",
+            canonical_key="section_4_2",
+            start_offset=10,
+            end_offset=20,
+            provenance="detected",
+        )
+        anchor = StructuralAnchor(
+            label="4.2",
+            normalized_key="section_4_2",
+            start_offset=30,
+            end_offset=45,
+            ordinal=0,
+        )
+
+        out = build_structural_reference_links(
+            references=[ref],
+            anchor_index={"section_4_2": [anchor]},
+        )
+
+        assert len(out) == 1
+        assert out[0].target_span == (30, 45)
+        assert out[0].match_strategy == "unresolved"
+        assert out[0].strength == 0.0
+
+        assert len(logs) == 1
+        assert logs[0]["message"] == "structural.link.unsupported_match_tier"
+        assert logs[0]["level"].name == "WARNING"
+        assert logs[0]["details"]["tier"] == "sideways"
+        assert logs[0]["details"]["canonical_key"] == "section_4_2"
+
+    def test_forward_match_does_not_log(self, _patch, log_spy, patch_sink) -> None:
+        logs, spy_logger = log_spy
+
+        _patch(
+            build_structural_reference_links,
+            message_logger=spy_logger,
+            sink=patch_sink,
+        )
+
+        ref = StructuralReferenceEntry(
+            kind="Section",
+            label="4.2",
+            canonical_label="4.2",
+            normalized_key="section_4_2",
+            canonical_key="section_4_2",
+            start_offset=10,
+            end_offset=20,
+            provenance="detected",
+        )
+        anchor = StructuralAnchor(
+            label="4.2",
+            normalized_key="section_4_2",
+            start_offset=30,
+            end_offset=45,
+            ordinal=0,
+        )
+
+        out = build_structural_reference_links(
+            references=[ref],
+            anchor_index={"section_4_2": [anchor]},
+        )
+
+        assert len(out) == 1
+        assert out[0].target_span == (30, 45)
+        assert out[0].match_strategy == "forward"
+        assert out[0].strength == 1.0
+        assert logs == []
+
+    def test_overlap_fallback_has_low_nonzero_confidence(self, _patch, log_spy, patch_sink) -> None:
+        logs, spy_logger = log_spy
+
+        _patch(
+            build_structural_reference_links,
+            message_logger=spy_logger,
+            sink=patch_sink,
+        )
+
+        ref = StructuralReferenceEntry(
+            kind="Section",
+            label="4.2",
+            canonical_label="4.2",
+            normalized_key="section_4_2",
+            canonical_key="section_4_2",
+            start_offset=50,
+            end_offset=60,
+            provenance="detected",
+        )
+        anchor = StructuralAnchor(
+            label="4.2",
+            normalized_key="section_4_2",
+            start_offset=48,
+            end_offset=58,
+            ordinal=0,
+        )
+
+        out = build_structural_reference_links(
+            references=[ref],
+            anchor_index={"section_4_2": [anchor]},
+        )
+
+        assert len(out) == 1
+        assert out[0].target_span == (48, 58)
+        assert out[0].match_strategy == "overlap"
+        assert out[0].strength == 0.5
+        assert logs == []

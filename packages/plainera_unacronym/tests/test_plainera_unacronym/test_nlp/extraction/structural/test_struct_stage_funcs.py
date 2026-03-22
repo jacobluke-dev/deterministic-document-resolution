@@ -56,4 +56,4 @@ class TestStructuralCanonicalizationFlow:
             "schedule_a",
         ]
         assert all(link.target_span is not None for link in state.link_entries)
-        assert all(link.confidence == 1.0 for link in state.link_entries)
+        assert [link.strength for link in state.link_entries] == [1.0, 0.5]

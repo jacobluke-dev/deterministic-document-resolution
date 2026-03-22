@@ -20,6 +20,8 @@ _SEG_RE = re.compile(
     re.VERBOSE,
 )
 
+type scanner = Literal["ltr", "rtl"]
+
 
 class LocalDefMatch:
     def __init__(self, def_start: int, def_end: int, definition: str, raw: str | None = None):
@@ -113,7 +115,7 @@ def build_initials_stream(
     tokens: list[str],
     *,
     stopwords: set[str],
-    scan: Literal["ltr", "rtl"],
+    scan: scanner,
     expand_allcaps_tokens: bool,
     split_compounds: bool,
     treat_acronym_tokens_as_multi_letter: bool,
@@ -229,7 +231,7 @@ def _try_emit_acronym_like_token(
     tok_clean: str,
     ti: int,
     *,
-    scan: Literal["ltr", "rtl"],
+    scan: scanner,
     is_stop: bool,
     letters: list[str],
     owners: list[int],
@@ -270,7 +272,7 @@ def _try_emit_allcaps_token(
     tok_clean: str,
     ti: int,
     *,
-    scan: Literal["ltr", "rtl"],
+    scan: scanner,
     is_stop: bool,
     letters: list[str],
     owners: list[int],
@@ -305,7 +307,7 @@ def _emit_normal_initials(
     tok_clean: str,
     ti: int,
     *,
-    scan: Literal["ltr", "rtl"],
+    scan: scanner,
     split_compounds: bool,
     is_stop: bool,
     letters: list[str],

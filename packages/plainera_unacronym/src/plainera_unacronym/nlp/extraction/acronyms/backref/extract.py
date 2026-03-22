@@ -84,7 +84,7 @@ from plainera_unacronym.nlp.extraction.acronyms.config import ExtractionConfig
 from plainera_unacronym.nlp.extraction.acronyms.core.collect import initials_match
 from plainera_unacronym.nlp.extraction.acronyms.engine.confidence import base_conf_for, conf_knob
 
-BackrefEvidence = Literal["definitionish", "initials"]
+type BackrefEvidence = Literal["definitionish", "initials"]
 CONF_MAX = 0.99
 
 
