@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import pytest
+
 from plainera_unacronym.nlp.extraction.structural.assemble import (
     assemble_structural_reference_resolution_result,
 )
@@ -189,6 +191,7 @@ class TestAssembleStructuralReferenceResolutionResult:
             canonical_key="section_4_2",
             reference_span=(0, 11,),
             target_span=None,
+            match_strategy="forward",
             strength=0.0,
             provenance="structural_reference_linker",
         )
@@ -200,6 +203,7 @@ class TestAssembleStructuralReferenceResolutionResult:
             canonical_key="section_4_2",
             reference_span=(24, 35,),
             target_span=(100, 120,),
+            match_strategy="forward",
             strength=1.0,
             provenance="structural_reference_linker",
         )
@@ -226,6 +230,7 @@ class TestAssembleStructuralReferenceResolutionResult:
             canonical_key="section_4_2",
             reference_span=(0, 11,),
             target_span=None,
+            match_strategy="forward",
             strength=0.0,
             provenance="structural_reference_linker",
         )

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from typing import Literal
 
 from plainera_unacronym.nlp.common.types import Span
 from plainera_unacronym.nlp.detection.structural.types import StructuralReferenceKind
@@ -44,6 +45,8 @@ class StructuralReferenceEntry:
     provenance: str
 
 
+type MATCH_STRATEGY = Literal["forward", "backward", "overlap", "unresolved"]
+
 @dataclass(frozen=True)
 class StructuralReferenceLink:
     """Occurrence-level link result for a structural reference.
@@ -63,9 +66,12 @@ class StructuralReferenceLink:
         reference_span: Source span of the structural-reference occurrence.
         target_span: Source span of the resolved target heading, or ``None`` if
             no in-document target was resolved.
-        strength: Deterministic confidence score for the link result. This is
-            typically ``1.0`` for resolved exact matches and ``0.0`` for
-            unresolved occurrences in the current implementation.
+        strength: Deterministic link-strength score for the selected match
+        strategy. This is a heuristic ordinal signal rather than a probabilistic
+        confidence estimate.
+        match_strategy: Deterministic positional strategy used to resolve the
+            link, for example ``"forward"``, ``"backward"``, ``"overlap"``, or
+            ``"unresolved"``.
         provenance: Provenance tag describing how the occurrence was produced.
     """
 
@@ -76,7 +82,7 @@ class StructuralReferenceLink:
     canonical_key: str
     reference_span: Span
     target_span: Span | None
-    match_strategy: str
+    match_strategy: MATCH_STRATEGY
     strength: float
     provenance: str
 
