@@ -1,13 +1,17 @@
 from __future__ import annotations
 
+from observability.logger.levels import LogLevel
+from observability.logger.message_logger import message_logger
 from plainera_unacronym.nlp.extraction.structural.types import (
     StructuralAnchor,
     StructuralReferenceEntry,
     StructuralReferenceLink,
+    MATCH_STRATEGY,
 )
+from plainera_unacronym.wiring.composition import sink
 
 
-def _confidence_for_match_tier(tier: str) -> float:
+def _strength_and_strategy_for_tier(tier: str) -> tuple[float, MATCH_STRATEGY]:
     """Return a deterministic link-quality score for the selected anchor tier.
 
     This score is intentionally heuristic and ordinal rather than probabilistic.
@@ -67,13 +71,12 @@ def _confidence_for_match_tier(tier: str) -> float:
         ValueError: If ``tier`` is unsupported.
     """
     if tier == "forward":
-        return 1.0
+        return 1.0, "forward"
     if tier == "backward":
-        return 0.75
+        return 0.75, "backward"
     if tier == "overlap":
-        return 0.5
-    raise ValueError(f"Unsupported match tier: {tier}")
-
+        return 0.5, "overlap"
+    return 0.0, "unresolved"
 
 def _select_best_anchor(
     *,
@@ -135,7 +138,7 @@ def build_structural_reference_links(
 
     References are matched against anchors using the reference canonical key.
     When no anchor exists for a key, the reference remains unresolved with
-    ``target_span=None`` and ``confidence=0.0``. When one or more anchors are
+    ``target_span=None`` and ``strength=0.0``. When one or more anchors are
     available, the best anchor is selected deterministically using
     ``_select_best_anchor``, and a deterministic graded link-quality score is
     assigned from the selected positional tier.
@@ -163,6 +166,7 @@ def build_structural_reference_links(
                     canonical_key=ref.canonical_key,
                     reference_span=(ref.start_offset, ref.end_offset),
                     target_span=None,
+                    match_strategy="unresolved",
                     strength=0.0,
                     provenance=ref.provenance,
                 )
@@ -170,6 +174,22 @@ def build_structural_reference_links(
             continue
 
         anchor, match_tier = _select_best_anchor(ref=ref, candidates=candidates)
+
+        if match_tier not in {"forward", "backward", "overlap"}:
+            message_logger(
+                "structural.link.unsupported_match_tier",
+                level=LogLevel.WARNING,
+                logger_type="nlp.extraction",
+                details={
+                    "tier": match_tier,
+                    "canonical_key": ref.canonical_key,
+                    "kind": ref.kind,
+                    "reference_span": (ref.start_offset, ref.end_offset),
+                    "candidate_count": len(candidates),
+                },
+                db_sink=sink,
+            )
+        strength, strategy = _strength_and_strategy_for_tier(match_tier)
 
         out.append(
             StructuralReferenceLink(
@@ -180,7 +200,8 @@ def build_structural_reference_links(
                 canonical_key=ref.canonical_key,
                 reference_span=(ref.start_offset, ref.end_offset),
                 target_span=(anchor.start_offset, anchor.end_offset),
-                strength=_confidence_for_match_tier(match_tier),
+                match_strategy=strategy,
+                strength=strength,
                 provenance=ref.provenance,
             )
         )
