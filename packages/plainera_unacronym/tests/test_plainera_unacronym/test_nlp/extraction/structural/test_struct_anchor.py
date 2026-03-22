@@ -103,3 +103,62 @@ class TestBuildStructuralAnchorIndex:
         out = build_structural_anchor_index([])
 
         assert out == {}
+
+    def test_numbered_heading_anchor_captures_title_text(self) -> None:
+        cfg = StructuralReferenceExtractionConfig()
+
+        out = extract_structural_anchors(
+            text="4.2 Termination\n",
+            cfg=cfg,
+        )
+
+        assert len(out) == 1
+        assert out[0].label == "4.2"
+        assert out[0].title == "Termination"
+        assert out[0].normalized_key == "section_4_2"
+
+    def test_named_heading_anchor_captures_title_text(self) -> None:
+        cfg = StructuralReferenceExtractionConfig()
+
+        out = extract_structural_anchors(
+            text="Schedule A: Services Description\n",
+            cfg=cfg,
+        )
+
+        assert len(out) == 1
+        assert out[0].label == "A"
+        assert out[0].title == "Services Description"
+        assert out[0].normalized_key == "schedule_a"
+
+    def test_anchor_lookup_key_does_not_include_title(self) -> None:
+        cfg = StructuralReferenceExtractionConfig()
+
+        out = extract_structural_anchors(
+            text=(
+                "Schedule A: Services Description\n"
+                "4.2 Termination\n"
+            ),
+            cfg=cfg,
+        )
+
+        assert len(out) == 2
+        assert [(anchor.label, anchor.title, anchor.normalized_key) for anchor in out] == [
+            ("A", "Services Description", "schedule_a"),
+            ("4.2", "Termination", "section_4_2"),
+        ]
+
+    def test_heading_without_title_sets_title_none(self) -> None:
+        cfg = StructuralReferenceExtractionConfig()
+
+        out = extract_structural_anchors(
+            text=(
+                "Schedule A\n"
+                "Section 4.2\n"
+            ),
+            cfg=cfg,
+        )
+
+        assert len(out) == 2
+        assert [anchor.label for anchor in out] == ["A", "4.2"]
+        assert [anchor.title for anchor in out] == [None, None]
+        assert [anchor.normalized_key for anchor in out] == ["schedule_a", "section_4_2"]
