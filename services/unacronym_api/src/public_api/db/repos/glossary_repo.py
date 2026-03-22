@@ -4,13 +4,14 @@ from typing import Any
 
 from sqlalchemy import func, select
 
+from plainera_core.db_manager.connection import DBManager
 from public_api.db.models import GlossaryAcronym, GlossaryMeaning, GlossaryVariant
 
 
 class GlossaryRepository:
     """Read-only glossary access (normalised schema)."""
 
-    def __init__(self, *, dbm: Any) -> None:
+    def __init__(self, *, dbm: DBManager) -> None:
         self._dbm = dbm
 
     def list_meanings(self, *, acronym: str) -> list[dict[str, Any]]:
