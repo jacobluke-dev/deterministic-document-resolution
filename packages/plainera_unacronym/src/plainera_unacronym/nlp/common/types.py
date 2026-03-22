@@ -22,7 +22,7 @@ TextSpanTuple: TypeAlias = tuple[str, int, int]
 # -------------------------- STRATEGIES ------------------------------------
 
 
-Definition_strategy = Literal[
+type Definition_strategy = Literal[
     "direct_def",
     "helper_def_before",
     "helper_def_after",
@@ -188,7 +188,7 @@ class AcronymDetectorResult:
 
 # -------------------------- DEFINED TERMS ---------------------------------
 
-UnquotedCapitalisedTermsPolicy: TypeAlias = Literal["never", "legal_only", "always"]
+type Unquoted_capitalised_terms_policy = Literal["never", "legal_only", "always"]
 
 
 @dataclass(frozen=True)
@@ -218,7 +218,7 @@ class DefinedTermDetectorConfig:
     enabled_domains: frozenset[str] = frozenset()
     auto_detect_domains: bool = True
     window_chars: int = 80
-    unquoted_capitalised_terms_policy: UnquotedCapitalisedTermsPolicy = "legal_only"
+    unquoted_capitalised_terms_policy: Unquoted_capitalised_terms_policy = "legal_only"
     max_definition_chars: int = 500
 
 
