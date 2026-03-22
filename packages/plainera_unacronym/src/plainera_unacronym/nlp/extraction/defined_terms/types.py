@@ -7,7 +7,7 @@ from plainera_unacronym.nlp.common.types import TextSpanTuple
 from plainera_unacronym.nlp.detection.defined_terms.types import DefinedTermMention
 from plainera_unacronym.nlp.extraction.tiers.types import Tier2Report
 
-TermTier2SkipReason = Literal[
+type TermTier2SkipReason = Literal[
     "disabled",
     "pending",
     "model_unavailable",

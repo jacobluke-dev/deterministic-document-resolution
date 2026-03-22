@@ -163,7 +163,7 @@ POST_SPAN_TOKEN_ASCII_RE: Final[re.Pattern[str]] = re.compile(
 ALLOW_CHARS: Final[str] = "&/’'-–"
 TOKEN_SEPARATORS: Final[str] = "-&/._"
 
-DottedMode = Literal["strip", "preserve"]
+type DottedMode = Literal["strip", "preserve"]
 DOT_MODE_DEFAULT: Final[DottedMode] = "strip"
 
 PLURAL_SUFFIXES_DEFAULT: Final[tuple[str, ...]] = ("’s", "'s", "s")

@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 from typing import Literal, Optional
 
-IntroKind = Literal[
+type IntroKind = Literal[
     "quoted_means",
     "quoted_shall_mean",
     "bare_means",
