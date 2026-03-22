@@ -20,7 +20,8 @@ _SEG_RE = re.compile(
     re.VERBOSE,
 )
 
-type scanner = scanner
+type scanner = Literal["ltr", "rtl"]
+
 
 class LocalDefMatch:
     def __init__(self, def_start: int, def_end: int, definition: str, raw: str | None = None):
