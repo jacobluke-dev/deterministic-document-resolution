@@ -6,6 +6,7 @@ from plainera_unacronym.nlp.common.types import Span
 from plainera_unacronym.nlp.detection.structural.types import StructuralReferenceKind
 
 
+
 @dataclass(frozen=True)
 class StructuralReferenceEntry:
     """Occurrence-level structural reference extracted from source text.
@@ -62,7 +63,7 @@ class StructuralReferenceLink:
         reference_span: Source span of the structural-reference occurrence.
         target_span: Source span of the resolved target heading, or ``None`` if
             no in-document target was resolved.
-        confidence: Deterministic confidence score for the link result. This is
+        strength: Deterministic confidence score for the link result. This is
             typically ``1.0`` for resolved exact matches and ``0.0`` for
             unresolved occurrences in the current implementation.
         provenance: Provenance tag describing how the occurrence was produced.
@@ -75,7 +76,8 @@ class StructuralReferenceLink:
     canonical_key: str
     reference_span: Span
     target_span: Span | None
-    confidence: float
+    match_strategy: str
+    strength: float
     provenance: str
 
 

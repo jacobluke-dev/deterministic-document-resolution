@@ -163,7 +163,7 @@ def build_structural_reference_links(
                     canonical_key=ref.canonical_key,
                     reference_span=(ref.start_offset, ref.end_offset),
                     target_span=None,
-                    confidence=0.0,
+                    strength=0.0,
                     provenance=ref.provenance,
                 )
             )
@@ -180,7 +180,7 @@ def build_structural_reference_links(
                 canonical_key=ref.canonical_key,
                 reference_span=(ref.start_offset, ref.end_offset),
                 target_span=(anchor.start_offset, anchor.end_offset),
-                confidence=_confidence_for_match_tier(match_tier),
+                strength=_confidence_for_match_tier(match_tier),
                 provenance=ref.provenance,
             )
         )

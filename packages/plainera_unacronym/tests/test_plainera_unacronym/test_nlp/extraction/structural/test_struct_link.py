@@ -141,7 +141,7 @@ class TestBuildStructuralReferenceLinks:
         assert out[0].canonical_key == "schedule_a"
         assert out[0].reference_span == (5, 15)
         assert out[0].target_span == (40, 70)
-        assert out[0].confidence == 1.0
+        assert out[0].strength == 1.0
 
     def test_builds_unresolved_link_when_no_matching_anchor_exists(self) -> None:
         ref = StructuralReferenceEntry(
@@ -164,7 +164,7 @@ class TestBuildStructuralReferenceLinks:
         assert out[0].canonical_key == "schedule_c"
         assert out[0].reference_span == (5, 15)
         assert out[0].target_span is None
-        assert out[0].confidence == 0.0
+        assert out[0].strength == 0.0
 
     def test_uses_canonical_key_for_lookup(self) -> None:
         ref = StructuralReferenceEntry(
@@ -195,7 +195,7 @@ class TestBuildStructuralReferenceLinks:
 
         assert len(out) == 1
         assert out[0].target_span == (40, 55)
-        assert out[0].confidence == 1.0
+        assert out[0].strength == 1.0
 
     def test_clause_reference_does_not_link_to_section_anchor_by_default(self) -> None:
         ref = StructuralReferenceEntry(
@@ -225,7 +225,7 @@ class TestBuildStructuralReferenceLinks:
         assert out[0].canonical_key == "clause_4_2"
         assert out[0].reference_span == (5, 15)
         assert out[0].target_span is None
-        assert out[0].confidence == 0.0
+        assert out[0].strength == 0.0
 
     def test_matching_kind_links_successfully(self) -> None:
         ref = StructuralReferenceEntry(
@@ -255,7 +255,7 @@ class TestBuildStructuralReferenceLinks:
         assert out[0].canonical_key == "section_4_2"
         assert out[0].reference_span == (5, 15)
         assert out[0].target_span == (40, 70)
-        assert out[0].confidence == 1.0
+        assert out[0].strength == 1.0
 
     def test_exact_forward_match_has_high_confidence(self) -> None:
         ref = StructuralReferenceEntry(
@@ -283,7 +283,7 @@ class TestBuildStructuralReferenceLinks:
 
         assert len(out) == 1
         assert out[0].target_span == (30, 45)
-        assert out[0].confidence == 1.0
+        assert out[0].strength == 1.0
 
     def test_backward_fallback_has_lower_confidence(self) -> None:
         ref = StructuralReferenceEntry(
@@ -311,7 +311,7 @@ class TestBuildStructuralReferenceLinks:
 
         assert len(out) == 1
         assert out[0].target_span == (70, 90)
-        assert out[0].confidence == 0.75
+        assert out[0].strength == 0.75
 
     def test_unresolved_link_has_zero_confidence(self) -> None:
         ref = StructuralReferenceEntry(
@@ -332,7 +332,7 @@ class TestBuildStructuralReferenceLinks:
 
         assert len(out) == 1
         assert out[0].target_span is None
-        assert out[0].confidence == 0.0
+        assert out[0].strength == 0.0
 
     def test_overlap_fallback_has_low_nonzero_confidence(self) -> None:
         ref = StructuralReferenceEntry(
@@ -360,4 +360,4 @@ class TestBuildStructuralReferenceLinks:
 
         assert len(out) == 1
         assert out[0].target_span == (48, 58)
-        assert out[0].confidence == 0.5
+        assert out[0].strength == 0.5

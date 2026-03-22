@@ -181,7 +181,7 @@ class TestDetectAndResolveStructuralReferences:
 
         link = extr.unique_links["schedule_a"]
         assert link.target_span is not None
-        assert link.confidence == 1.0
+        assert link.strength == 1.0
 
         start, end = link.target_span
         assert text[start:end] == "Schedule A: Services Description"
@@ -206,7 +206,7 @@ class TestDetectAndResolveStructuralReferences:
 
         assert link.canonical_key == "section_4_2"
         assert link.target_span is not None
-        assert link.confidence == 1.0
+        assert link.strength == 1.0
 
         start, end = link.target_span
         assert text[start:end] == "4.2 Termination"
@@ -240,7 +240,7 @@ class TestDetectAndResolveStructuralReferences:
 
         unresolved = extr.unique_links["schedule_c"]
         assert unresolved.target_span is None
-        assert unresolved.confidence == 0.0
+        assert unresolved.strength == 0.0
 
     def test_return_state_includes_anchors_index_and_links(self) -> None:
         text = (
@@ -307,7 +307,7 @@ class TestDetectAndResolveStructuralReferences:
 
         link = extr.unique_links["article_3"]
         assert link.target_span is not None
-        assert link.confidence == 1.0
+        assert link.strength == 1.0
 
         start, end = link.target_span
         assert text[start:end] == "Article III: Interpretation"
@@ -333,7 +333,7 @@ class TestDetectAndResolveStructuralReferences:
         link = extr.unique_links["article_4"]
 
         assert link.target_span is None
-        assert link.confidence == 0.0
+        assert link.strength == 0.0
 
     def test_return_state_includes_roman_anchor_index_and_links(self) -> None:
         text = (
@@ -383,13 +383,13 @@ class TestDetectAndResolveStructuralReferences:
         schedule_c_links = [link for link in extr.links if link.canonical_key == "schedule_c"]
         assert len(schedule_c_links) == 2
         assert all(link.target_span is not None for link in schedule_c_links)
-        assert [link.confidence for link in schedule_c_links] == [1.0, 0.5]
+        assert [link.strength for link in schedule_c_links] == [1.0, 0.5]
 
         assert "schedule_c" in extr.unique_links
         unique_link = extr.unique_links["schedule_c"]
 
         assert unique_link.target_span is not None
-        assert unique_link.confidence == 1.0
+        assert unique_link.strength == 1.0
 
         start, end = unique_link.target_span
         assert text[start:end] == "Schedule C: Charges"
@@ -407,11 +407,11 @@ class TestDetectAndResolveStructuralReferences:
 
         assert len(extr.links) == 2
         assert all(link.target_span is None for link in extr.links)
-        assert all(link.confidence == 0.0 for link in extr.links)
+        assert all(link.strength == 0.0 for link in extr.links)
 
         assert "schedule_c" in extr.unique_links
         unique_link = extr.unique_links["schedule_c"]
 
         assert unique_link.target_span is None
-        assert unique_link.confidence == 0.0
+        assert unique_link.strength == 0.0
         assert unique_link.reference_span == extr.links[0].reference_span
