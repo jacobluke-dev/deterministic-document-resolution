@@ -8,7 +8,7 @@ from sqlalchemy.orm import Session
 
 from plainera_core.db_manager.connection import DBManager
 from public_api.db.models import GlossaryAcronym, GlossaryMeaning, GlossaryVariant
-from public_api.db.repos.acronym_repo import GlossaryItem, AcronymRepo
+from public_api.db.repos.acronym_repo import AcronymRepo, GlossaryItem
 
 
 class SqlAlchemyAcronymRepo(AcronymRepo):
@@ -39,12 +39,13 @@ class SqlAlchemyAcronymRepo(AcronymRepo):
                 select(GlossaryMeaning, GlossaryAcronym)
                 .join(GlossaryAcronym, GlossaryMeaning.acronym_id == GlossaryAcronym.id)
                 .where(
+                    GlossaryAcronym.tenant_id.is_(None),
                     GlossaryAcronym.is_active.is_(True),
                     GlossaryMeaning.is_active.is_(True),
                     GlossaryAcronym.normalized == normalized,
-                GlossaryMeaning.domain == normalized_domain,
+                    GlossaryMeaning.domain == normalized_domain,
                 )
-            .order_by(GlossaryMeaning.created_at.desc())
+                .order_by(GlossaryMeaning.created_at.desc(), GlossaryMeaning.id.desc())
                 .limit(effective_limit)
             )
 
@@ -104,13 +105,12 @@ class SqlAlchemyAcronymRepo(AcronymRepo):
                 .join(GlossaryAcronym, GlossaryMeaning.acronym_id == GlossaryAcronym.id)
                 .join(GlossaryVariant, GlossaryVariant.acronym_id == GlossaryAcronym.id)
                 .where(
+                    GlossaryAcronym.tenant_id.is_(None),
                     GlossaryAcronym.is_active.is_(True),
                     GlossaryMeaning.is_active.is_(True),
                     func.lower(GlossaryVariant.variant) == normalized,
                 )
-                .order_by(
-                    GlossaryMeaning.created_at.desc(),
-                )
+                .order_by(GlossaryMeaning.created_at.desc(), GlossaryMeaning.id.desc())
                 .limit(effective_limit)
             )
             stmt = self._apply_domain_filter(stmt, domain=domain)
@@ -133,6 +133,7 @@ class SqlAlchemyAcronymRepo(AcronymRepo):
                 select(GlossaryAcronym.acronym)
                 .join(GlossaryMeaning, GlossaryMeaning.acronym_id == GlossaryAcronym.id)
                 .where(
+                    GlossaryAcronym.tenant_id.is_(None),
                     GlossaryAcronym.is_active.is_(True),
                     GlossaryMeaning.is_active.is_(True),
                     func.lower(GlossaryAcronym.acronym).like(f"{normalized_prefix}%"),
@@ -181,7 +182,6 @@ class SqlAlchemyAcronymRepo(AcronymRepo):
                     select(GlossaryMeaning)
                     .where(
                         GlossaryMeaning.acronym_id == glossary_acronym.id,
-                        GlossaryMeaning.definition == definition,
                         GlossaryMeaning.domain == domain,
                     )
                     .limit(1)
@@ -288,7 +288,6 @@ class SqlAlchemyAcronymRepo(AcronymRepo):
         if limit <= 0:
             return default
         return limit
-
 
     @staticmethod
     def _utcnow() -> datetime:
