@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import pytest
-
 from public_api.api.routers import resolve as resolve_mod
 from public_api.core import deps as deps_mod
 from public_api.core import deps_auth as deps_auth_mod

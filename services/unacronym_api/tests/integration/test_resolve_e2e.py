@@ -1,9 +1,8 @@
 from __future__ import annotations
 
 import pytest
-from sqlalchemy import text
-
 from public_api.schemas.error import ErrorCode
+from sqlalchemy import text
 
 pytestmark = [pytest.mark.integration]
 

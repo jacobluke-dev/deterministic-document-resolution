@@ -9,15 +9,14 @@ import pytest_asyncio
 from alembic import command
 from alembic.config import Config
 from httpx import ASGITransport, AsyncClient
-from sqlalchemy import text
-from sqlalchemy.inspection import inspect
-
 from plainera_core.utils.utils import get_project_path
 from public_api.core import deps
 from public_api.core.auth.api_keys import generate_key, hash_secret
 from public_api.core.settings import AppSettings, db_settings
-from public_api.db.models import GlossaryMeaning, GlossaryAcronym
+from public_api.db.models import GlossaryAcronym, GlossaryMeaning
 from public_api.main import create_app
+from sqlalchemy import text
+from sqlalchemy.inspection import inspect
 from test_kit.fixtures import TestDBManager
 
 pytestmark = [pytest.mark.integration]
