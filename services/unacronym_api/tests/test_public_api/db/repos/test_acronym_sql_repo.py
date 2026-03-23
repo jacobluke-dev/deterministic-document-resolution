@@ -1,7 +1,6 @@
 import threading
 
 import pytest
-
 from public_api.db.models import GlossaryAcronym, GlossaryMeaning, GlossaryVariant
 from public_api.db.repos import SqlAlchemyAcronymRepo
 

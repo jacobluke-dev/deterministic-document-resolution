@@ -11,7 +11,7 @@ from sqlalchemy.orm import Session
 from public_api.core.factory import create_resolver
 from public_api.core.services.resolve_service import ResolveService
 from public_api.core.settings import app_settings
-from public_api.db.repos import SqlAlchemyAcronymRepo, AcronymRepo, GlossaryRepository
+from public_api.db.repos import AcronymRepo, GlossaryRepository, SqlAlchemyAcronymRepo
 
 
 class AppContainer:

@@ -3,12 +3,12 @@ from __future__ import annotations
 import os
 import sys
 from urllib.parse import urlsplit
-from sqlalchemy import select
 
 from plainera_core.db_manager.factory import make_dbm
 from public_api.core.settings import db_settings
 from public_api.db.models import GlossaryAcronym, GlossaryVariant
 from public_api.db.repos import SqlAlchemyAcronymRepo
+from sqlalchemy import select
 
 
 def main(force: bool = False) -> None:
@@ -58,7 +58,7 @@ def main(force: bool = False) -> None:
 
     repo = SqlAlchemyAcronymRepo(dbm=dbm)
 
-    for acro, meanings, src, variants in examples:
+    for acro, meanings, src, _ in examples:
         for domain, definition in meanings:
             repo.upsert_entry(
                 acro,

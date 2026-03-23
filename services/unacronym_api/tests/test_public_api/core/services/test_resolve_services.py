@@ -1,17 +1,13 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from types import SimpleNamespace
-import pytest
-from fastapi import status
-
-from public_api.schemas.error import ErrorCode
-from public_api.schemas.resolve import ResolutionMode, ResolveOptions, ResolveRequest
 
 import public_api.core.services.resolve_service as resolve_service_mod
-from public_api.core.services.resolve_service import ResolveError, ResolveService, _lang_from_locale
-from tests.test_public_api.core.services.conftest import DummyGlossaryRepo
-
+import pytest
+from fastapi import status
+from public_api.core.services.resolve_service import ResolveError, _lang_from_locale
+from public_api.schemas.error import ErrorCode
+from public_api.schemas.resolve import ResolveOptions, ResolveRequest
 
 
 @dataclass(frozen=True)

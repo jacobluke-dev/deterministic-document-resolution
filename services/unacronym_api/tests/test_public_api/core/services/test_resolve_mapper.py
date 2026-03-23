@@ -2,8 +2,7 @@ from dataclasses import dataclass
 from types import SimpleNamespace
 
 import pytest
-
-from public_api.core.services.resolve_mapper import span_start_end, build_definitions_by_acronym
+from public_api.core.services.resolve_mapper import build_definitions_by_acronym, span_start_end
 
 
 @dataclass(frozen=True)

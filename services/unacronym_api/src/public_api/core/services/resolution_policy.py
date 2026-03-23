@@ -7,12 +7,34 @@ from public_api.schemas.resolve import ResolutionMode, ResolveOptions
 
 
 def norm_definition(text: str) -> str:
-    """Normalise a definition string for de-duplication and comparison."""
+    """Normalise a definition for de-duplication.
+
+    Trims surrounding whitespace, removes common trailing punctuation, and
+    case-folds the result so document and glossary definitions can be compared
+    deterministically.
+
+    Args:
+        text: Raw definition text.
+
+    Returns:
+        Normalised definition text for equality checks.
+    """
     return text.strip().rstrip(" .;,:").casefold()
 
 
 def candidate_sort_key(candidate: dict[str, Any]) -> tuple[Any, ...]:
-    """Return a deterministic sort key for resolution candidates."""
+    """Return a deterministic ordering key for resolution candidates.
+
+    Candidates are ordered with document-derived candidates first, then by
+    definition text, domain, and source reference.
+
+    Args:
+        candidate: Candidate mapping containing provenance, definition,
+            domain, and source reference fields.
+
+    Returns:
+        Tuple used for stable candidate ordering.
+    """
     return (
         0 if candidate.get("provenance") == "document" else 1,
         str(candidate.get("definition") or "").casefold(),
@@ -24,7 +46,21 @@ def candidate_sort_key(candidate: dict[str, Any]) -> tuple[Any, ...]:
 def build_document_candidates(
     definitions: list[dict[str, Any]],
 ) -> tuple[list[dict[str, Any]], set[str]]:
-    """Build resolution candidates derived from in-document definitions."""
+    """Build resolution candidates from extracted in-document definitions.
+
+    Blank definition texts are ignored. Each surviving definition becomes a
+    document candidate with a ``text_span:<start>-<end>`` source reference when
+    integer offsets are available. A normalised set of seen definitions is
+    returned alongside the candidates so glossary duplicates can be filtered.
+
+    Args:
+        definitions: Extracted definition blocks attached to an acronym.
+
+    Returns:
+        A tuple of:
+            - document-derived candidate mappings
+            - normalised definition texts seen in the document
+    """
     candidates: list[dict[str, Any]] = []
     seen_doc_defs: set[str] = set()
 
@@ -57,7 +93,23 @@ def build_glossary_candidates(
     meanings: list[dict[str, Any]],
     seen_doc_defs: set[str],
 ) -> tuple[list[dict[str, Any]], int]:
-    """Build glossary-derived resolution candidates excluding document duplicates."""
+    """Build glossary-derived candidates excluding document duplicates.
+
+    Only active glossary meanings with non-blank definitions are converted into
+    candidates. Meanings whose normalised definition text already appears in
+    ``seen_doc_defs`` are excluded. The count of inactive meanings is returned
+    separately so selection metadata can explain filtered results.
+
+    Args:
+        meanings: Glossary meaning mappings for a single acronym.
+        seen_doc_defs: Normalised definition texts already seen in the
+            document.
+
+    Returns:
+        A tuple of:
+            - glossary-derived candidate mappings
+            - count of inactive glossary meanings
+    """
     inactive_count = sum(1 for meaning in meanings if not bool(meaning.get("is_active")))
     active_meanings = [meaning for meaning in meanings if bool(meaning.get("is_active"))]
 
@@ -92,7 +144,24 @@ def select_resolution_candidate(
     inactive_count: int,
     resolution_mode: ResolutionMode,
 ) -> tuple[dict[str, Any] | None, str | None]:
-    """Select the best resolution candidate and explain the selection reason."""
+    """Select the resolved candidate and its explanation.
+
+    Document candidates always take precedence over glossary candidates. When
+    only glossary candidates are available, the selection strategy depends on
+    ``resolution_mode`` and whether multiple active candidates remain after
+    inactive meanings are filtered out.
+
+    Args:
+        candidates: Combined document and glossary candidates.
+        inactive_count: Number of inactive glossary meanings excluded from
+            candidacy.
+        resolution_mode: Deterministic selection mode to apply.
+
+    Returns:
+        A tuple of:
+            - the selected candidate, if one can be resolved
+            - the stable reason code describing why it was selected
+    """
     document_candidates = [c for c in candidates if c.get("provenance") == "document"]
     glossary_candidates = [c for c in candidates if c.get("provenance") == "glossary"]
 
@@ -177,7 +246,24 @@ def attach_resolution_metadata(
     resolution_mode: ResolutionMode,
     glossary_repo: GlossaryRepository,
 ) -> list[dict[str, Any]]:
-    """Attach candidate, selection, and conflict metadata to acronym blocks."""
+    """Attach deterministic resolution metadata to mapped acronym blocks.
+
+    For each acronym block, this function combines extracted in-document
+    definitions with glossary meanings, removes duplicate glossary definitions
+    already present in the document, selects a resolved candidate according to
+    ``resolution_mode``, and records candidates, conflict state, and selection
+    metadata.
+
+    Args:
+        blocks: Mapped acronym response blocks.
+        opts: Resolve options controlling candidate limits.
+        resolution_mode: Deterministic selection mode to apply.
+        glossary_repo: Glossary repository used to fetch meanings by acronym.
+
+    Returns:
+        Acronym blocks enriched with candidates, selected meaning, conflict
+        metadata, and selection details.
+    """
     max_k = int(opts.max_definitions_per_acronym)
     out: list[dict[str, Any]] = []
 

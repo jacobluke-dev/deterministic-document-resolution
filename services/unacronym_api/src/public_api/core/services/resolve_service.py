@@ -29,7 +29,6 @@ from public_api.core.services.resolution_policy import attach_resolution_metadat
 from public_api.core.services.resolve_mapper import map_pipeline_to_blocks
 from public_api.core.settings import app_settings
 from public_api.db.repos import GlossaryRepository
-
 from public_api.schemas.error import ErrorCode
 from public_api.schemas.resolve import ResolutionMode, ResolveOptions, ResolveRequest, ResolveResponse
 
@@ -279,7 +278,11 @@ class ResolveService:
                     http_status=status.HTTP_503_SERVICE_UNAVAILABLE,
                     code=ErrorCode.SERVICE_UNAVAILABLE,
                     message="Resolution timed out.",
-                    details={"timeout_ms": int(self._timeout_s * 1000), "chunk": {"start": chunk.start, "end": chunk.end}},
+                    details={"timeout_ms": int(self._timeout_s * 1000),
+                             "chunk": {
+                                 "start": chunk.start,
+                                 "end": chunk.end}
+                             },
                 ) from exc
             except Exception as exc:
                 raise ResolveError(
