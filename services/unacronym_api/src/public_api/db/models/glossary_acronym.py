@@ -39,7 +39,19 @@ class GlossaryAcronym(BaseWithTimestamps):
     )
 
     __table_args__ = (
-        Index("ux_glossary_acronyms_tenant_normalized", "tenant_id", "normalized", unique=True),
+        Index(
+            "ux_glossary_acronyms_global_normalized",
+            "normalized",
+            unique=True,
+            postgresql_where=(tenant_id.is_(None)),
+        ),
+        Index(
+            "ux_glossary_acronyms_tenant_normalized",
+            "tenant_id",
+            "normalized",
+            unique=True,
+            postgresql_where=(tenant_id.is_not(None)),
+        ),
         Index("ix_glossary_acronyms_normalized", "normalized"),
         Index(
             "ix_glossary_acronyms_active_normalized",

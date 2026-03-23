@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from typing import Any
 
+from plainera_core.db_manager.connection import DBManager
 from sqlalchemy import func, select
 
 from public_api.db.models import GlossaryAcronym, GlossaryMeaning, GlossaryVariant
@@ -10,12 +11,10 @@ from public_api.db.models import GlossaryAcronym, GlossaryMeaning, GlossaryVaria
 class GlossaryRepository:
     """Read-only glossary access (normalised schema)."""
 
-    def __init__(self, *, dbm: Any) -> None:
+    def __init__(self, *, dbm: DBManager) -> None:
         self._dbm = dbm
 
     def list_meanings(self, *, acronym: str) -> list[dict[str, Any]]:
-        if self._dbm is None:
-            return []
 
         norm = acronym.lower()
 
@@ -89,8 +88,6 @@ class GlossaryRepository:
             return []
 
     def get(self, *, acronym: str, domain: str | None = None) -> dict[str, Any] | None:
-        if self._dbm is None:
-            return None
 
         norm = acronym.lower()
         dom = domain or "general"
