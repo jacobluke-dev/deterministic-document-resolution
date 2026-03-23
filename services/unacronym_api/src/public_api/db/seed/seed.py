@@ -6,7 +6,8 @@ from urllib.parse import urlsplit
 
 from plainera_core.db_manager.factory import make_dbm
 from public_api.core.settings import db_settings
-from public_api.db.models import GlossaryAcronym, GlossaryMeaning, GlossaryVariant
+from public_api.db.models import GlossaryAcronym, GlossaryVariant
+from public_api.db.repos import SqlAlchemyAcronymRepo
 from sqlalchemy import select
 
 
@@ -37,7 +38,7 @@ def main(force: bool = False) -> None:
             "PDF",
             [
                 ("general", "Portable Document Format."),
-                # Uncomment when you want to demo ambiguity:
+                # Uncomment when we want to demo ambiguity:
                 # ("statistics", "Probability Density Function."),
             ],
             "seed",
@@ -55,72 +56,40 @@ def main(force: bool = False) -> None:
 
     dbm = make_dbm(test_mode=False)
 
-    with dbm.session() as s:
-        for acro, meanings, src, variants in examples:
-            norm = acro.lower()
+    repo = SqlAlchemyAcronymRepo(dbm=dbm)
 
-            # Upsert-ish: acronym identity (case-insensitive), tenant_id is NULL for now.
+    for acro, meanings, src, _ in examples:
+        for domain, definition in meanings:
+            repo.upsert_entry(
+                acro,
+                definition,
+                domain=domain,
+                source_ref=f"seed:{acro.lower()}:{domain}",
+                provenance=src,
+                is_active=True,
+            )
+
+    with dbm.session() as s:
+        for acro, _, _, variants in examples:
             existing = (
                 s.execute(
                     select(GlossaryAcronym).where(
                         GlossaryAcronym.tenant_id.is_(None),
-                        GlossaryAcronym.normalized == norm,
+                        GlossaryAcronym.normalized == acro.lower(),
                     )
                 )
-                .scalar_one_or_none()
+                .scalar_one()
             )
-
-            if existing is None:
-                existing = GlossaryAcronym(
-                    tenant_id=None,
-                    acronym=acro,
-                    normalized=norm,
-                    is_active=True,
-                )
-                s.add(existing)
-                s.flush()
-            else:
-                # Keep canonical surface as last-seen seed value (optional).
-                existing.acronym = acro
-                existing.normalized = norm
-                existing.is_active = True
-
-            # Upsert meanings by (acronym_id, domain)
-            for domain, definition in meanings:
-                meaning = (
-                    s.execute(
-                        select(GlossaryMeaning).where(
-                            GlossaryMeaning.acronym_id == existing.id,
-                            GlossaryMeaning.domain == domain,
-                        )
-                    )
-                    .scalar_one_or_none()
-                )
-
-                if meaning is None:
-                    s.add(
-                        GlossaryMeaning(
-                            acronym_id=existing.id,
-                            domain=domain,
-                            definition=definition,
-                            provenance=src,
-                            is_active=True,
-                        )
-                    )
-                else:
-                    meaning.definition = definition
-                    meaning.provenance = src
-                    meaning.is_active = True
 
             # Idempotent variant insert (case-insensitive to match your unique index)
             existing_variants = {
                 v.variant.lower() for v in getattr(existing, "variants", []) if getattr(v, "variant", None)
             }
             for v in variants:
-                if v.lower() not in existing_variants:
-                    s.add(GlossaryVariant(acronym_id=existing.id, variant=v))
-
-        s.commit()
+                norm_v = v.lower()
+                if norm_v not in existing_variants:
+                    s.add(GlossaryVariant(acronym_id=existing.id,  variant=v))
+                    existing_variants.add(norm_v)
 
 
 if __name__ == "__main__":

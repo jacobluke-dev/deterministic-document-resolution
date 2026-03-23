@@ -11,7 +11,7 @@ from sqlalchemy.orm import Session
 from public_api.core.factory import create_resolver
 from public_api.core.services.resolve_service import ResolveService
 from public_api.core.settings import app_settings
-from public_api.db.repos.glossary_repo import GlossaryRepository
+from public_api.db.repos import AcronymRepo, GlossaryRepository, SqlAlchemyAcronymRepo
 
 
 class AppContainer:
@@ -43,7 +43,6 @@ class AppContainer:
 
 
 container = AppContainer()
-
 
 
 def get_semaphore() -> Semaphore | None:
@@ -81,7 +80,9 @@ def get_dbm(request: Request) -> Any:
     return request.app.state.dbm
 
 
-def get_session(dbm: DBManager) -> Iterator[Session]:
+def get_session(
+    dbm: Annotated[DBManager, Depends(get_dbm)],
+) -> Iterator[Session]:
     """Yield a transactional SQLAlchemy Session.
 
     This wraps `DBManager.session()` so routes can depend on a ready-to-use
@@ -147,6 +148,7 @@ def get_resolve_service(
         semaphore: Optional concurrency limiter injected via `get_semaphore()`.
         glossary_repo: Glossary repository injected via `get_glossary_repo()`.
         timeout_ms: Request timeout in milliseconds injected via `get_request_timeout_ms()`.
+        request: Request instance injected via `app.dependency_overrides`.
 
     Returns:
         ResolveService: Fully configured service instance for `/v1/resolve`.
@@ -157,3 +159,22 @@ def get_resolve_service(
         request_timeout_ms=timeout_ms,
         tier2_model=getattr(request.app.state, "tier2_model", None),
     )
+
+
+def get_acronym_repo(
+    dbm: Annotated[DBManager, Depends(get_dbm)],
+) -> AcronymRepo:
+    """Provide a request-scoped acronym repository.
+
+    Wraps the application-scoped DB manager in the SQLAlchemy-backed glossary
+    repository used by internal service-layer code for curated glossary
+    persistence and lookup operations. The repository is created per request so
+    dependency overrides and test isolation remain straightforward.
+
+    Args:
+        dbm: DB manager retrieved from FastAPI app state via `get_dbm()`.
+
+    Returns:
+        AcronymRepo: Repository instance for acronym glossary reads and writes.
+    """
+    return SqlAlchemyAcronymRepo(dbm=dbm)
