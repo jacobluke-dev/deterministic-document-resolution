@@ -41,6 +41,9 @@ test: ## Tests + coverage (quiet)
 	  --cov-report=xml:coverage.xml \
 	  --cov-fail-under=$(COV_FAIL_UNDER)
 
+test-integration:
+	pytest -m integration -q
+
 cover: ## Verbose coverage
 	PYTHONPATH=src $(RUN) pytest --cov=public_api --cov-report=term --cov-report=xml --cov-fail-under=$(COVER_FAIL_UNDER)
 
