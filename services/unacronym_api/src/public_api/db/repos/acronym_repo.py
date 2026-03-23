@@ -36,7 +36,8 @@ class AcronymRepo(ABC):
         definition: str,
         *,
         domain: str | None,
-        source: str,
+        provenance: str,
+        source_ref: str | None = None,
         is_active: bool = True,
     ) -> GlossaryItem:
         raise NotImplementedError
