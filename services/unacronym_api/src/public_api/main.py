@@ -15,7 +15,7 @@ from sqlalchemy.engine import Engine
 from starlette.exceptions import HTTPException
 from starlette.middleware.cors import CORSMiddleware
 
-from public_api.api.routers.errors import map_http_exception, map_length_validation_to_413
+from public_api.api.routers.exception_handlers import map_http_exception, map_length_validation_to_413
 from public_api.api.routers.health import router as health_router
 from public_api.api.routers.resolve import router as resolve_router
 from public_api.core.logging import configure_logging
