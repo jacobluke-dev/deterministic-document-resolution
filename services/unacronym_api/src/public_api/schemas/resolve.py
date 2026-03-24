@@ -51,6 +51,12 @@ class CandidateProvenance(str, Enum):
     system = "system"
 
 
+class ResolveTarget(str, Enum):
+    ACRONYMS = "acronyms"
+    DEFINED_TERMS = "defined_terms"
+    STRUCTURAL_REFERENCES = "structural_references"
+
+
 class ResolveMeta(BaseSchema):
     processing_ms: int
     model_version: str = Field(..., description="plainera-core version used for processing.")
@@ -142,14 +148,36 @@ class ResolveOptions(BaseSchema):
 
 
 class ResolveRequest(BaseSchema):
+
     text: constr(min_length=1, max_length=100_000) = Field(  # type: ignore[valid-type]
         ..., description="Raw document content. Max length 100,000 characters."
     )
+
     resolution_mode: ResolutionMode = Field(
         default=ResolutionMode.DOMAIN_PRIORITY,
         description="Controls deterministic acronym sense selection policy.",
     )
+
     options: ResolveOptions | None = None
+
+    targets: list[ResolveTarget] | None = Field(
+        default=None,
+        description=(
+            "Optional explicit pipeline targets to run. "
+            "If omitted, all supported targets are selected."
+        ),
+    )
+
+    @field_validator("targets")
+    @classmethod
+    def _validate_targets_not_empty(
+        cls,
+        v: list[ResolveTarget] | None,
+    ) -> list[ResolveTarget] | None:
+        if v == []:
+            raise ValueError("targets must not be empty when provided.")
+        return v
+
 
     class Config:
         json_schema_extra = {
@@ -157,6 +185,7 @@ class ResolveRequest(BaseSchema):
                 {
                     "text": "The Metropolitan Police Service (MPS) operates in London.",
                     "resolution_mode": "domain_priority",
+                    "targets": ["acronyms", "defined_terms", "structural_references"],
                     "options": {
                         "locale": "en-GB",
                         "window_chars": 120,

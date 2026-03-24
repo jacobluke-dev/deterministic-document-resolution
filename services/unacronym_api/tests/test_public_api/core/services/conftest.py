@@ -10,11 +10,13 @@ def service_factory():
     def make(*, meanings: list[dict] | None = None, semaphore=None) -> tuple[ResolveService, Mock]:
         repo = Mock()
         repo.list_meanings.return_value = meanings or []
+        from plainera_unacronym.orchestration import PipelineRegistry
         svc = ResolveService(
             glossary_repo=repo,
             semaphore=semaphore,
             request_timeout_ms=1000,
             tier2_model=None,
+            pipeline_registry=PipelineRegistry()
         )
         return svc, repo
 

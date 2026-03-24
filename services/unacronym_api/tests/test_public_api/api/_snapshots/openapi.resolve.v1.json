@@ -350,6 +350,11 @@
               "window_chars": 120
             },
             "resolution_mode": "domain_priority",
+            "targets": [
+              "acronyms",
+              "defined_terms",
+              "structural_references"
+            ],
             "text": "The Metropolitan Police Service (MPS) operates in London."
           },
           {
@@ -371,6 +376,21 @@
             "$ref": "#/components/schemas/ResolutionMode",
             "default": "domain_priority",
             "description": "Controls deterministic acronym sense selection policy."
+          },
+          "targets": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/ResolveTarget"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Optional explicit pipeline targets to run. If omitted, all supported targets are selected.",
+            "title": "Targets"
           },
           "text": {
             "description": "Raw document content. Max length 100,000 characters.",
@@ -480,6 +500,15 @@
         ],
         "title": "ResolveResponse",
         "type": "object"
+      },
+      "ResolveTarget": {
+        "enum": [
+          "acronyms",
+          "defined_terms",
+          "structural_references"
+        ],
+        "title": "ResolveTarget",
+        "type": "string"
       },
       "ResolvedAcronymBlock": {
         "properties": {
