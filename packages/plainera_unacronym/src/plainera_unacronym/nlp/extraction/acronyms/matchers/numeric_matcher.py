@@ -12,8 +12,8 @@ Typical usage:
 """
 
 import re
-from typing import Sequence
 from collections.abc import Mapping
+from typing import Sequence
 
 # -----------------------------
 # Common word→digit mappings

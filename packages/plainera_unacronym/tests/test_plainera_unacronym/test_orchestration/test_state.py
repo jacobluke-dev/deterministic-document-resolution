@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import pytest
-
 from plainera_unacronym.orchestration.interface import PipelineRunResult
 from plainera_unacronym.orchestration.state import (
     OrchestrationPipelineError,

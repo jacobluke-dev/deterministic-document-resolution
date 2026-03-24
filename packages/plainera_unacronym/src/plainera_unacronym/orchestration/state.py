@@ -1,8 +1,8 @@
 from __future__ import annotations
 
+from collections.abc import Mapping
 from dataclasses import dataclass, field
 from time import perf_counter
-from collections.abc import Mapping
 
 from .interface import PipelineKey, PipelineRunResult
 
@@ -18,6 +18,7 @@ class OrchestrationPipelineError:
         details: Optional structured failure details preserved without
             pipeline-specific interpretation.
     """
+
     pipeline: PipelineKey
     error_type: str
     message: str
@@ -34,6 +35,7 @@ class OrchestrationMetadata:
         finished_at_monotonic: Monotonic timestamp captured when orchestration
             state is finalised, if available.
     """
+
     started_at_monotonic: float
     finished_at_monotonic: float | None = None
 
@@ -61,6 +63,7 @@ class OrchestrationState:
             pipeline key.
         metadata: Top-level orchestration execution metadata.
     """
+
     requested_targets: tuple[PipelineKey, ...]
     completed_targets: tuple[PipelineKey, ...] = ()
     failed_targets: tuple[PipelineKey, ...] = ()

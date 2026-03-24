@@ -1,13 +1,12 @@
 import pytest
-
 from plainera_unacronym.orchestration.interface import (
     PIPELINE_ACRONYMS,
     PIPELINE_DEFINED_TERMS,
     PIPELINE_STRUCTURAL_REFERENCES,
     OrchestrationRequest,
     PipelineRequest,
-    PipelineRunResult,
     PipelineRunner,
+    PipelineRunResult,
 )
 from plainera_unacronym.orchestration.registry import PipelineRegistry
 from plainera_unacronym.orchestration.service import run_selected_pipelines
