@@ -1,8 +1,8 @@
 # needed to 'activate' plugin
 import plainera_unacronym.nlp.detection.domains  # noqa: F401
-from plainera_unacronym.nlp import AcronymDetector
 from plainera_unacronym.nlp.common.types import AcronymDetectorConfig
 from plainera_unacronym.nlp.detection.acronym.compiler import compile_acronym_pattern
+from plainera_unacronym.nlp.detection.acronym.detector import AcronymDetector
 from plainera_unacronym.nlp.detection.domains import LegalPlugin
 from plainera_unacronym.nlp.detection.domains.legal.config import LEGAL_CONTRACT_SUBJECT_SHALL_RE, LEGAL_QUOTED_MEANS_RE
 from plainera_unacronym.nlp.detection.domains.legal.legal_gate import should_enable_legal

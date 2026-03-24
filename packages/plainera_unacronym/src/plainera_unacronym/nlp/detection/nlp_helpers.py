@@ -6,7 +6,7 @@ import json
 from decimal import ROUND_HALF_UP, Decimal
 from typing import Any
 
-from plainera_unacronym.nlp import FirstOccurrence
+from plainera_unacronym.nlp.common.types import FirstOccurrence
 
 
 def cfg_fingerprint(cfg) -> str:

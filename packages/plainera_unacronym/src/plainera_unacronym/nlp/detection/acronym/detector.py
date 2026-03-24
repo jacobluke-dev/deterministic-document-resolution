@@ -1,5 +1,4 @@
 from dataclasses import replace as dc_replace
-from typing import Optional
 
 from observability.logger.decorator import logger
 from observability.logger.levels import LogLevel
@@ -33,8 +32,13 @@ DEFAULT_CONFIG = AcronymDetectorConfig()
 
 
 class AcronymDetector(BaseDetector[AcronymDetectorResult]):
-    def __init__(self, config: AcronymDetectorConfig = DEFAULT_CONFIG, max_workers: Optional[int] = None):
-        super().__init__(config=config, max_workers=max_workers)
+    def __init__(
+        self,
+        config: AcronymDetectorConfig = DEFAULT_CONFIG,
+        max_workers: int | None = None,
+        sink=None,
+    ):
+        super().__init__(config=config, max_workers=max_workers, sink=sink)
         self._pat = compile_acronym_pattern(config)
 
     def _with_auto_domains(self, text: str) -> AcronymDetectorConfig:

@@ -1,4 +1,4 @@
-from plainera_unacronym.nlp import AcronymDetectorConfig
+from plainera_unacronym.nlp.common.types import AcronymDetectorConfig
 from plainera_unacronym.nlp.plugins.activation import autodetect_domains
 
 

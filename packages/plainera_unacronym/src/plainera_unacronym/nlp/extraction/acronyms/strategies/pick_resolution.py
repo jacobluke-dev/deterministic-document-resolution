@@ -1,9 +1,8 @@
 from collections import defaultdict
 from typing import Optional
 
-from plainera_unacronym.nlp import FirstOccurrence
 from plainera_unacronym.nlp.common.shared import normalize_acronym_key
-from plainera_unacronym.nlp.common.types import ExtractedDefinition, InTextPick
+from plainera_unacronym.nlp.common.types import ExtractedDefinition, FirstOccurrence, InTextPick
 
 
 def build_defs_index(

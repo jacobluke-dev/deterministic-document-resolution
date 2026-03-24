@@ -1,6 +1,6 @@
 import plainera_unacronym.nlp.detection.acronym.detector as det
 import plainera_unacronym.nlp.plugins.activation as act
-from plainera_unacronym.nlp import AcronymDetectorConfig
+from plainera_unacronym.nlp.common.types import AcronymDetectorConfig
 from plainera_unacronym.nlp.detection.acronym.detector import AcronymDetector
 from plainera_unacronym.nlp.detection.domains.bio.config import BioConfig
 from plainera_unacronym.nlp.detection.domains.bio.plugin import BioPlugin
@@ -24,7 +24,7 @@ class TestBioAutodetect:
         auto = autodetect_domains(text, cfg)
         assert "bio" in auto, f"Expected 'bio' in autodetected domains, got {auto}"
 
-    def test_detector_merges_auto_domains_and_logs_added(self, patch_sink_and_logger, monkeypatch):
+    def test_detector_merges_auto_domains_and_logs_added(self, captured_logs, monkeypatch):
         # Force auto-detection to return {'bio'} where Detector will actually look:
         monkeypatch.setattr(det, "autodetect_domains", lambda text, cfg: frozenset({"bio"}), raising=True)
 
@@ -35,7 +35,7 @@ class TestBioAutodetect:
         d = AcronymDetector(AcronymDetectorConfig(enabled_domains=frozenset()))
         _ = d.detect("mRNA and IL-6 were measured.")
 
-        messages = [c["message"] for c in patch_sink_and_logger]
+        messages = [c["message"] for c in captured_logs]
 
         assert "acronym_detector.autodetect_domains" in messages, f"logs: {messages}"
         assert "acronym_detector.detect.start" in messages

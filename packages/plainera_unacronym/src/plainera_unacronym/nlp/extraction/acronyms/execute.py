@@ -1,4 +1,6 @@
+from plainera_unacronym.nlp.common.types import AcronymDetectorConfig
 from plainera_unacronym.nlp.extraction import run_flow_with_options
+from plainera_unacronym.nlp.extraction.acronyms.config import ExtractionConfig
 from plainera_unacronym.nlp.extraction.acronyms.engine.extract_flow import ExtractionFlow
 from plainera_unacronym.nlp.extraction.acronyms.engine.state import FlowState
 
@@ -6,8 +8,8 @@ from plainera_unacronym.nlp.extraction.acronyms.engine.state import FlowState
 def detect_and_extract(
     text: str,
     *,
-    det_cfg=None,
-    ext_cfg=None,
+    det_cfg: AcronymDetectorConfig | None = None,
+    ext_cfg: ExtractionConfig | None = None,
     tier2_model=None,
     window_left: int = 320,
     window_right: int = 280,
