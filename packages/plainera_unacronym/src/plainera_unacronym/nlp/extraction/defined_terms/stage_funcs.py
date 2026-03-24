@@ -9,11 +9,12 @@ from plainera_unacronym.nlp.extraction.defined_terms.structure import build_term
 from plainera_unacronym.nlp.extraction.defined_terms.tiers.assemble import assemble_term_resolution_result
 from plainera_unacronym.nlp.extraction.defined_terms.tiers.tier_1_score import score_term_occurrences_tier1
 from plainera_unacronym.nlp.extraction.defined_terms.tiers.tier_2 import rerank_term_occurrences_tier2
+from plainera_unacronym.wiring.observability import sink
 
 
 def st_detect_terms(s: TermFlowState) -> StageResult[TermFlowState]:
     """Run defined-term detection and store the detector result."""
-    det = DefinedTermDetector(config=s.det_cfg).detect(s.text)
+    det = DefinedTermDetector(config=s.det_cfg, sink=sink).detect(s.text)
     s.det_res = det
     s.last_info = (
         f"introductions={len(det.introductions)} "

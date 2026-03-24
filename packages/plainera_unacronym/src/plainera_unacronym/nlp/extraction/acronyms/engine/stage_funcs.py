@@ -4,7 +4,6 @@ from collections import Counter
 from typing import Literal, cast
 
 from plainera_unacronym.nlp.common.types import ExtractionResult, OccurrenceLite, OccurrenceResolution
-from plainera_unacronym.nlp.detection.acronym.detector import AcronymDetector
 from plainera_unacronym.nlp.detection.cleanup.post import post_detect_cleanup
 from plainera_unacronym.nlp.extraction.acronyms.anchored.extract import extract_near_firsts
 from plainera_unacronym.nlp.extraction.acronyms.backref.extract import extract_sentence_backrefs
@@ -30,6 +29,7 @@ from plainera_unacronym.nlp.extraction.tiers.types import (
     Tier2Report,
     Tier2SkipReason,
 )
+from plainera_unacronym.wiring.observability import sink
 
 
 def st_detect(s: FlowState) -> StageResult[FlowState]:
@@ -44,7 +44,8 @@ def st_detect(s: FlowState) -> StageResult[FlowState]:
     Returns:
         StageResult[FlowState]: Updated flow state plus a human-readable note.
     """
-    det = AcronymDetector(config=s.det_cfg).detect(s.text)
+    from plainera_unacronym.nlp.detection.acronym.detector import AcronymDetector
+    det = AcronymDetector(config=s.det_cfg, sink=sink).detect(s.text)
     s.det_res = det
     s.last_info = f"firsts={len(det.unique_acronyms)} occs={len(det.occurrences)}"
     return StageResult(s, s.last_info)
