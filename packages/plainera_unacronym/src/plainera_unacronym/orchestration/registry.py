@@ -1,9 +1,12 @@
 from __future__ import annotations
 
-from collections.abc import Iterable
 from dataclasses import dataclass, field
 
-from plainera_unacronym.orchestration.interface import PipelineKey, PipelineRunner
+from plainera_unacronym.orchestration.interface import (
+    OrchestrationRequest,
+    PipelineKey,
+    PipelineRunner,
+)
 
 
 class PipelineRegistryError(Exception):
@@ -45,22 +48,14 @@ class PipelineRegistry:
                 f"Unknown pipeline key {key!r}."
             ) from exc
 
-    def resolve(
-        self,
-        requested: Iterable[PipelineKey] | None = None,
-    ) -> tuple[PipelineRunner, ...]:
-        if requested is None:
-            requested_keys = set(self._order)
-        else:
-            requested_keys = set(requested)
-            missing = sorted(
-                key for key in requested_keys if key not in self._pipelines
+    def resolve(self, request: OrchestrationRequest) -> tuple[PipelineRunner, ...]:
+        requested_keys = set(request.targets)
+        missing = sorted(key for key in requested_keys if key not in self._pipelines)
+        if missing:
+            formatted = ", ".join(repr(key) for key in missing)
+            raise UnknownPipelineKeyError(
+                f"Unknown pipeline key(s): {formatted}."
             )
-            if missing:
-                formatted = ", ".join(repr(key) for key in missing)
-                raise UnknownPipelineKeyError(
-                    f"Unknown pipeline key(s): {formatted}."
-                )
 
         return tuple(
             self._pipelines[key]
