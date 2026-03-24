@@ -292,7 +292,7 @@ class ResolveService:
             targets=targets,
             tier2_model=self._tier2_model,
         )
-        state = await run_selected_pipelines(self._pipeline_registry, orchestration_request) # noqa: F841
+        state = await run_selected_pipelines(self._pipeline_registry, orchestration_request)
         self._raise_if_overloaded()
         text = payload.text
 
@@ -308,6 +308,7 @@ class ResolveService:
                 blocks,
                 started,
                 payload.resolution_mode,
+                state
             )
 
         chunks = make_chunks(
@@ -361,4 +362,5 @@ class ResolveService:
             merged,
             started,
             payload.resolution_mode,
+            state
         )

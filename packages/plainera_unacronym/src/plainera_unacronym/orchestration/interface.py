@@ -23,6 +23,7 @@ class OrchestrationExecutionOptions:
 
     partial_success: bool = True
 
+
 @dataclass(frozen=True, slots=True)
 class OrchestrationRequest:
     """Top-level input for orchestration-driven pipeline selection.
@@ -38,9 +39,7 @@ class OrchestrationRequest:
     text: str
     targets: tuple[PipelineKey, ...]
     pipeline_options: Mapping[PipelineKey, Mapping[str, object]] = field(default_factory=dict)
-    execution_options: OrchestrationExecutionOptions = field(
-        default_factory=OrchestrationExecutionOptions
-    )
+    execution_options: OrchestrationExecutionOptions = field(default_factory=OrchestrationExecutionOptions)
 
 
 @dataclass(frozen=True, slots=True)

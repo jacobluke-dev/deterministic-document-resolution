@@ -26,6 +26,7 @@ class _PipelineExecutionOutcome:
     result: PipelineRunResult | None = None
     error: OrchestrationPipelineError | None = None
 
+
 def _classify_pipeline_exception(exc: Exception) -> str:
     if isinstance(exc, TimeoutError):
         return "PIPELINE_TIMEOUT"
