@@ -13,6 +13,17 @@ PIPELINE_STRUCTURAL_REFERENCES: Final[PipelineKey] = "structural_references"
 
 
 @dataclass(frozen=True, slots=True)
+class OrchestrationExecutionOptions:
+    """Execution controls for top-level orchestration flow.
+
+    Args:
+        partial_success: When true, per-pipeline failures are captured in
+            orchestration state and do not abort the whole flow.
+    """
+
+    partial_success: bool = True
+
+@dataclass(frozen=True, slots=True)
 class OrchestrationRequest:
     """Top-level input for orchestration-driven pipeline selection.
 
@@ -21,11 +32,15 @@ class OrchestrationRequest:
         targets: Requested pipeline keys to run.
         pipeline_options: Optional per-pipeline execution options keyed by
             pipeline name.
+        execution_options: Top-level orchestration execution controls.
     """
 
     text: str
     targets: tuple[PipelineKey, ...]
     pipeline_options: Mapping[PipelineKey, Mapping[str, object]] = field(default_factory=dict)
+    execution_options: OrchestrationExecutionOptions = field(
+        default_factory=OrchestrationExecutionOptions
+    )
 
 
 @dataclass(frozen=True, slots=True)
