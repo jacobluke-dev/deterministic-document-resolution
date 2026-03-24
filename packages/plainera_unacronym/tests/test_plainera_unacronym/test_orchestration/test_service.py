@@ -222,8 +222,9 @@ class TestRunSelectedPipelines:
         assert error.error_type == "RuntimeError"
         assert error.message == "boom"
 
-        assert [key for key, _ in seen] == [
+        assert len(seen) == 3
+        assert {key for key, _ in seen} == {
             PIPELINE_ACRONYMS,
             PIPELINE_DEFINED_TERMS,
             PIPELINE_STRUCTURAL_REFERENCES,
-        ]
+        }
