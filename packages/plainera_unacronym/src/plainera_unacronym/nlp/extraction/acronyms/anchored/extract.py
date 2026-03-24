@@ -1,4 +1,5 @@
-from typing import Mapping, Optional
+from collections.abc import Mapping
+from typing import Optional
 
 from plainera_unacronym.nlp.common.types import ExtractedDefinition, FirstOccurrence, InTextPick, Span
 from plainera_unacronym.nlp.extraction.acronyms.anchored.clean import clean_definition
