@@ -1,6 +1,7 @@
 import plainera_unacronym.nlp.detection.acronym.detector as det
 import plainera_unacronym.nlp.plugins.activation as act
-from plainera_unacronym.nlp import AcronymDetectorConfig
+from plainera_unacronym.nlp.common.types import AcronymDetectorConfig
+
 from plainera_unacronym.nlp.detection.acronym.detector import AcronymDetector
 from plainera_unacronym.nlp.detection.domains.bio.config import BioConfig
 from plainera_unacronym.nlp.detection.domains.bio.plugin import BioPlugin

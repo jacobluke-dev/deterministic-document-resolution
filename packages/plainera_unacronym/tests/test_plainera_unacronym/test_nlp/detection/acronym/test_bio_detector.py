@@ -1,4 +1,5 @@
-from plainera_unacronym.nlp import AcronymDetector, AcronymDetectorConfig
+from plainera_unacronym.nlp.common.types import AcronymDetectorConfig
+from plainera_unacronym.nlp.detection.acronym.detector import AcronymDetector
 
 
 def _keys(result) -> set[str]:

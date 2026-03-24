@@ -1,4 +1,4 @@
-from plainera_unacronym.nlp import DefinedTermDetectorConfig
+from plainera_unacronym.nlp.common.types import DefinedTermDetectorConfig
 from plainera_unacronym.nlp.detection.domains.legal.legal_gate import should_enable_legal
 from plainera_unacronym.nlp.detection.domains.legal.patterns import legal_pattern
 from plainera_unacronym.nlp.plugins.interface import DomainPlugin

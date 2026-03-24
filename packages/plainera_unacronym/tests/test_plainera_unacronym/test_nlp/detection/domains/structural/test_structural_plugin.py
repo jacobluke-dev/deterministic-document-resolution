@@ -1,8 +1,8 @@
 # needed to 'activate' plugin
 import plainera_unacronym.nlp.detection.domains  # noqa: F401
-from plainera_unacronym.nlp import AcronymDetector
 from plainera_unacronym.nlp.common.types import AcronymDetectorConfig
 from plainera_unacronym.nlp.detection.acronym.compiler import compile_acronym_pattern
+from plainera_unacronym.nlp.detection.acronym.detector import AcronymDetector
 from plainera_unacronym.nlp.detection.domains import StructuralReferencePlugin
 from plainera_unacronym.nlp.detection.domains.structural_reference.config import (
     STRUCT_APPENDIX_RE,

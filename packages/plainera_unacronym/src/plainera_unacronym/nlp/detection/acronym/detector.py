@@ -25,6 +25,7 @@ from plainera_unacronym.nlp.detection.heuristics.inline_cues import boost_confid
 from plainera_unacronym.nlp.detection.nlp_helpers import cfg_fingerprint, top_n_values
 from plainera_unacronym.nlp.plugins.activation import autodetect_domains
 
+
 from .builders import build_occurrence_from_match
 from .chunking import score_chunk_worker
 from .compiler import compile_acronym_pattern
@@ -33,8 +34,13 @@ DEFAULT_CONFIG = AcronymDetectorConfig()
 
 
 class AcronymDetector(BaseDetector[AcronymDetectorResult]):
-    def __init__(self, config: AcronymDetectorConfig = DEFAULT_CONFIG, max_workers: Optional[int] = None):
-        super().__init__(config=config, max_workers=max_workers)
+    def __init__(
+        self,
+        config: AcronymDetectorConfig = DEFAULT_CONFIG,
+        max_workers: int | None = None,
+        sink=None,
+    ):
+        super().__init__(config=config, max_workers=max_workers, sink=sink)
         self._pat = compile_acronym_pattern(config)
 
     def _with_auto_domains(self, text: str) -> AcronymDetectorConfig:

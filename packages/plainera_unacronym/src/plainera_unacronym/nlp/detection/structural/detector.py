@@ -3,7 +3,6 @@ from __future__ import annotations
 from observability.logger.decorator import logger
 
 from plainera_unacronym.nlp.detection.base import BaseDetector
-from plainera_unacronym.wiring.composition import sink
 
 from .builders import build_structural_reference, canonicalize_structural_kind
 from .structural_reference_compiler import compile_structural_reference_patterns
@@ -27,7 +26,11 @@ class StructuralReferenceDetector(BaseDetector[StructuralReferenceDetectorResult
         * ``references``: structural references detected in document order
     """
 
-    def __init__(self, config, max_workers=None):
+    def __init__(self,
+                 config:object,
+                 max_workers: int | None = None,
+                 sink=None,
+                ):
         """Initialise the structural-reference detector.
 
         Args:
@@ -37,7 +40,7 @@ class StructuralReferenceDetector(BaseDetector[StructuralReferenceDetectorResult
             max_workers: Optional maximum number of worker processes for future
                 parallel execution support.
         """
-        super().__init__(config=config, max_workers=max_workers)
+        super().__init__(config=config, max_workers=max_workers, sink=sink)
         self._patterns = compile_structural_reference_patterns()
 
     @staticmethod
@@ -117,7 +120,7 @@ class StructuralReferenceDetector(BaseDetector[StructuralReferenceDetectorResult
         refs.sort(key=lambda ref: (ref.start_offset, ref.end_offset, ref.normalized_key))
         return refs
 
-    @logger(message="structural_reference_detector.detect", db_sink=sink)
+    @logger(message="structural_reference_detector.detect", db_sink="sink")
     def detect(self, text: str) -> StructuralReferenceDetectorResult:
         """Detect structural references in a text run.
 

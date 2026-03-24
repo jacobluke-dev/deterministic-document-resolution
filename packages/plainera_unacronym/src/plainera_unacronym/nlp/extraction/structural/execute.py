@@ -1,7 +1,8 @@
 from __future__ import annotations
 
-from plainera_unacronym.nlp import StructuralReferenceExtractionConfig
+
 from plainera_unacronym.nlp.extraction import run_flow_with_options
+from plainera_unacronym.nlp.extraction.structural.config import StructuralReferenceExtractionConfig
 from plainera_unacronym.nlp.extraction.structural.extract_flow import StructuralReferenceResolutionFlow
 from plainera_unacronym.nlp.extraction.structural.state import StructuralFlowState
 

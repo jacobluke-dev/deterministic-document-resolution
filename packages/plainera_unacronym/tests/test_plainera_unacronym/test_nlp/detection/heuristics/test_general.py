@@ -1,6 +1,6 @@
 import pytest
-from plainera_unacronym.nlp import AcronymDetectorConfig
-from plainera_unacronym.nlp.common.types import TextSpanTuple
+
+from plainera_unacronym.nlp.common.types import TextSpanTuple, AcronymDetectorConfig
 from plainera_unacronym.nlp.detection.heuristics.general import (
     _alpha_len,
     _comma_near_left,

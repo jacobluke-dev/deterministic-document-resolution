@@ -1,9 +1,7 @@
-from plainera_unacronym.nlp import DefinedTermDetectorConfig
+from plainera_unacronym.nlp.common.types import DefinedTermDetectorConfig
 from plainera_unacronym.nlp.extraction.defined_terms.execute import detect_and_resolve_terms
-from test_plainera_unacronym.test_nlp.defined_terms.e2e.defined_terms_e2e_common import (
-    meaning_by_id,
-    resolutions_for_key,
-)
+from tests.test_plainera_unacronym.test_nlp.defined_terms.e2e.defined_terms_e2e_common import resolutions_for_key, \
+    meaning_by_id
 
 """
 **antecedent extraction for parenthetical defined-term aliases**, so when the parser sees

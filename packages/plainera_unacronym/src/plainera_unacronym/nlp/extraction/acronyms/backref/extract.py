@@ -74,9 +74,9 @@ list[ExtractedDefinition]
 from dataclasses import dataclass
 from typing import Literal, Mapping
 
-from plainera_unacronym.nlp import FirstOccurrence
+
 from plainera_unacronym.nlp.common.constants_regex import HYPHEN_SPLIT_RE, TOKEN_RE
-from plainera_unacronym.nlp.common.types import ExtractedDefinition, Span
+from plainera_unacronym.nlp.common.types import ExtractedDefinition, Span, FirstOccurrence
 from plainera_unacronym.nlp.extraction.acronyms.anchored.clean import clean_definition
 from plainera_unacronym.nlp.extraction.acronyms.anchored.normalise import tighten_definition_span
 from plainera_unacronym.nlp.extraction.acronyms.backref.spans import best_span_by_initials, find_span_index, sent_spans

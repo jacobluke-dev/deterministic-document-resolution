@@ -1,7 +1,8 @@
 from __future__ import annotations
 
-from plainera_unacronym.nlp import DefinedTermDetectorConfig, DefinedTermExtractionConfig
+from plainera_unacronym.nlp.common.types import DefinedTermDetectorConfig
 from plainera_unacronym.nlp.extraction import run_flow_with_options
+from plainera_unacronym.nlp.extraction.defined_terms.config import DefinedTermExtractionConfig
 from plainera_unacronym.nlp.extraction.defined_terms.extract_flow import DefinedTermResolutionFlow
 from plainera_unacronym.nlp.extraction.defined_terms.state import TermFlowState
 

@@ -1,5 +1,6 @@
-from plainera_unacronym.nlp import AcronymDetectorConfig, ExtractionConfig
+from plainera_unacronym.nlp.common.types import AcronymDetectorConfig
 from plainera_unacronym.nlp.extraction import run_flow_with_options
+from plainera_unacronym.nlp.extraction.acronyms.config import ExtractionConfig
 from plainera_unacronym.nlp.extraction.acronyms.engine.extract_flow import ExtractionFlow
 from plainera_unacronym.nlp.extraction.acronyms.engine.state import FlowState
 
