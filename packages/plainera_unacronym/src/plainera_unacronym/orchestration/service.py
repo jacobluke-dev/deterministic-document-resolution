@@ -6,27 +6,34 @@ import anyio
 
 from plainera_unacronym.orchestration.interface import (
     OrchestrationRequest,
+    PipelineKey,
     PipelineRequest,
     PipelineRunResult,
 )
 from plainera_unacronym.orchestration.registry import PipelineRegistry
+from plainera_unacronym.orchestration.state import (
+    OrchestrationPipelineError,
+    OrchestrationState,
+)
 
 
 @dataclass(frozen=True, slots=True)
-class _PipelineExecution:
-    """Captured pipeline result paired with its registry-order index."""
+class _PipelineExecutionOutcome:
+    """Captured pipeline outcome paired with its registry-order index."""
 
     index: int
-    result: PipelineRunResult
+    pipeline: PipelineKey
+    result: PipelineRunResult | None = None
+    error: OrchestrationPipelineError | None = None
 
 
 async def run_selected_pipelines(
     registry: PipelineRegistry,
     request: OrchestrationRequest,
-) -> tuple[PipelineRunResult, ...]:
-    """Run the requested pipelines concurrently.
+) -> OrchestrationState:
+    """Run the requested pipelines concurrently and accumulate orchestration state.
 
-    Pipelines are executed concurrently, but results are returned in
+    Pipelines are executed concurrently, but outcomes are recorded in
     deterministic registry resolution order rather than completion order.
 
     Args:
@@ -34,10 +41,14 @@ async def run_selected_pipelines(
         request: Top-level orchestration request.
 
     Returns:
-        Pipeline results ordered by registry resolution order.
+        Orchestration state populated with requested targets, per-pipeline
+        results, per-pipeline failures, and execution metadata.
     """
     runners = registry.resolve(request.targets)
-    collected: list[_PipelineExecution] = []
+    requested_targets = tuple(runner.key for runner in runners)
+    state = OrchestrationState.from_requested_targets(requested_targets)
+
+    collected: list[_PipelineExecutionOutcome] = []
 
     async def _run_one(index: int) -> None:
         runner = runners[index]
@@ -45,12 +56,47 @@ async def run_selected_pipelines(
             text=request.text,
             options=request.pipeline_options.get(runner.key, {}),
         )
-        result = await anyio.to_thread.run_sync(runner.run, pipeline_request)
-        collected.append(_PipelineExecution(index=index, result=result))
+
+        try:
+            result = await anyio.to_thread.run_sync(runner.run, pipeline_request)
+        except Exception as exc:
+            collected.append(
+                _PipelineExecutionOutcome(
+                    index=index,
+                    pipeline=runner.key,
+                    error=OrchestrationPipelineError(
+                        pipeline=runner.key,
+                        error_type=type(exc).__name__,
+                        message=str(exc),
+                    ),
+                )
+            )
+            return
+
+        collected.append(
+            _PipelineExecutionOutcome(
+                index=index,
+                pipeline=runner.key,
+                result=result,
+            )
+        )
 
     async with anyio.create_task_group() as tg:
         for index in range(len(runners)):
             tg.start_soon(_run_one, index)
 
     ordered = sorted(collected, key=lambda item: item.index)
-    return tuple(item.result for item in ordered)
+
+    for outcome in ordered:
+        if outcome.result is not None:
+            state.record_success(outcome.result)
+            continue
+
+        if outcome.error is not None:
+            state.record_failure(outcome.error)
+            continue
+
+        raise ValueError(f"Pipeline outcome for {outcome.pipeline!r} had neither result nor error")
+
+    state.finish()
+    return state

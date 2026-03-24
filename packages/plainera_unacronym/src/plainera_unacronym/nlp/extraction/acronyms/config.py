@@ -1,6 +1,6 @@
+from collections.abc import Mapping
 from dataclasses import dataclass, field
 from types import MappingProxyType
-from typing import Mapping
 
 from plainera_unacronym.nlp.common.constants_regex import BRIDGES_DEFAULT, DEFAULT_STOPWORDS, INLINE_CUE_FRAGMENTS
 from plainera_unacronym.nlp.extraction.tiers.config import ResolutionConfig, Tier2Config
