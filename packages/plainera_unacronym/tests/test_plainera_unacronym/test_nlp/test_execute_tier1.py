@@ -1,6 +1,7 @@
 from types import SimpleNamespace as NS
 
 import plainera_unacronym.nlp.extraction.acronyms.engine.stage_funcs as stage_fxn
+import plainera_unacronym.nlp.detection.acronym.detector as acr_det
 import plainera_unacronym.nlp.extraction.acronyms.engine.state as state
 from plainera_unacronym.nlp.common.types import (
     AcronymDetectorConfig,
@@ -62,7 +63,7 @@ class TestDetectAndExtractUnit:
         class FakeAcronymDetector:
             cfg = det_cfg
 
-            def __init__(self, config=None):
+            def __init__(self, config=None, sink=None):
                 pass
 
             def detect(self, t):
@@ -79,7 +80,7 @@ class TestDetectAndExtractUnit:
                     unique_acronyms={"PDF": fo(text, "PDF", 28, 0.5)},
                 )
 
-        monkeypatch.setattr(stage_fxn, "AcronymDetector", FakeAcronymDetector)
+        monkeypatch.setattr(acr_det, "AcronymDetector", FakeAcronymDetector)
 
         # Anchored picks: found
         anchored_pick = InTextPick(
