@@ -43,11 +43,11 @@ class PipelineRequest:
 
 @dataclass(frozen=True, slots=True)
 class PipelineRunResult:
-    """Opaque result returned by a top-level pipeline runner.
+    """Agnostic result returned by a top-level pipeline runner.
 
     Args:
         pipeline: Stable pipeline key that produced the result.
-        payload: Pipeline-native result payload.
+        payload: Pipeline-native result payload preserved without orchestration-layer reshaping.
         metadata: Optional orchestration-facing metadata associated with the run.
     """
 
