@@ -2,8 +2,12 @@ from dataclasses import replace
 from typing import Callable
 
 import numpy as np
-import plainera_unacronym.nlp.detection.acronym.detector as det
-import plainera_unacronym.nlp.detection.base as bs
+import plainera_unacronym.nlp.extraction.defined_terms.stage_funcs as def_stage_funcs
+import plainera_unacronym.nlp.extraction.structural.stage_funcs as struct_stage_funcs
+import plainera_unacronym.nlp.extraction.acronyms.engine.stage_funcs as acr_stage_funcs
+import plainera_unacronym.nlp.detection.acronym.detector as acr_det
+import plainera_unacronym.nlp.detection.defined_terms.detector as def_det
+import plainera_unacronym.nlp.detection.structural.detector as struct_det
 import pytest
 from plainera_unacronym.nlp.common.shared import normalize_acronym_key
 from plainera_unacronym.nlp.common.types import (
@@ -37,31 +41,21 @@ class NullSink:
 @pytest.fixture(autouse=True)
 def patch_sink(monkeypatch):
     dummy = NullSink()
-    monkeypatch.setattr(bs, "sink", dummy, raising=True)
-    yield dummy
+    monkeypatch.setattr(acr_stage_funcs, "sink", dummy, raising=True)
+    monkeypatch.setattr(def_stage_funcs, "sink", dummy, raising=True)
+    monkeypatch.setattr(struct_stage_funcs, "sink", dummy, raising=True)
+    return dummy
 
 
 @pytest.fixture(autouse=True)
-def patch_sink_and_logger(monkeypatch):
-    class NullSink:
-        def __call__(self, *a, **k):
-            pass
-
-        def __getattr__(self, _):
-            return lambda *a, **k: None
-
-    dummy_sink = NullSink()
-    monkeypatch.setattr(bs, "sink", dummy_sink, raising=True)
-
+def captured_logs(monkeypatch):
     logs = []
 
     def spy_logger(message, *a, **kw):
         logs.append({"message": message, **kw})
 
-    # Base-level logs
-    monkeypatch.setattr(bs, "message_logger", spy_logger, raising=True)
-    # Acronym detector logs
-    monkeypatch.setattr(det, "message_logger", spy_logger, raising=True)
+    monkeypatch.setattr(acr_det, "message_logger", spy_logger, raising=True)
+    monkeypatch.setattr(struct_det, "logger", spy_logger, raising=True)
 
     return logs
 
