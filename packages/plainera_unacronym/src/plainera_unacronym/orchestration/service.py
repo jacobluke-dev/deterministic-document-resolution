@@ -26,6 +26,13 @@ class _PipelineExecutionOutcome:
     result: PipelineRunResult | None = None
     error: OrchestrationPipelineError | None = None
 
+def _classify_pipeline_exception(exc: Exception) -> str:
+    if isinstance(exc, TimeoutError):
+        return "PIPELINE_TIMEOUT"
+    if isinstance(exc, ValueError):
+        return "PIPELINE_INVALID_OPTIONS"
+    return "PIPELINE_EXECUTION_FAILED"
+
 
 async def run_selected_pipelines(
     registry: PipelineRegistry,
@@ -73,8 +80,9 @@ async def run_selected_pipelines(
                     pipeline=runner.key,
                     error=OrchestrationPipelineError(
                         pipeline=runner.key,
+                        code=_classify_pipeline_exception(exc),
+                        message=str(exc) or "Pipeline execution failed.",
                         error_type=type(exc).__name__,
-                        message=str(exc),
                     ),
                 )
             )
