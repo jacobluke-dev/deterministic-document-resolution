@@ -14,7 +14,14 @@ PIPELINE_STRUCTURAL_REFERENCES: Final[PipelineKey] = "structural_references"
 
 @dataclass(frozen=True, slots=True)
 class OrchestrationRequest:
-    """Top-level orchestration input."""
+    """Top-level input for orchestration-driven pipeline selection.
+
+    Args:
+        text: Source document text to process.
+        targets: Requested pipeline keys to run.
+        pipeline_options: Optional per-pipeline execution options keyed by
+            pipeline name.
+    """
 
     text: str
     targets: tuple[PipelineKey, ...]
@@ -25,7 +32,12 @@ class OrchestrationRequest:
 
 @dataclass(frozen=True, slots=True)
 class PipelineRequest:
-    """Single pipeline request derived from orchestration input."""
+    """Single pipeline request derived from orchestration input.
+
+    Args:
+        text: Source document text to process.
+        options: Pipeline-specific execution options for the selected runner.
+    """
 
     text: str
     options: Mapping[str, object] = field(default_factory=dict)
@@ -33,7 +45,13 @@ class PipelineRequest:
 
 @dataclass(frozen=True, slots=True)
 class PipelineRunResult:
-    """Opaque top-level pipeline result."""
+    """Opaque result returned by a top-level pipeline runner.
+
+    Args:
+        pipeline: Stable pipeline key that produced the result.
+        payload: Pipeline-native result payload.
+        metadata: Optional orchestration-facing metadata associated with the run.
+    """
 
     pipeline: PipelineKey
     payload: object
@@ -47,4 +65,11 @@ class PipelineRunner(ABC):
 
     @abstractmethod
     def run(self, request: PipelineRequest) -> PipelineRunResult:
-        """Execute the pipeline for a single request."""
+        """Execute the pipeline for a single request.
+
+        Args:
+            request: Pipeline-specific request derived from orchestration input.
+
+        Returns:
+            Opaque top-level result for the executed pipeline.
+        """

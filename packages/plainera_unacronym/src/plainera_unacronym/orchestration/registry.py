@@ -1,12 +1,9 @@
 from __future__ import annotations
 
+from collections.abc import Sequence
 from dataclasses import dataclass, field
 
-from plainera_unacronym.orchestration.interface import (
-    OrchestrationRequest,
-    PipelineKey,
-    PipelineRunner,
-)
+from plainera_unacronym.orchestration.interface import PipelineKey, PipelineRunner
 
 
 class PipelineRegistryError(Exception):
@@ -32,6 +29,15 @@ class PipelineRegistry:
     _order: list[PipelineKey] = field(default_factory=list)
 
     def register(self, runner: PipelineRunner) -> None:
+        """Register a pipeline runner under its stable key.
+
+        Args:
+            runner: Top-level pipeline runner to register.
+
+        Raises:
+            DuplicatePipelineKeyError: Raised when the runner key is already
+                registered.
+        """
         if runner.key in self._pipelines:
             raise DuplicatePipelineKeyError(
                 f"Pipeline already registered for key {runner.key!r}."
@@ -41,6 +47,17 @@ class PipelineRegistry:
         self._order.append(runner.key)
 
     def get(self, key: PipelineKey) -> PipelineRunner:
+        """Return the registered runner for a pipeline key.
+
+        Args:
+            key: Stable pipeline key.
+
+        Returns:
+            The registered pipeline runner.
+
+        Raises:
+            UnknownPipelineKeyError: Raised when the key is not registered.
+        """
         try:
             return self._pipelines[key]
         except KeyError as exc:
@@ -48,8 +65,21 @@ class PipelineRegistry:
                 f"Unknown pipeline key {key!r}."
             ) from exc
 
-    def resolve(self, request: OrchestrationRequest) -> tuple[PipelineRunner, ...]:
-        requested_keys = set(request.targets)
+    def resolve(self, targets: Sequence[PipelineKey]) -> tuple[PipelineRunner, ...]:
+        """Resolve requested targets in deterministic registry order.
+
+        Args:
+            targets: Requested pipeline keys.
+
+        Returns:
+            Registered runners for the requested keys, ordered by registry
+            registration order.
+
+        Raises:
+            UnknownPipelineKeyError: Raised when one or more requested keys are
+                not registered.
+        """
+        requested_keys = set(targets)
         missing = sorted(key for key in requested_keys if key not in self._pipelines)
         if missing:
             formatted = ", ".join(repr(key) for key in missing)
@@ -64,4 +94,5 @@ class PipelineRegistry:
         )
 
     def keys(self) -> tuple[PipelineKey, ...]:
+        """Return registered pipeline keys in deterministic order."""
         return tuple(self._order)

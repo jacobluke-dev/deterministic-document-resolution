@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-from collections.abc import Mapping
-
 from plainera_unacronym.nlp.extraction.acronyms.execute import detect_and_extract
 from plainera_unacronym.nlp.extraction.defined_terms.execute import (
     detect_and_resolve_terms,
@@ -9,25 +7,37 @@ from plainera_unacronym.nlp.extraction.defined_terms.execute import (
 from plainera_unacronym.nlp.extraction.structural.execute import (
     detect_and_resolve_structural_references,
 )
-from plainera_unacronym.orchestration import (PipelineRunner,
-                                              PIPELINE_ACRONYMS,
-                                              PipelineRequest,
-                                              PipelineRunResult,
-                                              PIPELINE_DEFINED_TERMS,
-                                              PIPELINE_STRUCTURAL_REFERENCES)
-
-
-def _mapping(value: object) -> Mapping[str, object]:
-    if isinstance(value, Mapping):
-        return value
-    return {}
+from plainera_unacronym.orchestration.interface import (
+    PIPELINE_ACRONYMS,
+    PIPELINE_DEFINED_TERMS,
+    PIPELINE_STRUCTURAL_REFERENCES,
+    PipelineRequest,
+    PipelineRunResult,
+    PipelineRunner,
+)
 
 
 class AcronymPipelineRunner(PipelineRunner):
+    """Adapter for the acronym pipeline execute entry point.
+
+    Translates orchestration-layer pipeline options into the keyword arguments
+    expected by ``detect_and_extract``.
+    """
+
     key = PIPELINE_ACRONYMS
 
     def run(self, request: PipelineRequest) -> PipelineRunResult:
-        options = _mapping(request.options)
+        """Run the acronym pipeline for a single orchestration request.
+
+        Args:
+            request: Pipeline-specific request containing the source text and
+                acronym pipeline options.
+
+        Returns:
+            Opaque top-level pipeline result containing the acronym pipeline's
+            native payload.
+        """
+        options = request.options
 
         raw_window_left = options.get("window_left", 320)
         raw_window_right = options.get("window_right", 280)
@@ -55,10 +65,26 @@ class AcronymPipelineRunner(PipelineRunner):
 
 
 class DefinedTermsPipelineRunner(PipelineRunner):
+    """Adapter for the defined-terms pipeline execute entry point.
+
+    Translates orchestration-layer pipeline options into the keyword arguments
+    expected by ``detect_and_resolve_terms``.
+    """
+
     key = PIPELINE_DEFINED_TERMS
 
     def run(self, request: PipelineRequest) -> PipelineRunResult:
-        options = _mapping(request.options)
+        """Run the defined-terms pipeline for a single orchestration request.
+
+        Args:
+            request: Pipeline-specific request containing the source text and
+                defined-term pipeline options.
+
+        Returns:
+            Opaque top-level pipeline result containing the defined-terms
+            pipeline's native payload.
+        """
+        options = request.options
 
         payload = detect_and_resolve_terms(
             request.text,
@@ -78,10 +104,26 @@ class DefinedTermsPipelineRunner(PipelineRunner):
 
 
 class StructuralReferencesPipelineRunner(PipelineRunner):
+    """Adapter for the structural-reference pipeline execute entry point.
+
+    Translates orchestration-layer pipeline options into the keyword arguments
+    expected by ``detect_and_resolve_structural_references``.
+    """
+
     key = PIPELINE_STRUCTURAL_REFERENCES
 
     def run(self, request: PipelineRequest) -> PipelineRunResult:
-        options = _mapping(request.options)
+        """Run the structural-reference pipeline for a single orchestration request.
+
+        Args:
+            request: Pipeline-specific request containing the source text and
+                structural-reference pipeline options.
+
+        Returns:
+            Opaque top-level pipeline result containing the structural-reference
+            pipeline's native payload.
+        """
+        options = request.options
 
         payload = detect_and_resolve_structural_references(
             request.text,
