@@ -201,6 +201,61 @@
         "title": "HealthCheckResponse",
         "type": "object"
       },
+      "OrchestrationMeta": {
+        "properties": {
+          "completed": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Completed",
+            "type": "array"
+          },
+          "failed": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Failed",
+            "type": "array"
+          },
+          "requested": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Requested",
+            "type": "array"
+          }
+        },
+        "required": [
+          "requested",
+          "completed",
+          "failed"
+        ],
+        "title": "OrchestrationMeta",
+        "type": "object"
+      },
+      "PipelineError": {
+        "properties": {
+          "code": {
+            "title": "Code",
+            "type": "string"
+          },
+          "message": {
+            "title": "Message",
+            "type": "string"
+          },
+          "pipeline": {
+            "title": "Pipeline",
+            "type": "string"
+          }
+        },
+        "required": [
+          "pipeline",
+          "code",
+          "message"
+        ],
+        "title": "PipelineError",
+        "type": "object"
+      },
       "ResolutionMode": {
         "description": "Deterministic resolution policy for selecting a final acronym meaning.\n\nSTRICT:\n    Select only when the resolver can do so conservatively. Avoid permissive\n    fallback behaviour and prefer leaving the acronym unresolved when\n    multiple glossary candidates remain.\n\nDOMAIN_PRIORITY:\n    Use the standard deterministic policy. Prefer the strongest available\n    candidate according to the resolver's normal ordering and fallback\n    rules. This is the default balanced mode.\n\nFALLBACK_GENERAL:\n    Prefer returning a usable result whenever possible. If no stronger\n    candidate is available, prefer a general-domain meaning before falling\n    back to the first deterministically ordered candidate.",
         "enum": [
@@ -475,11 +530,32 @@
                 }
               }
             ],
+            "errors": [
+              {
+                "code": "PIPELINE_EXECUTION_FAILED",
+                "message": "boom",
+                "pipeline": "defined_terms"
+              }
+            ],
             "meta": {
               "input_chars": 68,
               "model_version": "plainera-core@1.0.0",
               "processing_ms": 12,
               "resolution_mode": "domain_priority"
+            },
+            "orchestration": {
+              "completed": [
+                "acronyms",
+                "structural_references"
+              ],
+              "failed": [
+                "defined_terms"
+              ],
+              "requested": [
+                "acronyms",
+                "defined_terms",
+                "structural_references"
+              ]
             }
           }
         ],
@@ -491,12 +567,23 @@
             "title": "Acronyms",
             "type": "array"
           },
+          "errors": {
+            "items": {
+              "$ref": "#/components/schemas/PipelineError"
+            },
+            "title": "Errors",
+            "type": "array"
+          },
           "meta": {
             "$ref": "#/components/schemas/ResolveMeta"
+          },
+          "orchestration": {
+            "$ref": "#/components/schemas/OrchestrationMeta"
           }
         },
         "required": [
-          "meta"
+          "meta",
+          "orchestration"
         ],
         "title": "ResolveResponse",
         "type": "object"

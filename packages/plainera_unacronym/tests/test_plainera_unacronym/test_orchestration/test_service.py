@@ -3,10 +3,11 @@ from plainera_unacronym.orchestration.interface import (
     PIPELINE_ACRONYMS,
     PIPELINE_DEFINED_TERMS,
     PIPELINE_STRUCTURAL_REFERENCES,
+    OrchestrationExecutionOptions,
     OrchestrationRequest,
     PipelineRequest,
     PipelineRunner,
-    PipelineRunResult, OrchestrationExecutionOptions,
+    PipelineRunResult,
 )
 from plainera_unacronym.orchestration.registry import PipelineRegistry
 from plainera_unacronym.orchestration.service import run_selected_pipelines
@@ -248,3 +249,24 @@ class TestRunSelectedPipelines:
         assert len(exc_info.value.exceptions) == 1
         assert isinstance(exc_info.value.exceptions[0], RuntimeError)
         assert str(exc_info.value.exceptions[0]) == "boom"
+
+    @pytest.mark.anyio
+    async def test_raises_on_pipeline_failure_when_partial_success(self) -> None:
+        seen: list[tuple[str, PipelineRequest]] = []
+        registry = PipelineRegistry()
+        registry.register(_StubRunner(PIPELINE_ACRONYMS, seen=seen))
+        registry.register(_FailingRunner(PIPELINE_DEFINED_TERMS, seen=seen))
+
+        request = OrchestrationRequest(
+            text="Example text",
+            targets=(PIPELINE_ACRONYMS, PIPELINE_DEFINED_TERMS),
+            execution_options=OrchestrationExecutionOptions(partial_success=True),
+        )
+
+        state = await run_selected_pipelines(registry, request)
+
+        error = state.errors_by_pipeline[PIPELINE_DEFINED_TERMS]
+
+        assert error.code == "PIPELINE_EXECUTION_FAILED"
+        assert error.message == "boom"
+        assert error.error_type == "RuntimeError"

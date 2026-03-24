@@ -20,8 +20,9 @@ class OrchestrationPipelineError:
     """
 
     pipeline: PipelineKey
-    error_type: str
+    code: str
     message: str
+    error_type: str
     details: Mapping[str, object] = field(default_factory=dict)
 
 

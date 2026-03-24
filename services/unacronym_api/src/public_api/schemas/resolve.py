@@ -57,6 +57,18 @@ class ResolveTarget(str, Enum):
     STRUCTURAL_REFERENCES = "structural_references"
 
 
+class OrchestrationMeta(BaseSchema):
+    requested: list[str]
+    completed: list[str]
+    failed: list[str]
+
+
+class PipelineError(BaseSchema):
+    pipeline: str
+    code: str
+    message: str
+
+
 class ResolveMeta(BaseSchema):
     processing_ms: int
     model_version: str = Field(..., description="plainera-core version used for processing.")
@@ -148,7 +160,6 @@ class ResolveOptions(BaseSchema):
 
 
 class ResolveRequest(BaseSchema):
-
     text: constr(min_length=1, max_length=100_000) = Field(  # type: ignore[valid-type]
         ..., description="Raw document content. Max length 100,000 characters."
     )
@@ -178,7 +189,6 @@ class ResolveRequest(BaseSchema):
             raise ValueError("targets must not be empty when provided.")
         return v
 
-
     class Config:
         json_schema_extra = {
             "examples": [
@@ -203,6 +213,8 @@ class ResolveRequest(BaseSchema):
 class ResolveResponse(BaseSchema):
     acronyms: list[ResolvedAcronymBlock] = Field(default_factory=list)
     meta: ResolveMeta
+    orchestration: OrchestrationMeta
+    errors: list[PipelineError] = Field(default_factory=list)
 
     class Config:
         json_schema_extra = {
@@ -273,7 +285,19 @@ class ResolveResponse(BaseSchema):
                         "model_version": "plainera-core@1.0.0",
                         "input_chars": 68,
                         "resolution_mode": "domain_priority",
-                    }
+                    },
+                    "orchestration": {
+                        "requested": ["acronyms", "defined_terms", "structural_references"],
+                        "completed": ["acronyms", "structural_references"],
+                        "failed": ["defined_terms"],
+                    },
+                    "errors": [
+                        {
+                            "pipeline": "defined_terms",
+                            "code": "PIPELINE_EXECUTION_FAILED",
+                            "message": "boom",
+                        }
+                    ],
                 }
             ]
         }

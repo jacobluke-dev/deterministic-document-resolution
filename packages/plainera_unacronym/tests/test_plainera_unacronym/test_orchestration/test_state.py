@@ -45,6 +45,7 @@ class TestOrchestrationState:
         state = OrchestrationState.from_requested_targets(("defined_terms",))
         error = OrchestrationPipelineError(
             pipeline="defined_terms",
+                code="PIPELINE_TIMEOUT",
             error_type="RuntimeError",
             message="boom",
         )
@@ -69,6 +70,7 @@ class TestOrchestrationState:
         state.record_failure(
             OrchestrationPipelineError(
                 pipeline="defined_terms",
+                code="PIPELINE_INVALID_OPTIONS",
                 error_type="ValueError",
                 message="invalid config",
             )
@@ -96,6 +98,7 @@ class TestOrchestrationState:
         state.record_failure(
             OrchestrationPipelineError(
                 pipeline="acronyms",
+                code="PIPELINE_TIMEOUT",
                 error_type="RuntimeError",
                 message="boom",
             )
@@ -105,6 +108,7 @@ class TestOrchestrationState:
             state.record_failure(
                 OrchestrationPipelineError(
                     pipeline="acronyms",
+                code="PIPELINE_TIMEOUT",
                     error_type="RuntimeError",
                     message="boom again",
                 )
