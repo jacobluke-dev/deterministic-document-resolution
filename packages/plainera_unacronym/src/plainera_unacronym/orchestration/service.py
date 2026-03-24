@@ -14,6 +14,8 @@ from plainera_unacronym.orchestration.registry import PipelineRegistry
 
 @dataclass(frozen=True, slots=True)
 class _PipelineExecution:
+    """Captured pipeline result paired with its registry-order index."""
+
     index: int
     result: PipelineRunResult
 
@@ -22,7 +24,10 @@ async def run_selected_pipelines(
     registry: PipelineRegistry,
     request: OrchestrationRequest,
 ) -> tuple[PipelineRunResult, ...]:
-    """Run selected pipelines concurrently in deterministic output order.
+    """Run the requested pipelines concurrently.
+
+    Pipelines are executed concurrently, but results are returned in
+    deterministic registry resolution order rather than completion order.
 
     Args:
         registry: Registry containing available pipeline runners.
@@ -47,4 +52,5 @@ async def run_selected_pipelines(
         for index in range(len(runners)):
             tg.start_soon(_run_one, index)
 
-    return tuple(item.result for item in sorted(collected, key=lambda item: item.index))
+    ordered = sorted(collected, key=lambda item: item.index)
+    return tuple(item.result for item in ordered)
