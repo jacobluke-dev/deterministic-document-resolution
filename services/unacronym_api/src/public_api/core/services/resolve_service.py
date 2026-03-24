@@ -253,6 +253,19 @@ class ResolveService:
 
     @staticmethod
     def _normalise_targets(payload: ResolveRequest) -> tuple[PipelineKey, ...]:
+        """Return the requested pipeline targets in deterministic execution order.
+
+        If the request does not specify any targets, all supported pipelines are
+        returned in the service default order. If targets are provided, duplicate
+        entries are removed while preserving the caller's original order.
+
+        Args:
+            payload: Resolve request containing the optional target selection.
+
+        Returns:
+            Tuple of pipeline keys to execute, with stable ordering and no
+            duplicates.
+        """
         if payload.targets is None:
             return (
             PIPELINE_ACRONYMS,
