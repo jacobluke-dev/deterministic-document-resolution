@@ -1,6 +1,6 @@
 import plainera_unacronym.nlp.detection.acronym.detector as det
 import pytest
-from plainera_unacronym.nlp import Occurrence
+from plainera_unacronym.nlp.common.types import Occurrence
 from plainera_unacronym.nlp.detection.acronym.chunking import score_chunk_worker
 
 

@@ -1,4 +1,4 @@
-from plainera_unacronym.nlp import AcronymDetectorConfig
+from plainera_unacronym.nlp.common.types import AcronymDetectorConfig
 from plainera_unacronym.nlp.detection.heuristics.context import blacklist_context_drop
 
 

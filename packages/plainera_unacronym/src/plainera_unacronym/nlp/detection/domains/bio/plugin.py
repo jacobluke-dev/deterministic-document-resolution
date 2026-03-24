@@ -1,6 +1,6 @@
 import re
 
-from plainera_unacronym.nlp import AcronymDetectorConfig
+from plainera_unacronym.nlp.common.types import AcronymDetectorConfig
 from plainera_unacronym.nlp.detection.domains.bio.bio_gate import should_enable_bio
 from plainera_unacronym.nlp.detection.domains.bio.config import BioConfig
 from plainera_unacronym.nlp.detection.domains.bio.patterns import bio_pattern

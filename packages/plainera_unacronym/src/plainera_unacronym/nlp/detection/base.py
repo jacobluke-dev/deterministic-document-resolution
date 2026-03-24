@@ -1,11 +1,9 @@
 import asyncio
 from concurrent.futures import ProcessPoolExecutor
 from os import cpu_count
-from typing import Generic, Optional, TypeVar
+from typing import Any, Generic, TypeVar
 
 from observability.logger.message_logger import message_logger
-
-from plainera_unacronym.wiring.composition import sink
 
 TResult = TypeVar("TResult")
 
@@ -27,10 +25,10 @@ class BaseDetector(Generic[TResult]):
       - result construction
     """
 
-    def __init__(self, config, max_workers: Optional[int] = None):
+    def __init__(self, config: Any, sink, max_workers: int | None = None):
         self.cfg = config
         self._max_workers = max_workers
-        self._pool: Optional[ProcessPoolExecutor] = None
+        self._pool: ProcessPoolExecutor | None = None
         self.sink = sink
 
     def detect(self, text: str) -> TResult:

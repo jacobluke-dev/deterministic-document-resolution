@@ -14,11 +14,12 @@ from plainera_unacronym.nlp.extraction.structural.state import StructuralFlowSta
 from plainera_unacronym.nlp.extraction.structural.transform import (
     build_structural_reference_resolutions,
 )
+from plainera_unacronym.wiring.observability import sink
 
 
 def st_detect_structural_references(s: StructuralFlowState) -> StageResult[StructuralFlowState]:
     """Run structural-reference detection and store the detector result."""
-    det = StructuralReferenceDetector(config=s.det_cfg).detect(s.text)
+    det = StructuralReferenceDetector(config=s.det_cfg, sink=sink).detect(s.text)
     s.det_res = det
     s.last_info = f"references={len(det.references)}"
     return StageResult(s, s.last_info)

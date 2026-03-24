@@ -63,8 +63,13 @@ class DefinedTermDetector(BaseDetector[DefinedTermDetectorResult]):
         * ``occurrences``: later references to previously introduced terms.
     """
 
-    def __init__(self, config: DefinedTermDetectorConfig, max_workers=None):
-        super().__init__(config=config, max_workers=max_workers)
+    def __init__(
+        self,
+        config: DefinedTermDetectorConfig,
+        max_workers: int | None = None,
+        sink=None,
+    ):
+        super().__init__(config=config, max_workers=max_workers, sink=sink)
         self._patterns = compile_defined_term_patterns()
 
     def _with_auto_domains(self, text: str) -> DefinedTermDetectorConfig:

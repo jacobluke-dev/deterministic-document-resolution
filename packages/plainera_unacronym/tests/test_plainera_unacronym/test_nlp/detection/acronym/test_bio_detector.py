@@ -1,4 +1,5 @@
-from plainera_unacronym.nlp import AcronymDetector, AcronymDetectorConfig
+from plainera_unacronym.nlp.common.types import AcronymDetectorConfig
+from plainera_unacronym.nlp.detection.acronym.detector import AcronymDetector
 
 
 def _keys(result) -> set[str]:
@@ -6,7 +7,7 @@ def _keys(result) -> set[str]:
 
 
 class TestBioE2E:
-    def test_bio_end_to_end_default_config(self, patch_sink_and_logger):
+    def test_bio_end_to_end_default_config(self, captured_logs):
         """
         E2E: with the normal DetectorConfig, a bio-ish paragraph should surface
         clear bio tokens (mRNA, IL-6). We also verify autodetect logging when present.
@@ -24,13 +25,13 @@ class TestBioE2E:
 
         # Autodetect log is expected but not strictly required if the plugin registry
         # or SupportsSniff gating differs; when present, it should precede 'start'.
-        msgs = [e["message"] for e in patch_sink_and_logger]
+        msgs = [e["message"] for e in captured_logs]
         if "acronym_detector.autodetect_domains" in msgs:
             assert msgs.index("acronym_detector.autodetect_domains") < msgs.index("acronym_detector.detect.start")
 
         assert "acronym_detector.detect.summary" in msgs
 
-    def test_bio_parallel_equals_serial(self, patch_sink_and_logger):
+    def test_bio_parallel_equals_serial(self, captured_logs):
         """
         E2E parity: a longer bio paragraph yields identical unique sets and counts
         in serial vs. parallel paths.

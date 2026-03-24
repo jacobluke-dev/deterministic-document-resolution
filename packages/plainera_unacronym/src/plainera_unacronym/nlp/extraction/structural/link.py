@@ -9,7 +9,7 @@ from plainera_unacronym.nlp.extraction.structural.types import (
     StructuralReferenceEntry,
     StructuralReferenceLink,
 )
-from plainera_unacronym.wiring.composition import sink
+from plainera_unacronym.wiring.observability import sink
 
 
 def _strength_and_strategy_for_tier(tier: str) -> tuple[float, MATCH_STRATEGY]:
