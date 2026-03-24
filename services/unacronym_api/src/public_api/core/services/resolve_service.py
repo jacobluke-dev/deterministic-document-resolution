@@ -31,8 +31,10 @@ from plainera_unacronym.orchestration import (
     PipelineRegistry,
 )
 from plainera_unacronym.orchestration.service import run_selected_pipelines
+from plainera_unacronym.orchestration.state import OrchestrationState
 
 from public_api.core.auth.chunking import make_chunks, merge_blocks, shift_blocks
+from public_api.core.services.orchestration_mapper import map_orchestration_state
 from public_api.core.services.orchestration_request_builder import build_orchestration_request
 from public_api.core.services.resolution_policy import attach_resolution_metadata
 from public_api.core.services.resolve_mapper import map_pipeline_to_blocks
@@ -176,9 +178,12 @@ class ResolveService:
         blocks: list[dict[str, Any]],
         started: float,
         resolution_mode: str,
+        state: OrchestrationState,
     ) -> ResolveResponse:
         """Construct the final public response with timing and input metadata."""
         processing_ms = int((time.perf_counter() - started) * 1000)
+
+        orchestration_meta, errors = map_orchestration_state(state)
 
         return ResolveResponse.model_validate(
             {
@@ -189,6 +194,8 @@ class ResolveService:
                     "input_chars": len(text),
                     "resolution_mode": resolution_mode,
                 },
+                "orchestration": orchestration_meta.model_dump(),
+                "errors": [e.model_dump() for e in errors],
             }
         )
 
