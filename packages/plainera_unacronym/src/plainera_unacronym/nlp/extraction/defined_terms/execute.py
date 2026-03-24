@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from plainera_unacronym.nlp import DefinedTermDetectorConfig, DefinedTermExtractionConfig
 from plainera_unacronym.nlp.extraction import run_flow_with_options
 from plainera_unacronym.nlp.extraction.defined_terms.extract_flow import DefinedTermResolutionFlow
 from plainera_unacronym.nlp.extraction.defined_terms.state import TermFlowState
@@ -8,8 +9,8 @@ from plainera_unacronym.nlp.extraction.defined_terms.state import TermFlowState
 def detect_and_resolve_terms(
     text: str,
     *,
-    det_cfg=None,
-    ext_cfg=None,
+    det_cfg: DefinedTermDetectorConfig = None,
+    ext_cfg: DefinedTermExtractionConfig = None,
     return_reports: bool = False,
     disambig_margin_threshold: float | None = None,
     trace: bool = False,
