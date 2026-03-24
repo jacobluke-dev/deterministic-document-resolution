@@ -23,8 +23,17 @@ import anyio
 from fastapi import status
 from plainera_unacronym.nlp.common.types import AcronymDetectorResult, ExtractionResult
 from plainera_unacronym.nlp.extraction.acronyms.execute import detect_and_extract
+from plainera_unacronym.orchestration import (
+    PIPELINE_ACRONYMS,
+    PIPELINE_DEFINED_TERMS,
+    PIPELINE_STRUCTURAL_REFERENCES,
+    PipelineKey,
+    PipelineRegistry,
+)
+from plainera_unacronym.orchestration.service import run_selected_pipelines
 
 from public_api.core.auth.chunking import make_chunks, merge_blocks, shift_blocks
+from public_api.core.services.orchestration_request_builder import build_orchestration_request
 from public_api.core.services.resolution_policy import attach_resolution_metadata
 from public_api.core.services.resolve_mapper import map_pipeline_to_blocks
 from public_api.core.settings import app_settings
@@ -110,6 +119,7 @@ class ResolveService:
         semaphore: Any | None,
         request_timeout_ms: int,
         tier2_model: Any | None,
+        pipeline_registry: PipelineRegistry,
     ) -> None:
         """Initialise the resolve service.
 
@@ -125,6 +135,7 @@ class ResolveService:
         self._semaphore = semaphore
         self._timeout_s = max(0.001, request_timeout_ms / 1000.0)
         self._tier2_model = tier2_model
+        self._pipeline_registry = pipeline_registry
 
     @staticmethod
     def _validate_and_prepare(payload: ResolveRequest) -> tuple[ResolveOptions, str]:
@@ -240,11 +251,28 @@ class ResolveService:
             glossary_repo=self._glossary_repo,
         )
 
+    @staticmethod
+    def _normalise_targets(payload: ResolveRequest) -> tuple[PipelineKey, ...]:
+        if payload.targets is None:
+            return (
+            PIPELINE_ACRONYMS,
+            PIPELINE_DEFINED_TERMS,
+            PIPELINE_STRUCTURAL_REFERENCES,
+            )
+        return tuple(dict.fromkeys(target.value for target in payload.targets))
+
     async def resolve(self, payload: ResolveRequest) -> ResolveResponse:
         """Resolve acronyms in input text using the Unacronym pipeline and API mapping layer."""
         started = time.perf_counter()
 
         opts, lang = self._validate_and_prepare(payload)
+        targets = self._normalise_targets(payload)
+        orchestration_request = build_orchestration_request(
+            payload,
+            targets=targets,
+            tier2_model=self._tier2_model,
+        )
+        state = await run_selected_pipelines(self._pipeline_registry, orchestration_request) # noqa: F841
         self._raise_if_overloaded()
         text = payload.text
 
