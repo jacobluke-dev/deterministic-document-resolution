@@ -33,7 +33,7 @@ async def run_selected_pipelines(
 ) -> OrchestrationState:
     """Run the requested pipelines concurrently and accumulate orchestration state.
 
-    Pipelines are executed concurrently, but outcomes are recorded in
+    Pipelines are executed independently and outcomes are recorded in
     deterministic registry resolution order rather than completion order.
 
     Args:
@@ -43,6 +43,10 @@ async def run_selected_pipelines(
     Returns:
         Orchestration state populated with requested targets, per-pipeline
         results, per-pipeline failures, and execution metadata.
+
+    Raises:
+        Exception: Re-raises a pipeline execution error when partial-success
+            mode is disabled.
     """
     runners = registry.resolve(request.targets)
     requested_targets = tuple(runner.key for runner in runners)
@@ -60,6 +64,9 @@ async def run_selected_pipelines(
         try:
             result = await anyio.to_thread.run_sync(runner.run, pipeline_request)
         except Exception as exc:
+            if not request.execution_options.partial_success:
+                raise
+
             collected.append(
                 _PipelineExecutionOutcome(
                     index=index,

@@ -6,7 +6,7 @@ from plainera_unacronym.orchestration.interface import (
     OrchestrationRequest,
     PipelineRequest,
     PipelineRunner,
-    PipelineRunResult,
+    PipelineRunResult, OrchestrationExecutionOptions,
 )
 from plainera_unacronym.orchestration.registry import PipelineRegistry
 from plainera_unacronym.orchestration.service import run_selected_pipelines
@@ -228,3 +228,23 @@ class TestRunSelectedPipelines:
             PIPELINE_DEFINED_TERMS,
             PIPELINE_STRUCTURAL_REFERENCES,
         }
+
+    @pytest.mark.anyio
+    async def test_raises_on_pipeline_failure_when_partial_success_disabled(self) -> None:
+        seen: list[tuple[str, PipelineRequest]] = []
+        registry = PipelineRegistry()
+        registry.register(_StubRunner(PIPELINE_ACRONYMS, seen=seen))
+        registry.register(_FailingRunner(PIPELINE_DEFINED_TERMS, seen=seen))
+
+        request = OrchestrationRequest(
+            text="Example text",
+            targets=(PIPELINE_ACRONYMS, PIPELINE_DEFINED_TERMS),
+            execution_options=OrchestrationExecutionOptions(partial_success=False),
+        )
+
+        with pytest.raises(ExceptionGroup, match="unhandled errors in a TaskGroup") as exc_info:
+            await run_selected_pipelines(registry, request)
+
+        assert len(exc_info.value.exceptions) == 1
+        assert isinstance(exc_info.value.exceptions[0], RuntimeError)
+        assert str(exc_info.value.exceptions[0]) == "boom"
