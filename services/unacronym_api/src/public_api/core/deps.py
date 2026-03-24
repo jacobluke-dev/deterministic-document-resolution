@@ -2,10 +2,13 @@ from __future__ import annotations
 
 from asyncio import Semaphore
 from collections.abc import Iterator
+from functools import lru_cache
 from typing import Annotated, Any
 
 from fastapi import Depends, Request
 from plainera_core.db_manager.connection import DBManager
+from plainera_unacronym.orchestration import PipelineRegistry
+from plainera_unacronym.wiring.composition import build_pipeline_registry
 from sqlalchemy.orm import Session
 
 from public_api.core.factory import create_resolver
@@ -130,25 +133,33 @@ def get_glossary_repo(
     return GlossaryRepository(dbm=dbm)
 
 
+@lru_cache(maxsize=1)
+def get_pipeline_registry() -> PipelineRegistry:
+    """Provide the configured orchestration pipeline registry."""
+    return build_pipeline_registry()
+
+
 def get_resolve_service(
     semaphore: Annotated[Semaphore | None, Depends(get_semaphore)],
     glossary_repo: Annotated[GlossaryRepository, Depends(get_glossary_repo)],
     timeout_ms: Annotated[int, Depends(get_request_timeout_ms)],
+    pipeline_registry: Annotated[PipelineRegistry, Depends(get_pipeline_registry)],
     request: Request,
 ) -> ResolveService:
     """
     Provide a request-scoped ResolveService.
 
-    Constructs the service using app-scoped collaborators (resolver, semaphore)
-    and request-scoped collaborators (glossary repository, timeout value). The
-    service is created per request so tests can override dependencies (e.g.
-    resolver, semaphore, timeout) cleanly via `app.dependency_overrides`.
+    Constructs the service using app-scoped collaborators (pipeline registry,
+    semaphore) and request-scoped collaborators (glossary repository, timeout
+    value). The service is created per request so tests can override
+    dependencies cleanly via `app.dependency_overrides`.
 
     Args:
         semaphore: Optional concurrency limiter injected via `get_semaphore()`.
         glossary_repo: Glossary repository injected via `get_glossary_repo()`.
         timeout_ms: Request timeout in milliseconds injected via `get_request_timeout_ms()`.
-        request: Request instance injected via `app.dependency_overrides`.
+        pipeline_registry: Configured orchestration pipeline registry.
+        request: Request instance injected via FastAPI.
 
     Returns:
         ResolveService: Fully configured service instance for `/v1/resolve`.
@@ -158,6 +169,7 @@ def get_resolve_service(
         semaphore=semaphore,
         request_timeout_ms=timeout_ms,
         tier2_model=getattr(request.app.state, "tier2_model", None),
+        pipeline_registry=pipeline_registry,
     )
 
 
