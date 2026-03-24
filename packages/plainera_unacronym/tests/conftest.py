@@ -2,12 +2,11 @@ from dataclasses import replace
 from typing import Callable
 
 import numpy as np
+import plainera_unacronym.nlp.detection.acronym.detector as acr_det
+import plainera_unacronym.nlp.detection.structural.detector as struct_det
+import plainera_unacronym.nlp.extraction.acronyms.engine.stage_funcs as acr_stage_funcs
 import plainera_unacronym.nlp.extraction.defined_terms.stage_funcs as def_stage_funcs
 import plainera_unacronym.nlp.extraction.structural.stage_funcs as struct_stage_funcs
-import plainera_unacronym.nlp.extraction.acronyms.engine.stage_funcs as acr_stage_funcs
-import plainera_unacronym.nlp.detection.acronym.detector as acr_det
-import plainera_unacronym.nlp.detection.defined_terms.detector as def_det
-import plainera_unacronym.nlp.detection.structural.detector as struct_det
 import pytest
 from plainera_unacronym.nlp.common.shared import normalize_acronym_key
 from plainera_unacronym.nlp.common.types import (

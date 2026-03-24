@@ -1,5 +1,4 @@
 from dataclasses import replace as dc_replace
-from typing import Optional
 
 from observability.logger.decorator import logger
 from observability.logger.levels import LogLevel
@@ -24,7 +23,6 @@ from plainera_unacronym.nlp.detection.heuristics.core import (
 from plainera_unacronym.nlp.detection.heuristics.inline_cues import boost_confidence_if_inline_cue
 from plainera_unacronym.nlp.detection.nlp_helpers import cfg_fingerprint, top_n_values
 from plainera_unacronym.nlp.plugins.activation import autodetect_domains
-
 
 from .builders import build_occurrence_from_match
 from .chunking import score_chunk_worker

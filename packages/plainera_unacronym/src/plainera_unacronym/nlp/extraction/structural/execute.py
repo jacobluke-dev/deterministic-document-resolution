@@ -1,8 +1,10 @@
 from __future__ import annotations
 
-
 from plainera_unacronym.nlp.extraction import run_flow_with_options
-from plainera_unacronym.nlp.extraction.structural.config import StructuralReferenceExtractionConfig
+from plainera_unacronym.nlp.extraction.structural.config import (
+    StructuralReferenceDetectorConfig,
+    StructuralReferenceExtractionConfig,
+)
 from plainera_unacronym.nlp.extraction.structural.extract_flow import StructuralReferenceResolutionFlow
 from plainera_unacronym.nlp.extraction.structural.state import StructuralFlowState
 
@@ -10,8 +12,8 @@ from plainera_unacronym.nlp.extraction.structural.state import StructuralFlowSta
 def detect_and_resolve_structural_references(
     text: str,
     *,
-    det_cfg:object = None,
-    ext_cfg:StructuralReferenceExtractionConfig=None,
+    det_cfg: StructuralReferenceDetectorConfig | None = None,
+    ext_cfg: StructuralReferenceExtractionConfig | None = None,
     return_reports: bool = False,
     return_state: bool = False,
 ):

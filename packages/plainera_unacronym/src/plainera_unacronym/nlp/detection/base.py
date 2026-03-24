@@ -1,7 +1,7 @@
 import asyncio
 from concurrent.futures import ProcessPoolExecutor
 from os import cpu_count
-from typing import Generic, TypeVar, Any
+from typing import Any, Generic, TypeVar
 
 from observability.logger.message_logger import message_logger
 
@@ -25,7 +25,7 @@ class BaseDetector(Generic[TResult]):
       - result construction
     """
 
-    def __init__(self, config: Any,  sink, max_workers: int | None = None):
+    def __init__(self, config: Any, sink, max_workers: int | None = None):
         self.cfg = config
         self._max_workers = max_workers
         self._pool: ProcessPoolExecutor | None = None

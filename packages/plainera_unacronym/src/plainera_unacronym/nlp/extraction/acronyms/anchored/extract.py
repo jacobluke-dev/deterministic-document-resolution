@@ -1,7 +1,6 @@
 from typing import Mapping, Optional
 
-
-from plainera_unacronym.nlp.common.types import ExtractedDefinition, InTextPick, Span, FirstOccurrence
+from plainera_unacronym.nlp.common.types import ExtractedDefinition, FirstOccurrence, InTextPick, Span
 from plainera_unacronym.nlp.extraction.acronyms.anchored.clean import clean_definition
 from plainera_unacronym.nlp.extraction.acronyms.anchored.patterns import compile_anchored_for_surface
 from plainera_unacronym.nlp.extraction.acronyms.anchored.spans import resolve_def_span

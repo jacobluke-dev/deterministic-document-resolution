@@ -25,9 +25,7 @@ class OrchestrationRequest:
 
     text: str
     targets: tuple[PipelineKey, ...]
-    pipeline_options: Mapping[PipelineKey, Mapping[str, object]] = field(
-        default_factory=dict
-    )
+    pipeline_options: Mapping[PipelineKey, Mapping[str, object]] = field(default_factory=dict)
 
 
 @dataclass(frozen=True, slots=True)

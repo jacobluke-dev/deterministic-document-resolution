@@ -5,9 +5,8 @@ import plainera_unacronym.nlp.detection.acronym.detector as det
 import plainera_unacronym.nlp.detection.heuristics.core as core
 import plainera_unacronym.nlp.plugins.registry as domain_mod
 import pytest
-
 from plainera_unacronym.nlp.common.constants_regex import TRAILING_PUNCT_CHARS
-from plainera_unacronym.nlp.common.types import Span, AcronymDetectorConfig
+from plainera_unacronym.nlp.common.types import AcronymDetectorConfig, Span
 from plainera_unacronym.nlp.detection.heuristics.core import (
     _collect_core_hits,
     _collect_domain_hits,

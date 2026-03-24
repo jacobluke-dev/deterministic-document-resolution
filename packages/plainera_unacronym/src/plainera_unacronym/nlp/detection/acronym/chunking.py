@@ -1,8 +1,7 @@
 from observability.logger.levels import LogLevel
 from observability.logger.message_logger import message_logger
 
-
-from plainera_unacronym.nlp.common.types import AcronymDetectorConfig, OccurrenceBuildError, Occurrence
+from plainera_unacronym.nlp.common.types import AcronymDetectorConfig, Occurrence, OccurrenceBuildError
 from plainera_unacronym.nlp.detection.acronym.builders import build_occurrence_from_match
 from plainera_unacronym.nlp.detection.heuristics.context import blacklist_context_drop
 from plainera_unacronym.nlp.detection.heuristics.core import calc_score, threshold_len

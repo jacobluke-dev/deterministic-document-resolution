@@ -45,6 +45,7 @@ def st_detect(s: FlowState) -> StageResult[FlowState]:
         StageResult[FlowState]: Updated flow state plus a human-readable note.
     """
     from plainera_unacronym.nlp.detection.acronym.detector import AcronymDetector
+
     det = AcronymDetector(config=s.det_cfg, sink=sink).detect(s.text)
     s.det_res = det
     s.last_info = f"firsts={len(det.unique_acronyms)} occs={len(det.occurrences)}"

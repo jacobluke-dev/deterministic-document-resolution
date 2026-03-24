@@ -26,11 +26,12 @@ class StructuralReferenceDetector(BaseDetector[StructuralReferenceDetectorResult
         * ``references``: structural references detected in document order
     """
 
-    def __init__(self,
-                 config:object,
-                 max_workers: int | None = None,
-                 sink=None,
-                ):
+    def __init__(
+        self,
+        config: object,
+        max_workers: int | None = None,
+        sink=None,
+    ):
         """Initialise the structural-reference detector.
 
         Args:

@@ -4,8 +4,8 @@ from plainera_unacronym.orchestration.interface import (
     PIPELINE_STRUCTURAL_REFERENCES,
     PipelineKey,
     PipelineRequest,
-    PipelineRunResult,
     PipelineRunner,
+    PipelineRunResult,
 )
 from plainera_unacronym.orchestration.registry import (
     DuplicatePipelineKeyError,

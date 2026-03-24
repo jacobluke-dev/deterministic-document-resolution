@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+
 import anyio
 
 from plainera_unacronym.orchestration.interface import (
@@ -46,7 +47,4 @@ async def run_selected_pipelines(
         for index in range(len(runners)):
             tg.start_soon(_run_one, index)
 
-    return tuple(
-        item.result
-        for item in sorted(collected, key=lambda item: item.index)
-    )
+    return tuple(item.result for item in sorted(collected, key=lambda item: item.index))

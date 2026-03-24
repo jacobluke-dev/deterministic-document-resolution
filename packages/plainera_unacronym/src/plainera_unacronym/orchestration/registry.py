@@ -39,9 +39,7 @@ class PipelineRegistry:
                 registered.
         """
         if runner.key in self._pipelines:
-            raise DuplicatePipelineKeyError(
-                f"Pipeline already registered for key {runner.key!r}."
-            )
+            raise DuplicatePipelineKeyError(f"Pipeline already registered for key {runner.key!r}.")
 
         self._pipelines[runner.key] = runner
         self._order.append(runner.key)
@@ -61,9 +59,7 @@ class PipelineRegistry:
         try:
             return self._pipelines[key]
         except KeyError as exc:
-            raise UnknownPipelineKeyError(
-                f"Unknown pipeline key {key!r}."
-            ) from exc
+            raise UnknownPipelineKeyError(f"Unknown pipeline key {key!r}.") from exc
 
     def resolve(self, targets: Sequence[PipelineKey]) -> tuple[PipelineRunner, ...]:
         """Resolve requested targets in deterministic registry order.
@@ -83,15 +79,9 @@ class PipelineRegistry:
         missing = sorted(key for key in requested_keys if key not in self._pipelines)
         if missing:
             formatted = ", ".join(repr(key) for key in missing)
-            raise UnknownPipelineKeyError(
-                f"Unknown pipeline key(s): {formatted}."
-            )
+            raise UnknownPipelineKeyError(f"Unknown pipeline key(s): {formatted}.")
 
-        return tuple(
-            self._pipelines[key]
-            for key in self._order
-            if key in requested_keys
-        )
+        return tuple(self._pipelines[key] for key in self._order if key in requested_keys)
 
     def keys(self) -> tuple[PipelineKey, ...]:
         """Return registered pipeline keys in deterministic order."""

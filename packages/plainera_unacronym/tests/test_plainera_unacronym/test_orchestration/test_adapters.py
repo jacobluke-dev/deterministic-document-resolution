@@ -45,8 +45,8 @@ def test_acronym_pipeline_runner_run_passes_expected_kwargs(_patch) -> None:
     assert calls == [
         {
             "text": "Example text",
-            "det_cfg": "det-cfg",
-            "ext_cfg": "ext-cfg",
+            "det_cfg": None,
+            "ext_cfg": None,
             "tier2_model": "tier2",
             "window_left": 400,
             "window_right": 260,
@@ -132,8 +132,8 @@ def test_defined_terms_pipeline_runner_run_passes_expected_kwargs(_patch) -> Non
     assert calls == [
         {
             "text": "Defined term text",
-            "det_cfg": "det-cfg",
-            "ext_cfg": "ext-cfg",
+            "det_cfg": None,
+            "ext_cfg": None,
             "return_reports": True,
             "disambig_margin_threshold": 0.15,
             "trace": True,
@@ -180,9 +180,44 @@ def test_structural_references_pipeline_runner_run_passes_expected_kwargs(
     assert calls == [
         {
             "text": "Structural reference text",
-            "det_cfg": "det-cfg",
-            "ext_cfg": "ext-cfg",
+            "det_cfg": None,
+            "ext_cfg": None,
             "return_reports": True,
             "return_state": True,
+        }
+    ]
+
+def test_acronym_pipeline_runner_run_discards_invalid_config_types(_patch) -> None:
+    calls: list[dict[str, object]] = []
+
+    def fake_detect_and_extract(text: str, **kwargs: object) -> tuple[str, str]:
+        calls.append({"text": text, **kwargs})
+        return "detector", "extraction"
+
+    _patch(AcronymPipelineRunner.run, detect_and_extract=fake_detect_and_extract)
+
+    runner = AcronymPipelineRunner()
+    runner.run(
+        PipelineRequest(
+            text="Example text",
+            options={
+                "det_cfg": "bad",
+                "ext_cfg": 123,
+            },
+        )
+    )
+
+    assert calls == [
+        {
+            "text": "Example text",
+            "det_cfg": None,
+            "ext_cfg": None,
+            "tier2_model": None,
+            "window_left": 320,
+            "window_right": 280,
+            "return_reports": False,
+            "trace": False,
+            "return_state": False,
+            "trace_filter": None,
         }
     ]

@@ -10,8 +10,8 @@ from plainera_unacronym.nlp.extraction.defined_terms.state import TermFlowState
 def detect_and_resolve_terms(
     text: str,
     *,
-    det_cfg: DefinedTermDetectorConfig = None,
-    ext_cfg: DefinedTermExtractionConfig = None,
+    det_cfg: DefinedTermDetectorConfig | None = None,
+    ext_cfg: DefinedTermExtractionConfig | None = None,
     return_reports: bool = False,
     disambig_margin_threshold: float | None = None,
     trace: bool = False,
