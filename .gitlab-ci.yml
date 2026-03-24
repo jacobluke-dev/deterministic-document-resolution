@@ -6,7 +6,10 @@ workflow:
     - if: $CI_PIPELINE_SOURCE == "merge_request_event"                                       # non-draft MR
     - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH                                            # default branch
     - when: never
-
+default:
+  tags:
+    - local
+    - docker
 stages: [ core ]
 
 variables:
