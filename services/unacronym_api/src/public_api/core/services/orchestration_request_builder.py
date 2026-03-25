@@ -8,6 +8,7 @@ from plainera_unacronym.orchestration.interface import (
     PipelineKey,
 )
 
+from public_api.core.settings import app_settings
 from public_api.schemas.resolve import ResolveOptions, ResolveRequest
 
 
@@ -38,6 +39,31 @@ def build_orchestration_request(
     )
 
 
+def _chunking_options(
+    *,
+    enabled: bool,
+    threshold_chars: int,
+    chunk_size_chars: int,
+    chunk_overlap_chars: int,
+) -> dict[str, object]:
+    return {
+        "chunking_enabled": bool(enabled),
+        "chunk_threshold_chars": int(threshold_chars),
+        "chunk_size_chars": int(chunk_size_chars),
+        "chunk_overlap_chars": int(chunk_overlap_chars),
+    }
+
+def _base_pipeline_options() -> dict[str, object]:
+    options: dict[str, object] = {
+        "det_cfg": None,
+        "ext_cfg": None,
+        "return_reports": False,
+        "return_state": False,
+        "trace": False,
+        "trace_filter": None
+    }
+    return options
+
 def _build_acronym_options(
     payload: ResolveRequest,
     *,
@@ -45,20 +71,37 @@ def _build_acronym_options(
 ) -> dict[str, object]:
     opts = payload.options or ResolveOptions.model_validate({})
     return {
+        **_base_pipeline_options(),
         "window_left": int(opts.window_chars),
         "window_right": int(opts.window_chars),
-        "trace": False,
-        "return_reports": False,
-        "return_state": False,
-        "det_cfg": None,
-        "ext_cfg": None,
         "tier2_model": tier2_model,
+        **_chunking_options(
+            enabled=app_settings.ACRONYM_CHUNKING_ENABLED,
+            threshold_chars=app_settings.ACRONYM_CHUNK_THRESHOLD_CHARS,
+            chunk_size_chars=app_settings.ACRONYM_CHUNK_SIZE_CHARS,
+            chunk_overlap_chars=app_settings.ACRONYM_CHUNK_OVERLAP_CHARS,
+        ),
     }
 
 
 def _build_defined_term_options(payload: ResolveRequest) -> dict[str, object]:
-    return {}
-
+    return {
+        **_base_pipeline_options(),
+        **_chunking_options(
+            enabled=app_settings.DEFINED_TERM_CHUNKING_ENABLED,
+            threshold_chars=app_settings.DEFINED_TERM_CHUNK_THRESHOLD_CHARS,
+            chunk_size_chars=app_settings.DEFINED_TERM_CHUNK_SIZE_CHARS,
+            chunk_overlap_chars=app_settings.DEFINED_TERM_CHUNK_OVERLAP_CHARS,
+        ),
+    }
 
 def _build_structural_reference_options(payload: ResolveRequest) -> dict[str, object]:
-    return {}
+    return {
+        **_base_pipeline_options(),
+        **_chunking_options(
+            enabled=app_settings.STRUCTURAL_REFERENCE_CHUNKING_ENABLED,
+            threshold_chars=app_settings.STRUCTURAL_REFERENCE_CHUNK_THRESHOLD_CHARS,
+            chunk_size_chars=app_settings.STRUCTURAL_REFERENCE_CHUNK_SIZE_CHARS,
+            chunk_overlap_chars=app_settings.STRUCTURAL_REFERENCE_CHUNK_OVERLAP_CHARS,
+        ),
+    }
