@@ -128,6 +128,12 @@ class ResolvedAcronymBlock(AcronymBlock):
     )
 
 
+class DefinedTermBlock(BaseSchema):
+    ...
+
+class StructuralReferenceBlock(BaseSchema):
+    ...
+
 class ResolveOptions(BaseSchema):
     locale: str = Field(
         "en-GB",
@@ -212,6 +218,8 @@ class ResolveRequest(BaseSchema):
 
 class ResolveResponse(BaseSchema):
     acronyms: list[ResolvedAcronymBlock] = Field(default_factory=list)
+    defined_terms: list[DefinedTermBlock] = Field(default_factory=list)
+    structural_references: list[StructuralReferenceBlock] = Field(default_factory=list)
     meta: ResolveMeta
     orchestration: OrchestrationMeta
     errors: list[PipelineError] = Field(default_factory=list)
