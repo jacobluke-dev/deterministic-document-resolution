@@ -42,7 +42,6 @@ class DefinedTermResolutionFlow(
         det_cfg: DefinedTermDetectorConfig | None = None,
         ext_cfg: DefinedTermExtractionConfig | None = None,
         *,
-        disambig_margin_threshold: float | None = None,
         trace: bool = False,
         trace_filter: str | None = None,
     ):
@@ -53,8 +52,6 @@ class DefinedTermResolutionFlow(
                 `DefinedTermDetectorConfig()` is used.
             ext_cfg: Extraction configuration. If omitted, a default
                 `DefinedTermExtractionConfig()` is used.
-            disambig_margin_threshold: Optional override for the
-                disambiguation margin threshold.
         """
         if det_cfg is None:
             det_cfg = DefinedTermDetectorConfig()
@@ -68,7 +65,6 @@ class DefinedTermResolutionFlow(
             trace_filter=trace_filter,
             trace=trace,
         )
-        self._ovr_margin = disambig_margin_threshold
 
     @staticmethod
     def _n_term_keys(s: TermFlowState) -> int:

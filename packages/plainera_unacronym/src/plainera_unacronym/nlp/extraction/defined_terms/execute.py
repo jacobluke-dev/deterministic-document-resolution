@@ -13,7 +13,6 @@ def detect_and_resolve_terms(
     det_cfg: DefinedTermDetectorConfig | None = None,
     ext_cfg: DefinedTermExtractionConfig | None = None,
     return_reports: bool = False,
-    disambig_margin_threshold: float | None = None,
     trace: bool = False,
     return_state: bool = False,
     trace_filter=None,
@@ -69,7 +68,6 @@ def detect_and_resolve_terms(
     flow = DefinedTermResolutionFlow(
         det_cfg=det_cfg,
         ext_cfg=ext_cfg,
-        disambig_margin_threshold=disambig_margin_threshold,
         trace=trace,
         trace_filter=trace_filter,
     )
