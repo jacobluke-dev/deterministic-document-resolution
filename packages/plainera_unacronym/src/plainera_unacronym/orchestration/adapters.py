@@ -105,17 +105,11 @@ class DefinedTermsPipelineRunner(PipelineRunner):
         raw_ext_cfg = options.get("ext_cfg")
         ext_cfg = raw_ext_cfg if isinstance(raw_ext_cfg, DefinedTermExtractionConfig) else None
 
-        raw_disambig_margin_threshold = options.get("disambig_margin_threshold")
-        disambig_margin_threshold = (
-            raw_disambig_margin_threshold if isinstance(raw_disambig_margin_threshold, float) else None
-        )
-
         payload = detect_and_resolve_terms(
             request.text,
             det_cfg=det_cfg,
             ext_cfg=ext_cfg,
             return_reports=bool(options.get("return_reports", False)),
-            disambig_margin_threshold=disambig_margin_threshold,
             trace=bool(options.get("trace", False)),
             return_state=bool(options.get("return_state", False)),
             trace_filter=options.get("trace_filter"),
