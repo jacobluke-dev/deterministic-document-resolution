@@ -11,7 +11,7 @@ from plainera_unacronym.orchestration import PipelineRegistry
 from plainera_unacronym.wiring.composition import build_pipeline_registry
 from sqlalchemy.orm import Session
 
-from public_api.core.factory import create_resolver
+from public_api.core.di.factory import create_resolver
 from public_api.core.services.resolve_service import ResolveService
 from public_api.core.settings import app_settings
 from public_api.db.repos import AcronymRepo, GlossaryRepository, SqlAlchemyAcronymRepo

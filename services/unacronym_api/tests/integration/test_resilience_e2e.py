@@ -2,8 +2,7 @@ from __future__ import annotations
 
 import pytest
 from public_api.api.routers import resolve as resolve_mod
-from public_api.core import deps as deps_mod
-from public_api.core import deps_auth as deps_auth_mod
+from public_api.core.di import deps as deps_mod, deps_auth as deps_auth_mod
 from public_api.core.auth.api_keys import Principal
 from public_api.schemas.error import ErrorCode
 

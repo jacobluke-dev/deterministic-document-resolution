@@ -3,7 +3,7 @@ from plainera_unacronym.orchestration.state import (
     OrchestrationPipelineError,
     OrchestrationState,
 )
-from public_api.core.services.orchestration_mapper import map_orchestration_state
+from public_api.core.orchestration.mapper import map_orchestration_state
 
 
 class TestMapOrchestrationState:
