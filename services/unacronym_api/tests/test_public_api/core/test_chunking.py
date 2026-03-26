@@ -1,4 +1,4 @@
-from public_api.core.auth.chunking import make_chunks, merge_blocks, shift_blocks
+from public_api.core.processing.acronym_chunking import make_chunks, merge_blocks, shift_blocks
 
 
 def test_make_chunks_basic_overlap():

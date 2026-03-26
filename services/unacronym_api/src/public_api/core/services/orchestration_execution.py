@@ -23,7 +23,7 @@ from plainera_unacronym.orchestration.state import (
     OrchestrationPipelineError,
     OrchestrationState,
 )
-from public_api.core.auth.chunking import make_chunks, merge_blocks, shift_blocks
+from public_api.core.processing.acronym_chunking import make_chunks, merge_blocks, shift_blocks
 from public_api.core.processing.defined_term_chunking import merge_defined_term_results
 from public_api.core.processing.structural_chunking import merge_structural_reference_results
 from public_api.core.services import ResolveError
