@@ -6,15 +6,10 @@ from plainera_unacronym.nlp.extraction.structural.types import StructuralReferen
     StructuralReferenceEntry, StructuralReferenceLink
 
 
-def _shift_span(span: tuple[int, int], delta: int):
-    start, end = span[0], span[1]
+def _shift_span(span: tuple[int, int], delta: int) -> tuple[int, int]:
     if delta == 0:
         return span
-    return replace(
-        span,
-        start=int(start) + delta,
-        end=int(end) + delta,
-    )
+    return int(span[0]) + delta, int(span[1]) + delta
 
 
 def shift_structural_reference_result(
