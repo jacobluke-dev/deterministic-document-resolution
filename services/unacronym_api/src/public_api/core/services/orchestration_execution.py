@@ -1,24 +1,37 @@
 import asyncio
+from collections.abc import Mapping
 from typing import Any
 
 import anyio
+from fastapi import status
 
-from plainera_unacronym.nlp.common.types import ExtractionResult, AcronymDetectorResult
+from plainera_unacronym.nlp.common.types import AcronymDetectorResult, ExtractionResult
 from plainera_unacronym.nlp.extraction.acronyms.execute import detect_and_extract
+from plainera_unacronym.nlp.extraction.defined_terms.execute import detect_and_resolve_terms
+from plainera_unacronym.nlp.extraction.defined_terms.types import TermResolutionResult
+from plainera_unacronym.nlp.extraction.structural.execute import detect_and_resolve_structural_references
 from plainera_unacronym.orchestration import PipelineRegistry
-from plainera_unacronym.orchestration.interface import OrchestrationRequest, PIPELINE_ACRONYMS, PipelineRunResult, \
-    PipelineKey
-from plainera_unacronym.orchestration.service import run_selected_pipelines
-from plainera_unacronym.orchestration.state import OrchestrationState, OrchestrationPipelineError
-from public_api.core.auth.chunking import shift_blocks, merge_blocks, make_chunks
+from plainera_unacronym.orchestration.interface import (
+    OrchestrationRequest,
+    PIPELINE_ACRONYMS,
+    PipelineKey,
+    PipelineRequest,
+    PipelineRunResult, PIPELINE_DEFINED_TERMS, PIPELINE_STRUCTURAL_REFERENCES,
+)
+from plainera_unacronym.orchestration.service import PipelineExecutionOutcome
+from plainera_unacronym.orchestration.state import (
+    OrchestrationPipelineError,
+    OrchestrationState,
+)
+from public_api.core.auth.chunking import make_chunks, merge_blocks, shift_blocks
+from public_api.core.processing.defined_term_chunking import merge_defined_term_results
+from public_api.core.processing.structural_chunking import merge_structural_reference_results
 from public_api.core.services import ResolveError
 from public_api.core.services.resolution_policy import attach_resolution_metadata
 from public_api.core.services.resolve_mapper import map_pipeline_to_blocks
-from public_api.core.settings import app_settings
 from public_api.db.repos import GlossaryRepository
 from public_api.schemas.error import ErrorCode
 from public_api.schemas.resolve import ResolveOptions, ResolutionMode
-from fastapi import status
 
 
 class Orchestrator:
@@ -36,134 +49,132 @@ class Orchestrator:
         self._tier2_model = tier2_model
 
     @staticmethod
-    def _should_chunk_acronyms(
-        *,
-        text: str,
-        targets: tuple[PipelineKey, ...],
+    def _bool_option(
+        options: Mapping[str, object],
+        key: str,
+        default: bool,
     ) -> bool:
-        """Return True when the acronym pipeline should use chunked execution."""
-        return (
-            PIPELINE_ACRONYMS in targets
-            and bool(app_settings.CHUNKING_ENABLED)
-            and len(text) > int(app_settings.CHUNK_THRESHOLD_CHARS)
-        )
+        value = options.get(key, default)
+        return value if isinstance(value, bool) else default
 
     @staticmethod
-    def _pipeline_error_from_resolve_error(exc: ResolveError) -> OrchestrationPipelineError:
-        """Map a chunked acronym resolve error into orchestration failure shape."""
-        code = "PIPELINE_TIMEOUT" if exc.message == "Resolution timed out." else "PIPELINE_EXECUTION_FAILED"
-        return OrchestrationPipelineError(
-            pipeline=PIPELINE_ACRONYMS,
-            code=code,
-            message=exc.message,
-            error_type=type(exc).__name__,
-            details=exc.details or {},
-        )
+    def _int_option(
+        options: Mapping[str, object],
+        key: str,
+        default: int,
+    ) -> int:
+        value = options.get(key, default)
+        return value if isinstance(value, int) else default
 
     def _registry_order_targets(
         self,
         targets: tuple[PipelineKey, ...],
     ) -> tuple[PipelineKey, ...]:
-        """Resolve requested targets into deterministic registry order."""
         return tuple(runner.key for runner in self._pipeline_registry.resolve(targets))
 
-    async def _run_with_optional_chunked_acronyms(
+    @staticmethod
+    def _map_pipeline_exception(
+        pipeline: PipelineKey,
+        exc: Exception,
+    ) -> OrchestrationPipelineError:
+        if isinstance(exc, ResolveError):
+            code = "PIPELINE_TIMEOUT" if exc.message == "Resolution timed out." else "PIPELINE_EXECUTION_FAILED"
+            return OrchestrationPipelineError(
+                pipeline=pipeline,
+                code=code,
+                message=exc.message,
+                error_type=type(exc).__name__,
+                details=exc.details or {},
+            )
+
+        if isinstance(exc, TimeoutError):
+            code = "PIPELINE_TIMEOUT"
+        elif isinstance(exc, ValueError):
+            code = "PIPELINE_INVALID_OPTIONS"
+        else:
+            code = "PIPELINE_EXECUTION_FAILED"
+
+        return OrchestrationPipelineError(
+            pipeline=pipeline,
+            code=code,
+            message=str(exc) or "Pipeline execution failed.",
+            error_type=type(exc).__name__,
+            details={},
+        )
+
+    @staticmethod
+    def _pipeline_options(
+        request: OrchestrationRequest,
+        pipeline: PipelineKey,
+    ) -> Mapping[str, object]:
+        return request.pipeline_options.get(pipeline, {})
+
+    @classmethod
+    def _should_chunk_pipeline(
+        cls,
+        *,
+        request: OrchestrationRequest,
+        pipeline: PipelineKey,
+    ) -> bool:
+        if pipeline not in request.targets:
+            return False
+
+        options = request.pipeline_options.get(pipeline, {})
+        chunking_enabled = cls._bool_option(options, "chunking_enabled", False)
+        chunk_threshold_chars = cls._int_option(options, "chunk_threshold_chars", 0)
+
+        return chunking_enabled and len(request.text) > chunk_threshold_chars
+
+    async def _run_acronym_pipeline_chunk(
+        self,
+        *,
+        text: str,
+        options: Mapping[str, object],
+    ) -> tuple[AcronymDetectorResult, ExtractionResult]:
+        return await asyncio.wait_for(
+            anyio.to_thread.run_sync(
+                lambda: detect_and_extract(
+                    text,
+                    det_cfg=options.get("det_cfg"),
+                    ext_cfg=options.get("ext_cfg"),
+                    tier2_model=options.get("tier2_model", self._tier2_model),
+                    window_left=self._int_option(options, "window_left", 320),
+                    window_right=self._int_option(options, "window_right", 280),
+                    return_reports=self._bool_option(options, "return_reports", False),
+                    trace=self._bool_option(options, "trace", False),
+                    return_state=self._bool_option(options, "return_state", False),
+                    trace_filter=options.get("trace_filter"),
+                )
+            ),
+            timeout=self._timeout_s,
+        )
+
+    async def _run_chunked_acronym_pipeline(
         self,
         *,
         request: OrchestrationRequest,
         opts: ResolveOptions,
         lang: str,
         resolution_mode: ResolutionMode,
-    ) -> OrchestrationState:
-        """Execute requested pipelines, using chunked execution for acronyms when needed."""
-        requested_targets = self._registry_order_targets(request.targets)
-        state = OrchestrationState.from_requested_targets(requested_targets)
-
-        acronym_result: PipelineRunResult | None = None
-        acronym_error: OrchestrationPipelineError | None = None
-
-        non_acronym_targets = tuple(t for t in request.targets if t != PIPELINE_ACRONYMS)
-        non_acronym_state: OrchestrationState | None = None
-
-        if self._should_chunk_acronyms(text=request.text, targets=request.targets):
-            try:
-                acronym_result = await self._run_chunked_acronym_pipeline(
-                    text=request.text,
-                    opts=opts,
-                    lang=lang,
-                    resolution_mode=resolution_mode,
-                )
-            except ResolveError as exc:
-                if not request.execution_options.partial_success:
-                    raise
-                acronym_error = self._pipeline_error_from_resolve_error(exc)
-        elif PIPELINE_ACRONYMS in request.targets:
-            acronym_request = OrchestrationRequest(
-                text=request.text,
-                targets=(PIPELINE_ACRONYMS,),
-                pipeline_options={
-                    PIPELINE_ACRONYMS: request.pipeline_options.get(PIPELINE_ACRONYMS, {}),
-                },
-                execution_options=request.execution_options,
-            )
-            acronym_state = await run_selected_pipelines(self._pipeline_registry, acronym_request)
-            for target in acronym_state.completed_targets:
-                state.record_success(acronym_state.results_by_pipeline[target])
-            for target in acronym_state.failed_targets:
-                state.record_failure(acronym_state.errors_by_pipeline[target])
-
-        if non_acronym_targets:
-            non_acronym_request = OrchestrationRequest(
-                text=request.text,
-                targets=non_acronym_targets,
-                pipeline_options={
-                    key: value
-                    for key, value in request.pipeline_options.items()
-                    if key in non_acronym_targets
-                },
-                execution_options=request.execution_options,
-            )
-            non_acronym_state = await run_selected_pipelines(self._pipeline_registry, non_acronym_request)
-
-        if acronym_result is not None:
-            state.record_success(acronym_result)
-        elif acronym_error is not None:
-            state.record_failure(acronym_error)
-
-        if non_acronym_state is not None:
-            for target in requested_targets:
-                if target in state.completed_targets or target in state.failed_targets:
-                    continue
-                if target in non_acronym_state.results_by_pipeline:
-                    state.record_success(non_acronym_state.results_by_pipeline[target])
-                    continue
-                if target in non_acronym_state.errors_by_pipeline:
-                    state.record_failure(non_acronym_state.errors_by_pipeline[target])
-                    continue
-
-        state.finish()
-        return state
-
-    async def _run_chunked_acronym_pipeline(
-        self,
-        *,
-        text: str,
-        opts: ResolveOptions,
-        lang: str,
-        resolution_mode: ResolutionMode,
     ) -> PipelineRunResult:
-        """Run the acronym pipeline in chunked mode and return a single pipeline result."""
+        options = self._pipeline_options(request, PIPELINE_ACRONYMS)
+        chunk_size_chars = self._int_option(options, "chunk_size_chars", max(1, len(request.text)))
+        chunk_overlap_chars = self._int_option(options, "chunk_overlap_chars", 0)
+
         chunks = make_chunks(
-            text,
-            chunk_size=int(app_settings.CHUNK_SIZE_CHARS),
-            overlap=int(app_settings.CHUNK_OVERLAP_CHARS),
+            request.text,
+            chunk_size=chunk_size_chars,
+            overlap=chunk_overlap_chars,
         )
 
         all_blocks: list[list[dict[str, Any]]] = []
 
         for chunk in chunks:
             try:
-                det_res, extr = await self._run_pipeline(chunk.text, opts)
+                det_res, extr = await self._run_acronym_pipeline_chunk(
+                    text=chunk.text,
+                    options=options,
+                )
             except asyncio.TimeoutError as exc:
                 raise ResolveError(
                     http_status=status.HTTP_503_SERVICE_UNAVAILABLE,
@@ -207,23 +218,214 @@ class Orchestrator:
             payload=merged,
         )
 
-    async def _run_pipeline(self, text: str, opts: ResolveOptions) -> tuple[AcronymDetectorResult, ExtractionResult]:
-        """Execute the acronym detection and extraction pipeline with a timeout."""
+    async def _run_defined_term_pipeline_chunk(
+        self,
+        *,
+        text: str,
+        options: Mapping[str, object],
+    ):
         return await asyncio.wait_for(
             anyio.to_thread.run_sync(
-                lambda: detect_and_extract(
+                lambda: detect_and_resolve_terms(
                     text,
-                    det_cfg=None,
-                    ext_cfg=None,
-                    tier2_model=self._tier2_model,
-                    window_left=int(opts.window_chars),
-                    window_right=int(opts.window_chars),
-                    return_reports=False,
-                    trace=False,
-                    return_state=False,
+                    det_cfg=options.get("det_cfg"),
+                    ext_cfg=options.get("ext_cfg"),
+                    return_reports=self._bool_option(options, "return_reports", False),
+                    trace=self._bool_option(options, "trace", False),
+                    return_state=self._bool_option(options, "return_state", False),
+                    trace_filter=options.get("trace_filter"),
                 )
             ),
             timeout=self._timeout_s,
+        )
+
+    async def _run_chunked_defined_term_pipeline(
+        self,
+        *,
+        request: OrchestrationRequest,
+    ) -> PipelineRunResult:
+        options = self._pipeline_options(request, PIPELINE_DEFINED_TERMS)
+        chunk_size_chars = self._int_option(options, "chunk_size_chars", max(1, len(request.text)))
+        chunk_overlap_chars = self._int_option(options, "chunk_overlap_chars", 0)
+
+        chunks = make_chunks(
+            request.text,
+            chunk_size=chunk_size_chars,
+            overlap=chunk_overlap_chars,
+        )
+
+        chunk_payloads: list[tuple[int, TermResolutionResult]] = []
+        for chunk in chunks:
+            try:
+                payload = await self._run_defined_term_pipeline_chunk(
+                    text=chunk.text,
+                    options=options,
+                )
+            except asyncio.TimeoutError as exc:
+                raise ResolveError(
+                    http_status=status.HTTP_503_SERVICE_UNAVAILABLE,
+                    code=ErrorCode.SERVICE_UNAVAILABLE,
+                    message="Resolution timed out.",
+                    details={
+                        "timeout_ms": int(self._timeout_s * 1000),
+                        "chunk": {"start": chunk.start, "end": chunk.end},
+                    },
+                ) from exc
+            except Exception as exc:
+                raise ResolveError(
+                    http_status=status.HTTP_503_SERVICE_UNAVAILABLE,
+                    code=ErrorCode.SERVICE_UNAVAILABLE,
+                    message="Resolution failed.",
+                    details={
+                        "reason": str(exc),
+                        "chunk": {"start": chunk.start, "end": chunk.end},
+                    },
+                ) from exc
+
+            chunk_payloads.append((chunk.start, payload))
+
+        merged = merge_defined_term_results(chunk_payloads)
+
+        return PipelineRunResult(
+            pipeline=PIPELINE_DEFINED_TERMS,
+            payload=merged,
+        )
+
+    async def _run_structural_reference_pipeline_chunk(
+        self,
+        *,
+        text: str,
+        options: Mapping[str, object],
+    ):
+        return await asyncio.wait_for(
+            anyio.to_thread.run_sync(
+                lambda: detect_and_resolve_structural_references(
+                    text,
+                    det_cfg=options.get("det_cfg"),
+                    ext_cfg=options.get("ext_cfg"),
+                    return_reports=self._bool_option(options, "return_reports", False),
+                    return_state=self._bool_option(options, "return_state", False),
+                )
+            ),
+            timeout=self._timeout_s,
+        )
+
+    async def _run_chunked_structural_reference_pipeline(
+        self,
+        *,
+        request: OrchestrationRequest,
+    ) -> PipelineRunResult:
+        options = self._pipeline_options(request, PIPELINE_STRUCTURAL_REFERENCES)
+        chunk_size_chars = self._int_option(options, "chunk_size_chars", max(1, len(request.text)))
+        chunk_overlap_chars = self._int_option(options, "chunk_overlap_chars", 0)
+
+        chunks = make_chunks(
+            request.text,
+            chunk_size=chunk_size_chars,
+            overlap=chunk_overlap_chars,
+        )
+
+        chunk_payloads = []
+        for chunk in chunks:
+            try:
+                payload = await self._run_structural_reference_pipeline_chunk(
+                    text=chunk.text,
+                    options=options,
+                )
+            except asyncio.TimeoutError as exc:
+                raise ResolveError(
+                    http_status=status.HTTP_503_SERVICE_UNAVAILABLE,
+                    code=ErrorCode.SERVICE_UNAVAILABLE,
+                    message="Resolution timed out.",
+                    details={
+                        "timeout_ms": int(self._timeout_s * 1000),
+                        "chunk": {"start": chunk.start, "end": chunk.end},
+                    },
+                ) from exc
+            except Exception as exc:
+                raise ResolveError(
+                    http_status=status.HTTP_503_SERVICE_UNAVAILABLE,
+                    code=ErrorCode.SERVICE_UNAVAILABLE,
+                    message="Resolution failed.",
+                    details={
+                        "reason": str(exc),
+                        "chunk": {"start": chunk.start, "end": chunk.end},
+                    },
+                ) from exc
+
+            chunk_payloads.append((chunk.start, payload))
+
+        merged = merge_structural_reference_results(chunk_payloads)
+
+        return PipelineRunResult(
+            pipeline=PIPELINE_STRUCTURAL_REFERENCES,
+            payload=merged,
+        )
+
+
+    async def _execute_pipeline_direct(
+        self,
+        *,
+        pipeline: PipelineKey,
+        request: OrchestrationRequest,
+    ) -> PipelineRunResult:
+        runner = self._pipeline_registry.get(pipeline)
+        pipeline_request = PipelineRequest(
+            text=request.text,
+            options=dict(self._pipeline_options(request, pipeline)),
+        )
+        return await anyio.to_thread.run_sync(runner.run, pipeline_request)
+
+    async def _execute_pipeline_chunked(
+        self,
+        *,
+        pipeline: PipelineKey,
+        request: OrchestrationRequest,
+        opts: ResolveOptions,
+        lang: str,
+        resolution_mode: ResolutionMode,
+    ) -> PipelineRunResult:
+        if pipeline == PIPELINE_ACRONYMS:
+            return await self._run_chunked_acronym_pipeline(
+                request=request,
+                opts=opts,
+                lang=lang,
+                resolution_mode=resolution_mode,
+            )
+
+        if pipeline == PIPELINE_DEFINED_TERMS:
+            return await self._run_chunked_defined_term_pipeline(
+                request=request,
+            )
+
+        if pipeline == PIPELINE_STRUCTURAL_REFERENCES:
+            return await self._run_chunked_structural_reference_pipeline(
+                request=request,
+            )
+
+        raise ValueError(f"Chunked execution not implemented for pipeline {pipeline!r}.")
+
+    async def _execute_pipeline(
+        self,
+        *,
+        pipeline: PipelineKey,
+        request: OrchestrationRequest,
+        opts: ResolveOptions,
+        lang: str,
+        resolution_mode: ResolutionMode,
+    ) -> PipelineRunResult:
+        if self._should_chunk_pipeline(request=request, pipeline=pipeline):
+            return await self._execute_pipeline_chunked(
+                pipeline=pipeline,
+                request=request,
+                opts=opts,
+                lang=lang,
+                resolution_mode=resolution_mode,
+            )
+
+        return await self._execute_pipeline_direct(
+            pipeline=pipeline,
+            request=request,
         )
 
     async def execute_orchestration_request(
@@ -234,9 +436,52 @@ class Orchestrator:
         lang: str,
         resolution_mode: ResolutionMode,
     ) -> OrchestrationState:
-        return await self._run_with_optional_chunked_acronyms(
-            request=request,
-            opts=opts,
-            lang=lang,
-            resolution_mode=resolution_mode,
-        )
+        requested_targets = self._registry_order_targets(request.targets)
+        state = OrchestrationState.from_requested_targets(requested_targets)
+
+        collected: list[PipelineExecutionOutcome] = []
+
+        async def _run_one(index: int, pipeline: PipelineKey) -> None:
+            try:
+                result = await self._execute_pipeline(
+                    pipeline=pipeline,
+                    request=request,
+                    opts=opts,
+                    lang=lang,
+                    resolution_mode=resolution_mode,
+                )
+            except Exception as exc:
+                if not request.execution_options.partial_success:
+                    raise
+
+                collected.append(
+                    PipelineExecutionOutcome(
+                        index=index,
+                        pipeline=pipeline,
+                        error=self._map_pipeline_exception(pipeline, exc),
+                    )
+                )
+                return
+
+            collected.append(
+                PipelineExecutionOutcome(
+                    index=index,
+                    pipeline=pipeline,
+                    result=result,
+                )
+            )
+
+        async with anyio.create_task_group() as tg:
+            for index, pipeline in enumerate(requested_targets):
+                tg.start_soon(_run_one, index, pipeline)
+
+        for outcome in sorted(collected, key=lambda item: item.index):
+            if outcome.result is not None:
+                state.record_success(outcome.result)
+            elif outcome.error is not None:
+                state.record_failure(outcome.error)
+            else:
+                raise ValueError(f"Pipeline outcome for {outcome.pipeline!r} had neither result nor error")
+
+        state.finish()
+        return state
