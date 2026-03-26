@@ -18,7 +18,7 @@ from plainera_unacronym.orchestration.state import (
 
 
 @dataclass(frozen=True, slots=True)
-class _PipelineExecutionOutcome:
+class PipelineExecutionOutcome:
     """Captured pipeline outcome paired with its registry-order index."""
 
     index: int
@@ -60,7 +60,7 @@ async def run_selected_pipelines(
     requested_targets = tuple(runner.key for runner in runners)
     state = OrchestrationState.from_requested_targets(requested_targets)
 
-    collected: list[_PipelineExecutionOutcome] = []
+    collected: list[PipelineExecutionOutcome] = []
 
     async def _run_one(index: int) -> None:
         runner = runners[index]
@@ -76,7 +76,7 @@ async def run_selected_pipelines(
                 raise
 
             collected.append(
-                _PipelineExecutionOutcome(
+                PipelineExecutionOutcome(
                     index=index,
                     pipeline=runner.key,
                     error=OrchestrationPipelineError(
@@ -90,7 +90,7 @@ async def run_selected_pipelines(
             return
 
         collected.append(
-            _PipelineExecutionOutcome(
+            PipelineExecutionOutcome(
                 index=index,
                 pipeline=runner.key,
                 result=result,
