@@ -11,6 +11,7 @@ from plainera_unacronym.orchestration.interface import (
 )
 from plainera_unacronym.orchestration.registry import PipelineRegistry
 from plainera_unacronym.orchestration.service import run_selected_pipelines
+from plainera_unacronym.orchestration.state import PipelineErrorCode
 
 
 class _StubRunner(PipelineRunner):
@@ -267,6 +268,6 @@ class TestRunSelectedPipelines:
 
         error = state.errors_by_pipeline[PIPELINE_DEFINED_TERMS]
 
-        assert error.code == "PIPELINE_EXECUTION_FAILED"
+        assert error.code == PipelineErrorCode.PIPELINE_EXECUTION_FAILED
         assert error.message == "boom"
         assert error.error_type == "RuntimeError"

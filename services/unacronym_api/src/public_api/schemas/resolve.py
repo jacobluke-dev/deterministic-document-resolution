@@ -5,6 +5,7 @@ from enum import Enum
 
 from pydantic import Field, confloat, conint, constr, field_validator
 
+from plainera_unacronym.orchestration.state import PipelineErrorCode
 from public_api.schemas.base import BaseSchema
 from public_api.schemas.glossary import AcronymBlock
 
@@ -302,7 +303,7 @@ class ResolveResponse(BaseSchema):
                     "errors": [
                         {
                             "pipeline": "defined_terms",
-                            "code": "PIPELINE_EXECUTION_FAILED",
+                            "code": PipelineErrorCode.PIPELINE_EXECUTION_FAILED,
                             "message": "boom",
                         }
                     ],

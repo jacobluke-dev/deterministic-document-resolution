@@ -1,7 +1,7 @@
 from plainera_unacronym.orchestration.interface import PipelineRunResult
 from plainera_unacronym.orchestration.state import (
     OrchestrationPipelineError,
-    OrchestrationState,
+    OrchestrationState, PipelineErrorCode,
 )
 from public_api.core.orchestration.mapper import map_orchestration_state
 
@@ -28,7 +28,7 @@ class TestMapOrchestrationState:
         state.record_failure(
             OrchestrationPipelineError(
                 pipeline="defined_terms",
-                code="PIPELINE_EXECUTION_FAILED",
+                code=PipelineErrorCode.PIPELINE_EXECUTION_FAILED,
                 message="boom",
                 error_type="RuntimeError",
             )
@@ -36,7 +36,7 @@ class TestMapOrchestrationState:
         state.record_failure(
             OrchestrationPipelineError(
                 pipeline="structural_references",
-                code="PIPELINE_TIMEOUT",
+                code=PipelineErrorCode.PIPELINE_TIMEOUT,
                 message="timed out",
                 error_type="TimeoutError",
             )
@@ -53,8 +53,8 @@ class TestMapOrchestrationState:
             "structural_references",
         ]
         assert [error.code for error in errors] == [
-            "PIPELINE_EXECUTION_FAILED",
-            "PIPELINE_TIMEOUT",
+            PipelineErrorCode.PIPELINE_EXECUTION_FAILED,
+            PipelineErrorCode.PIPELINE_TIMEOUT,
         ]
 
     def test_maps_all_failure_metadata(self) -> None:
@@ -62,7 +62,7 @@ class TestMapOrchestrationState:
         state.record_failure(
             OrchestrationPipelineError(
                 pipeline="acronyms",
-                code="PIPELINE_EXECUTION_FAILED",
+                code=PipelineErrorCode.PIPELINE_EXECUTION_FAILED,
                 message="boom",
                 error_type="RuntimeError",
             )
@@ -70,7 +70,7 @@ class TestMapOrchestrationState:
         state.record_failure(
             OrchestrationPipelineError(
                 pipeline="defined_terms",
-                code="PIPELINE_INVALID_OPTIONS",
+                code=PipelineErrorCode.PIPELINE_INVALID_OPTIONS,
                 message="bad config",
                 error_type="ValueError",
             )
@@ -83,6 +83,6 @@ class TestMapOrchestrationState:
         assert meta.completed == []
         assert meta.failed == ["acronyms", "defined_terms"]
         assert [error.code for error in errors] == [
-            "PIPELINE_EXECUTION_FAILED",
-            "PIPELINE_INVALID_OPTIONS",
+            PipelineErrorCode.PIPELINE_EXECUTION_FAILED,
+            PipelineErrorCode.PIPELINE_INVALID_OPTIONS,
         ]
