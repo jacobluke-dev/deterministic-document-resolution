@@ -177,7 +177,7 @@ def maybe_glossary_block(
     return {"matches": matches}
 
 
-def map_pipeline_to_blocks(
+def map_acronym_pipeline_to_blocks(
     *,
     det_res: AcronymDetectorResult,
     extr: ExtractionResult,
