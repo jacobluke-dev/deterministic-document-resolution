@@ -64,6 +64,14 @@ def _base_pipeline_options() -> dict[str, object]:
     }
     return options
 
+def _default_chunking_options() -> dict[str, object]:
+    return _chunking_options(
+        enabled=app_settings.CHUNKING_ENABLED,
+        threshold_chars=app_settings.CHUNK_THRESHOLD_CHARS,
+        chunk_size_chars=app_settings.CHUNK_SIZE_CHARS,
+        chunk_overlap_chars=app_settings.CHUNK_OVERLAP_CHARS,
+    )
+
 def _build_acronym_options(
     payload: ResolveRequest,
     *,
@@ -75,33 +83,18 @@ def _build_acronym_options(
         "window_left": int(opts.window_chars),
         "window_right": int(opts.window_chars),
         "tier2_model": tier2_model,
-        **_chunking_options(
-            enabled=app_settings.ACRONYM_CHUNKING_ENABLED,
-            threshold_chars=app_settings.ACRONYM_CHUNK_THRESHOLD_CHARS,
-            chunk_size_chars=app_settings.ACRONYM_CHUNK_SIZE_CHARS,
-            chunk_overlap_chars=app_settings.ACRONYM_CHUNK_OVERLAP_CHARS,
-        ),
+        **_default_chunking_options(),
     }
 
 
 def _build_defined_term_options(payload: ResolveRequest) -> dict[str, object]:
     return {
         **_base_pipeline_options(),
-        **_chunking_options(
-            enabled=app_settings.DEFINED_TERM_CHUNKING_ENABLED,
-            threshold_chars=app_settings.DEFINED_TERM_CHUNK_THRESHOLD_CHARS,
-            chunk_size_chars=app_settings.DEFINED_TERM_CHUNK_SIZE_CHARS,
-            chunk_overlap_chars=app_settings.DEFINED_TERM_CHUNK_OVERLAP_CHARS,
-        ),
+        **_default_chunking_options(),
     }
 
 def _build_structural_reference_options(payload: ResolveRequest) -> dict[str, object]:
     return {
         **_base_pipeline_options(),
-        **_chunking_options(
-            enabled=app_settings.STRUCTURAL_REFERENCE_CHUNKING_ENABLED,
-            threshold_chars=app_settings.STRUCTURAL_REFERENCE_CHUNK_THRESHOLD_CHARS,
-            chunk_size_chars=app_settings.STRUCTURAL_REFERENCE_CHUNK_SIZE_CHARS,
-            chunk_overlap_chars=app_settings.STRUCTURAL_REFERENCE_CHUNK_OVERLAP_CHARS,
-        ),
+        **_default_chunking_options(),
     }
