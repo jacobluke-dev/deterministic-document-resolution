@@ -7,7 +7,9 @@ from pydantic import Field, confloat, conint, constr, field_validator
 
 from plainera_unacronym.orchestration.state import PipelineErrorCode
 from public_api.schemas.base import BaseSchema
-from public_api.schemas.glossary import AcronymBlock
+from public_api.schemas.extraction_types.acronyms import ResolvedAcronymBlock
+from public_api.schemas.extraction_types.defined_terms import DefinedTermBlock
+from public_api.schemas.extraction_types.structural import StructuralReferenceBlock
 
 
 class ResolutionMode(str, Enum):
@@ -33,25 +35,6 @@ class ResolutionMode(str, Enum):
     FALLBACK_GENERAL = "fallback_general"
 
 
-class SelectionReason(str, Enum):
-    in_document_definition = "in_document_definition"
-    single_candidate = "single_candidate"
-    highest_score = "highest_score"
-    fallback_general = "fallback_general"
-    inactive_filtered = "inactive_filtered"
-
-    # Future-ready only; do not rely on these yet
-    exact_domain_match = "exact_domain_match"
-    domain_priority_policy = "domain_priority_policy"
-
-
-class CandidateProvenance(str, Enum):
-    document = "document"
-    glossary = "glossary"
-    seed = "seed"
-    system = "system"
-
-
 class ResolveTarget(str, Enum):
     ACRONYMS = "acronyms"
     DEFINED_TERMS = "defined_terms"
@@ -66,7 +49,7 @@ class OrchestrationMeta(BaseSchema):
 
 class PipelineError(BaseSchema):
     pipeline: str
-    code: str
+    code: PipelineErrorCode
     message: str
 
 
@@ -79,61 +62,6 @@ class ResolveMeta(BaseSchema):
         description="Resolution policy applied during sense selection.",
     )
 
-
-class ResolveCandidate(BaseSchema):
-    domain: str | None = Field(None, description="Meaning/domain tag if known, else null.")
-    definition: str = Field(..., description="Candidate resolved meaning.")
-    score: confloat(ge=0.0, le=1.0) = Field(..., description="Deterministic ranking score. "  # type: ignore[valid-type]
-                                                             "In the MVP this is primarily used for "
-                                                             "candidate ordering, not calibrated confidence.")
-    provenance: CandidateProvenance = Field(..., description="Where the candidate came from.")
-    source_ref: str | None = Field(
-        None,
-        description="Optional stable source reference, e.g. text span or glossary meaning id.",
-    )
-
-
-class SelectedCandidate(BaseSchema):
-    domain: str | None = Field(None, description="Selected meaning/domain tag if known, else null.")
-    definition: str = Field(..., description="Chosen resolved meaning.")
-    reason: SelectionReason = Field(..., description="Deterministic selection reason.")
-
-
-class SelectionMeta(BaseSchema):
-    filtered_inactive_count: conint(ge=0) = Field(  # type: ignore[valid-type]
-        0,
-        description="Number of inactive candidates removed before selection.",
-    )
-
-
-class ResolvedAcronymBlock(AcronymBlock):
-    candidates: list[ResolveCandidate] = Field(
-        default_factory=list,
-        description="Ordered candidate meaning, best to worst, bounded by request cap.",
-    )
-    selected: SelectedCandidate | None = Field(
-        None,
-        description="Chosen candidate when at least one viable meaning exists.",
-    )
-    conflict: bool = Field(
-        False,
-        description="True when more than one viable candidate existed.",
-    )
-    conflict_count: conint(ge=0) = Field(  # type: ignore[valid-type]
-        0,
-        description="Number of viable candidates considered after filtering.",
-    )
-    selection: SelectionMeta | None = Field(
-        None,
-        description="Additional deterministic selection metadata.",
-    )
-
-
-class DefinedTermBlock(BaseSchema):
-    ...
-
-class StructuralReferenceBlock(BaseSchema):
-    ...
 
 class ResolveOptions(BaseSchema):
     locale: str = Field(
@@ -258,7 +186,7 @@ class ResolveResponse(BaseSchema):
                                         "lang": "en",
                                         "confidence": 0.82,
                                         "source": "system",
-                                    }
+                                    },
                                 ]
                             },
                             "candidates": [
@@ -289,10 +217,62 @@ class ResolveResponse(BaseSchema):
                             },
                         }
                     ],
+                    "defined_terms": [
+                        {
+                            "occurrence_span": {"start": 120, "end": 128},
+                            "term": "Services",
+                            "normalized_key": "services",
+                            "chosen_meaning_id": "term|services|1",
+                            "chosen_definition_span": {"start": 40, "end": 96},
+                            "resolution_method": "tier1",
+                            "resolved": True,
+                            "candidate_scores": [
+                                {
+                                    "meaning_id": "term|services|1",
+                                    "total_score": 1.0,
+                                    "tier1_score": 1.0,
+                                    "tier2_score": None,
+                                    "definition_span": {"start": 40, "end": 96},
+                                    "components": {
+                                        "section_proximity": 0.5,
+                                        "recency": 0.5,
+                                    },
+                                }
+                            ],
+                            "chosen_meaning": {
+                                "meaning_id": "term|services|1",
+                                "surface": "Services",
+                                "normalized_key": "services",
+                                "ordinal": 1,
+                                "intro_span": {"start": 20, "end": 28},
+                                "definition_span": {"start": 40, "end": 96},
+                                "definition_text": "the support and maintenance services described in Schedule 1",
+                                "intro_kind": "quoted_means",
+                                "section_path": ["1", "Definitions"],
+                                "alias_target_span": None,
+                                "alias_target_text": None,
+                            },
+                        }
+                    ],
+                    "structural_references": [
+                        {
+                            "kind": "Section",
+                            "label": "4.2",
+                            "canonical_label": "4.2",
+                            "normalized_key": "section:4.2",
+                            "canonical_key": "section|4.2",
+                            "reference_span": {"start": 210, "end": 221},
+                            "target_span": {"start": 420, "end": 438},
+                            "match_strategy": "forward",
+                            "strength": 1.0,
+                            "provenance": "document",
+                            "resolved": True,
+                        }
+                    ],
                     "meta": {
                         "processing_ms": 12,
                         "model_version": "plainera-core@1.0.0",
-                        "input_chars": 68,
+                        "input_chars": 680,
                         "resolution_mode": "domain_priority",
                     },
                     "orchestration": {
@@ -303,7 +283,7 @@ class ResolveResponse(BaseSchema):
                     "errors": [
                         {
                             "pipeline": "defined_terms",
-                            "code": PipelineErrorCode.PIPELINE_EXECUTION_FAILED,
+                            "code": "PIPELINE_EXECUTION_FAILED",
                             "message": "boom",
                         }
                     ],
