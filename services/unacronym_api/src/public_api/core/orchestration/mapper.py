@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, TypeVar
 from plainera_unacronym.nlp.extraction.defined_terms.types import TermResolutionResult
 from plainera_unacronym.nlp.extraction.structural.types import StructuralReferenceResolutionResult
 from plainera_unacronym.orchestration import PIPELINE_ACRONYMS, PIPELINE_DEFINED_TERMS, PIPELINE_STRUCTURAL_REFERENCES
@@ -34,6 +34,28 @@ def map_orchestration_state(
     ]
 
     return meta, errors
+
+
+T = TypeVar("T")
+
+
+def _resolve_pipeline_payload(
+    payload: object,
+    *,
+    result_type: type[T],
+    error_message: str,
+) -> T | list[Any]:
+    if isinstance(payload, list):
+        return payload
+    if isinstance(payload, tuple) and len(payload) == 2:
+        _, resolution = payload
+        if not isinstance(resolution, result_type):
+            raise ValueError(error_message)
+        return resolution
+    if isinstance(payload, result_type):
+        return payload
+    raise ValueError(error_message)
+
 
 def compose_sections(
     state: OrchestrationState,
@@ -74,16 +96,25 @@ def compose_sections(
 
     if PIPELINE_DEFINED_TERMS in state.completed_targets:
         payload = state.results_by_pipeline[PIPELINE_DEFINED_TERMS].payload
-        if isinstance(payload, TermResolutionResult):
-            sections["defined_terms"] = map_defined_term_blocks(payload)
+        resolved = _resolve_pipeline_payload(
+            payload,
+            result_type=TermResolutionResult,
+            error_message="Unsupported defined-term pipeline payload shape.",
+        )
+        if isinstance(resolved, list):
+            sections["defined_terms"] = resolved
         else:
-            raise ValueError("Unsupported defined-term pipeline payload shape.")
+            sections["defined_terms"] = map_defined_term_blocks(resolved)
 
     if PIPELINE_STRUCTURAL_REFERENCES in state.completed_targets:
         payload = state.results_by_pipeline[PIPELINE_STRUCTURAL_REFERENCES].payload
-        if isinstance(payload, StructuralReferenceResolutionResult):
-            sections["structural_references"] = map_structural_summary_blocks(payload)
+        resolved = _resolve_pipeline_payload(
+            payload,
+            result_type=StructuralReferenceResolutionResult,
+            error_message="Unsupported structural-reference pipeline payload shape.",
+        )
+        if isinstance(resolved, list):
+            sections["structural_references"] = resolved
         else:
-            raise ValueError("Unsupported structural-reference pipeline payload shape.")
-
+            sections["structural_references"] = map_structural_summary_blocks(resolved)
     return sections
