@@ -176,7 +176,7 @@ def merge_defined_term_results(
     ]
 
     meaning_by_identity: dict[tuple[object, ...], TermMeaning] = {}
-    old_id_maps: list[dict[str, str]] = []
+    old_id_maps: list[dict[str, tuple[object, ...]]] = []
 
     for result in shifted_results:
         old_id_to_identity: dict[str, tuple[object, ...]] = {}
