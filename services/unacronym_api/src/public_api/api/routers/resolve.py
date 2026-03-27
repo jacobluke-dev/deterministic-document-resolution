@@ -33,14 +33,16 @@ def _error_json(err: ResolveError) -> JSONResponse:
     "/resolve",
     response_model=ResolveResponse,
     responses=build_responses(success_status=200),
-    summary="Resolve acronyms in raw text",
+    summary="Resolve acronyms, defined terms, and structural references in raw text",
     description=(
-        "Detect acronyms, propose definitions, and (optionally) enrich from a curated glossary. "
+        "Resolve acronyms, defined terms, and structural references from raw document text. "
+        "The response may include occurrence-level results, deterministic resolution metadata, "
+        "and structured partial-success reporting by pipeline. "
         "Offsets use Python-slice semantics (end exclusive). Supported locales: en-GB, en-US. "
         "Idempotent: does not mutate server state. Content-Encoding: gzip supported."
     ),
 )
-async def resolve_acronyms(
+async def resolve_document(
     payload: ResolveRequest,
     response: Response,
     svc: Annotated[ResolveService, Depends(get_resolve_service)],
