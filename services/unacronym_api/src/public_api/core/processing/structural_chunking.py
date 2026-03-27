@@ -2,8 +2,11 @@ from __future__ import annotations
 
 from dataclasses import replace
 
-from plainera_unacronym.nlp.extraction.structural.types import StructuralReferenceResolutionResult, \
-    StructuralReferenceEntry, StructuralReferenceLink
+from plainera_unacronym.nlp.extraction.structural.types import (
+    StructuralReferenceEntry,
+    StructuralReferenceLink,
+    StructuralReferenceResolutionResult,
+)
 
 
 def _shift_span(span: tuple[int, int], delta: int) -> tuple[int, int]:
@@ -117,15 +120,20 @@ def _choose_unique_link(
 
 
 def merge_structural_reference_results(
-    chunk_results: list[StructuralReferenceResolutionResult],
+    chunk_results: list[tuple[int, StructuralReferenceResolutionResult]],
 ) -> StructuralReferenceResolutionResult:
+    shifted_results = [
+        shift_structural_reference_result(result, delta)
+        for delta, result in chunk_results
+    ]
+
     reference_seen: set[tuple[object, ...]] = set()
     link_seen: set[tuple[object, ...]] = set()
 
     references: list[StructuralReferenceEntry] = []
     links: list[StructuralReferenceLink] = []
 
-    for result in chunk_results:
+    for result in shifted_results:
         for ref in result.references:
             key = _reference_key(ref)
             if key in reference_seen:
@@ -143,8 +151,8 @@ def merge_structural_reference_results(
     references.sort(key=lambda ref: (int(ref.start_offset), int(ref.end_offset), ref.canonical_key))
     links.sort(
         key=lambda link: (
-            int(link.reference_span.start),
-            int(link.reference_span.end),
+            int(link.reference_span[0]), # start
+            int(link.reference_span[1]), # end
             link.canonical_key,
         )
     )
