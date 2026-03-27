@@ -2,14 +2,15 @@ import asyncio
 from collections.abc import Mapping
 from typing import Any
 
-import anyio
-
 from plainera_unacronym.nlp.common.types import AcronymDetectorResult, ExtractionResult
 from plainera_unacronym.nlp.extraction.acronyms.execute import detect_and_extract
-from plainera_unacronym.orchestration import PipelineRegistry, PipelineRunResult, PIPELINE_ACRONYMS
+from plainera_unacronym.orchestration import PIPELINE_ACRONYMS, PipelineRegistry, PipelineRunResult
 from plainera_unacronym.orchestration.interface import OrchestrationRequest
 from public_api.core.pipelines.base import BasePipelineExecutor
-from public_api.core.processing.acronym_chunking import shift_acronym_blocks, merge_acronym_blocks, make_chunks
+from public_api.core.processing.acronym_chunking import (
+    merge_acronym_blocks,
+    shift_acronym_blocks,
+)
 from public_api.core.services.resolution_policy import attach_resolution_metadata
 from public_api.core.services.resolve_mapper import map_acronym_pipeline_to_blocks
 from public_api.db.repos import GlossaryRepository
@@ -17,43 +18,45 @@ from public_api.schemas.resolve import ResolveOptions, ResolutionMode
 
 
 class AcronymPipelineExecutor(BasePipelineExecutor):
+    key = PIPELINE_ACRONYMS
 
-    def __init__(self,
-                 *,
-                 pipeline_registry: PipelineRegistry,
-                 glossary_repo: GlossaryRepository,
-                 request_timeout_ms: int,
-                 tier2_model: Any | None):
-        super().__init__(pipeline_registry=pipeline_registry,
-                         request_timeout_ms=request_timeout_ms)
+    def __init__(
+        self,
+        *,
+        pipeline_registry: PipelineRegistry,
+        glossary_repo: GlossaryRepository,
+        request_timeout_ms: int,
+        tier2_model: Any | None,
+    ) -> None:
+        super().__init__(
+            pipeline_registry=pipeline_registry,
+            request_timeout_ms=request_timeout_ms,
+        )
         self._glossary_repo = glossary_repo
         self._tier2_model = tier2_model
 
-    async def _execute_chunked(
+    async def _run_chunk(
         self,
         *,
         text: str,
         options: Mapping[str, object],
     ) -> tuple[AcronymDetectorResult, ExtractionResult]:
-        return await asyncio.wait_for(
-            anyio.to_thread.run_sync(
-                lambda: detect_and_extract(
-                    text,
-                    det_cfg=options.get("det_cfg"),
-                    ext_cfg=options.get("ext_cfg"),
-                    tier2_model=options.get("tier2_model", self._tier2_model),
-                    window_left=self._int_option(options, "window_left", 320),
-                    window_right=self._int_option(options, "window_right", 280),
-                    return_reports=self._bool_option(options, "return_reports", False),
-                    trace=self._bool_option(options, "trace", False),
-                    return_state=self._bool_option(options, "return_state", False),
-                    trace_filter=options.get("trace_filter"),
-                )
-            ),
-            timeout=self._timeout_s,
+        return await self._run_sync_with_timeout(
+            lambda: detect_and_extract(
+                text,
+                det_cfg=options.get("det_cfg"),
+                ext_cfg=options.get("ext_cfg"),
+                tier2_model=options.get("tier2_model", self._tier2_model),
+                window_left=self._int_option(options, "window_left", 320),
+                window_right=self._int_option(options, "window_right", 280),
+                return_reports=self._bool_option(options, "return_reports", False),
+                trace=self._bool_option(options, "trace", False),
+                return_state=self._bool_option(options, "return_state", False),
+                trace_filter=options.get("trace_filter"),
+            )
         )
 
-    async def _run_chunked_acronym_pipeline(
+    async def _execute_chunked(
         self,
         *,
         request: OrchestrationRequest,
@@ -65,7 +68,7 @@ class AcronymPipelineExecutor(BasePipelineExecutor):
         chunk_size_chars = self._int_option(options, "chunk_size_chars", max(1, len(request.text)))
         chunk_overlap_chars = self._int_option(options, "chunk_overlap_chars", 0)
 
-        chunks = make_chunks(
+        chunks = self.make_chunks(
             request.text,
             chunk_size=chunk_size_chars,
             overlap=chunk_overlap_chars,
@@ -75,7 +78,7 @@ class AcronymPipelineExecutor(BasePipelineExecutor):
 
         for chunk in chunks:
             try:
-                det_res, extr = await self._execute_chunked(
+                det_res, extr = await self._run_chunk(
                     text=chunk.text,
                     options=options,
                 )
