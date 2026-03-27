@@ -67,7 +67,7 @@ def make_chunks(text: str, *, chunk_size: int, overlap: int) -> list[Chunk]:
     return chunks
 
 
-def shift_blocks(blocks: list[dict[str, Any]], delta: int) -> list[dict[str, Any]]:
+def shift_acronym_blocks(blocks: list[dict[str, Any]], delta: int) -> list[dict[str, Any]]:
     """
     Shift all span offsets in mapped public blocks by a constant delta.
 
@@ -329,7 +329,7 @@ def _ensure_first_occurrence(nb: dict[str, Any], defs: list[dict[str, Any]]) -> 
     return True
 
 
-def merge_blocks(block_lists: list[list[dict[str, Any]]]) -> list[dict[str, Any]]:
+def merge_acronym_blocks(block_lists: list[list[dict[str, Any]]]) -> list[dict[str, Any]]:
     """
         Merge multiple lists of acronym blocks (one list per chunk) deterministically.
 
