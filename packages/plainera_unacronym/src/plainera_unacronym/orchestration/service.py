@@ -81,7 +81,7 @@ async def run_selected_pipelines(
                     pipeline=runner.key,
                     error=OrchestrationPipelineError(
                         pipeline=runner.key,
-                        code=_classify_pipeline_exception(exc),
+                        code=PipelineErrorCode.PIPELINE_EXECUTION_FAILED,
                         message=str(exc) or "Pipeline execution failed.",
                         error_type=type(exc).__name__,
                     ),

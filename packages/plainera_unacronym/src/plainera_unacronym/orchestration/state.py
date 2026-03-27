@@ -13,6 +13,7 @@ class PipelineErrorCode(StrEnum):
     PIPELINE_EXECUTION_FAILED = "PIPELINE_EXECUTION_FAILED"
     PIPELINE_INVALID_OPTIONS = "PIPELINE_INVALID_OPTIONS"
 
+
 @dataclass(frozen=True, slots=True)
 class OrchestrationPipelineError:
     """Structured per-pipeline orchestration failure.
