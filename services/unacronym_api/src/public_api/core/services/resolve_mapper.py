@@ -3,7 +3,22 @@ from __future__ import annotations
 from typing import Any, Protocol
 
 from plainera_unacronym.nlp.common.types import AcronymDetectorResult, ExtractionResult
+from plainera_unacronym.nlp.extraction.structural.types import StructuralReferenceResolutionResult
 
+from plainera_unacronym.nlp.extraction.defined_terms.types import (
+    TermCandidateScore,
+    TermMeaning,
+    TermResolutionResult,
+)
+
+from public_api.schemas.extraction_types.defined_terms import (
+    DefinedTermBlock,
+    DefinedTermCandidateBlock,
+    DefinedTermMeaningBlock,
+)
+
+from public_api.schemas.shared import TextSpan
+from public_api.schemas.extraction_types.structural import StructuralReferenceSummaryBlock
 from public_api.db.repos.glossary_repo import GlossaryRepository
 from public_api.schemas.resolve import ResolveOptions
 
@@ -246,5 +261,107 @@ def map_acronym_pipeline_to_blocks(
             block["glossary"] = glossary_block
 
         blocks.append(block)
+
+    return blocks
+
+
+def _map_span(span: tuple[int, int] | None) -> TextSpan | None:
+    if span is None:
+        return None
+    return TextSpan(
+        start=int(span[0]),
+        end=int(span[1]),
+    )
+
+def _map_text_span(span: tuple[str, int, int] | None) -> TextSpan | None:
+    if span is None:
+        return None
+    return TextSpan(
+        start=int(span[1]),
+        end=int(span[2]),
+    )
+
+
+def map_structural_summary_blocks(
+    result: StructuralReferenceResolutionResult,
+) -> list[StructuralReferenceSummaryBlock]:
+    occurrence_counts: dict[str, int] = {}
+    for link in result.links:
+        occurrence_counts[link.canonical_key] = occurrence_counts.get(link.canonical_key, 0) + 1
+
+    blocks: list[StructuralReferenceSummaryBlock] = []
+    for canonical_key, link in result.unique_links.items():
+        blocks.append(
+            StructuralReferenceSummaryBlock(
+                kind=link.kind,
+                canonical_label=link.canonical_label,
+                canonical_key=link.canonical_key,
+                representative_reference_span=_map_span(link.reference_span),
+                representative_target_span=_map_span(link.target_span),
+                match_strategy=link.match_strategy,
+                strength=float(link.strength),
+                provenance=link.provenance,
+                resolved=link.target_span is not None and link.match_strategy != "unresolved",
+                occurrence_count=occurrence_counts.get(canonical_key, 0),
+            )
+        )
+
+    blocks.sort(key=lambda b: (b.canonical_key, b.representative_reference_span.start))
+    return blocks
+
+
+def _map_term_meaning(meaning: TermMeaning) -> DefinedTermMeaningBlock:
+    return DefinedTermMeaningBlock(
+        meaning_id=meaning.meaning_id,
+        surface=meaning.surface,
+        normalized_key=meaning.normalized_key,
+        ordinal=int(meaning.ordinal),
+        intro_span=_map_text_span(meaning.intro_span),
+        definition_span=_map_text_span(meaning.definition_span),
+        definition_text=meaning.definition_text,
+        intro_kind=meaning.intro_kind,
+        section_path=list(meaning.section_path),
+        alias_target_span=_map_text_span(meaning.alias_target_span),
+        alias_target_text=meaning.alias_target_text,
+    )
+
+
+def _map_candidate_score(score: TermCandidateScore) -> DefinedTermCandidateBlock:
+    return DefinedTermCandidateBlock(
+        meaning_id=score.meaning_id,
+        total_score=float(score.total_score),
+        tier1_score=float(score.tier1_score),
+        tier2_score=None if score.tier2_score is None else float(score.tier2_score),
+        definition_span=_map_span(score.definition_span),
+        components={key: float(value) for key, value in score.components.items()},
+    )
+
+
+def map_defined_term_blocks(result: TermResolutionResult) -> list[DefinedTermBlock]:
+    blocks: list[DefinedTermBlock] = []
+
+    for resolution in result.term_resolutions:
+        selected = None
+        if resolution.chosen_meaning_id is not None:
+            meaning = result.meaning_index.get(resolution.chosen_meaning_id)
+            if meaning is not None:
+                selected = _map_term_meaning(meaning)
+
+        blocks.append(
+            DefinedTermBlock(
+                occurrence_span=_map_text_span(resolution.occurrence_span),
+                term=resolution.term,
+                normalized_key=resolution.normalized_key,
+                chosen_meaning_id=resolution.chosen_meaning_id,
+                chosen_definition_span=_map_span(resolution.chosen_definition_span),
+                resolution_method=resolution.resolution_method,
+                resolved=resolution.chosen_meaning_id is not None,
+                candidates=[
+                    _map_candidate_score(score)
+                    for score in resolution.candidate_scores
+                ],
+                selected=selected,
+            )
+        )
 
     return blocks

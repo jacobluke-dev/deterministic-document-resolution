@@ -20,7 +20,8 @@ from plainera_unacronym.orchestration.state import (
 from public_api.core.pipelines import (AcronymPipelineExecutor,
                                        DefinedTermsPipelineExecutor,
                                        StructuralPipelineExecutor)
-from public_api.core.services import ResolveError
+
+from public_api.core.errors import ResolveError
 from public_api.db.repos import GlossaryRepository
 from public_api.schemas.resolve import ResolveOptions, ResolutionMode
 

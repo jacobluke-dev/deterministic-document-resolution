@@ -14,7 +14,6 @@ and why.
 from __future__ import annotations
 
 import time
-from dataclasses import dataclass
 from importlib import metadata
 from typing import Any
 
@@ -31,6 +30,7 @@ from plainera_unacronym.orchestration.state import OrchestrationState
 from public_api.core.orchestration import Orchestrator
 from public_api.core.orchestration.mapper import map_orchestration_state, compose_sections
 from public_api.core.orchestration.request_builder import build_orchestration_request
+from public_api.core.errors import ResolveError
 
 from public_api.db.repos import GlossaryRepository
 
@@ -87,22 +87,6 @@ def _plainera_core_version() -> str:
         except Exception:
             continue
     return "plainera-core@dev"
-
-
-@dataclass(frozen=True)
-class ResolveError(Exception):
-    """Structured domain exception for resolve endpoint failures.
-
-    Attributes:
-      http_status: HTTP status code to return to the caller.
-      code: Stable public error code.
-      message: Human-readable error message.
-      details: Optional structured details for diagnostics and client handling.
-    """
-    http_status: int
-    code: ErrorCode
-    message: str
-    details: dict[str, Any] | None = None
 
 
 class ResolveService:

@@ -16,7 +16,8 @@ from plainera_unacronym.orchestration.interface import (
     PipelineRequest,
     PipelineRunResult,
 )
-from public_api.core.services import ResolveError
+from public_api.core.errors import ResolveError
+
 from public_api.schemas.error import ErrorCode
 from public_api.schemas.resolve import ResolveOptions, ResolutionMode
 
