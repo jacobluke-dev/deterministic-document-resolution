@@ -23,12 +23,12 @@ from plainera_unacronym.orchestration.state import (
     OrchestrationPipelineError,
     OrchestrationState,
 )
-from public_api.core.processing.acronym_chunking import make_chunks, merge_blocks, shift_blocks
+from public_api.core.processing.acronym_chunking import make_chunks, merge_acronym_blocks, shift_acronym_blocks
 from public_api.core.processing.defined_term_chunking import merge_defined_term_results
 from public_api.core.processing.structural_chunking import merge_structural_reference_results
 from public_api.core.services import ResolveError
 from public_api.core.services.resolution_policy import attach_resolution_metadata
-from public_api.core.services.resolve_mapper import map_pipeline_to_blocks
+from public_api.core.services.resolve_mapper import map_acronym_pipeline_to_blocks
 from public_api.db.repos import GlossaryRepository
 from public_api.schemas.error import ErrorCode
 from public_api.schemas.resolve import ResolveOptions, ResolutionMode
@@ -71,6 +71,20 @@ class Orchestrator:
         targets: tuple[PipelineKey, ...],
     ) -> tuple[PipelineKey, ...]:
         return tuple(runner.key for runner in self._pipeline_registry.resolve(targets))
+
+    @staticmethod
+    def _chunk_error_details(
+        *,
+        chunk_start: int,
+        chunk_end: int,
+        reason: str | None = None,
+    ) -> dict[str, object]:
+        details: dict[str, object] = {
+            "chunk": {"start": chunk_start, "end": chunk_end},
+        }
+        if reason is not None:
+            details["reason"] = reason
+        return details
 
     @staticmethod
     def _map_pipeline_exception(
@@ -182,7 +196,10 @@ class Orchestrator:
                     message="Resolution timed out.",
                     details={
                         "timeout_ms": int(self._timeout_s * 1000),
-                        "chunk": {"start": chunk.start, "end": chunk.end},
+                        **self._chunk_error_details(
+                            chunk_start=chunk.start,
+                            chunk_end=chunk.end,
+                        ),
                     },
                 ) from exc
             except Exception as exc:
@@ -190,22 +207,23 @@ class Orchestrator:
                     http_status=status.HTTP_503_SERVICE_UNAVAILABLE,
                     code=ErrorCode.SERVICE_UNAVAILABLE,
                     message="Resolution failed.",
-                    details={
-                        "reason": str(exc),
-                        "chunk": {"start": chunk.start, "end": chunk.end},
-                    },
+                    details=self._chunk_error_details(
+                        chunk_start=chunk.start,
+                        chunk_end=chunk.end,
+                        reason=str(exc),
+                    ),
                 ) from exc
 
-            blocks = map_pipeline_to_blocks(
+            blocks = map_acronym_pipeline_to_blocks(
                 det_res=det_res,
                 extr=extr,
                 opts=opts,
                 lang=lang,
                 glossary_repo=self._glossary_repo,
             )
-            all_blocks.append(shift_blocks(blocks, chunk.start))
+            all_blocks.append(shift_acronym_blocks(blocks, chunk.start))
 
-        merged = merge_blocks(all_blocks)
+        merged = merge_acronym_blocks(all_blocks)
         merged = attach_resolution_metadata(
             blocks=merged,
             opts=opts,
