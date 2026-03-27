@@ -1,13 +1,14 @@
 from types import SimpleNamespace
 
 import pytest
-from public_api.core.services import ResolveService
+
 from public_api.core.services.resolution_policy import attach_resolution_metadata
 from public_api.core.services.resolve_mapper import (
     build_definitions_by_acronym,
     map_acronym_pipeline_to_blocks,
     maybe_glossary_block,
 )
+from public_api.core.services.resolve_service import ResolveService
 from public_api.schemas.resolve import ResolutionMode, ResolveOptions
 
 from tests.test_public_api.core.services.conftest import DummyGlossaryRepo
