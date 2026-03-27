@@ -28,7 +28,7 @@ from plainera_unacronym.orchestration import (
 )
 from plainera_unacronym.orchestration.state import OrchestrationState
 
-from public_api.core.orchestration.execution import Orchestrator
+from public_api.core.orchestration import Orchestrator
 from public_api.core.orchestration.mapper import map_orchestration_state, compose_sections
 from public_api.core.orchestration.request_builder import build_orchestration_request
 
