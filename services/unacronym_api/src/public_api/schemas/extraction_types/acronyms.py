@@ -1,7 +1,7 @@
 from enum import Enum
 from typing import Optional
 
-from pydantic import Field
+from pydantic import Field, confloat, conint
 
 from public_api.schemas.base import BaseSchema
 from public_api.schemas.shared import Span, Definition

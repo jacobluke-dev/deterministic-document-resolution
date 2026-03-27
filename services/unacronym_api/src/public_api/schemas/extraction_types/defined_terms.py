@@ -74,3 +74,50 @@ class DefinedTermBlock(BaseSchema):
         None,
         description="Resolved meaning record when available.",
     )
+
+
+class DefinedTermMeaningBlock(BaseSchema):
+    meaning_id: str = Field(..., description="Stable deterministic meaning identifier.")
+    surface: str = Field(..., description="Original introduced term text.")
+    normalized_key: str = Field(..., description="Canonical normalized key used for grouping.")
+    ordinal: int = Field(..., description="Per-key ordinal assigned in document order.")
+    intro_span: TextSpan = Field(..., description="Span of the introduced term text.")
+    definition_span: TextSpan | None = Field(
+        None,
+        description="Span of the trailing definition text when present.",
+    )
+    definition_text: str | None = Field(
+        None,
+        description="Extracted trailing definition text when present.",
+    )
+    intro_kind: str = Field(..., description="Introduction form, for example quoted_means.")
+    section_path: list[str] = Field(
+        default_factory=list,
+        description="Structural path locating the introduction within the document.",
+    )
+    alias_target_span: TextSpan | None = Field(
+        None,
+        description="Antecedent span for parenthetical alias introductions when present.",
+    )
+    alias_target_text: str | None = Field(
+        None,
+        description="Antecedent text for parenthetical alias introductions when present.",
+    )
+
+
+class DefinedTermCandidateBlock(BaseSchema):
+    meaning_id: str = Field(..., description="Candidate meaning identifier.")
+    total_score: float = Field(..., description="Final deterministic ranking score.")
+    tier1_score: float = Field(..., description="Tier 1 heuristic score.")
+    tier2_score: float | None = Field(
+        None,
+        description="Tier 2 semantic score when available.",
+    )
+    definition_span: TextSpan | None = Field(
+        None,
+        description="Definition span associated with the candidate meaning when available.",
+    )
+    components: dict[str, float] = Field(
+        default_factory=dict,
+        description="Named score components contributing to the total score.",
+    )
