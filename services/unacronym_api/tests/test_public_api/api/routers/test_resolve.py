@@ -1,3 +1,4 @@
+import pprint
 from typing import Any
 
 import pytest
@@ -15,7 +16,9 @@ def _get_fastapi_app_from_client(client):
         raise RuntimeError("client._transport missing")
     return getattr(transport, "app", None) or getattr(transport, "_app", None)
 
+
 _ORIGINAL_REQUEST_TIMEOUT_MS = resolve_mod.app_settings.REQUEST_TIMEOUT_MS
+
 
 @pytest.fixture(autouse=True)
 def _reset_settings(monkeypatch):
@@ -24,6 +27,7 @@ def _reset_settings(monkeypatch):
         "REQUEST_TIMEOUT_MS",
         _ORIGINAL_REQUEST_TIMEOUT_MS,
     )
+
 
 class TestV1Resolve:
     @pytest.fixture(autouse=True)
@@ -406,3 +410,213 @@ class TestV1Resolve:
 
         block = r.json()["acronyms"][0]
         assert "glossary" not in block or block["glossary"] is None
+
+
+class TestV1ResolveTargetSelection:
+    @pytest.mark.anyio
+    async def test_defined_terms_only_returns_empty_section_when_no_terms_found(self, client):
+        r = await client.post(
+            "/v1/resolve",
+            json={
+                "text": "The Metropolitan Police Service (MPS) operates in London.",
+                "targets": ["defined_terms"],
+            },
+        )
+        assert r.status_code == 200, r.text
+
+        body = r.json()
+
+        assert body["defined_terms"] == []
+        assert body["acronyms"] == []
+        assert body["structural_references"] == []
+
+        assert body["orchestration"]["requested"] == ["defined_terms"]
+        assert body["orchestration"]["completed"] == ["defined_terms"]
+        assert body["orchestration"]["failed"] == []
+        assert body["errors"] == []
+
+    @pytest.mark.anyio
+    async def test_structural_only_returns_empty_section_when_no_references_found(self, client):
+        r = await client.post(
+            "/v1/resolve",
+            json={
+                "text": "The Metropolitan Police Service (MPS) operates in London.",
+                "targets": ["structural_references"],
+            },
+        )
+        assert r.status_code == 200, r.text
+
+        body = r.json()
+
+        assert body["structural_references"] == []
+        assert body["acronyms"] == []
+        assert body["defined_terms"] == []
+
+        assert body["orchestration"]["requested"] == ["structural_references"]
+        assert body["orchestration"]["completed"] == ["structural_references"]
+        assert body["orchestration"]["failed"] == []
+        assert body["errors"] == []
+
+    @pytest.mark.anyio
+    async def test_acronyms_only_does_not_depend_on_other_pipeline_payload_shapes(self, client):
+        r = await client.post(
+            "/v1/resolve",
+            json={
+                "text": "The Metropolitan Police Service (MPS) operates in London.",
+                "targets": ["acronyms"],
+            },
+        )
+        assert r.status_code == 200, r.text
+
+        body = r.json()
+
+        assert len(body["acronyms"]) == 1
+        assert body["acronyms"][0]["acronym"] == "MPS"
+        assert body["defined_terms"] == []
+        assert body["structural_references"] == []
+
+        assert body["orchestration"]["requested"] == ["acronyms"]
+        assert body["orchestration"]["completed"] == ["acronyms"]
+        assert body["orchestration"]["failed"] == []
+        assert body["errors"] == []
+
+    @pytest.mark.anyio
+    async def test_all_targets_allow_mixed_non_empty_and_empty_sections(self, client):
+        r = await client.post(
+            "/v1/resolve",
+            json={
+                "text": "The Metropolitan Police Service (MPS) operates in London.",
+                "targets": ["acronyms", "defined_terms", "structural_references"],
+            },
+        )
+        assert r.status_code == 200, r.text
+
+        body = r.json()
+
+        assert len(body["acronyms"]) == 1
+        assert body["acronyms"][0]["acronym"] == "MPS"
+        assert body["defined_terms"] == []
+        assert body["structural_references"] == []
+
+        assert body["orchestration"]["requested"] == [
+            "acronyms",
+            "defined_terms",
+            "structural_references",
+        ]
+        assert body["orchestration"]["completed"] == [
+            "acronyms",
+            "defined_terms",
+            "structural_references",
+        ]
+        assert body["orchestration"]["failed"] == []
+        assert body["errors"] == []
+
+    @pytest.mark.anyio
+    async def test_duplicate_targets_are_deduplicated_preserving_request_order(self, client):
+        r = await client.post(
+            "/v1/resolve",
+            json={
+                "text": "The Metropolitan Police Service (MPS) operates in London.",
+                "targets": [
+                    "defined_terms",
+                    "acronyms",
+                    "defined_terms",
+                    "structural_references",
+                    "acronyms",
+                ],
+            },
+        )
+        assert r.status_code == 200, r.text
+
+        body = r.json()
+
+        assert body["orchestration"]["requested"] == [
+            "acronyms",
+            "defined_terms",
+            "structural_references",
+        ]
+        assert body["orchestration"]["completed"] == [
+            "acronyms",
+            "defined_terms",
+            "structural_references",
+        ]
+        assert body["orchestration"]["failed"] == []
+
+    @pytest.mark.anyio
+    async def test_defined_terms_target_returns_non_empty_section_when_terms_present(self, client):
+        r = await client.post(
+            "/v1/resolve",
+            json={
+                "text": (
+                'This Agreement is made between the Supplier and the Customer. '
+                '"Services" means the consulting services described in Schedule 1. '
+                'The Supplier shall provide the Services to the Customer.'
+                ),
+                "targets": ["defined_terms"],
+            },
+        )
+        assert r.status_code == 200, r.text
+
+        body = r.json()
+        pprint.pprint(body)
+        assert body["defined_terms"] != []
+        assert body["acronyms"] == []
+        assert body["structural_references"] == []
+        assert body["orchestration"]["requested"] == ["defined_terms"]
+        assert body["orchestration"]["completed"] == ["defined_terms"]
+        assert body["orchestration"]["failed"] == []
+
+    @pytest.mark.anyio
+    async def test_structural_target_returns_non_empty_section_when_references_present(self, client):
+        r = await client.post(
+            "/v1/resolve",
+            json={
+                "text": (
+                    'In this Agreement, "Services" means the consulting services described in '
+                    "Section 2. The Supplier shall provide the Services in accordance with "
+                    "Section 3 and Schedule 1."
+                ),
+                "targets": ["structural_references"],
+            },
+        )
+        assert r.status_code == 200, r.text
+
+        body = r.json()
+        assert body["structural_references"] != []
+        assert body["acronyms"] == []
+        assert body["defined_terms"] == []
+        assert body["orchestration"]["requested"] == ["structural_references"]
+        assert body["orchestration"]["completed"] == ["structural_references"]
+        assert body["orchestration"]["failed"] == []
+
+    @pytest.mark.anyio
+    async def test_all_targets_return_mixed_non_empty_sections_when_text_contains_all_patterns(self, client):
+        r = await client.post(
+            "/v1/resolve",
+            json={
+                "text": (
+                    'In this Agreement, "Services" means the consulting services provided by the '
+                    "Metropolitan Police Service (MPS). The MPS shall provide the Services in "
+                    "accordance with Section 2 and Schedule 1."
+                ),
+                "targets": ["acronyms", "defined_terms", "structural_references"],
+            },
+        )
+        assert r.status_code == 200, r.text
+
+        body = r.json()
+        assert body["acronyms"] != []
+        assert body["defined_terms"] != []
+        assert body["structural_references"] != []
+
+        assert body["orchestration"]["requested"] == [
+            "acronyms",
+            "defined_terms",
+            "structural_references",
+        ]
+        assert body["orchestration"]["completed"] == [
+            "acronyms",
+            "defined_terms",
+            "structural_references",
+        ]
+        assert body["orchestration"]["failed"] == []
