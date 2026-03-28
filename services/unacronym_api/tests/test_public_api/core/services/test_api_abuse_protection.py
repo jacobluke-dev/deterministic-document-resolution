@@ -1,9 +1,11 @@
 from __future__ import annotations
 
 from datetime import UTC, datetime
+from types import SimpleNamespace
 
 import pytest
 from plainera_core.db_manager.connection import DBManager
+from public_api.core.di.deps_auth import require_api_key
 from public_api.core.services.api_abuse_protection import (
     ApiAbuseProtectionService,
     QuotaExceededError,
@@ -88,12 +90,15 @@ class TestApiAbuseProtectionService:
             )
             assert row.request_count == 2
 
-    def test_enforce_allows_within_limits(self, session_factory, monkeypatch, _mute_abuse_logs):
+    def test_enforce_allows_within_limits(self, session_factory, monkeypatch, _patch, _mute_abuse_logs):
         dbm = _make_dbm(session_factory)
         key = _seed_api_key(session_factory, key_id="allow_key", daily_quota=10)
         svc = ApiAbuseProtectionService(dbm=dbm, sink=None)
 
-        monkeypatch.setattr("public_api.core.services.api_abuse_protection.app_settings.RATE_LIMIT_PER_MIN", 5)
+        _patch(
+            ApiAbuseProtectionService.enforce,
+            app_settings=SimpleNamespace(RATE_LIMIT_PER_MIN=5),
+        )
         monkeypatch.setattr(
             "public_api.core.services.api_abuse_protection.ApiAbuseProtectionService._utc_now",
             staticmethod(lambda: datetime(2026, 3, 14, 12, 0, tzinfo=UTC)),
@@ -110,14 +115,17 @@ class TestApiAbuseProtectionService:
             assert daily.request_count == 1
             assert minute.request_count == 1
 
-    def test_enforce_raises_rate_limit_exceeded(self, session_factory, monkeypatch, _mute_abuse_logs):
+    def test_enforce_raises_rate_limit_exceeded(self, session_factory, monkeypatch, _patch, _mute_abuse_logs):
         dbm = _make_dbm(session_factory)
         key = _seed_api_key(session_factory, key_id="rate_key", daily_quota=100)
         svc = ApiAbuseProtectionService(dbm=dbm, sink=None)
 
         now = datetime(2026, 3, 14, 12, 0, 15, tzinfo=UTC)
 
-        monkeypatch.setattr("public_api.core.services.api_abuse_protection.app_settings.RATE_LIMIT_PER_MIN", 2)
+        _patch(
+            ApiAbuseProtectionService.enforce,
+            app_settings=SimpleNamespace(RATE_LIMIT_PER_MIN=2),
+        )
         monkeypatch.setattr(
             "public_api.core.services.api_abuse_protection.ApiAbuseProtectionService._utc_now",
             staticmethod(lambda: now),
@@ -139,12 +147,15 @@ class TestApiAbuseProtectionService:
             minute = s.query(ApiUsageMinute).filter(ApiUsageMinute.api_key_id == key.id).one()
             assert minute.request_count == 2
 
-    def test_enforce_raises_quota_exceeded(self, session_factory, monkeypatch, _mute_abuse_logs):
+    def test_enforce_raises_quota_exceeded(self, session_factory, monkeypatch, _patch, _mute_abuse_logs):
         dbm = _make_dbm(session_factory)
         key = _seed_api_key(session_factory, key_id="quota_key", daily_quota=2)
         svc = ApiAbuseProtectionService(dbm=dbm, sink=None)
 
-        monkeypatch.setattr("public_api.core.services.api_abuse_protection.app_settings.RATE_LIMIT_PER_MIN", 100)
+        _patch(
+            ApiAbuseProtectionService.enforce,
+            app_settings=SimpleNamespace(RATE_LIMIT_PER_MIN=100),
+        )
         monkeypatch.setattr(
             "public_api.core.services.api_abuse_protection.ApiAbuseProtectionService._utc_now",
             staticmethod(lambda: datetime(2026, 3, 14, 12, 0, tzinfo=UTC)),
@@ -165,12 +176,15 @@ class TestApiAbuseProtectionService:
             daily = s.query(ApiUsageDaily).filter(ApiUsageDaily.api_key_id == key.id).one()
             assert daily.request_count == 2
 
-    def test_enforce_utc_rollover_uses_new_day(self, session_factory, monkeypatch, _mute_abuse_logs):
+    def test_enforce_utc_rollover_uses_new_day(self, session_factory, monkeypatch, _patch, _mute_abuse_logs):
         dbm = _make_dbm(session_factory)
         key = _seed_api_key(session_factory, key_id="rollover_key", daily_quota=1)
         svc = ApiAbuseProtectionService(dbm=dbm, sink=None)
 
-        monkeypatch.setattr("public_api.core.services.api_abuse_protection.app_settings.RATE_LIMIT_PER_MIN", 100)
+        _patch(
+            ApiAbuseProtectionService.enforce,
+            app_settings=SimpleNamespace(RATE_LIMIT_PER_MIN=100),
+        )
 
         monkeypatch.setattr(
             "public_api.core.services.api_abuse_protection.ApiAbuseProtectionService._utc_now",
@@ -228,18 +242,14 @@ def _seed_real_api_key(session_factory, *, daily_quota: int | None = None) -> tu
 class TestResolveAbuseProtectionIntegration:
 
     @pytest.mark.anyio
-    async def test_daily_quota_exceeded_returns_403(self, client, session_factory, monkeypatch):
-        monkeypatch.setattr("public_api.core.deps_auth.parse_hash_scheme", lambda *_a, **_k: "plain")
-        monkeypatch.setattr(
-            "public_api.core.deps_auth.verify_secret",
-            lambda presented, stored, scheme=None: True,
-        )
-        monkeypatch.setattr(
-            "public_api.core.services.api_abuse_protection.app_settings.RATE_LIMIT_PER_MIN",
-            100,
+    async def test_daily_quota_exceeded_returns_403(self, client, session_factory, monkeypatch, _patch):
+        _patch(
+            require_api_key,
+            parse_hash_scheme=lambda *_a, **_k: "plain",
+            verify_secret=lambda presented, stored, scheme=None: True,
         )
 
-        row, full_api_key = _seed_real_api_key(session_factory, daily_quota=2)
+        _, full_api_key = _seed_real_api_key(session_factory, daily_quota=2)
 
         payload = {"text": "Alpha Beta Charlie (ABC)."}
 
@@ -257,18 +267,18 @@ class TestResolveAbuseProtectionIntegration:
         assert body["reset_at"]
 
     @pytest.mark.anyio
-    async def test_rate_limit_exceeded_returns_429_with_retry_after(self, client, session_factory, monkeypatch):
-        monkeypatch.setattr("public_api.core.deps_auth.parse_hash_scheme", lambda *_a, **_k: "plain")
-        monkeypatch.setattr(
-            "public_api.core.deps_auth.verify_secret",
-            lambda presented, stored, scheme=None: True,
+    async def test_rate_limit_exceeded_returns_429_with_retry_after(self, client, session_factory, monkeypatch, _patch):
+        _patch(
+            require_api_key,
+            parse_hash_scheme=lambda *_a, **_k: "plain",
+            verify_secret=lambda presented, stored, scheme=None: True,
         )
-        monkeypatch.setattr(
-            "public_api.core.services.api_abuse_protection.app_settings.RATE_LIMIT_PER_MIN",
-            2,
+        _patch(
+            ApiAbuseProtectionService.enforce,
+            app_settings=SimpleNamespace(RATE_LIMIT_PER_MIN=2),
         )
 
-        row, full_api_key = _seed_real_api_key(session_factory, daily_quota=100)
+        _, full_api_key = _seed_real_api_key(session_factory, daily_quota=100)
 
         payload = {"text": "Alpha Beta Charlie (ABC)."}
 
@@ -290,15 +300,12 @@ class TestResolveAbuseProtectionIntegration:
         assert int(r3.headers["Retry-After"]) >= 1
 
     @pytest.mark.anyio
-    async def test_daily_quota_resets_on_new_utc_day(self, client, session_factory, monkeypatch):
-        monkeypatch.setattr("public_api.core.deps_auth.parse_hash_scheme", lambda *_a, **_k: "plain")
-        monkeypatch.setattr(
-            "public_api.core.deps_auth.verify_secret",
-            lambda presented, stored, scheme=None: True,
-        )
-        monkeypatch.setattr(
-            "public_api.core.services.api_abuse_protection.app_settings.RATE_LIMIT_PER_MIN",
-            100,
+    async def test_daily_quota_resets_on_new_utc_day(self, client, session_factory, monkeypatch, _patch):
+
+        _patch(
+            require_api_key,
+            parse_hash_scheme=lambda *_a, **_k: "plain",
+            verify_secret=lambda presented, stored, scheme=None: True,
         )
 
         monkeypatch.setattr(
@@ -307,7 +314,7 @@ class TestResolveAbuseProtectionIntegration:
             raising=False,
         )
 
-        row, full_api_key = _seed_real_api_key(session_factory, daily_quota=2)
+        _, full_api_key = _seed_real_api_key(session_factory, daily_quota=2)
 
         payload = {"text": "Alpha Beta Charlie (ABC)."}
 
