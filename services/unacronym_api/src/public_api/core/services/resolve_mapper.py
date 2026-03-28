@@ -341,11 +341,11 @@ def map_defined_term_blocks(result: TermResolutionResult) -> list[DefinedTermBlo
     blocks: list[DefinedTermBlock] = []
 
     for resolution in result.term_resolutions:
-        selected = None
+        chosen_meaning = None
         if resolution.chosen_meaning_id is not None:
             meaning = result.meaning_index.get(resolution.chosen_meaning_id)
             if meaning is not None:
-                selected = _map_term_meaning(meaning)
+                chosen_meaning = _map_term_meaning(meaning)
 
         blocks.append(
             DefinedTermBlock(
@@ -356,12 +356,11 @@ def map_defined_term_blocks(result: TermResolutionResult) -> list[DefinedTermBlo
                 chosen_definition_span=_map_span(resolution.chosen_definition_span),
                 resolution_method=resolution.resolution_method,
                 resolved=resolution.chosen_meaning_id is not None,
-                candidates=[
+                candidate_scores=[
                     _map_candidate_score(score)
                     for score in resolution.candidate_scores
                 ],
-                selected=selected,
+                chosen_meaning=chosen_meaning,
             )
         )
-
     return blocks
