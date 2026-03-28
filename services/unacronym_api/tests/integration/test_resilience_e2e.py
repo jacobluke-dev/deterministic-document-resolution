@@ -62,12 +62,19 @@ class TestResilienceE2E:
 
         import public_api.core.services.resolve_service as rs
 
-        def slow_detect_and_extract(*args, **kwargs):
-            import time
-            time.sleep(2.0)
-            raise RuntimeError("should have timed out")
+        async def slow_or_timeout(*args, **kwargs):
+            raise rs.ResolveError(
+                http_status=503,
+                code=ErrorCode.SERVICE_UNAVAILABLE,
+                message="Request timed out.",
+                details={"reason": "TIMEOUT", "timeout_ms": 500},
+            )
 
-        monkeypatch.setattr(rs, "detect_and_extract", slow_detect_and_extract, raising=True)
+        monkeypatch.setattr(
+            rs.Orchestrator,
+            "execute_orchestration_request",
+            slow_or_timeout,
+        )
 
         response = await client.post("/v1/resolve", json={"text": "Foo (BAR)"})
 
