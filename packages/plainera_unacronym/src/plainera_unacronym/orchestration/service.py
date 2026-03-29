@@ -14,11 +14,12 @@ from plainera_unacronym.orchestration.registry import PipelineRegistry
 from plainera_unacronym.orchestration.state import (
     OrchestrationPipelineError,
     OrchestrationState,
+    PipelineErrorCode,
 )
 
 
 @dataclass(frozen=True, slots=True)
-class _PipelineExecutionOutcome:
+class PipelineExecutionOutcome:
     """Captured pipeline outcome paired with its registry-order index."""
 
     index: int
@@ -29,10 +30,10 @@ class _PipelineExecutionOutcome:
 
 def _classify_pipeline_exception(exc: Exception) -> str:
     if isinstance(exc, TimeoutError):
-        return "PIPELINE_TIMEOUT"
+        return PipelineErrorCode.PIPELINE_TIMEOUT
     if isinstance(exc, ValueError):
-        return "PIPELINE_INVALID_OPTIONS"
-    return "PIPELINE_EXECUTION_FAILED"
+        return PipelineErrorCode.PIPELINE_INVALID_OPTIONS
+    return PipelineErrorCode.PIPELINE_EXECUTION_FAILED
 
 
 async def run_selected_pipelines(
@@ -60,7 +61,7 @@ async def run_selected_pipelines(
     requested_targets = tuple(runner.key for runner in runners)
     state = OrchestrationState.from_requested_targets(requested_targets)
 
-    collected: list[_PipelineExecutionOutcome] = []
+    collected: list[PipelineExecutionOutcome] = []
 
     async def _run_one(index: int) -> None:
         runner = runners[index]
@@ -76,12 +77,12 @@ async def run_selected_pipelines(
                 raise
 
             collected.append(
-                _PipelineExecutionOutcome(
+                PipelineExecutionOutcome(
                     index=index,
                     pipeline=runner.key,
                     error=OrchestrationPipelineError(
                         pipeline=runner.key,
-                        code=_classify_pipeline_exception(exc),
+                        code=PipelineErrorCode.PIPELINE_EXECUTION_FAILED,
                         message=str(exc) or "Pipeline execution failed.",
                         error_type=type(exc).__name__,
                     ),
@@ -90,7 +91,7 @@ async def run_selected_pipelines(
             return
 
         collected.append(
-            _PipelineExecutionOutcome(
+            PipelineExecutionOutcome(
                 index=index,
                 pipeline=runner.key,
                 result=result,

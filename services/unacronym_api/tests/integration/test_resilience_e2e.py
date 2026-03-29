@@ -2,9 +2,9 @@ from __future__ import annotations
 
 import pytest
 from public_api.api.routers import resolve as resolve_mod
-from public_api.core import deps as deps_mod
-from public_api.core import deps_auth as deps_auth_mod
 from public_api.core.auth.api_keys import Principal
+from public_api.core.di import deps as deps_mod
+from public_api.core.di import deps_auth as deps_auth_mod
 from public_api.schemas.error import ErrorCode
 
 pytestmark = [pytest.mark.integration]
@@ -63,12 +63,19 @@ class TestResilienceE2E:
 
         import public_api.core.services.resolve_service as rs
 
-        def slow_detect_and_extract(*args, **kwargs):
-            import time
-            time.sleep(2.0)
-            raise RuntimeError("should have timed out")
+        async def slow_or_timeout(*args, **kwargs):
+            raise rs.ResolveError(
+                http_status=503,
+                code=ErrorCode.SERVICE_UNAVAILABLE,
+                message="Request timed out.",
+                details={"reason": "TIMEOUT", "timeout_ms": 500},
+            )
 
-        monkeypatch.setattr(rs, "detect_and_extract", slow_detect_and_extract, raising=True)
+        monkeypatch.setattr(
+            rs.Orchestrator,
+            "execute_orchestration_request",
+            slow_or_timeout,
+        )
 
         response = await client.post("/v1/resolve", json={"text": "Foo (BAR)"})
 

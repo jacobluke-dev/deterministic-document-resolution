@@ -9,8 +9,9 @@ from typing import Any, Literal
 
 from argon2 import PasswordHasher
 from argon2.exceptions import VerifyMismatchError
-from public_api.core.settings import app_settings
 from sqlalchemy import text
+
+from public_api.core.settings import app_settings
 
 API_KEY_RE = re.compile(
     r"^uak_(?P<prefix>[a-z0-9]{2,10})_(?P<key_id>[A-Za-z0-9_-]{8,24})_(?P<secret>[A-Za-z0-9_-]{32,80})$"

@@ -3,9 +3,22 @@ from __future__ import annotations
 from typing import Any, Protocol
 
 from plainera_unacronym.nlp.common.types import AcronymDetectorResult, ExtractionResult
+from plainera_unacronym.nlp.extraction.defined_terms.types import (
+    TermCandidateScore,
+    TermMeaning,
+    TermResolutionResult,
+)
+from plainera_unacronym.nlp.extraction.structural.types import StructuralReferenceResolutionResult
 
 from public_api.db.repos.glossary_repo import GlossaryRepository
+from public_api.schemas.extraction_types.defined_terms import (
+    DefinedTermBlock,
+    DefinedTermCandidateBlock,
+    DefinedTermMeaningBlock,
+)
+from public_api.schemas.extraction_types.structural import StructuralReferenceBlock
 from public_api.schemas.resolve import ResolveOptions
+from public_api.schemas.shared import TextSpan
 
 
 class _SpanLike(Protocol):
@@ -177,7 +190,7 @@ def maybe_glossary_block(
     return {"matches": matches}
 
 
-def map_pipeline_to_blocks(
+def map_acronym_pipeline_to_blocks(
     *,
     det_res: AcronymDetectorResult,
     extr: ExtractionResult,
@@ -247,4 +260,153 @@ def map_pipeline_to_blocks(
 
         blocks.append(block)
 
+    return blocks
+
+
+def _map_span(span: tuple[int, int] | None) -> TextSpan | None:
+    if span is None:
+        return None
+    return TextSpan(
+        start=int(span[0]),
+        end=int(span[1]),
+    )
+
+def _map_text_span(span: tuple[str, int, int] | None) -> TextSpan | None:
+    if span is None:
+        return None
+    return TextSpan(
+        start=int(span[1]),
+        end=int(span[2]),
+    )
+
+
+def map_structural_blocks(
+    result: StructuralReferenceResolutionResult,
+) -> list[StructuralReferenceBlock]:
+    """Map structural-reference results into public response blocks.
+
+    Each structural link is converted into a ``StructuralReferenceBlock`` and
+    marked as resolved when it has a target span and is not tagged as
+    ``"unresolved"``. Output ordering is deterministic by reference span and
+    canonical key.
+
+    Args:
+        result: Structural-reference resolution result to map.
+
+    Returns:
+        Sorted public structural-reference blocks.
+    """
+    blocks = [
+        StructuralReferenceBlock(
+            kind=link.kind,
+            label=link.label,
+            canonical_label=link.canonical_label,
+            normalized_key=link.normalized_key,
+            canonical_key=link.canonical_key,
+            reference_span=_map_span(link.reference_span),
+            target_span=_map_span(link.target_span),
+            match_strategy=link.match_strategy,
+            strength=float(link.strength),
+            provenance=link.provenance,
+            resolved=link.target_span is not None and link.match_strategy != "unresolved",
+        )
+        for link in result.links
+    ]
+
+    blocks.sort(key=lambda b: (b.reference_span.start, b.reference_span.end, b.canonical_key))
+    return blocks
+
+
+def _map_term_meaning(meaning: TermMeaning) -> DefinedTermMeaningBlock:
+    """Map an internal term meaning into a public meaning block.
+
+    Args:
+        meaning: Internal defined-term meaning.
+
+    Returns:
+        Public ``DefinedTermMeaningBlock`` with spans and section path
+        normalized for API output.
+    """
+    return DefinedTermMeaningBlock(
+        meaning_id=meaning.meaning_id,
+        surface=meaning.surface,
+        normalized_key=meaning.normalized_key,
+        ordinal=int(meaning.ordinal),
+        intro_span=_map_text_span(meaning.intro_span),
+        definition_span=_map_text_span(meaning.definition_span),
+        definition_text=meaning.definition_text,
+        intro_kind=meaning.intro_kind,
+        section_path=list(meaning.section_path),
+        alias_target_span=_map_text_span(meaning.alias_target_span),
+        alias_target_text=meaning.alias_target_text,
+    )
+
+
+def _map_candidate_score(score: TermCandidateScore) -> DefinedTermCandidateBlock:
+    """Map an internal candidate score into a public candidate block.
+
+    Args:
+        score: Internal candidate score for one possible meaning.
+
+    Returns:
+        Public ``DefinedTermCandidateBlock`` with numeric score fields coerced
+        to floats and span offsets normalized for API output.
+    """
+    return DefinedTermCandidateBlock(
+        meaning_id=score.meaning_id,
+        total_score=float(score.total_score),
+        tier1_score=float(score.tier1_score),
+        tier2_score=None if score.tier2_score is None else float(score.tier2_score),
+        definition_span=_map_text_span(score.definition_span),
+        components={key: float(value) for key, value in score.components.items()},
+    )
+
+
+def map_defined_term_blocks(result: TermResolutionResult) -> list[DefinedTermBlock]:
+    """Map defined-term resolution results into public response blocks.
+
+    Each term resolution is converted into a ``DefinedTermBlock``. When a
+    chosen meaning ID is present and exists in the meaning index, the
+    corresponding meaning is embedded as ``chosen_meaning``. Output ordering is
+    deterministic by occurrence span and normalized key.
+
+    Args:
+        result: Defined-term resolution result to map.
+
+    Returns:
+        Sorted public defined-term blocks.
+    """
+    blocks: list[DefinedTermBlock] = []
+
+    for resolution in result.term_resolutions:
+        chosen_meaning = None
+        if resolution.chosen_meaning_id is not None:
+            meaning = result.meaning_index.get(resolution.chosen_meaning_id)
+            if meaning is not None:
+                chosen_meaning = _map_term_meaning(meaning)
+
+        blocks.append(
+            DefinedTermBlock(
+                occurrence_span=_map_text_span(resolution.occurrence_span),
+                term=resolution.term,
+                normalized_key=resolution.normalized_key,
+                chosen_meaning_id=resolution.chosen_meaning_id,
+                chosen_definition_span=_map_text_span(resolution.chosen_definition_span),
+                resolution_method=resolution.resolution_method,
+                resolved=resolution.chosen_meaning_id is not None,
+                candidate_scores=[
+                    _map_candidate_score(score)
+                    for score in resolution.candidate_scores
+                ],
+                chosen_meaning=chosen_meaning,
+            )
+        )
+
+    blocks.sort(
+        key=lambda b: (
+            b.occurrence_span.start,
+            b.occurrence_span.end,
+            b.normalized_key,
+        )
+    )
     return blocks

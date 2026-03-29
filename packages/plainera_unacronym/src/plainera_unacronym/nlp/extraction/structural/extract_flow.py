@@ -47,6 +47,8 @@ class StructuralReferenceResolutionFlow(
         self,
         det_cfg: StructuralReferenceDetectorConfig | None = None,
         ext_cfg: StructuralReferenceExtractionConfig | None = None,
+        trace: bool = False,
+        trace_filter: str | None = None,
     ):
         """Initialise the structural-reference extraction flow.
 
@@ -61,6 +63,8 @@ class StructuralReferenceResolutionFlow(
             state_factory=_make_term_flow_state,
             det_cfg=det_cfg or StructuralReferenceDetectorConfig(),
             ext_cfg=ext_cfg or StructuralReferenceExtractionConfig(),
+            trace_filter=trace_filter,
+            trace=trace,
         )
 
     def build_chain(self) -> Chain[StructuralFlowState]:

@@ -85,6 +85,44 @@ class TestDefinedTermDetectorResolveKnownTermFromRun:
 
         assert out is None
 
+    def test_resolve_known_term_from_run_resolves_prefix_match(self, defined_term_detector_factory):
+        detector = defined_term_detector_factory()
+        known_keys = {"services", "effective_date"}
+
+        out = detector._resolve_known_term_from_run("Services to the Customer", known_keys)
+
+        assert out == ("Services", "services")
+
+    def test_resolve_known_term_from_run_prefers_exact_match_over_trimming(self, defined_term_detector_factory):
+        detector = defined_term_detector_factory()
+        known_keys = {"services", "services_to_the_customer"}
+
+        out = detector._resolve_known_term_from_run("Services to the Customer", known_keys)
+
+        assert out == ("Services to the Customer", "services_to_the_customer")
+
+    def test_resolve_known_term_from_run_resolves_longest_prefix_match(self, defined_term_detector_factory):
+        detector = defined_term_detector_factory()
+        known_keys = {"services", "services_to_the_customer"}
+
+        out = detector._resolve_known_term_from_run(
+            "Services to the Customer and its Affiliates",
+            known_keys,
+        )
+
+        assert out == ("Services to the Customer", "services_to_the_customer")
+
+    def test_resolve_known_term_from_run_resolves_longest_suffix_match(self, defined_term_detector_factory):
+        detector = defined_term_detector_factory()
+        known_keys = {"information", "confidential_information"}
+
+        out = detector._resolve_known_term_from_run(
+            "Party's Confidential Information",
+            known_keys,
+        )
+
+        assert out == ("Confidential Information", "confidential_information")
+
 
 class TestDefinedTermDetectorIterTermIntroductions:
     def test_extracts_quoted_means_introduction(self, defined_term_detector_factory):
@@ -198,6 +236,88 @@ class TestDefinedTermDetectorIterTermIntroductions:
 
         assert [i.term for i in intros] == ["Supplier"]
         assert intros[0].normalized_key == "supplier"
+
+    def test_extracts_bare_shall_mean_with_bridge_words_when_legal_active(
+        self,
+        cfg_terms_det_factory,
+        defined_term_detector_factory,
+    ):
+        cfg = cfg_terms_det_factory(
+            unquoted_capitalised_terms_policy="legal_only",
+        )
+        detector = defined_term_detector_factory(
+            unquoted_capitalised_terms_policy="legal_only",
+        )
+        text = "Confidential Information shall mean non-public information."
+
+        intros = detector._iter_term_introductions(
+            text,
+            cfg=cfg,
+            legal_active=True,
+        )
+
+        assert [i.term for i in intros] == ["Confidential Information"]
+        assert intros[0].normalized_key == "confidential_information"
+
+    def test_extracts_bare_means_when_policy_is_always_even_if_legal_inactive(
+        self,
+        cfg_terms_det_factory,
+        defined_term_detector_factory,
+    ):
+        cfg = cfg_terms_det_factory(
+            unquoted_capitalised_terms_policy="always",
+        )
+        detector = defined_term_detector_factory(
+            unquoted_capitalised_terms_policy="always",
+        )
+        text = "Change of Control means any sale of assets."
+
+        intros = detector._iter_term_introductions(
+            text,
+            cfg=cfg,
+            legal_active=False,
+        )
+
+        assert [i.term for i in intros] == ["Change of Control"]
+        assert intros[0].normalized_key == "change_of_control"
+
+    def test_returns_introductions_in_document_order(
+        self,
+        cfg_terms_det_factory,
+        defined_term_detector_factory,
+    ):
+        cfg = cfg_terms_det_factory()
+        detector = defined_term_detector_factory()
+        text = (
+            '"Services" means the services provided under this Agreement. '
+            '"Agreement" means this contract.'
+        )
+
+        intros = detector._iter_term_introductions(
+            text,
+            cfg=cfg,
+            legal_active=False,
+        )
+
+        assert [i.term for i in intros] == ["Services", "Agreement"]
+
+    def test_introduction_term_offsets_exclude_quote_characters(
+        self,
+        cfg_terms_det_factory,
+        defined_term_detector_factory,
+    ):
+        cfg = cfg_terms_det_factory()
+        detector = defined_term_detector_factory()
+        text = '"Effective Date" means the date of signature.'
+
+        intros = detector._iter_term_introductions(
+            text,
+            cfg=cfg,
+            legal_active=False,
+        )
+
+        intro = intros[0]
+        assert text[intro.start_offset:intro.end_offset] == "Effective Date"
 
 
 class TestDefinedTermDetectorIterOccurrences:

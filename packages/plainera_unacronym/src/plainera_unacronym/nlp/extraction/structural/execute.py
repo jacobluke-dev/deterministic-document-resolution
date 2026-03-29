@@ -15,7 +15,9 @@ def detect_and_resolve_structural_references(
     det_cfg: StructuralReferenceDetectorConfig | None = None,
     ext_cfg: StructuralReferenceExtractionConfig | None = None,
     return_reports: bool = False,
+    trace: bool = False,
     return_state: bool = False,
+    trace_filter=None,
 ):
     """Run the full structural-reference detection + resolution pipeline.
 
@@ -48,6 +50,8 @@ def detect_and_resolve_structural_references(
     flow = StructuralReferenceResolutionFlow(
         det_cfg=det_cfg,
         ext_cfg=ext_cfg,
+        trace=trace,
+        trace_filter=trace_filter,
     )
     state = StructuralFlowState(
         text=text,
@@ -59,5 +63,5 @@ def detect_and_resolve_structural_references(
         state=state,
         return_reports=return_reports,
         return_state=return_state,
-        trace=False,
+        trace=trace,
     )
