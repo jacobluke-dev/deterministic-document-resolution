@@ -11,6 +11,244 @@
         "title": "CandidateProvenance",
         "type": "string"
       },
+      "DefinedTermBlock": {
+        "properties": {
+          "candidate_scores": {
+            "description": "Ranked candidate meanings considered for this occurrence.",
+            "items": {
+              "$ref": "#/components/schemas/DefinedTermCandidate"
+            },
+            "title": "Candidate Scores",
+            "type": "array"
+          },
+          "chosen_definition_span": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/TextSpan"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Definition span associated with the selected meaning when available."
+          },
+          "chosen_meaning": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/DefinedTermMeaningRef"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Resolved meaning record when available."
+          },
+          "chosen_meaning_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Selected meaning identifier, or null when unresolved.",
+            "title": "Chosen Meaning Id"
+          },
+          "normalized_key": {
+            "description": "Canonical normalized key for the occurrence.",
+            "title": "Normalized Key",
+            "type": "string"
+          },
+          "occurrence_span": {
+            "$ref": "#/components/schemas/TextSpan",
+            "description": "Span of the later defined-term occurrence."
+          },
+          "resolution_method": {
+            "description": "Resolution path used for the final decision.",
+            "enum": [
+              "tier1",
+              "tier2_blend",
+              "unresolved"
+            ],
+            "title": "Resolution Method",
+            "type": "string"
+          },
+          "resolved": {
+            "description": "True when a meaning was selected.",
+            "title": "Resolved",
+            "type": "boolean"
+          },
+          "term": {
+            "description": "Surface text of the occurrence.",
+            "title": "Term",
+            "type": "string"
+          }
+        },
+        "required": [
+          "occurrence_span",
+          "term",
+          "normalized_key",
+          "resolution_method",
+          "resolved"
+        ],
+        "title": "DefinedTermBlock",
+        "type": "object"
+      },
+      "DefinedTermCandidate": {
+        "properties": {
+          "components": {
+            "additionalProperties": {
+              "type": "number"
+            },
+            "description": "Named score components contributing to the total score.",
+            "title": "Components",
+            "type": "object"
+          },
+          "definition_span": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/TextSpan"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Definition span associated with the candidate meaning when available."
+          },
+          "meaning_id": {
+            "description": "Candidate meaning identifier.",
+            "title": "Meaning Id",
+            "type": "string"
+          },
+          "tier1_score": {
+            "description": "Tier 1 heuristic score.",
+            "title": "Tier1 Score",
+            "type": "number"
+          },
+          "tier2_score": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Tier 2 semantic score when available.",
+            "title": "Tier2 Score"
+          },
+          "total_score": {
+            "description": "Final deterministic candidate score.",
+            "title": "Total Score",
+            "type": "number"
+          }
+        },
+        "required": [
+          "meaning_id",
+          "total_score",
+          "tier1_score"
+        ],
+        "title": "DefinedTermCandidate",
+        "type": "object"
+      },
+      "DefinedTermMeaningRef": {
+        "properties": {
+          "alias_target_span": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/TextSpan"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Antecedent span for parenthetical alias introductions when present."
+          },
+          "alias_target_text": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Antecedent text for parenthetical alias introductions when present.",
+            "title": "Alias Target Text"
+          },
+          "definition_span": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/TextSpan"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Span of the trailing definition text when present."
+          },
+          "definition_text": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Extracted trailing definition text when present.",
+            "title": "Definition Text"
+          },
+          "intro_kind": {
+            "description": "Introduction form used for the meaning.",
+            "title": "Intro Kind",
+            "type": "string"
+          },
+          "intro_span": {
+            "$ref": "#/components/schemas/TextSpan",
+            "description": "Span of the introduced term."
+          },
+          "meaning_id": {
+            "description": "Stable deterministic meaning identifier.",
+            "title": "Meaning Id",
+            "type": "string"
+          },
+          "normalized_key": {
+            "description": "Canonical normalized term key.",
+            "title": "Normalized Key",
+            "type": "string"
+          },
+          "ordinal": {
+            "description": "Per-key document-order ordinal.",
+            "title": "Ordinal",
+            "type": "integer"
+          },
+          "section_path": {
+            "description": "Structural path locating the introduction.",
+            "items": {
+              "type": "string"
+            },
+            "title": "Section Path",
+            "type": "array"
+          },
+          "surface": {
+            "description": "Original introduced term text.",
+            "title": "Surface",
+            "type": "string"
+          }
+        },
+        "required": [
+          "meaning_id",
+          "surface",
+          "normalized_key",
+          "ordinal",
+          "intro_span",
+          "intro_kind"
+        ],
+        "title": "DefinedTermMeaningRef",
+        "type": "object"
+      },
       "Definition": {
         "properties": {
           "confidence": {
@@ -236,8 +474,7 @@
       "PipelineError": {
         "properties": {
           "code": {
-            "title": "Code",
-            "type": "string"
+            "$ref": "#/components/schemas/PipelineErrorCode"
           },
           "message": {
             "title": "Message",
@@ -255,6 +492,15 @@
         ],
         "title": "PipelineError",
         "type": "object"
+      },
+      "PipelineErrorCode": {
+        "enum": [
+          "PIPELINE_TIMEOUT",
+          "PIPELINE_EXECUTION_FAILED",
+          "PIPELINE_INVALID_OPTIONS"
+        ],
+        "title": "PipelineErrorCode",
+        "type": "string"
       },
       "ResolutionMode": {
         "description": "Deterministic resolution policy for selecting a final acronym meaning.\n\nSTRICT:\n    Select only when the resolver can do so conservatively. Avoid permissive\n    fallback behaviour and prefer leaving the acronym unresolved when\n    multiple glossary candidates remain.\n\nDOMAIN_PRIORITY:\n    Use the standard deterministic policy. Prefer the strongest available\n    candidate according to the resolver's normal ordering and fallback\n    rules. This is the default balanced mode.\n\nFALLBACK_GENERAL:\n    Prefer returning a usable result whenever possible. If no stronger\n    candidate is available, prefer a general-domain meaning before falling\n    back to the first deterministically ordered candidate.",
@@ -530,6 +776,58 @@
                 }
               }
             ],
+            "defined_terms": [
+              {
+                "candidate_scores": [
+                  {
+                    "components": {
+                      "recency": 0.5,
+                      "section_proximity": 0.5
+                    },
+                    "definition_span": {
+                      "end": 96,
+                      "start": 40
+                    },
+                    "meaning_id": "term|services|1",
+                    "tier1_score": 1.0,
+                    "total_score": 1.0
+                  }
+                ],
+                "chosen_definition_span": {
+                  "end": 96,
+                  "start": 40
+                },
+                "chosen_meaning": {
+                  "definition_span": {
+                    "end": 96,
+                    "start": 40
+                  },
+                  "definition_text": "the support and maintenance services described in Schedule 1",
+                  "intro_kind": "quoted_means",
+                  "intro_span": {
+                    "end": 28,
+                    "start": 20
+                  },
+                  "meaning_id": "term|services|1",
+                  "normalized_key": "services",
+                  "ordinal": 1,
+                  "section_path": [
+                    "1",
+                    "Definitions"
+                  ],
+                  "surface": "Services"
+                },
+                "chosen_meaning_id": "term|services|1",
+                "normalized_key": "services",
+                "occurrence_span": {
+                  "end": 128,
+                  "start": 120
+                },
+                "resolution_method": "tier1",
+                "resolved": true,
+                "term": "Services"
+              }
+            ],
             "errors": [
               {
                 "code": "PIPELINE_EXECUTION_FAILED",
@@ -538,7 +836,7 @@
               }
             ],
             "meta": {
-              "input_chars": 68,
+              "input_chars": 680,
               "model_version": "plainera-core@1.0.0",
               "processing_ms": 12,
               "resolution_mode": "domain_priority"
@@ -556,7 +854,28 @@
                 "defined_terms",
                 "structural_references"
               ]
-            }
+            },
+            "structural_references": [
+              {
+                "canonical_key": "section|4.2",
+                "canonical_label": "4.2",
+                "kind": "Section",
+                "label": "4.2",
+                "match_strategy": "forward",
+                "normalized_key": "section:4.2",
+                "provenance": "document",
+                "reference_span": {
+                  "end": 221,
+                  "start": 210
+                },
+                "resolved": true,
+                "strength": 1.0,
+                "target_span": {
+                  "end": 438,
+                  "start": 420
+                }
+              }
+            ]
           }
         ],
         "properties": {
@@ -565,6 +884,13 @@
               "$ref": "#/components/schemas/ResolvedAcronymBlock"
             },
             "title": "Acronyms",
+            "type": "array"
+          },
+          "defined_terms": {
+            "items": {
+              "$ref": "#/components/schemas/DefinedTermBlock"
+            },
+            "title": "Defined Terms",
             "type": "array"
           },
           "errors": {
@@ -579,6 +905,13 @@
           },
           "orchestration": {
             "$ref": "#/components/schemas/OrchestrationMeta"
+          },
+          "structural_references": {
+            "items": {
+              "$ref": "#/components/schemas/StructuralReferenceBlock"
+            },
+            "title": "Structural References",
+            "type": "array"
           }
         },
         "required": [
@@ -769,6 +1102,111 @@
         ],
         "title": "Span",
         "type": "object"
+      },
+      "StructuralReferenceBlock": {
+        "properties": {
+          "canonical_key": {
+            "description": "Canonical lookup key used for linking.",
+            "title": "Canonical Key",
+            "type": "string"
+          },
+          "canonical_label": {
+            "description": "Canonicalized label used for deterministic matching.",
+            "title": "Canonical Label",
+            "type": "string"
+          },
+          "kind": {
+            "description": "Structural reference kind, for example Section or Schedule.",
+            "title": "Kind",
+            "type": "string"
+          },
+          "label": {
+            "description": "Source-close detected label text.",
+            "title": "Label",
+            "type": "string"
+          },
+          "match_strategy": {
+            "description": "Deterministic positional strategy used to resolve the link.",
+            "enum": [
+              "forward",
+              "backward",
+              "overlap",
+              "unresolved"
+            ],
+            "title": "Match Strategy",
+            "type": "string"
+          },
+          "normalized_key": {
+            "description": "Normalized structural key.",
+            "title": "Normalized Key",
+            "type": "string"
+          },
+          "provenance": {
+            "description": "Provenance tag for the structural reference.",
+            "title": "Provenance",
+            "type": "string"
+          },
+          "reference_span": {
+            "$ref": "#/components/schemas/TextSpan",
+            "description": "Occurrence span of the structural reference."
+          },
+          "resolved": {
+            "description": "True when the occurrence resolved to a target span.",
+            "title": "Resolved",
+            "type": "boolean"
+          },
+          "strength": {
+            "description": "Deterministic link-strength score. Ordinal heuristic, not calibrated confidence.",
+            "minimum": 0.0,
+            "title": "Strength",
+            "type": "number"
+          },
+          "target_span": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/TextSpan"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Resolved target heading span, or null if unresolved."
+          }
+        },
+        "required": [
+          "kind",
+          "label",
+          "canonical_label",
+          "normalized_key",
+          "canonical_key",
+          "reference_span",
+          "match_strategy",
+          "strength",
+          "provenance",
+          "resolved"
+        ],
+        "title": "StructuralReferenceBlock",
+        "type": "object"
+      },
+      "TextSpan": {
+        "properties": {
+          "end": {
+            "description": "Exclusive end character offset.",
+            "title": "End",
+            "type": "integer"
+          },
+          "start": {
+            "description": "Inclusive start character offset.",
+            "title": "Start",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "start",
+          "end"
+        ],
+        "title": "TextSpan",
+        "type": "object"
       }
     }
   },
@@ -780,8 +1218,8 @@
   "paths": {
     "/v1/resolve": {
       "post": {
-        "description": "Detect acronyms, propose definitions, and (optionally) enrich from a curated glossary. Offsets use Python-slice semantics (end exclusive). Supported locales: en-GB, en-US. Idempotent: does not mutate server state. Content-Encoding: gzip supported.",
-        "operationId": "resolve_acronyms_v1_resolve_post",
+        "description": "Resolve acronyms, defined terms, and structural references from raw document text. The response may include occurrence-level results, deterministic resolution metadata, and structured partial-success reporting by pipeline. Offsets use Python-slice semantics (end exclusive). Supported locales: en-GB, en-US. Idempotent: does not mutate server state. Content-Encoding: gzip supported.",
+        "operationId": "resolve_document_v1_resolve_post",
         "parameters": [
           {
             "in": "header",
@@ -930,7 +1368,7 @@
             "description": "Service Unavailable"
           }
         },
-        "summary": "Resolve acronyms in raw text",
+        "summary": "Resolve acronyms, defined terms, and structural references in raw text",
         "tags": [
           "Resolve"
         ]

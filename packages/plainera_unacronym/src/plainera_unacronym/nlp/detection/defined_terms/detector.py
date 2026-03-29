@@ -98,10 +98,13 @@ class DefinedTermDetector(BaseDetector[DefinedTermDetectorResult]):
     def _resolve_known_term_from_run(raw_term: str, known_keys: set[str]) -> tuple[str, str] | None:
         """Resolve a capitalised text run to a known defined term.
 
-        The method first tries an exact normalised match. If that fails, it attempts
-        right-trimmed suffix matching so that broader capitalised runs can resolve to a
-        known defined term, for example ``"Party's Confidential Information"`` to
-        ``"Confidential Information"``.
+        The method first tries an exact normalised match. If that fails, it attempts to
+        recover a known term from either edge of a broader capitalised run:
+
+        * right-trimmed suffix matching, for example
+          ``"Party's Confidential Information"`` to ``"Confidential Information"``
+        * left-trimmed prefix matching, for example
+          ``"Services to the Customer"`` to ``"Services"``
 
         Args:
             raw_term: Raw matched text from a capitalised occurrence pattern.
@@ -125,6 +128,14 @@ class DefinedTermDetector(BaseDetector[DefinedTermDetectorResult]):
         # "Party's Confidential Information" -> "Confidential Information"
         for i in range(1, len(parts)):
             candidate = " ".join(parts[i:])
+            key = normalize_defined_term_key(candidate)
+            if key in known_keys:
+                return candidate, key
+
+        # Try left-trimmed prefixes so a broader capitalised run can resolve to a known
+        # term at the start, e.g. "Services to the Customer" -> "Services".
+        for i in range(len(parts) - 1, 0, -1):
+            candidate = " ".join(parts[:i])
             key = normalize_defined_term_key(candidate)
             if key in known_keys:
                 return candidate, key
@@ -299,9 +310,9 @@ class DefinedTermDetector(BaseDetector[DefinedTermDetectorResult]):
         This pass is only active when unquoted-capitalised reference handling is
         enabled by configuration and, when required, the legal domain is active.
         Broader capitalised runs are resolved back to known term keys using suffix
-        matching, for example resolving ``"Party's Confidential Information"`` to
-        ``"Confidential Information"``.
-
+        or prefix matching, for example resolving
+        ``"Party's Confidential Information"`` to ``"Confidential Information"``
+        or ``"Services to the Customer"`` to ``"Services"``.
         Args:
             text: Full source text to scan.
             known_keys: Set of known normalised defined-term keys introduced earlier in
@@ -310,8 +321,7 @@ class DefinedTermDetector(BaseDetector[DefinedTermDetectorResult]):
                 re-emitting introduction text as later references.
             first_intro_end_by_key: Mapping from normalised key to the end offset of
                 its earliest introduction term span.
-            cfg: Active detector configuration controlling unquoted reference
-                behaviour.
+            cfg: Active detector configuration controlling unquoted reference behaviour.
             legal_active: Whether the legal domain is currently enabled for this run.
             seen: Set of already-emitted spans used for deduplication across quoted
                 and unquoted reference passes.
@@ -342,11 +352,11 @@ class DefinedTermDetector(BaseDetector[DefinedTermDetectorResult]):
 
             resolved_term, resolved_key = resolved
 
-            suffix_start = raw_term.rfind(resolved_term)
-            if suffix_start == -1:
+            resolved_rel_start = raw_term.find(resolved_term)
+            if resolved_rel_start == -1:
                 continue
 
-            resolved_start = start_offset + suffix_start
+            resolved_start = start_offset + resolved_rel_start
             resolved_end = resolved_start + len(resolved_term)
 
             first_intro_end = first_intro_end_by_key.get(resolved_key)
@@ -363,7 +373,6 @@ class DefinedTermDetector(BaseDetector[DefinedTermDetectorResult]):
                 start_offset=resolved_start,
                 end_offset=resolved_end,
             )
-
         return occurrences
 
     def _iter_references(

@@ -70,6 +70,6 @@ class TestDefinedTermUnquotedPolicy:
 
         mention_keys = _mention_keys(det_res)
 
-        assert "project" not in mention_keys
+        assert ["project"] not in mention_keys
         assert "team" not in mention_keys
         assert "company" not in mention_keys

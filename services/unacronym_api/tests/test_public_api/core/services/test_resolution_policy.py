@@ -1,13 +1,13 @@
 from types import SimpleNamespace
 
 import pytest
-from public_api.core.services import ResolveService
 from public_api.core.services.resolution_policy import attach_resolution_metadata
 from public_api.core.services.resolve_mapper import (
     build_definitions_by_acronym,
-    map_pipeline_to_blocks,
+    map_acronym_pipeline_to_blocks,
     maybe_glossary_block,
 )
+from public_api.core.services.resolve_service import ResolveService
 from public_api.schemas.resolve import ResolutionMode, ResolveOptions
 
 from tests.test_public_api.core.services.conftest import DummyGlossaryRepo
@@ -44,7 +44,7 @@ class TestMapPipelineToBlocks:
         extr = SimpleNamespace(picks={}, definitions=[])
         glossary_repo = DummyGlossaryRepo(meanings_by_acronym={})
 
-        out = map_pipeline_to_blocks(
+        out = map_acronym_pipeline_to_blocks(
             det_res=det_res,
             extr=extr,
             opts=opts_factory(),
@@ -65,7 +65,7 @@ class TestMapPipelineToBlocks:
         extr = SimpleNamespace(picks={}, definitions=[])
         glossary_repo = DummyGlossaryRepo(meanings_by_acronym={})
 
-        out = map_pipeline_to_blocks(
+        out = map_acronym_pipeline_to_blocks(
             det_res=det_res,
             extr=extr,
             opts=opts_factory(return_occurrences=False),
@@ -102,7 +102,7 @@ class TestMapPipelineToBlocks:
         extr = SimpleNamespace(picks={}, definitions=[])
         glossary_repo = DummyGlossaryRepo(meanings_by_acronym={})
 
-        out = map_pipeline_to_blocks(
+        out = map_acronym_pipeline_to_blocks(
             det_res=det_res,
             extr=extr,
             opts=opts_factory(return_occurrences=True),
@@ -141,7 +141,7 @@ class TestMapPipelineToBlocks:
         )
         glossary_repo = DummyGlossaryRepo(meanings_by_acronym={})
 
-        out = map_pipeline_to_blocks(
+        out = map_acronym_pipeline_to_blocks(
             det_res=det_res,
             extr=extr,
             opts=opts_factory(),
@@ -169,7 +169,7 @@ class TestMapPipelineToBlocks:
         extr = SimpleNamespace(picks={}, definitions=[])
         glossary_repo = DummyGlossaryRepo(meanings_by_acronym={})
 
-        out = map_pipeline_to_blocks(
+        out = map_acronym_pipeline_to_blocks(
             det_res=det_res,
             extr=extr,
             opts=opts_factory(return_occurrences=False),
@@ -200,7 +200,7 @@ class TestMapPipelineToBlocks:
             }
         )
 
-        out = map_pipeline_to_blocks(
+        out = map_acronym_pipeline_to_blocks(
             det_res=det_res,
             extr=extr,
             opts=opts_factory(include_glossary_enrichment=True),
@@ -236,7 +236,7 @@ class TestMapPipelineToBlocks:
         extr = SimpleNamespace(picks={}, definitions=[])
         glossary_repo = DummyGlossaryRepo(meanings_by_acronym={"ABC": []})
 
-        out = map_pipeline_to_blocks(
+        out = map_acronym_pipeline_to_blocks(
             det_res=det_res,
             extr=extr,
             opts=opts_factory(include_glossary_enrichment=True),
@@ -271,7 +271,7 @@ class TestMapPipelineToBlocks:
         )
         glossary_repo = DummyGlossaryRepo(meanings_by_acronym={})
 
-        out = map_pipeline_to_blocks(
+        out = map_acronym_pipeline_to_blocks(
             det_res=det_res,
             extr=extr,
             opts=opts_factory(),

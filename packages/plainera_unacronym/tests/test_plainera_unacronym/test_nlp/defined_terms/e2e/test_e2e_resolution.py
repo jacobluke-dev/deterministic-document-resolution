@@ -3,6 +3,7 @@ from __future__ import annotations
 import types
 
 from plainera_unacronym.nlp.common.types import DefinedTermDetectorConfig
+from plainera_unacronym.nlp.detection.defined_terms import DefinedTermDetector
 from plainera_unacronym.nlp.extraction.base.base_execute import run_flow_with_options
 from plainera_unacronym.nlp.extraction.defined_terms.execute import detect_and_resolve_terms
 from plainera_unacronym.nlp.extraction.defined_terms.extract_flow import DefinedTermResolutionFlow
@@ -225,7 +226,7 @@ class TestDefinedTermResolutionE2E:
         assert service_resolutions[0].chosen_meaning_id is None
         assert service_resolutions[0] in extr.undecided
 
-    # TODO AS PART OF TICKET 96
+    # TODO AS PART OF TICKET 97
     # def test_prefer_prior_definition_when_context_is_otherwise_equal(self, _patch):
     #     from plainera_unacronym.nlp.extraction.defined_terms import stage_funcs
     #
@@ -473,3 +474,30 @@ class TestDefinedTermResolutionE2E:
         )
 
         assert flow.trace_events == trace_events
+
+    def test_detect_and_resolve_terms_emits_later_defined_term_mentions(self):
+        text = (
+            'This Agreement is made between the Supplier and the Customer. '
+            '"Services" means the consulting services described in Schedule 1. '
+            'The Supplier shall provide the Services to the Customer.'
+        )
+
+        det, ext, _ = detect_and_resolve_terms(text, return_reports=True)
+
+        assert det.introductions != []
+        assert det.mentions != []
+        assert ext.term_resolutions != []
+
+def test_detector_emits_later_mention_for_defined_term():
+    text = (
+        'This Agreement is made between the Supplier and the Customer. '
+        '"Services" means the consulting services described in Schedule 1. '
+        'The Supplier shall provide the Services to the Customer.'
+    )
+
+    result = DefinedTermDetector(DefinedTermDetectorConfig()).detect(text)
+
+    assert len(result.introductions) == 1
+    assert len(result.mentions) == 1
+    assert result.mentions[0].normalized_key == "services"
+    assert result.mentions[0].start_offset > result.introductions[0].end_offset

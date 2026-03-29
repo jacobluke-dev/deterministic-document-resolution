@@ -8,9 +8,10 @@ from observability.logger.message_logger import warning
 from starlette.responses import JSONResponse
 
 from public_api.api.response_types import build_responses
-from public_api.core.deps import get_resolve_service
-from public_api.core.deps_auth import require_api_key
-from public_api.core.services.resolve_service import ResolveError, ResolveService
+from public_api.core.di.deps import get_resolve_service
+from public_api.core.di.deps_auth import require_api_key
+from public_api.core.errors import ResolveError
+from public_api.core.services.resolve_service import ResolveService
 from public_api.core.settings import app_settings
 from public_api.schemas.error import ErrorBody, ErrorResponse
 from public_api.schemas.resolve import ResolveRequest, ResolveResponse
@@ -33,14 +34,16 @@ def _error_json(err: ResolveError) -> JSONResponse:
     "/resolve",
     response_model=ResolveResponse,
     responses=build_responses(success_status=200),
-    summary="Resolve acronyms in raw text",
+    summary="Resolve acronyms, defined terms, and structural references in raw text",
     description=(
-        "Detect acronyms, propose definitions, and (optionally) enrich from a curated glossary. "
+        "Resolve acronyms, defined terms, and structural references from raw document text. "
+        "The response may include occurrence-level results, deterministic resolution metadata, "
+        "and structured partial-success reporting by pipeline. "
         "Offsets use Python-slice semantics (end exclusive). Supported locales: en-GB, en-US. "
         "Idempotent: does not mutate server state. Content-Encoding: gzip supported."
     ),
 )
-async def resolve_acronyms(
+async def resolve_document(
     payload: ResolveRequest,
     response: Response,
     svc: Annotated[ResolveService, Depends(get_resolve_service)],

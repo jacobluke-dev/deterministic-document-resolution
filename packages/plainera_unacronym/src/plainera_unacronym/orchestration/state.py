@@ -2,9 +2,16 @@ from __future__ import annotations
 
 from collections.abc import Mapping
 from dataclasses import dataclass, field
+from enum import StrEnum
 from time import perf_counter
 
 from .interface import PipelineKey, PipelineRunResult
+
+
+class PipelineErrorCode(StrEnum):
+    PIPELINE_TIMEOUT = "PIPELINE_TIMEOUT"
+    PIPELINE_EXECUTION_FAILED = "PIPELINE_EXECUTION_FAILED"
+    PIPELINE_INVALID_OPTIONS = "PIPELINE_INVALID_OPTIONS"
 
 
 @dataclass(frozen=True, slots=True)
@@ -20,7 +27,7 @@ class OrchestrationPipelineError:
     """
 
     pipeline: PipelineKey
-    code: str
+    code: PipelineErrorCode
     message: str
     error_type: str
     details: Mapping[str, object] = field(default_factory=dict)

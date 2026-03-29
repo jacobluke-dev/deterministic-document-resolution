@@ -13,16 +13,11 @@ and why.
 """
 from __future__ import annotations
 
-import asyncio
 import time
-from dataclasses import dataclass
 from importlib import metadata
 from typing import Any
 
-import anyio
 from fastapi import status
-from plainera_unacronym.nlp.common.types import AcronymDetectorResult, ExtractionResult
-from plainera_unacronym.nlp.extraction.acronyms.execute import detect_and_extract
 from plainera_unacronym.orchestration import (
     PIPELINE_ACRONYMS,
     PIPELINE_DEFINED_TERMS,
@@ -30,15 +25,12 @@ from plainera_unacronym.orchestration import (
     PipelineKey,
     PipelineRegistry,
 )
-from plainera_unacronym.orchestration.service import run_selected_pipelines
 from plainera_unacronym.orchestration.state import OrchestrationState
 
-from public_api.core.auth.chunking import make_chunks, merge_blocks, shift_blocks
-from public_api.core.services.orchestration_mapper import map_orchestration_state
-from public_api.core.services.orchestration_request_builder import build_orchestration_request
-from public_api.core.services.resolution_policy import attach_resolution_metadata
-from public_api.core.services.resolve_mapper import map_pipeline_to_blocks
-from public_api.core.settings import app_settings
+from public_api.core.errors import ResolveError
+from public_api.core.orchestration import Orchestrator
+from public_api.core.orchestration.mapper import compose_sections, map_orchestration_state
+from public_api.core.orchestration.request_builder import build_orchestration_request
 from public_api.db.repos import GlossaryRepository
 from public_api.schemas.error import ErrorCode
 from public_api.schemas.resolve import ResolutionMode, ResolveOptions, ResolveRequest, ResolveResponse
@@ -93,22 +85,6 @@ def _plainera_core_version() -> str:
         except Exception:
             continue
     return "plainera-core@dev"
-
-
-@dataclass(frozen=True)
-class ResolveError(Exception):
-    """Structured domain exception for resolve endpoint failures.
-
-    Attributes:
-      http_status: HTTP status code to return to the caller.
-      code: Stable public error code.
-      message: Human-readable error message.
-      details: Optional structured details for diagnostics and client handling.
-    """
-    http_status: int
-    code: ErrorCode
-    message: str
-    details: dict[str, Any] | None = None
 
 
 class ResolveService:
@@ -172,22 +148,32 @@ class ResolveService:
                 details={"reason": "OVERLOADED"},
             )
 
-    @staticmethod
     def _build_response(
+        self,
+        *,
         text: str,
-        blocks: list[dict[str, Any]],
         started: float,
-        resolution_mode: str,
+        resolution_mode: ResolutionMode,
         state: OrchestrationState,
+        opts: ResolveOptions,
+        lang: str,
     ) -> ResolveResponse:
         """Construct the final public response with timing and input metadata."""
         processing_ms = int((time.perf_counter() - started) * 1000)
 
         orchestration_meta, errors = map_orchestration_state(state)
 
+        sections = compose_sections(
+            state,
+            opts=opts,
+            lang=lang,
+            resolution_mode=resolution_mode,
+            glossary_repo=self._glossary_repo,
+        )
+
         return ResolveResponse.model_validate(
             {
-                "acronyms": blocks,
+                **sections,
                 "meta": {
                     "processing_ms": processing_ms,
                     "model_version": _plainera_core_version(),
@@ -199,64 +185,6 @@ class ResolveService:
             }
         )
 
-    async def _run_pipeline(self, text: str, opts: ResolveOptions) -> tuple[AcronymDetectorResult, ExtractionResult]:
-        """Execute the acronym detection and extraction pipeline with a timeout."""
-        return await asyncio.wait_for(
-            anyio.to_thread.run_sync(
-                lambda: detect_and_extract(
-                    text,
-                    det_cfg=None,
-                    ext_cfg=None,
-                    tier2_model=self._tier2_model,
-                    window_left=int(opts.window_chars),
-                    window_right=int(opts.window_chars),
-                    return_reports=False,
-                    trace=False,
-                    return_state=False,
-                )
-            ),
-            timeout=self._timeout_s,
-        )
-
-    async def _run_single_pass(
-        self,
-        *,
-        text: str,
-        opts: ResolveOptions,
-        lang: str,
-        resolution_mode: ResolutionMode,
-    ) -> list[dict[str, Any]]:
-        """Run the pipeline once and return mapped blocks with resolution metadata."""
-        try:
-            det_res, extr = await self._run_pipeline(text, opts)
-        except asyncio.TimeoutError as exc:
-            raise ResolveError(
-                http_status=status.HTTP_503_SERVICE_UNAVAILABLE,
-                code=ErrorCode.SERVICE_UNAVAILABLE,
-                message="Resolution timed out.",
-                details={"timeout_ms": int(self._timeout_s * 1000)},
-            ) from exc
-        except Exception as exc:
-            raise ResolveError(
-                http_status=status.HTTP_503_SERVICE_UNAVAILABLE,
-                code=ErrorCode.SERVICE_UNAVAILABLE,
-                message="Resolution failed.",
-                details={"reason": str(exc)},
-            ) from exc
-
-        blocks = map_pipeline_to_blocks(
-            det_res=det_res,
-            extr=extr,
-            opts=opts,
-            lang=lang,
-            glossary_repo=self._glossary_repo,
-        )
-        return attach_resolution_metadata(
-            blocks=blocks,
-            opts=opts,
-            resolution_mode=resolution_mode,
-            glossary_repo=self._glossary_repo,
-        )
 
     @staticmethod
     def _normalise_targets(payload: ResolveRequest) -> tuple[PipelineKey, ...]:
@@ -282,85 +210,37 @@ class ResolveService:
         return tuple(dict.fromkeys(target.value for target in payload.targets))
 
     async def resolve(self, payload: ResolveRequest) -> ResolveResponse:
-        """Resolve acronyms in input text using the Unacronym pipeline and API mapping layer."""
+        """Resolve requested pipeline targets and compose the public API response."""
         started = time.perf_counter()
+        self._raise_if_overloaded()
 
         opts, lang = self._validate_and_prepare(payload)
         targets = self._normalise_targets(payload)
+
         orchestration_request = build_orchestration_request(
             payload,
             targets=targets,
             tier2_model=self._tier2_model,
         )
-        state = await run_selected_pipelines(self._pipeline_registry, orchestration_request)
-        self._raise_if_overloaded()
-        text = payload.text
 
-        if (not app_settings.CHUNKING_ENABLED) or (len(text) <= app_settings.CHUNK_THRESHOLD_CHARS):
-            blocks = await self._run_single_pass(
-                text=text,
-                opts=opts,
-                lang=lang,
-                resolution_mode=payload.resolution_mode,
-            )
-            return self._build_response(
-                text,
-                blocks,
-                started,
-                payload.resolution_mode,
-                state
-            )
-
-        chunks = make_chunks(
-            text,
-            chunk_size=int(app_settings.CHUNK_SIZE_CHARS),
-            overlap=int(app_settings.CHUNK_OVERLAP_CHARS),
-        )
-
-        all_blocks: list[list[dict[str, Any]]] = []
-
-        for chunk in chunks:
-            try:
-                det_res, extr = await self._run_pipeline(chunk.text, opts)
-            except asyncio.TimeoutError as exc:
-                raise ResolveError(
-                    http_status=status.HTTP_503_SERVICE_UNAVAILABLE,
-                    code=ErrorCode.SERVICE_UNAVAILABLE,
-                    message="Resolution timed out.",
-                    details={"timeout_ms": int(self._timeout_s * 1000),
-                             "chunk": {
-                                 "start": chunk.start,
-                                 "end": chunk.end}
-                             },
-                ) from exc
-            except Exception as exc:
-                raise ResolveError(
-                    http_status=status.HTTP_503_SERVICE_UNAVAILABLE,
-                    code=ErrorCode.SERVICE_UNAVAILABLE,
-                    message="Resolution failed.",
-                    details={"reason": str(exc), "chunk": {"start": chunk.start, "end": chunk.end}},
-                ) from exc
-
-            blocks = map_pipeline_to_blocks(
-                det_res=det_res,
-                extr=extr,
-                opts=opts,
-                lang=lang,
-                glossary_repo=self._glossary_repo,
-            )
-            all_blocks.append(shift_blocks(blocks, chunk.start))
-
-        merged = merge_blocks(all_blocks)
-        merged = attach_resolution_metadata(
-            blocks=merged,
-            opts=opts,
-            resolution_mode=payload.resolution_mode,
+        orchestrator = Orchestrator(
+            pipeline_registry=self._pipeline_registry,
             glossary_repo=self._glossary_repo,
+            request_timeout_ms=int(self._timeout_s * 1000),
+            tier2_model=self._tier2_model,
         )
+        state = await orchestrator.execute_orchestration_request(
+            request=orchestration_request,
+            opts=opts,
+            lang=lang,
+            resolution_mode=payload.resolution_mode,
+        )
+
         return self._build_response(
-            text,
-            merged,
-            started,
-            payload.resolution_mode,
-            state
+            text=payload.text,
+            started=started,
+            resolution_mode=payload.resolution_mode,
+            state=state,
+            opts=opts,
+            lang=lang,
         )
