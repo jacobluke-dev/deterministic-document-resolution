@@ -24,13 +24,25 @@ from public_api.schemas.resolve import ResolveOptions, ResolutionMode
 
 @dataclass(frozen=True, slots=True)
 class Chunk:
+    """Character-based chunk produced for chunked pipeline execution.
+
+    Attributes:
+        start: Inclusive start offset in the source text.
+        end: Exclusive end offset in the source text.
+        text: Exact substring covering ``text[start:end]``.
+    """
     start: int
     end: int
     text: str
 
 
 class BasePipelineExecutor(ABC):
-    """Shared execution mechanics for orchestration pipeline executors."""
+    """Shared execution mechanics for orchestration pipeline executors.
+
+    This base class centralizes option lookup, chunking decisions, direct runner
+    dispatch, timeout handling, and standard chunk-level error construction.
+    Concrete executors implement only pipeline-specific chunked execution.
+    """
 
     key: PipelineKey
 
@@ -40,40 +52,42 @@ class BasePipelineExecutor(ABC):
         pipeline_registry: PipelineRegistry,
         request_timeout_ms: int,
     ) -> None:
+        """Store shared execution dependencies for a pipeline executor.
+
+        Args:
+            pipeline_registry: Registry used to resolve the configured pipeline
+                runner for direct execution.
+            request_timeout_ms: Timeout budget in milliseconds for blocking work
+                executed via worker threads.
+        """
+        self._pipeline_registry = pipeline_registry
+        self._timeout_s = max(0.001, request_timeout_ms / 1000.0)
         self._pipeline_registry = pipeline_registry
         self._timeout_s = max(0.001, request_timeout_ms / 1000.0)
 
     @staticmethod
     def make_chunks(text: str, *, chunk_size: int, overlap: int) -> list[Chunk]:
-        """
-            Split `text` into overlapping windows suitable for chunked processing.
+        """Split `text` into overlapping windows suitable for chunked processing.
 
-            Chunks are returned in order and use Python-slice semantics:
-            each chunk covers the half-open interval [start, end), where `end` is exclusive.
+        Chunks are returned in document order and use Python slice semantics, where
+        each chunk covers the half-open interval ``[start, end)``. Consecutive
+        chunks overlap by ``overlap`` characters to reduce boundary misses for
+        entities that straddle chunk edges.
 
-            The next chunk starts at `previous_start + (chunk_size - overlap)`, ensuring an
-            overlap region of `overlap` characters between consecutive chunks. Overlap is
-            used to avoid missing matches (e.g. acronyms/definitions) that straddle chunk
-            boundaries.
+        Args:
+            text: Full input text to chunk.
+            chunk_size: Maximum number of characters per chunk. Must be greater than
+                zero.
+            overlap: Number of overlapping characters between adjacent chunks. Must
+                satisfy ``0 <= overlap < chunk_size``.
 
-            Args:
-                text: Full input text to chunk.
-                chunk_size: Maximum number of characters per chunk. Must be > 0.
-                overlap: Number of characters of overlap between consecutive chunks.
-                    Must satisfy 0 <= overlap < chunk_size.
+        Returns:
+            A list of ``Chunk`` objects in ascending order of ``start``. For empty
+            input, returns a single empty chunk at ``[0, 0)``.
 
-            Returns:
-                A list of `Chunk` objects in ascending order of `start`. For empty input,
-                returns a single chunk with start=end=0.
-
-            Raises:
-                ValueError: If `chunk_size <= 0`, `overlap < 0`, or `overlap >= chunk_size`.
-
-            Notes:
-                - This function does not attempt to align chunks to word/sentence boundaries.
-                  It is purely character-based for determinism.
-                - Coverage is complete: concatenating chunk ranges covers [0, len(text)]
-                  with possible overlaps but no gaps.
+        Raises:
+            ValueError: If ``chunk_size <= 0``, ``overlap < 0``, or
+                ``overlap >= chunk_size``.
         """
         if chunk_size <= 0:
             raise ValueError("chunk_size must be > 0")
@@ -105,6 +119,17 @@ class BasePipelineExecutor(ABC):
         key: str,
         default: bool,
     ) -> bool:
+        """Read a boolean option with type-safe fallback semantics.
+
+        Args:
+            options: Raw pipeline options mapping.
+            key: Option key to read.
+            default: Value to return when the key is missing or not a bool.
+
+        Returns:
+            The boolean option value when present and correctly typed; otherwise the
+            supplied default.
+        """
         value = options.get(key, default)
         return value if isinstance(value, bool) else default
 
@@ -114,6 +139,17 @@ class BasePipelineExecutor(ABC):
         key: str,
         default: int,
     ) -> int:
+        """Read an integer option with type-safe fallback semantics.
+
+        Args:
+            options: Raw pipeline options mapping.
+            key: Option key to read.
+            default: Value to return when the key is missing or not an int.
+
+        Returns:
+            The integer option value when present and correctly typed; otherwise the
+            supplied default.
+        """
         value = options.get(key, default)
         return value if isinstance(value, int) else default
 
@@ -121,14 +157,35 @@ class BasePipelineExecutor(ABC):
         self,
         request: OrchestrationRequest,
     ) -> Mapping[str, object]:
-        return request.pipeline_options.get(self.key, {})
+        """Return the option mapping configured for this executor's pipeline key.
 
+        Args:
+            request: Top-level orchestration request.
+
+        Returns:
+            The per-pipeline options mapping for this executor, or an empty mapping
+            when no options were provided for the key.
+        """
+        return request.pipeline_options.get(self.key, {})
 
     def _should_chunk(
         self,
         *,
         request: OrchestrationRequest,
     ) -> bool:
+        """Return whether this request should use chunked execution.
+
+        Chunking is enabled only when the executor's key is included in the
+        requested targets, chunking is enabled in pipeline options, and the input
+        text length exceeds the configured threshold.
+
+        Args:
+            request: Top-level orchestration request.
+
+        Returns:
+            True when chunked execution should be used for this pipeline; otherwise
+            False.
+        """
         if self.key not in request.targets:
             return False
 
@@ -143,6 +200,14 @@ class BasePipelineExecutor(ABC):
         *,
         request: OrchestrationRequest,
     ) -> PipelineRunResult:
+        """Execute the configured pipeline runner directly on the full input text.
+
+        Args:
+            request: Top-level orchestration request.
+
+        Returns:
+            The runner's ``PipelineRunResult`` for the full input text.
+        """
         runner = self._pipeline_registry.get(self.key)
         pipeline_request = PipelineRequest(
             text=request.text,
@@ -154,6 +219,17 @@ class BasePipelineExecutor(ABC):
         self,
         func: Any,
     ) -> Any:
+        """Run blocking work in a worker thread with the executor timeout applied.
+
+        Args:
+            func: Zero-argument callable containing blocking work.
+
+        Returns:
+            The callable's return value.
+
+        Raises:
+            TimeoutError: If execution exceeds the configured timeout budget.
+        """
         return await asyncio.wait_for(
             anyio.to_thread.run_sync(func),
             timeout=self._timeout_s,
@@ -165,6 +241,15 @@ class BasePipelineExecutor(ABC):
         chunk_start: int,
         chunk_end: int,
     ) -> ResolveError:
+        """Build a standardized timeout error for a single chunk failure.
+
+        Args:
+            chunk_start: Inclusive start offset of the timed-out chunk.
+            chunk_end: Exclusive end offset of the timed-out chunk.
+
+        Returns:
+            A ``ResolveError`` describing a chunk-level timeout.
+        """
         return ResolveError(
             http_status=status.HTTP_503_SERVICE_UNAVAILABLE,
             code=ErrorCode.SERVICE_UNAVAILABLE,
@@ -182,6 +267,16 @@ class BasePipelineExecutor(ABC):
         chunk_end: int,
         exc: Exception,
     ) -> ResolveError:
+        """Build a standardized execution failure error for a single chunk.
+
+        Args:
+            chunk_start: Inclusive start offset of the failed chunk.
+            chunk_end: Exclusive end offset of the failed chunk.
+            exc: Underlying exception raised while processing the chunk.
+
+        Returns:
+            A ``ResolveError`` describing a chunk-level execution failure.
+        """
         return ResolveError(
             http_status=status.HTTP_503_SERVICE_UNAVAILABLE,
             code=ErrorCode.SERVICE_UNAVAILABLE,
@@ -200,6 +295,17 @@ class BasePipelineExecutor(ABC):
         lang: str,
         resolution_mode: ResolutionMode,
     ) -> PipelineRunResult:
+        """Execute the pipeline via direct or chunked mode as configured.
+
+        Args:
+            request: Top-level orchestration request.
+            opts: Resolved API options for the request.
+            lang: Language hint for downstream processing.
+            resolution_mode: Resolution mode requested by the caller.
+
+        Returns:
+            The pipeline execution result from either the direct or chunked path.
+        """
         if self._should_chunk(request=request):
             return await self._execute_chunked(
                 request=request,
