@@ -18,6 +18,8 @@ from public_api.schemas.resolve import ResolveOptions, ResolutionMode
 
 
 class AcronymPipelineExecutor(BasePipelineExecutor):
+    """Execute the acronym pipeline via direct or chunked orchestration paths."""
+
     key = PIPELINE_ACRONYMS
 
     def __init__(
@@ -28,6 +30,16 @@ class AcronymPipelineExecutor(BasePipelineExecutor):
         request_timeout_ms: int,
         tier2_model: Any | None,
     ) -> None:
+        """Initialise acronym-pipeline execution dependencies.
+
+        Args:
+            pipeline_registry: Registry used for direct non-chunked execution.
+            glossary_repo: Read-only glossary repository used during block mapping
+                and resolution metadata attachment.
+            request_timeout_ms: Timeout budget in milliseconds for blocking work.
+            tier2_model: Optional Tier-2 reranking model passed to acronym
+                extraction when enabled.
+        """
         super().__init__(
             pipeline_registry=pipeline_registry,
             request_timeout_ms=request_timeout_ms,
@@ -41,6 +53,16 @@ class AcronymPipelineExecutor(BasePipelineExecutor):
         text: str,
         options: Mapping[str, object],
     ) -> tuple[AcronymDetectorResult, ExtractionResult]:
+        """Run acronym detection and extraction for a single text chunk.
+
+        Args:
+            text: Chunk text to process.
+            options: Per-pipeline options used to configure detection, extraction,
+                tracing, and optional Tier-2 reranking.
+
+        Returns:
+            A tuple of detector and extraction results for the chunk.
+        """
         return await self._run_sync_with_timeout(
             lambda: detect_and_extract(
                 text,
@@ -64,6 +86,26 @@ class AcronymPipelineExecutor(BasePipelineExecutor):
         lang: str,
         resolution_mode: ResolutionMode,
     ) -> PipelineRunResult:
+        """Execute the acronym pipeline over overlapping text chunks.
+
+        Each chunk is processed independently, then mapped into public blocks,
+        shifted back into document coordinates, merged across chunk overlaps, and
+        finally enriched with deterministic resolution metadata.
+
+        Args:
+            request: Top-level orchestration request.
+            opts: Resolved API options for the request.
+            lang: Language hint used during acronym mapping.
+            resolution_mode: Resolution mode used when attaching final resolution
+                metadata.
+
+        Returns:
+            A ``PipelineRunResult`` whose payload is the merged list of acronym
+            response blocks.
+
+        Raises:
+            ResolveError: If chunk execution times out or fails.
+        """
         options = self._pipeline_options(request)
         chunk_size_chars = self._int_option(options, "chunk_size_chars", max(1, len(request.text)))
         chunk_overlap_chars = self._int_option(options, "chunk_overlap_chars", 0)
