@@ -8,8 +8,8 @@ from plainera_unacronym.orchestration.state import OrchestrationState
 
 from public_api.core.services.resolution_policy import attach_resolution_metadata
 from public_api.core.services.resolve_mapper import (map_acronym_pipeline_to_blocks,
-                                                     map_structural_summary_blocks,
-                                                     map_defined_term_blocks)
+                                                     map_defined_term_blocks,
+                                                     map_structural_blocks)
 from public_api.db.repos import GlossaryRepository
 from public_api.schemas.resolve import OrchestrationMeta, PipelineError, ResolveOptions, ResolutionMode
 
@@ -116,5 +116,5 @@ def compose_sections(
         if isinstance(resolved, list):
             sections["structural_references"] = resolved
         else:
-            sections["structural_references"] = map_structural_summary_blocks(resolved)
+            sections["structural_references"] = map_structural_blocks(resolved)
     return sections
