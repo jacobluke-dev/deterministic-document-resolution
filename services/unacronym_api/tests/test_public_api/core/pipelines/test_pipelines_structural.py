@@ -78,8 +78,8 @@ class TestStructuralPipelineExecutor:
         assert out == "structural-result"
         assert calls == {
             "text": "Section 2 and Schedule 1",
-            "det_cfg": "det-cfg",
-            "ext_cfg": "ext-cfg",
+            "det_cfg": None,
+            "ext_cfg": None,
             "return_reports": True,
             "return_state": True,
         }
