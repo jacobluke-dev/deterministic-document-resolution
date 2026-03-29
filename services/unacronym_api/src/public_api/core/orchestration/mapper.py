@@ -14,10 +14,64 @@ from public_api.db.repos import GlossaryRepository
 from public_api.schemas.resolve import OrchestrationMeta, PipelineError, ResolveOptions, ResolutionMode
 
 
+T = TypeVar("T")
+
+
+def _resolve_pipeline_payload(
+    payload: object,
+    *,
+    result_type: type[T],
+    error_message: str,
+) -> T | list[Any]:
+    """Normalize a pipeline payload to either a result object or prebuilt blocks.
+
+    Pipelines may return one of three shapes:
+
+    * a prebuilt list of public response blocks
+    * a ``(detector_result, resolution_result)`` tuple, where the second element
+      is the composition-ready resolution object
+    * a direct resolution object
+
+    This helper extracts the resolution object when needed and validates that it
+    matches the expected result type.
+
+    Args:
+        payload: Raw pipeline payload stored on orchestration state.
+        result_type: Expected resolution result type for the pipeline.
+        error_message: Error message raised when the payload shape is unsupported.
+
+    Returns:
+        Either the prebuilt list of blocks, or the validated resolution result.
+
+    Raises:
+        ValueError: If the payload does not match a supported shape for the
+            requested pipeline.
+    """
+    if isinstance(payload, list):
+        return payload
+    if isinstance(payload, tuple) and len(payload) == 2:
+        _, resolution = payload
+        if not isinstance(resolution, result_type):
+            raise ValueError(error_message)
+        return resolution
+    if isinstance(payload, result_type):
+        return payload
+    raise ValueError(error_message)
+
+
 def map_orchestration_state(
     state: OrchestrationState,
 ) -> tuple[OrchestrationMeta, list[PipelineError]]:
-    """Map internal orchestration state to public metadata and pipeline errors."""
+    """Map internal orchestration state to public metadata and pipeline errors.
+
+    Args:
+        state: Finished orchestration state containing requested targets,
+            completed targets, failed targets, and per-pipeline errors.
+
+    Returns:
+        A tuple containing public orchestration metadata and pipeline errors in
+        failed-target order.
+    """
     meta = OrchestrationMeta(
         requested=list(state.requested_targets),
         completed=list(state.completed_targets),
@@ -36,27 +90,6 @@ def map_orchestration_state(
     return meta, errors
 
 
-T = TypeVar("T")
-
-
-def _resolve_pipeline_payload(
-    payload: object,
-    *,
-    result_type: type[T],
-    error_message: str,
-) -> T | list[Any]:
-    if isinstance(payload, list):
-        return payload
-    if isinstance(payload, tuple) and len(payload) == 2:
-        _, resolution = payload
-        if not isinstance(resolution, result_type):
-            raise ValueError(error_message)
-        return resolution
-    if isinstance(payload, result_type):
-        return payload
-    raise ValueError(error_message)
-
-
 def compose_sections(
     state: OrchestrationState,
     *,
@@ -65,6 +98,29 @@ def compose_sections(
     resolution_mode: ResolutionMode,
     glossary_repo: GlossaryRepository,
 ) -> dict[str, Any]:
+    """Compose public response sections from completed pipeline results.
+
+    Each supported section is initialized to an empty list. For completed
+    pipelines, the stored payload is normalized and then either passed through
+    directly when it already contains response blocks, or mapped into public
+    schema blocks using the relevant pipeline mapper.
+
+    Args:
+        state: Orchestration state containing per-pipeline results.
+        opts: Resolved API options for the request.
+        lang: Language hint used by acronym mapping and enrichment.
+        resolution_mode: Requested resolution mode used when attaching acronym
+            selection metadata.
+        glossary_repo: Read-only glossary repository used for acronym
+            enrichment and metadata attachment.
+
+    Returns:
+        A dictionary containing the ``acronyms``, ``defined_terms``, and
+        ``structural_references`` response sections.
+
+    Raises:
+        ValueError: If a completed pipeline payload has an unsupported shape.
+    """
     sections: dict[str, Any] = {
         "acronyms": [],
         "defined_terms": [],
