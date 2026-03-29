@@ -18,7 +18,7 @@ from public_api.schemas.extraction_types.defined_terms import (
 )
 
 from public_api.schemas.shared import TextSpan
-from public_api.schemas.extraction_types.structural import StructuralReferenceSummaryBlock
+from public_api.schemas.extraction_types.structural import StructuralReferenceBlock
 from public_api.db.repos.glossary_repo import GlossaryRepository
 from public_api.schemas.resolve import ResolveOptions
 
@@ -282,31 +282,27 @@ def _map_text_span(span: tuple[str, int, int] | None) -> TextSpan | None:
     )
 
 
-def map_structural_summary_blocks(
+def map_structural_blocks(
     result: StructuralReferenceResolutionResult,
-) -> list[StructuralReferenceSummaryBlock]:
-    occurrence_counts: dict[str, int] = {}
-    for link in result.links:
-        occurrence_counts[link.canonical_key] = occurrence_counts.get(link.canonical_key, 0) + 1
-
-    blocks: list[StructuralReferenceSummaryBlock] = []
-    for canonical_key, link in result.unique_links.items():
-        blocks.append(
-            StructuralReferenceSummaryBlock(
-                kind=link.kind,
-                canonical_label=link.canonical_label,
-                canonical_key=link.canonical_key,
-                representative_reference_span=_map_span(link.reference_span),
-                representative_target_span=_map_span(link.target_span),
-                match_strategy=link.match_strategy,
-                strength=float(link.strength),
-                provenance=link.provenance,
-                resolved=link.target_span is not None and link.match_strategy != "unresolved",
-                occurrence_count=occurrence_counts.get(canonical_key, 0),
-            )
+) -> list[StructuralReferenceBlock]:
+    blocks = [
+        StructuralReferenceBlock(
+            kind=link.kind,
+            label=link.label,
+            canonical_label=link.canonical_label,
+            normalized_key=link.normalized_key,
+            canonical_key=link.canonical_key,
+            reference_span=_map_span(link.reference_span),
+            target_span=_map_span(link.target_span),
+            match_strategy=link.match_strategy,
+            strength=float(link.strength),
+            provenance=link.provenance,
+            resolved=link.target_span is not None and link.match_strategy != "unresolved",
         )
+        for link in result.links
+    ]
 
-    blocks.sort(key=lambda b: (b.canonical_key, b.representative_reference_span.start))
+    blocks.sort(key=lambda b: (b.canonical_key, b.reference_span.start))
     return blocks
 
 
@@ -332,7 +328,7 @@ def _map_candidate_score(score: TermCandidateScore) -> DefinedTermCandidateBlock
         total_score=float(score.total_score),
         tier1_score=float(score.tier1_score),
         tier2_score=None if score.tier2_score is None else float(score.tier2_score),
-        definition_span=_map_span(score.definition_span),
+        definition_span=_map_text_span(score.definition_span),
         components={key: float(value) for key, value in score.components.items()},
     )
 
@@ -353,7 +349,7 @@ def map_defined_term_blocks(result: TermResolutionResult) -> list[DefinedTermBlo
                 term=resolution.term,
                 normalized_key=resolution.normalized_key,
                 chosen_meaning_id=resolution.chosen_meaning_id,
-                chosen_definition_span=_map_span(resolution.chosen_definition_span),
+                chosen_definition_span=_map_text_span(resolution.chosen_definition_span),
                 resolution_method=resolution.resolution_method,
                 resolved=resolution.chosen_meaning_id is not None,
                 candidate_scores=[
