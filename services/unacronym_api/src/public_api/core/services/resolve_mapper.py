@@ -302,7 +302,7 @@ def map_structural_blocks(
         for link in result.links
     ]
 
-    blocks.sort(key=lambda b: (b.canonical_key, b.reference_span.start))
+    blocks.sort(key=lambda b: (b.reference_span.start, b.reference_span.end, b.canonical_key))
     return blocks
 
 
@@ -359,4 +359,12 @@ def map_defined_term_blocks(result: TermResolutionResult) -> list[DefinedTermBlo
                 chosen_meaning=chosen_meaning,
             )
         )
+
+    blocks.sort(
+        key=lambda b: (
+            b.occurrence_span.start,
+            b.occurrence_span.end,
+            b.normalized_key,
+        )
+    )
     return blocks
