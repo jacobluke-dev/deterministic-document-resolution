@@ -226,7 +226,7 @@ class TestDefinedTermResolutionE2E:
         assert service_resolutions[0].chosen_meaning_id is None
         assert service_resolutions[0] in extr.undecided
 
-    # TODO AS PART OF TICKET 96
+    # TODO AS PART OF TICKET 97
     # def test_prefer_prior_definition_when_context_is_otherwise_equal(self, _patch):
     #     from plainera_unacronym.nlp.extraction.defined_terms import stage_funcs
     #
