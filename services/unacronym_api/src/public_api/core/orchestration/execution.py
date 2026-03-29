@@ -69,7 +69,8 @@ class Orchestrator:
         exc: Exception,
     ) -> OrchestrationPipelineError:
         if isinstance(exc, ResolveError):
-            code = PipelineErrorCode.PIPELINE_TIMEOUT if exc.message == "Resolution timed out." else PipelineErrorCode.PIPELINE_EXECUTION_FAILED
+            code = PipelineErrorCode.PIPELINE_TIMEOUT \
+                if exc.message == "Resolution timed out." else PipelineErrorCode.PIPELINE_EXECUTION_FAILED
             return OrchestrationPipelineError(
                 pipeline=pipeline,
                 code=code,
