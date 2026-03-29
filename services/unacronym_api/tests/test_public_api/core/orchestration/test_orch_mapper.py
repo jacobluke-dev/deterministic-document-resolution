@@ -3,6 +3,8 @@ from __future__ import annotations
 from types import SimpleNamespace
 
 import pytest
+from plainera_unacronym.nlp.extraction.defined_terms.types import TermResolutionResult
+from plainera_unacronym.nlp.extraction.structural.types import StructuralReferenceResolutionResult
 from plainera_unacronym.orchestration.interface import (
     PIPELINE_ACRONYMS,
     PIPELINE_DEFINED_TERMS,
@@ -14,13 +16,36 @@ from plainera_unacronym.orchestration.state import (
     OrchestrationState,
     PipelineErrorCode,
 )
-from public_api.core.orchestration.mapper import compose_sections, map_orchestration_state, \
-    _resolve_defined_term_payload, _resolve_structural_payload
+from public_api.core.orchestration.mapper import (
+    _resolve_defined_term_payload,
+    _resolve_structural_payload,
+    compose_sections,
+    map_orchestration_state,
+)
 from public_api.schemas.resolve import ResolutionMode, ResolveOptions
 
 
-class _DummyResult:
-    pass
+@pytest.fixture
+def term_resolution_result() -> TermResolutionResult:
+    return TermResolutionResult(
+        term_meaning_index={},
+        meaning_index={},
+        term_resolutions=[],
+        ambiguous_keys=(),
+        undecided=[],
+        tier2_report=None,
+        tier2_ranked=(),
+    )
+
+
+@pytest.fixture
+def structural_reference_resolution_result() -> StructuralReferenceResolutionResult:
+    return StructuralReferenceResolutionResult(
+        references=[],
+        links=[],
+        unique_keys={},
+        unique_links={},
+    )
 
 
 class TestResolveDefinedTermPayload:
@@ -311,8 +336,10 @@ class TestComposeSections:
             )
         )
 
-        def fake_resolve_pipeline_payload(payload, *, result_type, error_message, allow_prebuilt_blocks):
+        def fake_resolve_defined_term_payload(payload, *, error_message, allow_prebuilt_blocks=True):
             assert payload == "term_result"
+            assert error_message == "Unsupported defined-term pipeline payload shape."
+            assert allow_prebuilt_blocks is True
             return "resolved_term_result"
 
         def fake_map_defined_term_blocks(resolved):
@@ -321,7 +348,7 @@ class TestComposeSections:
 
         _patch(
             compose_sections,
-            _resolve_pipeline_payload=fake_resolve_pipeline_payload,
+            _resolve_defined_term_payload=fake_resolve_defined_term_payload,
             map_defined_term_blocks=fake_map_defined_term_blocks,
         )
 
@@ -346,12 +373,13 @@ class TestComposeSections:
             )
         )
 
-        def fake_resolve_pipeline_payload(payload, *, result_type, error_message, allow_prebuilt_blocks):
+        def fake_resolve_defined_term_payload(payload, *, error_message, allow_prebuilt_blocks=True):
+            assert payload == "term_result"
             return [{"term": "Services"}]
 
         _patch(
             compose_sections,
-            _resolve_pipeline_payload=fake_resolve_pipeline_payload,
+            _resolve_defined_term_payload=fake_resolve_defined_term_payload,
         )
 
         out = compose_sections(
@@ -373,8 +401,10 @@ class TestComposeSections:
             )
         )
 
-        def fake_resolve_pipeline_payload(payload, *, result_type, error_message, allow_prebuilt_blocks):
+        def fake_resolve_structural_payload(payload, *, error_message, allow_prebuilt_blocks=True):
             assert payload == "structural_result"
+            assert error_message == "Unsupported structural-reference pipeline payload shape."
+            assert allow_prebuilt_blocks is True
             return "resolved_structural_result"
 
         def fake_map_structural_blocks(resolved):
@@ -383,7 +413,7 @@ class TestComposeSections:
 
         _patch(
             compose_sections,
-            _resolve_pipeline_payload=fake_resolve_pipeline_payload,
+            _resolve_structural_payload=fake_resolve_structural_payload,
             map_structural_blocks=fake_map_structural_blocks,
         )
 
@@ -408,12 +438,13 @@ class TestComposeSections:
             )
         )
 
-        def fake_resolve_pipeline_payload(payload, *, result_type, error_message, allow_prebuilt_blocks):
+        def fake_resolve_structural_payload(payload, *, error_message, allow_prebuilt_blocks=True):
+            assert payload == "structural_result"
             return [{"kind": "Schedule", "label": "1"}]
 
         _patch(
             compose_sections,
-            _resolve_pipeline_payload=fake_resolve_pipeline_payload,
+            _resolve_structural_payload=fake_resolve_structural_payload,
         )
 
         out = compose_sections(

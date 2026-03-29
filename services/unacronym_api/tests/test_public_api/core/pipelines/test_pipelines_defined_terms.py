@@ -84,8 +84,8 @@ class TestDefinedTermsPipelineExecutor:
         assert out == "term-result"
         assert calls == {
             "text": "Services text",
-            "det_cfg": "det-cfg",
-            "ext_cfg": "ext-cfg",
+            "det_cfg": None,
+            "ext_cfg": None,
             "return_reports": True,
             "trace": True,
             "return_state": True,
