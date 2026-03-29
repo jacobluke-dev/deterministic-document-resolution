@@ -1,7 +1,6 @@
 from unittest.mock import Mock
 
 import pytest
-
 from public_api.core.services.resolve_service import ResolveService
 from public_api.schemas.resolve import ResolveOptions
 

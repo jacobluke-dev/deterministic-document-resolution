@@ -10,8 +10,8 @@ from alembic import command
 from alembic.config import Config
 from httpx import ASGITransport, AsyncClient
 from plainera_core.utils.utils import get_project_path
-from public_api.core.di import deps
 from public_api.core.auth.api_keys import generate_key, hash_secret
+from public_api.core.di import deps
 from public_api.core.settings import AppSettings, db_settings
 from public_api.db.models import GlossaryAcronym, GlossaryMeaning
 from public_api.main import create_app

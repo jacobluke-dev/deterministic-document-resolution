@@ -1,29 +1,26 @@
 from typing import Any
 
 import anyio
-
 from plainera_unacronym.orchestration import PipelineRegistry
 from plainera_unacronym.orchestration.interface import (
-    OrchestrationRequest,
     PIPELINE_ACRONYMS,
-    PipelineKey,
-    PipelineRunResult,
     PIPELINE_DEFINED_TERMS,
     PIPELINE_STRUCTURAL_REFERENCES,
+    OrchestrationRequest,
+    PipelineKey,
+    PipelineRunResult,
 )
 from plainera_unacronym.orchestration.service import PipelineExecutionOutcome
 from plainera_unacronym.orchestration.state import (
     OrchestrationPipelineError,
-    OrchestrationState, PipelineErrorCode,
+    OrchestrationState,
+    PipelineErrorCode,
 )
 
-from public_api.core.pipelines import (AcronymPipelineExecutor,
-                                       DefinedTermsPipelineExecutor,
-                                       StructuralPipelineExecutor)
-
 from public_api.core.errors import ResolveError
+from public_api.core.pipelines import AcronymPipelineExecutor, DefinedTermsPipelineExecutor, StructuralPipelineExecutor
 from public_api.db.repos import GlossaryRepository
-from public_api.schemas.resolve import ResolveOptions, ResolutionMode
+from public_api.schemas.resolve import ResolutionMode, ResolveOptions
 
 
 class Orchestrator:

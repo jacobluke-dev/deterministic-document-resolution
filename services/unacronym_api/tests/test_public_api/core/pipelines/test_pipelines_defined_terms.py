@@ -3,12 +3,10 @@ from __future__ import annotations
 import asyncio
 
 import pytest
-
 from plainera_unacronym.orchestration.interface import OrchestrationRequest, PipelineRunResult
 from public_api.core.pipelines.defined_terms import DefinedTermsPipelineExecutor
 from public_api.schemas.error import ErrorCode
-from public_api.schemas.resolve import ResolveOptions, ResolutionMode
-from tests.test_public_api.core.pipelines.conftest import fake_registry
+from public_api.schemas.resolve import ResolutionMode, ResolveOptions
 
 
 class TestDefinedTermsPipelineExecutor:

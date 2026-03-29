@@ -13,7 +13,8 @@ from plainera_unacronym.orchestration.interface import (
 from plainera_unacronym.orchestration.registry import PipelineRegistry
 from plainera_unacronym.orchestration.state import (
     OrchestrationPipelineError,
-    OrchestrationState, PipelineErrorCode,
+    OrchestrationState,
+    PipelineErrorCode,
 )
 
 
@@ -31,7 +32,7 @@ def _classify_pipeline_exception(exc: Exception) -> str:
     if isinstance(exc, TimeoutError):
         return PipelineErrorCode.PIPELINE_TIMEOUT
     if isinstance(exc, ValueError):
-            return PipelineErrorCode.PIPELINE_INVALID_OPTIONS
+        return PipelineErrorCode.PIPELINE_INVALID_OPTIONS
     return PipelineErrorCode.PIPELINE_EXECUTION_FAILED
 
 

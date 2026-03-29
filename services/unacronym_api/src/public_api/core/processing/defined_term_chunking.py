@@ -3,17 +3,41 @@ from __future__ import annotations
 from collections import defaultdict
 from dataclasses import replace
 
-from plainera_unacronym.nlp.extraction.defined_terms.types import TermMeaning, TermCandidateScore, TermResolution, \
-    TermResolutionResult
+from plainera_unacronym.nlp.extraction.defined_terms.types import (
+    TermCandidateScore,
+    TermMeaning,
+    TermResolution,
+    TermResolutionResult,
+    TermTier2OccurrenceRanking,
+)
+from plainera_unacronym.nlp.extraction.tiers.types import Tier2Report
 
 TextSpanTuple = tuple[str, int, int]
 
 
 def _shift_text_span(span: TextSpanTuple, delta: int) -> TextSpanTuple:
+    """Shift a text span by a character offset.
+
+    Args:
+        span: Source span as ``(text, start, end)``.
+        delta: Character offset to add to ``start`` and ``end``.
+
+    Returns:
+        A new shifted span tuple.
+    """
     return span[0], int(span[1]) + delta, int(span[2]) + delta
 
 
 def _shift_optional_text_span(span: TextSpanTuple | None, delta: int) -> TextSpanTuple | None:
+    """Shift an optional text span by a character offset.
+
+    Args:
+        span: Source span or ``None``.
+        delta: Character offset to add to ``start`` and ``end``.
+
+    Returns:
+        A shifted span, or ``None`` when the input span is ``None``.
+    """
     if span is None:
         return None
     return _shift_text_span(span, delta)
@@ -48,6 +72,20 @@ def shift_defined_term_result(
     result: TermResolutionResult,
     delta: int,
 ) -> TermResolutionResult:
+    """Shift all location-bearing spans in a defined-term result.
+
+    This is used when chunk-local results need to be projected back into
+    full-document coordinates.
+
+    Args:
+        result: Chunk-local term resolution result.
+        delta: Character offset to apply to all spans.
+
+    Returns:
+        The original result when ``delta == 0``; otherwise a new result with
+        shifted spans across meanings, resolutions, candidate scores, and
+        undecided entries.
+    """
     if delta == 0:
         return result
 
@@ -167,14 +205,31 @@ def _remap_resolution(
     )
 
 
-def merge_defined_term_results(
-    chunk_results: list[tuple[int, TermResolutionResult]],
-) -> TermResolutionResult:
-    shifted_results = [
-        shift_defined_term_result(result, delta)
-        for delta, result in chunk_results
-    ]
+def _collect_meaning_identity_maps(
+    shifted_results: list[TermResolutionResult],
+) -> tuple[dict[tuple[object, ...], TermMeaning], list[dict[str, tuple[object, ...]]]]:
+    """Collect deduplicated meanings and per-result old-ID identity maps.
 
+    Walks each shifted result and derives a stable identity tuple for every
+    meaning using ``_meaning_identity``. The first meaning seen for a given
+    identity is retained in the returned deduplicated mapping.
+
+    In parallel, this builds one mapping per input result from the original
+    ``meaning_id`` to that meaning identity. These per-result maps are later
+    used to remap chunk-local meaning IDs onto rebuilt merged meaning IDs.
+
+    Args:
+        shifted_results: Defined-term results whose spans have already been
+            shifted into document coordinates.
+
+    Returns:
+        A tuple containing:
+            - A mapping of meaning identity to the first corresponding
+              ``TermMeaning`` encountered across all results.
+            - A list aligned to ``shifted_results`` where each item maps the
+              original ``meaning_id`` values from that result to meaning
+              identity tuples.
+    """
     meaning_by_identity: dict[tuple[object, ...], TermMeaning] = {}
     old_id_maps: list[dict[str, tuple[object, ...]]] = []
 
@@ -186,13 +241,14 @@ def merge_defined_term_results(
             old_id_to_identity[meaning.meaning_id] = identity
             meaning_by_identity.setdefault(identity, meaning)
 
-        old_id_maps.append(
-            {
-                old_id: identity
-                for old_id, identity in old_id_to_identity.items()
-            }
-        )
+        old_id_maps.append(old_id_to_identity)
 
+    return meaning_by_identity, old_id_maps
+
+
+def _rebuild_meanings(
+    meaning_by_identity: dict[tuple[object, ...], TermMeaning],
+) -> tuple[list[TermMeaning], dict[tuple[object, ...], str]]:
     ordered_meanings = sorted(meaning_by_identity.values(), key=_meaning_sort_key)
 
     rebuilt_meanings: list[TermMeaning] = []
@@ -211,20 +267,34 @@ def merge_defined_term_results(
         rebuilt_meanings.append(rebuilt)
         identity_to_new_meaning_id[_meaning_identity(meaning)] = new_meaning_id
 
-    meaning_index = {meaning.meaning_id: meaning for meaning in rebuilt_meanings}
+    return rebuilt_meanings, identity_to_new_meaning_id
 
-    term_meaning_index: dict[str, tuple[TermMeaning, ...]] = {}
+
+def _build_term_meaning_index(rebuilt_meanings: list[TermMeaning]) -> dict[str, tuple[TermMeaning, ...]]:
     grouped_meanings: dict[str, list[TermMeaning]] = defaultdict(list)
     for meaning in rebuilt_meanings:
         grouped_meanings[meaning.normalized_key].append(meaning)
-    for key, meanings in grouped_meanings.items():
-        term_meaning_index[key] = tuple(meanings)
+    return {
+        key: tuple(meanings)
+        for key, meanings in grouped_meanings.items()
+    }
 
+
+def _merge_resolution_data(
+    shifted_results: list[TermResolutionResult],
+    old_id_maps: list[dict[str, tuple[object, ...]]],
+    identity_to_new_meaning_id: dict[tuple[object, ...], str],
+) -> tuple[
+    dict[tuple[object, ...], TermResolution],
+    tuple[str, ...],
+    Tier2Report | None,
+    tuple[TermTier2OccurrenceRanking, ...],
+]:
     merged_resolutions: dict[tuple[object, ...], TermResolution] = {}
     ambiguous_keys: set[str] = set()
-    tier2_report = None
-    tier2_ranked_seen: set[object] = set()
-    tier2_ranked: list[object] = []
+    tier2_report: Tier2Report | None = None
+    tier2_ranked_seen: set[TermTier2OccurrenceRanking] = set()
+    tier2_ranked: list[TermTier2OccurrenceRanking] = []
 
     for result, old_id_to_identity in zip(shifted_results, old_id_maps, strict=True):
         old_id_to_new_meaning_id = {
@@ -252,6 +322,45 @@ def merge_defined_term_results(
             key = _resolution_identity(remapped)
             merged_resolutions[key] = _choose_resolution(merged_resolutions.get(key), remapped)
 
+    return merged_resolutions, tuple(sorted(ambiguous_keys)), tier2_report, tuple(tier2_ranked)
+
+
+def merge_defined_term_results(
+    chunk_results: list[tuple[int, TermResolutionResult]],
+) -> TermResolutionResult:
+    """Merge chunked defined-term results into a single document-level result.
+
+    The merge process:
+    1. Shifts chunk-local spans into document coordinates.
+    2. Deduplicates meanings by structural identity.
+    3. Rebuilds stable meaning IDs and ordinals per normalized key.
+    4. Remaps resolution references onto rebuilt meaning IDs.
+    5. Chooses the strongest resolution per occurrence identity.
+
+    Args:
+        chunk_results: Pairs of ``(delta, result)``, where ``delta`` is the
+            chunk start offset in document coordinates.
+
+    Returns:
+        A merged, deterministically ordered document-level result.
+    """
+    shifted_results = [
+        shift_defined_term_result(result, delta)
+        for delta, result in chunk_results
+    ]
+
+    meaning_by_identity, old_id_maps = _collect_meaning_identity_maps(shifted_results)
+    rebuilt_meanings, identity_to_new_meaning_id = _rebuild_meanings(meaning_by_identity)
+
+    meaning_index = {meaning.meaning_id: meaning for meaning in rebuilt_meanings}
+    term_meaning_index = _build_term_meaning_index(rebuilt_meanings)
+
+    merged_resolutions, ambiguous_keys, tier2_report, tier2_ranked = _merge_resolution_data(
+        shifted_results,
+        old_id_maps,
+        identity_to_new_meaning_id,
+    )
+
     ordered_resolutions = sorted(
         merged_resolutions.values(),
         key=lambda resolution: (
@@ -272,8 +381,8 @@ def merge_defined_term_results(
         term_meaning_index=term_meaning_index,
         meaning_index=meaning_index,
         term_resolutions=ordered_resolutions,
-        ambiguous_keys=tuple(sorted(ambiguous_keys)),
+        ambiguous_keys=ambiguous_keys,
         undecided=undecided,
         tier2_report=tier2_report,
-        tier2_ranked=tuple(tier2_ranked),
+        tier2_ranked=tier2_ranked,
     )

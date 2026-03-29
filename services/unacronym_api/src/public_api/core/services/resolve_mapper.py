@@ -3,24 +3,22 @@ from __future__ import annotations
 from typing import Any, Protocol
 
 from plainera_unacronym.nlp.common.types import AcronymDetectorResult, ExtractionResult
-from plainera_unacronym.nlp.extraction.structural.types import StructuralReferenceResolutionResult
-
 from plainera_unacronym.nlp.extraction.defined_terms.types import (
     TermCandidateScore,
     TermMeaning,
     TermResolutionResult,
 )
+from plainera_unacronym.nlp.extraction.structural.types import StructuralReferenceResolutionResult
 
+from public_api.db.repos.glossary_repo import GlossaryRepository
 from public_api.schemas.extraction_types.defined_terms import (
     DefinedTermBlock,
     DefinedTermCandidateBlock,
     DefinedTermMeaningBlock,
 )
-
-from public_api.schemas.shared import TextSpan
 from public_api.schemas.extraction_types.structural import StructuralReferenceBlock
-from public_api.db.repos.glossary_repo import GlossaryRepository
 from public_api.schemas.resolve import ResolveOptions
+from public_api.schemas.shared import TextSpan
 
 
 class _SpanLike(Protocol):
@@ -285,6 +283,19 @@ def _map_text_span(span: tuple[str, int, int] | None) -> TextSpan | None:
 def map_structural_blocks(
     result: StructuralReferenceResolutionResult,
 ) -> list[StructuralReferenceBlock]:
+    """Map structural-reference results into public response blocks.
+
+    Each structural link is converted into a ``StructuralReferenceBlock`` and
+    marked as resolved when it has a target span and is not tagged as
+    ``"unresolved"``. Output ordering is deterministic by reference span and
+    canonical key.
+
+    Args:
+        result: Structural-reference resolution result to map.
+
+    Returns:
+        Sorted public structural-reference blocks.
+    """
     blocks = [
         StructuralReferenceBlock(
             kind=link.kind,
@@ -307,6 +318,15 @@ def map_structural_blocks(
 
 
 def _map_term_meaning(meaning: TermMeaning) -> DefinedTermMeaningBlock:
+    """Map an internal term meaning into a public meaning block.
+
+    Args:
+        meaning: Internal defined-term meaning.
+
+    Returns:
+        Public ``DefinedTermMeaningBlock`` with spans and section path
+        normalized for API output.
+    """
     return DefinedTermMeaningBlock(
         meaning_id=meaning.meaning_id,
         surface=meaning.surface,
@@ -323,6 +343,15 @@ def _map_term_meaning(meaning: TermMeaning) -> DefinedTermMeaningBlock:
 
 
 def _map_candidate_score(score: TermCandidateScore) -> DefinedTermCandidateBlock:
+    """Map an internal candidate score into a public candidate block.
+
+    Args:
+        score: Internal candidate score for one possible meaning.
+
+    Returns:
+        Public ``DefinedTermCandidateBlock`` with numeric score fields coerced
+        to floats and span offsets normalized for API output.
+    """
     return DefinedTermCandidateBlock(
         meaning_id=score.meaning_id,
         total_score=float(score.total_score),
@@ -334,6 +363,19 @@ def _map_candidate_score(score: TermCandidateScore) -> DefinedTermCandidateBlock
 
 
 def map_defined_term_blocks(result: TermResolutionResult) -> list[DefinedTermBlock]:
+    """Map defined-term resolution results into public response blocks.
+
+    Each term resolution is converted into a ``DefinedTermBlock``. When a
+    chosen meaning ID is present and exists in the meaning index, the
+    corresponding meaning is embedded as ``chosen_meaning``. Output ordering is
+    deterministic by occurrence span and normalized key.
+
+    Args:
+        result: Defined-term resolution result to map.
+
+    Returns:
+        Sorted public defined-term blocks.
+    """
     blocks: list[DefinedTermBlock] = []
 
     for resolution in result.term_resolutions:

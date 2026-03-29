@@ -3,24 +3,21 @@ from __future__ import annotations
 from types import SimpleNamespace
 
 import pytest
-
 from plainera_unacronym.orchestration.interface import (
     PIPELINE_ACRONYMS,
     PIPELINE_DEFINED_TERMS,
     PIPELINE_STRUCTURAL_REFERENCES,
 )
-
-from public_api.schemas.resolve import ResolveOptions, ResolveRequest
-
 from public_api.core.orchestration.request_builder import (
     _base_pipeline_options,
     _build_acronym_options,
     _build_defined_term_options,
     _build_structural_reference_options,
+    _chunking_options,
     _default_chunking_options,
     build_orchestration_request,
-    _chunking_options,
 )
+from public_api.schemas.resolve import ResolveOptions, ResolveRequest
 
 
 class TestChunkingOptions:

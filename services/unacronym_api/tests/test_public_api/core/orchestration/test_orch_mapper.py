@@ -3,7 +3,6 @@ from __future__ import annotations
 from types import SimpleNamespace
 
 import pytest
-
 from plainera_unacronym.orchestration.interface import (
     PIPELINE_ACRONYMS,
     PIPELINE_DEFINED_TERMS,
@@ -15,68 +14,121 @@ from plainera_unacronym.orchestration.state import (
     OrchestrationState,
     PipelineErrorCode,
 )
-from public_api.core.orchestration.mapper import _resolve_pipeline_payload, map_orchestration_state, compose_sections
-
-from public_api.schemas.resolve import ResolveOptions, ResolutionMode
+from public_api.core.orchestration.mapper import compose_sections, map_orchestration_state, \
+    _resolve_defined_term_payload, _resolve_structural_payload
+from public_api.schemas.resolve import ResolutionMode, ResolveOptions
 
 
 class _DummyResult:
     pass
 
 
-class TestResolvePipelinePayload:
+class TestResolveDefinedTermPayload:
     def test_returns_list_payload_as_is(self):
-        payload = [{"x": 1}]
+        payload = [{"term": "Services"}]
 
-        out = _resolve_pipeline_payload(
+        out = _resolve_defined_term_payload(
             payload,
-            result_type=_DummyResult,
             error_message="bad payload",
         )
 
         assert out is payload
 
-    def test_returns_direct_result_payload(self):
-        payload = _DummyResult()
-
-        out = _resolve_pipeline_payload(
-            payload,
-            result_type=_DummyResult,
+    def test_returns_direct_result_payload(self, term_resolution_result):
+        out = _resolve_defined_term_payload(
+            term_resolution_result,
             error_message="bad payload",
         )
 
-        assert out is payload
+        assert out is term_resolution_result
 
-    def test_returns_resolution_from_tuple_payload(self):
-        resolution = _DummyResult()
-        payload = ("detector", resolution)
+    def test_returns_resolution_from_tuple_payload(self, term_resolution_result):
+        payload = ("detector", term_resolution_result)
 
-        out = _resolve_pipeline_payload(
+        out = _resolve_defined_term_payload(
             payload,
-            result_type=_DummyResult,
             error_message="bad payload",
         )
 
-        assert out is resolution
+        assert out is term_resolution_result
 
     def test_raises_for_tuple_with_wrong_resolution_type(self):
         payload = ("detector", object())
 
         with pytest.raises(ValueError, match="bad payload"):
-            _resolve_pipeline_payload(
+            _resolve_defined_term_payload(
                 payload,
-                result_type=_DummyResult,
                 error_message="bad payload",
             )
 
     def test_raises_for_unsupported_payload_shape(self):
         with pytest.raises(ValueError, match="bad payload"):
-            _resolve_pipeline_payload(
+            _resolve_defined_term_payload(
                 object(),
-                result_type=_DummyResult,
                 error_message="bad payload",
             )
 
+    def test_raises_for_list_when_prebuilt_blocks_not_allowed(self):
+        with pytest.raises(ValueError, match="bad payload"):
+            _resolve_defined_term_payload(
+                [{"term": "Services"}],
+                error_message="bad payload",
+                allow_prebuilt_blocks=False,
+            )
+
+
+class TestResolveStructuralPayload:
+    def test_returns_list_payload_as_is(self):
+        payload = [{"canonical_key": "section|2"}]
+
+        out = _resolve_structural_payload(
+            payload,
+            error_message="bad payload",
+        )
+
+        assert out is payload
+
+    def test_returns_direct_result_payload(self, structural_reference_resolution_result):
+        out = _resolve_structural_payload(
+            structural_reference_resolution_result,
+            error_message="bad payload",
+        )
+
+        assert out is structural_reference_resolution_result
+
+    def test_returns_resolution_from_tuple_payload(self, structural_reference_resolution_result):
+        payload = ("detector", structural_reference_resolution_result)
+
+        out = _resolve_structural_payload(
+            payload,
+            error_message="bad payload",
+        )
+
+        assert out is structural_reference_resolution_result
+
+    def test_raises_for_tuple_with_wrong_resolution_type(self):
+        payload = ("detector", object())
+
+        with pytest.raises(ValueError, match="bad payload"):
+            _resolve_structural_payload(
+                payload,
+                error_message="bad payload",
+            )
+
+    def test_raises_for_unsupported_payload_shape(self):
+        with pytest.raises(ValueError, match="bad payload"):
+            _resolve_structural_payload(
+                object(),
+                error_message="bad payload",
+            )
+
+    def test_raises_for_list_when_prebuilt_blocks_not_allowed(self):
+        with pytest.raises(ValueError, match="bad payload"):
+            _resolve_structural_payload(
+                [{"canonical_key": "section|2"}],
+                error_message="bad payload",
+                allow_prebuilt_blocks=False,
+            )
 
 class TestMapOrchestrationState:
     def test_maps_meta_and_errors_in_failed_target_order(self):
@@ -259,7 +311,7 @@ class TestComposeSections:
             )
         )
 
-        def fake_resolve_pipeline_payload(payload, *, result_type, error_message):
+        def fake_resolve_pipeline_payload(payload, *, result_type, error_message, allow_prebuilt_blocks):
             assert payload == "term_result"
             return "resolved_term_result"
 
@@ -294,7 +346,7 @@ class TestComposeSections:
             )
         )
 
-        def fake_resolve_pipeline_payload(payload, *, result_type, error_message):
+        def fake_resolve_pipeline_payload(payload, *, result_type, error_message, allow_prebuilt_blocks):
             return [{"term": "Services"}]
 
         _patch(
@@ -321,7 +373,7 @@ class TestComposeSections:
             )
         )
 
-        def fake_resolve_pipeline_payload(payload, *, result_type, error_message):
+        def fake_resolve_pipeline_payload(payload, *, result_type, error_message, allow_prebuilt_blocks):
             assert payload == "structural_result"
             return "resolved_structural_result"
 
@@ -356,7 +408,7 @@ class TestComposeSections:
             )
         )
 
-        def fake_resolve_pipeline_payload(payload, *, result_type, error_message):
+        def fake_resolve_pipeline_payload(payload, *, result_type, error_message, allow_prebuilt_blocks):
             return [{"kind": "Schedule", "label": "1"}]
 
         _patch(

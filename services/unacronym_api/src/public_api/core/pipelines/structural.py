@@ -1,15 +1,23 @@
 import asyncio
 from collections.abc import Mapping
+from typing import cast
 
+from plainera_unacronym.nlp.extraction.structural.config import (
+    StructuralReferenceDetectorConfig,
+    StructuralReferenceExtractionConfig,
+)
 from plainera_unacronym.nlp.extraction.structural.execute import detect_and_resolve_structural_references
 from plainera_unacronym.nlp.extraction.structural.types import StructuralReferenceResolutionResult
 from plainera_unacronym.orchestration import PipelineRegistry
-from plainera_unacronym.orchestration.interface import (OrchestrationRequest,
-                                                        PipelineRunResult,
-                                                        PIPELINE_STRUCTURAL_REFERENCES)
+from plainera_unacronym.orchestration.interface import (
+    PIPELINE_STRUCTURAL_REFERENCES,
+    OrchestrationRequest,
+    PipelineRunResult,
+)
+
 from public_api.core.pipelines.base import BasePipelineExecutor
 from public_api.core.processing.structural_chunking import merge_structural_reference_results
-from public_api.schemas.resolve import ResolveOptions, ResolutionMode
+from public_api.schemas.resolve import ResolutionMode, ResolveOptions
 
 
 class StructuralPipelineExecutor(BasePipelineExecutor):
@@ -22,7 +30,7 @@ class StructuralPipelineExecutor(BasePipelineExecutor):
         *,
         pipeline_registry: PipelineRegistry,
         request_timeout_ms: int,
-    ):
+    ) -> None:
         """Initialise shared dependencies for structural pipeline execution.
 
         Args:
@@ -40,7 +48,7 @@ class StructuralPipelineExecutor(BasePipelineExecutor):
         *,
         text: str,
         options: Mapping[str, object],
-    ):
+    ) -> StructuralReferenceResolutionResult:
         """Run structural-reference detection and resolution for a single chunk.
 
         Args:
@@ -49,24 +57,30 @@ class StructuralPipelineExecutor(BasePipelineExecutor):
                 configuration and report/state return flags.
 
         Returns:
-            The chunk-level payload returned by
-            ``detect_and_resolve_structural_references``.
+            The chunk-level structural-reference resolution result.
         """
-        return await self._run_sync_with_timeout(
+        det_cfg_obj = options.get("det_cfg")
+        ext_cfg_obj = options.get("ext_cfg")
+
+        det_cfg = det_cfg_obj if isinstance(det_cfg_obj, StructuralReferenceDetectorConfig) else None
+        ext_cfg = ext_cfg_obj if isinstance(ext_cfg_obj, StructuralReferenceExtractionConfig) else None
+
+        result = await self._run_sync_with_timeout(
             lambda: detect_and_resolve_structural_references(
                 text,
-                det_cfg=options.get("det_cfg"),
-                ext_cfg=options.get("ext_cfg"),
+                det_cfg=det_cfg,
+                ext_cfg=ext_cfg,
                 return_reports=self._bool_option(options, "return_reports", False),
                 return_state=self._bool_option(options, "return_state", False),
             )
         )
+        return cast(StructuralReferenceResolutionResult, result)
 
     async def _execute_chunked(
         self,
         *,
         request: OrchestrationRequest,
-        opts: ResolveOptions,
+        opts: ResolveOptions | None,
         lang: str | None = None,
         resolution_mode: ResolutionMode | None = None,
     ) -> PipelineRunResult:

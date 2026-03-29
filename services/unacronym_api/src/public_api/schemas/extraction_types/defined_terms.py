@@ -2,10 +2,9 @@ from __future__ import annotations
 
 from typing import Literal
 
-from pydantic import Field
-
 from public_api.schemas.base import BaseSchema
 from public_api.schemas.shared import TextSpan
+from pydantic import Field
 
 
 class DefinedTermMeaningRef(BaseSchema):

@@ -3,9 +3,9 @@ from __future__ import annotations
 import math
 from enum import Enum
 
+from plainera_unacronym.orchestration.state import PipelineErrorCode
 from pydantic import Field, confloat, conint, constr, field_validator
 
-from plainera_unacronym.orchestration.state import PipelineErrorCode
 from public_api.schemas.base import BaseSchema
 from public_api.schemas.extraction_types.acronyms import ResolvedAcronymBlock
 from public_api.schemas.extraction_types.defined_terms import DefinedTermBlock

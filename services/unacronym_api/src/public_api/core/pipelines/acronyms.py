@@ -1,11 +1,13 @@
 import asyncio
 from collections.abc import Mapping
-from typing import Any
+from typing import Any, cast
 
-from plainera_unacronym.nlp.common.types import AcronymDetectorResult, ExtractionResult
+from plainera_unacronym.nlp.common.types import AcronymDetectorConfig, AcronymDetectorResult, ExtractionResult
+from plainera_unacronym.nlp.extraction.acronyms.config import ExtractionConfig
 from plainera_unacronym.nlp.extraction.acronyms.execute import detect_and_extract
 from plainera_unacronym.orchestration import PIPELINE_ACRONYMS, PipelineRegistry, PipelineRunResult
 from plainera_unacronym.orchestration.interface import OrchestrationRequest
+
 from public_api.core.pipelines.base import BasePipelineExecutor
 from public_api.core.processing.acronym_chunking import (
     merge_acronym_blocks,
@@ -14,7 +16,7 @@ from public_api.core.processing.acronym_chunking import (
 from public_api.core.services.resolution_policy import attach_resolution_metadata
 from public_api.core.services.resolve_mapper import map_acronym_pipeline_to_blocks
 from public_api.db.repos import GlossaryRepository
-from public_api.schemas.resolve import ResolveOptions, ResolutionMode
+from public_api.schemas.resolve import ResolutionMode, ResolveOptions
 
 
 class AcronymPipelineExecutor(BasePipelineExecutor):
@@ -63,28 +65,34 @@ class AcronymPipelineExecutor(BasePipelineExecutor):
         Returns:
             A tuple of detector and extraction results for the chunk.
         """
-        return await self._run_sync_with_timeout(
+        det_cfg = cast(AcronymDetectorConfig | None, options.get("det_cfg"))
+        ext_cfg = cast(ExtractionConfig | None, options.get("ext_cfg"))
+        tier2_model = options.get("tier2_model", self._tier2_model)
+        trace_filter = options.get("trace_filter")
+
+        result = await self._run_sync_with_timeout(
             lambda: detect_and_extract(
                 text,
-                det_cfg=options.get("det_cfg"),
-                ext_cfg=options.get("ext_cfg"),
-                tier2_model=options.get("tier2_model", self._tier2_model),
+                det_cfg=det_cfg,
+                ext_cfg=ext_cfg,
+                tier2_model=tier2_model,
                 window_left=self._int_option(options, "window_left", 320),
                 window_right=self._int_option(options, "window_right", 280),
                 return_reports=self._bool_option(options, "return_reports", False),
                 trace=self._bool_option(options, "trace", False),
                 return_state=self._bool_option(options, "return_state", False),
-                trace_filter=options.get("trace_filter"),
+                trace_filter=trace_filter,
             )
         )
+        return cast(tuple[AcronymDetectorResult, ExtractionResult], result)
 
     async def _execute_chunked(
         self,
         *,
         request: OrchestrationRequest,
-        opts: ResolveOptions,
-        lang: str,
-        resolution_mode: ResolutionMode,
+        opts: ResolveOptions | None,
+        lang: str | None = None,
+        resolution_mode: ResolutionMode | None = None,
     ) -> PipelineRunResult:
         """Execute the acronym pipeline over overlapping text chunks.
 
@@ -106,6 +114,13 @@ class AcronymPipelineExecutor(BasePipelineExecutor):
         Raises:
             ResolveError: If chunk execution times out or fails.
         """
+        if opts is None:
+            raise ValueError("Acronym chunked execution requires resolve options.")
+        if lang is None:
+            raise ValueError("Acronym chunked execution requires a language.")
+        if resolution_mode is None:
+            raise ValueError("Acronym chunked execution requires a resolution mode.")
+
         options = self._pipeline_options(request)
         chunk_size_chars = self._int_option(options, "chunk_size_chars", max(1, len(request.text)))
         chunk_overlap_chars = self._int_option(options, "chunk_overlap_chars", 0)

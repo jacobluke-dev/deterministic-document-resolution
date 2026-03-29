@@ -4,7 +4,8 @@ import pytest
 from plainera_unacronym.orchestration.interface import PipelineRunResult
 from plainera_unacronym.orchestration.state import (
     OrchestrationPipelineError,
-    OrchestrationState, PipelineErrorCode,
+    OrchestrationState,
+    PipelineErrorCode,
 )
 
 

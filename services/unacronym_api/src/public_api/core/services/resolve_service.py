@@ -27,13 +27,11 @@ from plainera_unacronym.orchestration import (
 )
 from plainera_unacronym.orchestration.state import OrchestrationState
 
-from public_api.core.orchestration import Orchestrator
-from public_api.core.orchestration.mapper import map_orchestration_state, compose_sections
-from public_api.core.orchestration.request_builder import build_orchestration_request
 from public_api.core.errors import ResolveError
-
+from public_api.core.orchestration import Orchestrator
+from public_api.core.orchestration.mapper import compose_sections, map_orchestration_state
+from public_api.core.orchestration.request_builder import build_orchestration_request
 from public_api.db.repos import GlossaryRepository
-
 from public_api.schemas.error import ErrorCode
 from public_api.schemas.resolve import ResolutionMode, ResolveOptions, ResolveRequest, ResolveResponse
 

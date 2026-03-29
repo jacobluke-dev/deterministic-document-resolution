@@ -10,7 +10,8 @@ from starlette.responses import JSONResponse
 from public_api.api.response_types import build_responses
 from public_api.core.di.deps import get_resolve_service
 from public_api.core.di.deps_auth import require_api_key
-from public_api.core.services.resolve_service import ResolveError, ResolveService
+from public_api.core.errors import ResolveError
+from public_api.core.services.resolve_service import ResolveService
 from public_api.core.settings import app_settings
 from public_api.schemas.error import ErrorBody, ErrorResponse
 from public_api.schemas.resolve import ResolveRequest, ResolveResponse

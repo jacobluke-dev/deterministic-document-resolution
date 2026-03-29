@@ -3,7 +3,6 @@ from typing import Literal, Optional
 from pydantic import Field, confloat, constr
 
 from public_api.schemas.base import BaseSchema
-from public_api.schemas.shared import Definition, Span
 
 
 class GlossaryMatch(BaseSchema):

@@ -1,15 +1,17 @@
 import asyncio
 from collections.abc import Mapping
+from typing import cast
 
+from plainera_unacronym.nlp.common.types import DefinedTermDetectorConfig
+from plainera_unacronym.nlp.extraction.defined_terms.config import DefinedTermExtractionConfig
 from plainera_unacronym.nlp.extraction.defined_terms.execute import detect_and_resolve_terms
 from plainera_unacronym.nlp.extraction.defined_terms.types import TermResolutionResult
 from plainera_unacronym.orchestration import PipelineRegistry
-from plainera_unacronym.orchestration.interface import (OrchestrationRequest,
-                                                        PipelineRunResult,
-                                                        PIPELINE_DEFINED_TERMS)
+from plainera_unacronym.orchestration.interface import PIPELINE_DEFINED_TERMS, OrchestrationRequest, PipelineRunResult
+
 from public_api.core.pipelines.base import BasePipelineExecutor
 from public_api.core.processing.defined_term_chunking import merge_defined_term_results
-from public_api.schemas.resolve import ResolveOptions, ResolutionMode
+from public_api.schemas.resolve import ResolutionMode, ResolveOptions
 
 
 class DefinedTermsPipelineExecutor(BasePipelineExecutor):
@@ -22,7 +24,7 @@ class DefinedTermsPipelineExecutor(BasePipelineExecutor):
         *,
         pipeline_registry: PipelineRegistry,
         request_timeout_ms: int,
-    ):
+    ) -> None:
         """Initialise shared dependencies for defined-term pipeline execution.
 
         Args:
@@ -40,7 +42,7 @@ class DefinedTermsPipelineExecutor(BasePipelineExecutor):
         *,
         text: str,
         options: Mapping[str, object],
-    ):
+    ) -> TermResolutionResult:
         """Run defined-term detection and resolution for a single text chunk.
 
         Args:
@@ -49,25 +51,31 @@ class DefinedTermsPipelineExecutor(BasePipelineExecutor):
                 configuration, trace flags, and report/state returns.
 
         Returns:
-            The chunk-level payload returned by ``detect_and_resolve_terms``.
+            The chunk-level defined-term resolution result.
         """
-        return await self._run_sync_with_timeout(
+        det_cfg_obj = options.get("det_cfg")
+        ext_cfg_obj = options.get("ext_cfg")
+        det_cfg = det_cfg_obj if isinstance(det_cfg_obj, DefinedTermDetectorConfig) else None
+        ext_cfg = ext_cfg_obj if isinstance(ext_cfg_obj, DefinedTermExtractionConfig) else None
+
+        result = await self._run_sync_with_timeout(
             lambda: detect_and_resolve_terms(
                 text,
-                det_cfg=options.get("det_cfg"),
-                ext_cfg=options.get("ext_cfg"),
+                det_cfg=det_cfg,
+                ext_cfg=ext_cfg,
                 return_reports=self._bool_option(options, "return_reports", False),
                 trace=self._bool_option(options, "trace", False),
                 return_state=self._bool_option(options, "return_state", False),
                 trace_filter=options.get("trace_filter"),
             )
         )
+        return cast(TermResolutionResult, result)
 
     async def _execute_chunked(
         self,
         *,
         request: OrchestrationRequest,
-        opts: ResolveOptions,
+        opts: ResolveOptions | None,
         lang: str | None = None,
         resolution_mode: ResolutionMode | None = None,
     ) -> PipelineRunResult:

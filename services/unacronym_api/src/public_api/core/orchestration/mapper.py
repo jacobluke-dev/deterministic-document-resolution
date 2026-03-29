@@ -1,28 +1,64 @@
 from __future__ import annotations
 
-from typing import Any, TypeVar
+from typing import Any
+
 from plainera_unacronym.nlp.extraction.defined_terms.types import TermResolutionResult
 from plainera_unacronym.nlp.extraction.structural.types import StructuralReferenceResolutionResult
 from plainera_unacronym.orchestration import PIPELINE_ACRONYMS, PIPELINE_DEFINED_TERMS, PIPELINE_STRUCTURAL_REFERENCES
 from plainera_unacronym.orchestration.state import OrchestrationState
 
 from public_api.core.services.resolution_policy import attach_resolution_metadata
-from public_api.core.services.resolve_mapper import (map_acronym_pipeline_to_blocks,
-                                                     map_defined_term_blocks,
-                                                     map_structural_blocks)
+from public_api.core.services.resolve_mapper import (
+    map_acronym_pipeline_to_blocks,
+    map_defined_term_blocks,
+    map_structural_blocks,
+)
 from public_api.db.repos import GlossaryRepository
-from public_api.schemas.resolve import OrchestrationMeta, PipelineError, ResolveOptions, ResolutionMode
+from public_api.schemas.resolve import OrchestrationMeta, PipelineError, ResolutionMode, ResolveOptions
 
 
-T = TypeVar("T")
-
-
-def _resolve_pipeline_payload(
+def _resolve_defined_term_payload(
     payload: object,
     *,
-    result_type: type[T],
     error_message: str,
-) -> T | list[Any]:
+    allow_prebuilt_blocks: bool = True,
+) -> TermResolutionResult | list[Any]:
+    """Normalize a defined-term pipeline payload.
+
+    Supported payload shapes are:
+
+    * a prebuilt list of public response blocks
+    * a ``(detector_result, resolution_result)`` tuple
+    * a direct ``TermResolutionResult``
+
+    Args:
+        payload: Raw pipeline payload stored on orchestration state.
+        error_message: Error message raised when the payload shape is unsupported.
+        allow_prebuilt_blocks: Whether a prebuilt block list is accepted.
+
+    Returns:
+        Either the prebuilt list of blocks, or the validated resolution result.
+
+    Raises:
+        ValueError: If the payload does not match a supported shape.
+    """
+    if allow_prebuilt_blocks and isinstance(payload, list):
+        return payload
+    if isinstance(payload, tuple) and len(payload) == 2:
+        _, resolution = payload
+        if not isinstance(resolution, TermResolutionResult):
+            raise ValueError(error_message)
+        return resolution
+    if isinstance(payload, TermResolutionResult):
+        return payload
+    raise ValueError(error_message)
+
+def _resolve_structural_payload(
+    payload: object,
+    *,
+    error_message: str,
+    allow_prebuilt_blocks: bool = True,
+) -> StructuralReferenceResolutionResult | list[Any]:
     """Normalize a pipeline payload to either a result object or prebuilt blocks.
 
     Pipelines may return one of three shapes:
@@ -37,8 +73,8 @@ def _resolve_pipeline_payload(
 
     Args:
         payload: Raw pipeline payload stored on orchestration state.
-        result_type: Expected resolution result type for the pipeline.
         error_message: Error message raised when the payload shape is unsupported.
+        allow_prebuilt_blocks: Whether a prebuilt block list is accepted.
 
     Returns:
         Either the prebuilt list of blocks, or the validated resolution result.
@@ -47,14 +83,14 @@ def _resolve_pipeline_payload(
         ValueError: If the payload does not match a supported shape for the
             requested pipeline.
     """
-    if isinstance(payload, list):
+    if allow_prebuilt_blocks and isinstance(payload, list):
         return payload
     if isinstance(payload, tuple) and len(payload) == 2:
         _, resolution = payload
-        if not isinstance(resolution, result_type):
+        if not isinstance(resolution, StructuralReferenceResolutionResult):
             raise ValueError(error_message)
         return resolution
-    if isinstance(payload, result_type):
+    if isinstance(payload, StructuralReferenceResolutionResult):
         return payload
     raise ValueError(error_message)
 
@@ -152,25 +188,23 @@ def compose_sections(
 
     if PIPELINE_DEFINED_TERMS in state.completed_targets:
         payload = state.results_by_pipeline[PIPELINE_DEFINED_TERMS].payload
-        resolved = _resolve_pipeline_payload(
+        defined_term_result = _resolve_defined_term_payload(
             payload,
-            result_type=TermResolutionResult,
             error_message="Unsupported defined-term pipeline payload shape.",
         )
-        if isinstance(resolved, list):
-            sections["defined_terms"] = resolved
+        if isinstance(defined_term_result, list):
+            sections["defined_terms"] = defined_term_result
         else:
-            sections["defined_terms"] = map_defined_term_blocks(resolved)
+            sections["defined_terms"] = map_defined_term_blocks(defined_term_result)
 
     if PIPELINE_STRUCTURAL_REFERENCES in state.completed_targets:
         payload = state.results_by_pipeline[PIPELINE_STRUCTURAL_REFERENCES].payload
-        resolved = _resolve_pipeline_payload(
+        structural_result = _resolve_structural_payload(
             payload,
-            result_type=StructuralReferenceResolutionResult,
             error_message="Unsupported structural-reference pipeline payload shape.",
         )
-        if isinstance(resolved, list):
-            sections["structural_references"] = resolved
+        if isinstance(structural_result, list):
+            sections["structural_references"] = structural_result
         else:
-            sections["structural_references"] = map_structural_blocks(resolved)
+            sections["structural_references"] = map_structural_blocks(structural_result)
     return sections

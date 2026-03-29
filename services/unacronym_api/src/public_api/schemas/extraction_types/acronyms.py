@@ -1,11 +1,10 @@
 from enum import Enum
 from typing import Optional
 
-from pydantic import Field, confloat, conint
-
 from public_api.schemas.base import BaseSchema
-from public_api.schemas.shared import Span, Definition
 from public_api.schemas.glossary import GlossaryBlock
+from public_api.schemas.shared import Definition, Span
+from pydantic import Field, confloat, conint
 
 
 class CandidateProvenance(str, Enum):

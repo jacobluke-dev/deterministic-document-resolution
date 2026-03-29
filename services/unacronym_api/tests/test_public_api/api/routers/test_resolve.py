@@ -3,8 +3,8 @@ from typing import Any
 import pytest
 from httpx import Response
 from public_api.api.routers import resolve as resolve_mod
-from public_api.core.di import deps_auth as deps_auth_mod
 from public_api.core.auth.api_keys import Principal
+from public_api.core.di import deps_auth as deps_auth_mod
 from public_api.db.models import GlossaryAcronym, GlossaryMeaning
 from public_api.schemas.error import ErrorCode
 
@@ -780,35 +780,6 @@ class TestV1ResolveResponseShapes:
 
         if block["target_span"] is not None:
             assert set(block["target_span"]) >= {"start", "end"}
-
-    @pytest.mark.anyio
-    async def test_response_meta_and_orchestration_have_expected_shape(self, client):
-        r = await client.post(
-            "/v1/resolve",
-            json={
-                "text": "The Metropolitan Police Service (MPS) operates in London.",
-                "targets": ["acronyms"],
-            },
-        )
-        assert r.status_code == 200, r.text
-
-        body = r.json()
-
-        assert set(body["meta"]) >= {
-            "processing_ms",
-            "model_version",
-            "input_chars",
-            "resolution_mode",
-        }
-        assert isinstance(body["meta"]["processing_ms"], int)
-        assert isinstance(body["meta"]["model_version"], str)
-        assert isinstance(body["meta"]["input_chars"], int)
-        assert body["meta"]["resolution_mode"] == "domain_priority"
-
-        assert set(body["orchestration"]) == {"requested", "completed", "failed"}
-        assert body["orchestration"]["requested"] == ["acronyms"]
-        assert body["orchestration"]["completed"] == ["acronyms"]
-        assert body["orchestration"]["failed"] == []
 
     @pytest.mark.anyio
     async def test_response_meta_and_orchestration_have_expected_shape(self, client):

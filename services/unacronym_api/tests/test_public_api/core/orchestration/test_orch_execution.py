@@ -5,7 +5,6 @@ from typing import Any, cast
 
 import anyio
 import pytest
-
 from plainera_unacronym.orchestration.interface import (
     PIPELINE_ACRONYMS,
     PIPELINE_DEFINED_TERMS,
@@ -16,8 +15,7 @@ from plainera_unacronym.orchestration.state import PipelineErrorCode
 from public_api.core.errors import ResolveError
 from public_api.core.orchestration import Orchestrator
 from public_api.schemas.error import ErrorCode
-
-from public_api.schemas.resolve import ResolveOptions, ResolutionMode
+from public_api.schemas.resolve import ResolutionMode, ResolveOptions
 
 
 class _FakeExecutor:

@@ -10,6 +10,15 @@ from plainera_unacronym.nlp.extraction.structural.types import (
 
 
 def _shift_span(span: tuple[int, int], delta: int) -> tuple[int, int]:
+    """Shift a structural span by a character offset.
+
+    Args:
+        span: Source span as ``(start, end)``.
+        delta: Character offset to add to both positions.
+
+    Returns:
+        The original span when ``delta == 0``; otherwise a shifted span.
+    """
     if delta == 0:
         return span
     return int(span[0]) + delta, int(span[1]) + delta
@@ -19,6 +28,19 @@ def shift_structural_reference_result(
     result: StructuralReferenceResolutionResult,
     delta: int,
 ) -> StructuralReferenceResolutionResult:
+    """Shift all structural reference offsets into document coordinates.
+
+    This is used when structural-reference results were produced from a text
+    chunk and need to be projected back into full-document offsets.
+
+    Args:
+        result: Chunk-local structural reference result.
+        delta: Character offset to apply to reference and target spans.
+
+    Returns:
+        The original result when ``delta == 0``; otherwise a new result with
+        shifted references, links, and unique-key maps.
+    """
     if delta == 0:
         return result
 
@@ -122,6 +144,23 @@ def _choose_unique_link(
 def merge_structural_reference_results(
     chunk_results: list[tuple[int, StructuralReferenceResolutionResult]],
 ) -> StructuralReferenceResolutionResult:
+    """Merge chunked structural-reference results into one document-level result.
+
+    The merge process:
+    1. Shifts chunk-local offsets into document coordinates.
+    2. Deduplicates references and links by stable structural identity.
+    3. Sorts merged references and links deterministically by span.
+    4. Rebuilds ``unique_keys`` from first-seen references per canonical key.
+    5. Rebuilds ``unique_links`` from merged links, preferring a resolved link
+       over an unresolved one for the same canonical key.
+
+    Args:
+        chunk_results: Pairs of ``(delta, result)``, where ``delta`` is the
+            chunk start offset in document coordinates.
+
+    Returns:
+        A merged, deterministically ordered structural-reference result.
+    """
     shifted_results = [
         shift_structural_reference_result(result, delta)
         for delta, result in chunk_results

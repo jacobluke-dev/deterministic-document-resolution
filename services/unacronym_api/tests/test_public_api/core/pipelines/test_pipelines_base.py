@@ -3,7 +3,6 @@ from __future__ import annotations
 import time
 
 import pytest
-
 from plainera_unacronym.orchestration.interface import (
     OrchestrationRequest,
     PipelineRequest,
@@ -12,7 +11,7 @@ from plainera_unacronym.orchestration.interface import (
 from public_api.core.errors import ResolveError
 from public_api.core.pipelines.base import BasePipelineExecutor
 from public_api.schemas.error import ErrorCode
-from public_api.schemas.resolve import ResolveOptions, ResolutionMode
+from public_api.schemas.resolve import ResolutionMode, ResolveOptions
 
 
 class _FakeRunner:
