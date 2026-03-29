@@ -13,14 +13,27 @@ from public_api.schemas.resolve import ResolveOptions, ResolutionMode
 
 
 class DefinedTermsPipelineExecutor(BasePipelineExecutor):
+    """Execute the defined-term pipeline via direct or chunked orchestration paths."""
+
     key = PIPELINE_DEFINED_TERMS
 
-    def __init__(self,
-                 *,
-                 pipeline_registry: PipelineRegistry,
-                 request_timeout_ms: int):
-        super().__init__(pipeline_registry=pipeline_registry,
-                         request_timeout_ms=request_timeout_ms)
+    def __init__(
+        self,
+        *,
+        pipeline_registry: PipelineRegistry,
+        request_timeout_ms: int,
+    ):
+        """Initialise shared dependencies for defined-term pipeline execution.
+
+        Args:
+            pipeline_registry: Registry used for direct non-chunked execution.
+            request_timeout_ms: Timeout budget in milliseconds for blocking work
+                executed via worker threads.
+        """
+        super().__init__(
+            pipeline_registry=pipeline_registry,
+            request_timeout_ms=request_timeout_ms,
+        )
 
     async def _run_defined_term_pipeline_chunk(
         self,
@@ -28,6 +41,16 @@ class DefinedTermsPipelineExecutor(BasePipelineExecutor):
         text: str,
         options: Mapping[str, object],
     ):
+        """Run defined-term detection and resolution for a single text chunk.
+
+        Args:
+            text: Chunk text to process.
+            options: Per-pipeline options controlling detector/extractor
+                configuration, trace flags, and report/state returns.
+
+        Returns:
+            The chunk-level payload returned by ``detect_and_resolve_terms``.
+        """
         return await self._run_sync_with_timeout(
             lambda: detect_and_resolve_terms(
                 text,
@@ -48,6 +71,27 @@ class DefinedTermsPipelineExecutor(BasePipelineExecutor):
         lang: str | None = None,
         resolution_mode: ResolutionMode | None = None,
     ) -> PipelineRunResult:
+        """Execute the defined-term pipeline over overlapping text chunks.
+
+        Each chunk is processed independently, then merged back into a single
+        document-level ``TermResolutionResult`` using the original chunk start
+        offsets.
+
+        Args:
+            request: Top-level orchestration request.
+            opts: Resolved API options for the request. Present for interface
+                consistency; not currently used by this executor.
+            lang: Optional language hint. Present for interface consistency; not
+                currently used by this executor.
+            resolution_mode: Optional resolution mode. Present for interface
+                consistency; not currently used by this executor.
+
+        Returns:
+            A ``PipelineRunResult`` whose payload is the merged defined-term result.
+
+        Raises:
+            ResolveError: If any chunk times out or fails during execution.
+        """
         options = self._pipeline_options(request)
         chunk_size_chars = self._int_option(options, "chunk_size_chars", max(1, len(request.text)))
         chunk_overlap_chars = self._int_option(options, "chunk_overlap_chars", 0)
