@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from typing import Any
 
+from plainera_unacronym.nlp.common.types import AcronymPipelineResult, AcronymDetectorResult, ExtractionResult
 from plainera_unacronym.nlp.extraction.defined_terms.types import TermResolutionResult
 from plainera_unacronym.nlp.extraction.structural.types import StructuralReferenceResolutionResult
 from plainera_unacronym.orchestration import PIPELINE_ACRONYMS, PIPELINE_DEFINED_TERMS, PIPELINE_STRUCTURAL_REFERENCES
@@ -125,6 +126,54 @@ def map_orchestration_state(
 
     return meta, errors
 
+def _resolve_acronym_payload(
+    payload: object,
+    *,
+    error_message: str,
+    allow_prebuilt_blocks: bool = True,
+) -> AcronymPipelineResult | list[Any]:
+    """Normalize an acronym pipeline payload for response composition.
+
+    Supported payload shapes are:
+
+    * a prebuilt list of public response blocks
+    * an ``AcronymPipelineResult``
+    * a legacy ``(detector_result, extraction_result)`` tuple
+
+    Legacy tuple payloads are converted into ``AcronymPipelineResult`` so
+    downstream composition can rely on a single explicit acronym result shape.
+
+    Args:
+        payload: Raw pipeline payload stored on orchestration state.
+        error_message: Error message raised when the payload shape is unsupported.
+        allow_prebuilt_blocks: Whether a prebuilt block list is accepted.
+
+    Returns:
+        Either the prebuilt list of blocks, or a normalized
+        ``AcronymPipelineResult``.
+
+    Raises:
+        ValueError: If the payload does not match a supported acronym pipeline
+            shape.
+    """
+    if allow_prebuilt_blocks and isinstance(payload, list):
+        return payload
+
+    if isinstance(payload, AcronymPipelineResult):
+        return payload
+
+    if isinstance(payload, tuple) and len(payload) == 2:
+        det_res, extr = payload
+        if not isinstance(det_res, AcronymDetectorResult):
+            raise ValueError(error_message)
+        if not isinstance(extr, ExtractionResult):
+            raise ValueError(error_message)
+        return AcronymPipelineResult(
+            detector_result=det_res,
+            extraction_result=extr,
+        )
+
+    raise ValueError(error_message)
 
 def compose_sections(
     state: OrchestrationState,
@@ -165,14 +214,17 @@ def compose_sections(
 
     if PIPELINE_ACRONYMS in state.completed_targets:
         payload = state.results_by_pipeline[PIPELINE_ACRONYMS].payload
+        acronym_result = _resolve_acronym_payload(
+            payload,
+            error_message="Unsupported acronym pipeline payload shape.",
+        )
 
-        if isinstance(payload, list):
-            sections["acronyms"] = payload
-        elif isinstance(payload, tuple) and len(payload) == 2:
-            det_res, extr = payload
+        if isinstance(acronym_result, list):
+            sections["acronyms"] = acronym_result
+        else:
             blocks = map_acronym_pipeline_to_blocks(
-                det_res=det_res,
-                extr=extr,
+                det_res=acronym_result.detector_result,
+                extr=acronym_result.extraction_result,
                 opts=opts,
                 lang=lang,
                 glossary_repo=glossary_repo,
@@ -183,8 +235,6 @@ def compose_sections(
                 resolution_mode=resolution_mode,
                 glossary_repo=glossary_repo,
             )
-        else:
-            raise ValueError("Unsupported acronym pipeline payload shape.")
 
     if PIPELINE_DEFINED_TERMS in state.completed_targets:
         payload = state.results_by_pipeline[PIPELINE_DEFINED_TERMS].payload
