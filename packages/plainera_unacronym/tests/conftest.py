@@ -29,17 +29,20 @@ def span() -> Callable[[str, str], Span]:
     return _span
 
 
-class NullSink:
+class SpySink:
+    def __init__(self) -> None:
+        self.events: list[tuple[tuple, dict]] = []
+
     def __call__(self, *a, **k):
-        pass
+        self.events.append((a, k))
 
     def __getattr__(self, _):
-        return lambda *a, **k: None
+        return self.__call__
 
 
 @pytest.fixture(autouse=True)
 def patch_sink(monkeypatch):
-    dummy = NullSink()
+    dummy = SpySink()
     monkeypatch.setattr(acr_stage_funcs, "sink", dummy, raising=True)
     monkeypatch.setattr(def_stage_funcs, "sink", dummy, raising=True)
     monkeypatch.setattr(struct_stage_funcs, "sink", dummy, raising=True)
