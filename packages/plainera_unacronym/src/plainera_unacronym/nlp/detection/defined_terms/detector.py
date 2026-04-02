@@ -554,6 +554,7 @@ class DefinedTermDetector(BaseDetector[DefinedTermDetectorResult]):
         )
 
         return occurrences
+
     @logger(message="defined_term_detector.detect", db_sink="sink")
     def detect(self, text: str) -> DefinedTermDetectorResult:
         """Detect defined-term introductions and occurrences in a text run.
@@ -584,7 +585,16 @@ class DefinedTermDetector(BaseDetector[DefinedTermDetectorResult]):
             unique_terms.setdefault(intro.normalized_key, intro)
         intro_term_spans = {(intro.start_offset, intro.end_offset) for intro in intros}
 
-        occurrences = self._iter_references(
+        intro_mentions = [
+            build_defined_term_mention(
+                term=intro.term,
+                start_offset=intro.start_offset,
+                end_offset=intro.end_offset,
+            )
+            for intro in intros
+        ]
+
+        later_mentions = self._iter_references(
             text,
             introductions=intros,
             known_keys=set(unique_terms.keys()),
@@ -592,6 +602,11 @@ class DefinedTermDetector(BaseDetector[DefinedTermDetectorResult]):
             first_intro_end_by_key=first_intro_end_by_key,
             cfg=cfg,
             legal_active=legal_active,
+        )
+
+        occurrences = sorted(
+            [*intro_mentions, *later_mentions],
+            key=lambda occ: (occ.start_offset, occ.end_offset, occ.normalized_key),
         )
 
         return DefinedTermDetectorResult(
