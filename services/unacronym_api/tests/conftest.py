@@ -4,6 +4,9 @@ import os
 # --- only now import modules that may construct settings/engines ---
 import time
 
+import plainera_unacronym.nlp.extraction.acronyms.engine.stage_funcs as acr_stage_funcs
+import plainera_unacronym.nlp.extraction.defined_terms.stage_funcs as def_stage_funcs
+import plainera_unacronym.nlp.extraction.structural.stage_funcs as struct_stage_funcs
 import pytest
 import pytest_asyncio
 from alembic import command
@@ -199,3 +202,23 @@ def _patch(monkeypatch):
             monkeypatch.setitem(g, name, impl)
         return func
     return _apply
+
+
+class SpySink:
+    def __init__(self) -> None:
+        self.events: list[tuple[tuple, dict]] = []
+
+    def __call__(self, *a, **k):
+        self.events.append((a, k))
+
+    def __getattr__(self, _):
+        return self.__call__
+
+
+@pytest.fixture(autouse=True)
+def patch_sink(monkeypatch):
+    dummy = SpySink()
+    monkeypatch.setattr(acr_stage_funcs, "sink", dummy, raising=True)
+    monkeypatch.setattr(def_stage_funcs, "sink", dummy, raising=True)
+    monkeypatch.setattr(struct_stage_funcs, "sink", dummy, raising=True)
+    return dummy
