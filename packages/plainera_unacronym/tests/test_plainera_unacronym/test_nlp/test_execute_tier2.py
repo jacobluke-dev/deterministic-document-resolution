@@ -2,8 +2,9 @@ from __future__ import annotations
 
 import json
 import re
+from collections.abc import Iterable
 from dataclasses import asdict, replace
-from typing import Any, Iterable, Literal
+from typing import Any, Literal
 
 import numpy as np
 import plainera_unacronym.nlp.extraction.tiers.tier_2 as t2

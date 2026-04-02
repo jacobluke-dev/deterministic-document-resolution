@@ -1,5 +1,5 @@
+from collections.abc import Callable
 from dataclasses import replace
-from typing import Callable
 
 import numpy as np
 import plainera_unacronym.nlp.detection.acronym.detector as acr_det

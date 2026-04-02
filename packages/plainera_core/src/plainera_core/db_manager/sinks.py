@@ -1,7 +1,8 @@
 from __future__ import annotations
 
 import asyncio
-from typing import Any, Awaitable, Callable, Iterable, Protocol
+from collections.abc import Awaitable, Callable, Iterable
+from typing import Any, Protocol
 
 from sqlalchemy import create_engine, insert
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker

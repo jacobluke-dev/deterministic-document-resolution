@@ -71,8 +71,9 @@ list[ExtractedDefinition]
     was found in a prior sentence using initials-based span selection.
 """
 
+from collections.abc import Mapping
 from dataclasses import dataclass
-from typing import Literal, Mapping
+from typing import Literal
 
 from plainera_unacronym.nlp.common.constants_regex import HYPHEN_SPLIT_RE, TOKEN_RE
 from plainera_unacronym.nlp.common.types import ExtractedDefinition, FirstOccurrence, Span

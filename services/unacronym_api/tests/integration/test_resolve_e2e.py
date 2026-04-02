@@ -3,7 +3,6 @@ from __future__ import annotations
 from typing import Any
 
 import pytest
-
 from public_api.core.pipelines import DefinedTermsPipelineExecutor
 from public_api.schemas.error import ErrorCode
 from sqlalchemy import text

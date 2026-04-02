@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from collections import Counter
 from dataclasses import dataclass
-from typing import Sequence
+from collections.abc import  Sequence
 
 from plainera_unacronym.nlp.detection.defined_terms.types import DefinedTermMention
 from plainera_unacronym.nlp.extraction.defined_terms.config import DefinedTermExtractionConfig

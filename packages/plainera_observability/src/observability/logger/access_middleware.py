@@ -1,6 +1,7 @@
 import time
 import uuid
-from typing import Any, Awaitable, Callable, Coroutine, Optional
+from collections.abc import Callable, Coroutine
+from typing import Any, Awaitable, Optional
 
 from starlette.requests import Request
 from starlette.responses import Response
