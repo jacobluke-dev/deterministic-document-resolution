@@ -1,4 +1,5 @@
-from typing import Any, MutableMapping, Optional
+from collections.abc import MutableMapping
+from typing import Any, Optional
 
 from starlette.responses import PlainTextResponse
 from starlette.types import ASGIApp, Receive, Scope, Send

@@ -1,5 +1,5 @@
 import re
-from typing import Iterable
+from collections.abc import Iterable
 
 from plainera_unacronym.nlp.common.types import AcronymMeaning, ExtractedDefinition
 from plainera_unacronym.nlp.extraction.acronyms.core.defs import dedupe_defs

@@ -1,8 +1,8 @@
 # services/public_api/src/public_api/api/types.py
 from __future__ import annotations
 
-from collections.abc import Awaitable, Iterable
-from typing import Annotated, Callable, Optional, Protocol, TypeAlias, TypedDict
+from collections.abc import Awaitable, Callable, Iterable
+from typing import Annotated, Optional, Protocol, TypeAlias, TypedDict
 
 from fastapi import Header
 from plainera_core.db_manager.connection import DBManager

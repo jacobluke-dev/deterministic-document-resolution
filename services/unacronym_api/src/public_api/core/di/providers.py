@@ -1,4 +1,5 @@
-from typing import Callable, Iterable, Protocol, runtime_checkable
+from collections.abc import Callable, Iterable
+from typing import Protocol, runtime_checkable
 
 from plainera_core.core.domain import DefinitionCandidate
 

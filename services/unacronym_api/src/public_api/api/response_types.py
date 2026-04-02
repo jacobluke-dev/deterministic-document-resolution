@@ -1,6 +1,7 @@
 from __future__ import annotations
 
-from typing import Any, Mapping, MutableMapping, TypeAlias
+from collections.abc import Mapping, MutableMapping
+from typing import Any, TypeAlias
 
 from observability.config import REQ_ID_HEADER
 

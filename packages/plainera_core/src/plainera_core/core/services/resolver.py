@@ -1,4 +1,5 @@
-from typing import TYPE_CHECKING, Any, Callable, Iterable, Mapping
+from collections.abc import Callable, Iterable, Mapping
+from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
     # only used by type checkers; mypy already sees services/... via PYTHONPATH in Makefile

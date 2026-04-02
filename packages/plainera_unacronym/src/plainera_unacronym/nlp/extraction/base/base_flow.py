@@ -1,7 +1,8 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from typing import Callable, Generic, TypeAlias, TypeVar
+from collections.abc import Callable
+from typing import Generic, TypeAlias, TypeVar
 
 from plainera_unacronym.nlp.extraction.base.stages import Chain, StageReport, TraceEvent, Tracer
 

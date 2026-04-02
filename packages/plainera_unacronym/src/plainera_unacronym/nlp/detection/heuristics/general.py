@@ -6,7 +6,8 @@ terminal plurals, identifying ALL-CAPS headings, sentence boundaries, and shouty
 They are designed to be pure and deterministic over `(surface, text, s, e, cfg)`.
 """
 
-from typing import TYPE_CHECKING, Collection, Union
+from collections.abc import Collection
+from typing import TYPE_CHECKING, Union
 
 from plainera_unacronym.nlp.common.constants_regex import (
     BOUNDARY_TERMINATORS,
