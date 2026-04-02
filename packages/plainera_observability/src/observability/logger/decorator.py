@@ -1,9 +1,10 @@
 import asyncio
 import inspect
 import json
+from collections.abc import Awaitable, Callable, Iterable
 from functools import wraps
 from time import monotonic
-from typing import Any, Awaitable, Callable, Iterable, Optional, ParamSpec, TypeVar, cast
+from typing import Any, Optional, ParamSpec, TypeVar, cast
 
 from .emit import emit, emit_async
 from .levels import LogLevel

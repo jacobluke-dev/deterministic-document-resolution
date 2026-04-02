@@ -1,8 +1,9 @@
 from __future__ import annotations
 
 import importlib
+from collections.abc import Iterable, Sequence
 from functools import lru_cache
-from typing import Any, Iterable, Sequence
+from typing import Any
 
 import numpy as np
 from numpy.typing import NDArray
