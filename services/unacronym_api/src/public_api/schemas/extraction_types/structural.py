@@ -3,7 +3,7 @@ from __future__ import annotations
 from typing import Literal
 
 from public_api.schemas.base import BaseSchema
-from public_api.schemas.shared import TextSpan
+from public_api.schemas.shared import TextSpan, Span
 from pydantic import Field, confloat, conint
 
 
@@ -13,8 +13,8 @@ class StructuralReferenceBlock(BaseSchema):
     canonical_label: str = Field(..., description="Canonicalized label used for deterministic matching.")
     normalized_key: str = Field(..., description="Normalized structural key.")
     canonical_key: str = Field(..., description="Canonical lookup key used for linking.")
-    reference_span: TextSpan = Field(..., description="Occurrence span of the structural reference.")
-    target_span: TextSpan | None = Field(
+    reference_span: Span = Field(..., description="Occurrence span of the structural reference.")
+    target_span: Span | None = Field(
         None,
         description="Resolved target heading span, or null if unresolved.",
     )
