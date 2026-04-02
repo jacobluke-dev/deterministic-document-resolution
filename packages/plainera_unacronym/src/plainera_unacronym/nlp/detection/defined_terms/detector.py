@@ -209,7 +209,6 @@ class DefinedTermDetector(BaseDetector[DefinedTermDetectorResult]):
         """
         occurrences: list[DefinedTermMention] = []
         seen_keys: set[str] = set()
-        print("EXACT TERM PASS HIT", flush=True)
 
         for intro in introductions:
             if intro.normalized_key in seen_keys:

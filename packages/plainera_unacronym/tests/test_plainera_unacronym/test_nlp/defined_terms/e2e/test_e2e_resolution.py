@@ -251,7 +251,6 @@ class TestDefinedTermResolutionE2E:
         assert extr.ambiguous_keys == ("services",)
 
         service_resolutions = resolutions_for_key(extr, "services")
-        print(service_resolutions)
         assert len(service_resolutions) == 3
 
         assert service_resolutions[0].chosen_meaning_id == "term|services|1"
