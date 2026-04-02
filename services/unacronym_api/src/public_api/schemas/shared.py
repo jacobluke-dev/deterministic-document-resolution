@@ -33,5 +33,6 @@ class Definition(BaseSchema):
 
 
 class TextSpan(BaseSchema):
+    text: str = Field(..., description="The given text field")
     start: int = Field(..., description="Inclusive start character offset.")
     end: int = Field(..., description="Exclusive end character offset.")
