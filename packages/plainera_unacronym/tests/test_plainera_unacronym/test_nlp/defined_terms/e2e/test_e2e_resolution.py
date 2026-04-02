@@ -501,3 +501,50 @@ def test_detector_emits_later_mention_for_defined_term():
     assert len(result.mentions) == 1
     assert result.mentions[0].normalized_key == "services"
     assert result.mentions[0].start_offset > result.introductions[0].end_offset
+
+
+def test_defined_term_later_exact_reference_effective_date_is_returned():
+    text = (
+        '"Effective Date" means 1 April 2026. '
+        'The Supplier shall commence delivery on the Effective Date.'
+    )
+
+    det_res, term_result = detect_and_resolve_terms(text)
+
+    assert [intro.term for intro in det_res.introductions] == ["Effective Date"]
+    assert "Effective Date" in [mention.term for mention in det_res.mentions]
+    assert "effective_date" in [res.normalized_key for res in term_result.term_resolutions]
+
+
+def test_defined_term_plural_later_reference_resolves_to_known_singular_term():
+    text = (
+        '"Business Day" means any day other than a Saturday or Sunday. '
+        'The parties must respond within 5 Business Days.'
+    )
+
+    det_res, term_result = detect_and_resolve_terms(text)
+
+    assert [intro.term for intro in det_res.introductions] == ["Business Day"]
+    assert "Business Days" in [mention.term for mention in det_res.mentions]
+    assert "business_day" in [res.normalized_key for res in term_result.term_resolutions]
+
+
+def test_defined_term_with_no_later_occurrence_emits_intro_resolution():
+    text = '"Data Protection Laws" means all applicable privacy legislation.'
+
+    det_res, term_result = detect_and_resolve_terms(text)
+
+    assert [intro.term for intro in det_res.introductions] == ["Data Protection Laws"]
+    assert [res.term for res in term_result.term_resolutions] == ["Data Protection Laws"]
+
+
+def test_defined_term_intro_emits_resolution_even_when_only_pre_definition_occurrence_exists():
+    text = (
+        "The Supplier shall provide all Deliverables. "
+        '"Deliverables" means all reports and outputs produced under this Agreement.'
+    )
+
+    det_res, term_result = detect_and_resolve_terms(text)
+
+    assert [intro.term for intro in det_res.introductions] == ["Deliverables"]
+    assert [res.term for res in term_result.term_resolutions] == ["Deliverables"]
