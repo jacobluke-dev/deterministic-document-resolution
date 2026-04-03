@@ -47,4 +47,4 @@ class DefinedTermExtractionConfig:
     directionality_weight: float = 1.0
     intro_type_weight: float = 1.0
 
-    prefer_prior_definitions: bool = True
+    prefer_prior_definitions: bool = True # might stay might not, I'm not sure
