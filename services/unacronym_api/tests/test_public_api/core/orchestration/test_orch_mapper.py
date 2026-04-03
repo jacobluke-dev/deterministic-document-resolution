@@ -3,6 +3,7 @@ from __future__ import annotations
 from types import SimpleNamespace
 
 import pytest
+from plainera_unacronym.nlp.common.types import AcronymPipelineResult
 from plainera_unacronym.nlp.extraction.defined_terms.types import TermResolutionResult
 from plainera_unacronym.nlp.extraction.structural.types import StructuralReferenceResolutionResult
 from plainera_unacronym.orchestration.interface import (
@@ -265,12 +266,18 @@ class TestComposeSections:
         assert out["defined_terms"] == []
         assert out["structural_references"] == []
 
-    def test_maps_acronym_tuple_payload_and_attaches_metadata(self, resolve_options, _patch):
+    def test_maps_acronym_pipeline_result_and_attaches_metadata(self, resolve_options, _patch):
         state = OrchestrationState.from_requested_targets((PIPELINE_ACRONYMS,))
+        detector_result = object()
+        extraction_result = object()
+
         state.record_success(
             PipelineRunResult(
                 pipeline=PIPELINE_ACRONYMS,
-                payload=("detector_result", "extraction_result"),
+                payload=AcronymPipelineResult(
+                    detector_result=detector_result,
+                    extraction_result=extraction_result,
+                ),
             )
         )
 
@@ -314,8 +321,8 @@ class TestComposeSections:
             {"acronym": "MPS", "selected": {"definition": "Metropolitan Police Service"}}
         ]
         assert calls["map"] == {
-            "det_res": "detector_result",
-            "extr": "extraction_result",
+            "det_res": detector_result,
+            "extr": extraction_result,
             "opts": resolve_options,
             "lang": "en",
             "glossary_repo": glossary_repo,

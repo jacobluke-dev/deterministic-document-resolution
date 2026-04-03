@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from plainera_unacronym.nlp.common.types import AcronymDetectorResult, AcronymPipelineResult, ExtractionResult
+from plainera_unacronym.nlp.common.types import AcronymPipelineResult
 from plainera_unacronym.nlp.extraction.defined_terms.types import TermResolutionResult
 from plainera_unacronym.nlp.extraction.structural.types import StructuralReferenceResolutionResult
 from plainera_unacronym.orchestration import PIPELINE_ACRONYMS, PIPELINE_DEFINED_TERMS, PIPELINE_STRUCTURAL_REFERENCES
@@ -138,10 +138,6 @@ def _resolve_acronym_payload(
 
     * a prebuilt list of public response blocks
     * an ``AcronymPipelineResult``
-    * a legacy ``(detector_result, extraction_result)`` tuple
-
-    Legacy tuple payloads are converted into ``AcronymPipelineResult`` so
-    downstream composition can rely on a single explicit acronym result shape.
 
     Args:
         payload: Raw pipeline payload stored on orchestration state.
@@ -162,18 +158,8 @@ def _resolve_acronym_payload(
     if isinstance(payload, AcronymPipelineResult):
         return payload
 
-    if isinstance(payload, tuple) and len(payload) == 2:
-        det_res, extr = payload
-        if not isinstance(det_res, AcronymDetectorResult):
-            raise ValueError(error_message)
-        if not isinstance(extr, ExtractionResult):
-            raise ValueError(error_message)
-        return AcronymPipelineResult(
-            detector_result=det_res,
-            extraction_result=extr,
-        )
-
     raise ValueError(error_message)
+
 
 def compose_sections(
     state: OrchestrationState,
