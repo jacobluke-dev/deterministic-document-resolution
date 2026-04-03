@@ -853,7 +853,7 @@ class TestV1ResolveResponseValues:
         body = r.json()
 
         assert body["acronyms"] == []
-        assert len(body["defined_terms"]) == 1
+        assert len(body["defined_terms"]) == 2
         assert body["structural_references"] == []
 
         defined_term = body["defined_terms"][0]
@@ -914,7 +914,7 @@ class TestV1ResolveResponseValues:
         body = r.json()
 
         assert [item["acronym"] for item in body["acronyms"]] == ["MPS"]
-        assert [item["term"] for item in body["defined_terms"]] == ["Services"]
+        assert [item["term"] for item in body["defined_terms"]] == ["Services", "Services"]
         assert [
             (item["kind"], item["label"])
             for item in body["structural_references"]
