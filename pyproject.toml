@@ -22,6 +22,7 @@ reportlab = "^4.4.10"
 
 plainera-core = { path = "packages/plainera_core", develop = true }
 plainera-unacronym = { path = "packages/plainera_unacronym", develop = true }
+plainera-rag-demo = { path = "packages/plainera_rag_demo", develop = true }
 plainera-testkit = { path = "packages/plainera_testkit", develop = true }
 plainera-observability = { path = "packages/plainera_observability", develop = true, extras = ["fastapi"] }
 unacronym-api = { path = "services/unacronym_api", develop = true }

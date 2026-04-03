@@ -11,6 +11,7 @@ COV_FAIL_UNDER ?= 80
 PY_SUBDIRS := \
     packages/plainera_core \
     packages/plainera_observability \
+    packages/plainera_rag_demo \
     packages/plainera_unacronym \
     services/unacronym_api
 
