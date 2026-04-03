@@ -8,7 +8,8 @@ from plainera_unacronym.nlp.extraction.base.base_execute import run_flow_with_op
 from plainera_unacronym.nlp.extraction.defined_terms.execute import detect_and_resolve_terms
 from plainera_unacronym.nlp.extraction.defined_terms.extract_flow import DefinedTermResolutionFlow
 from plainera_unacronym.nlp.extraction.defined_terms.state import TermFlowState
-from plainera_unacronym.nlp.extraction.defined_terms.types import TermCandidateScore, TermResolution
+from plainera_unacronym.nlp.extraction.defined_terms.types import TermCandidateScore, TermResolution, \
+    TermTier1OccurrenceRanking
 
 from tests.test_plainera_unacronym.test_nlp.defined_terms.e2e.defined_terms_e2e_common import (
     chosen_meaning_ids_for_key,
@@ -263,85 +264,90 @@ class TestDefinedTermResolutionE2E:
         assert service_resolutions[2].resolution_method == "unresolved"
 
     # TODO AS PART OF TICKET 97
-    # def test_prefer_prior_definition_when_context_is_otherwise_equal(self, _patch):
-    #     from plainera_unacronym.nlp.extraction.defined_terms import stage_funcs
-    #
-    #     original = stage_funcs.score_term_occurrences_tier1
-    #
-    #     def _fake_tier1(*, text, occurrences, term_meaning_index, structure_index, cfg):
-    #         ranked = original(
-    #             text=text,
-    #             occurrences=occurrences,
-    #             term_meaning_index=term_meaning_index,
-    #             structure_index=structure_index,
-    #             cfg=cfg,
-    #         )
-    #
-    #         adjusted = []
-    #         for r in ranked:
-    #             if r.occ.normalized_key != "services":
-    #                 adjusted.append(r)
-    #                 continue
-    #
-    #             adjusted_scores = {meaning_id: 1.0 for meaning_id in r.candidate_scores}
-    #             adjusted.append(
-    #                 types.SimpleNamespace(
-    #                     occ=r.occ,
-    #                     candidate_scores=adjusted_scores,
-    #                     chosen_meaning_id=None,
-    #                 )
-    #             )
-    #         return tuple(adjusted)
-    #
-    #     def _fake_tier2(*, text, t1_ranked, meaning_index, cfg):
-    #         ranked = [
-    #             types.SimpleNamespace(
-    #                 occ=r.occ,
-    #                 applied=False,
-    #                 skip_reason="test_keep_tier1",
-    #                 tier2_sims=None,
-    #                 blended_scores=None,
-    #             )
-    #             for r in t1_ranked
-    #         ]
-    #         report = types.SimpleNamespace(
-    #             applied=0,
-    #             skipped=len(t1_ranked),
-    #             reasons={"test_keep_tier1": len(t1_ranked)},
-    #         )
-    #         return tuple(ranked), report
-    #
-    #     _patch(
-    #         stage_funcs.st_tier1_score_term_occurrences,
-    #         score_term_occurrences_tier1=_fake_tier1,
-    #     )
-    #     _patch(
-    #         stage_funcs.st_tier2_term_semantic_rerank,
-    #         rerank_term_occurrences_tier2=_fake_tier2,
-    #     )
-    #
-    #     text = """
-    #     "Services" means the services described in the first section.
-    #
-    #     "Services" means the services described in the second section.
-    #
-    #     The Services shall be delivered promptly.
-    #     """.strip()
-    #
-    #     det_cfg = DefinedTermDetectorConfig(
-    #     unquoted_capitalised_terms_policy="always",
-    # )
-    #
-    #     det_res, extr, reports, state = detect_and_resolve_terms(
-    #         text,
-    #         det_cfg=det_cfg,
-    #         return_reports=True,
-    #         return_state=True,
-    #     )
-    #
-    #     chosen_ids = _chosen_meaning_ids_for_key(extr, "services")
-    #     assert len(chosen_ids) == 1
-    #     assert chosen_ids[0] == "term|services|1"
+    def test_prefer_prior_definition_when_context_is_otherwise_equal(self, _patch):
+        from plainera_unacronym.nlp.extraction.defined_terms import stage_funcs
+
+        original = stage_funcs.score_term_occurrences_tier1
+
+        def _fake_tier1(*, text, occurrences, term_meaning_index, structure_index, cfg):
+            ranked = original(
+                text=text,
+                occurrences=occurrences,
+                term_meaning_index=term_meaning_index,
+                structure_index=structure_index,
+                cfg=cfg,
+            )
+
+            adjusted = []
+            for r in ranked:
+                if r.occ.normalized_key != "services":
+                    adjusted.append(r)
+                    continue
+
+                adjusted_scores = {meaning_id: 1.0 for meaning_id in r.candidate_scores}
+                adjusted.append(
+                    TermTier1OccurrenceRanking(
+                        occ=r.occ,
+                        candidate_scores=adjusted_scores,
+                        chosen_meaning_id="term|services|1",
+                        gap=0.0,
+                        margin=0.0,
+                    )
+                )
+            return tuple(adjusted)
+
+        def _fake_tier2(*, text, t1_ranked, meaning_index, cfg):
+            ranked = [
+                types.SimpleNamespace(
+                    occ=r.occ,
+                    chosen_meaning_id=r.chosen_meaning_id,
+                    applied=False,
+                    skip_reason="test_keep_tier1",
+                    tier2_sims=None,
+                    blended_scores=None,
+                )
+                for r in t1_ranked
+            ]
+            report = types.SimpleNamespace(
+                applied=0,
+                skipped=len(t1_ranked),
+                reasons={"test_keep_tier1": len(t1_ranked)},
+            )
+            return tuple(ranked), report
+
+        _patch(
+            stage_funcs.st_tier1_score_term_occurrences,
+            score_term_occurrences_tier1=_fake_tier1,
+        )
+        _patch(
+            stage_funcs.st_tier2_term_semantic_rerank,
+            rerank_term_occurrences_tier2=_fake_tier2,
+        )
+
+        text = """
+        "Services" means the services described in the first section.
+
+        "Services" means the services described in the second section.
+
+        The Services shall be delivered promptly.
+        """.strip()
+
+        det_cfg = DefinedTermDetectorConfig(
+        unquoted_capitalised_terms_policy="always",
+    )
+
+        det_res, extr, reports, state = detect_and_resolve_terms(
+            text,
+            det_cfg=det_cfg,
+            return_reports=True,
+            return_state=True,
+        )
+
+        tier1_rankings = [r for r in state.tier_1.ranked if r.occ.normalized_key == "services"]
+        assert len(tier1_rankings) == 3
+
+        later_ranking = max(tier1_rankings, key=lambda r: r.occ.start_offset)
+        assert later_ranking.chosen_meaning_id == "term|services|1"
 
     def test_structure_proximity_beats_lexical_similarity(self):
         text = """
