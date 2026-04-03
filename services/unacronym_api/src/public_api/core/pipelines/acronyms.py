@@ -135,7 +135,7 @@ class AcronymPipelineExecutor(BasePipelineExecutor):
 
         for chunk in chunks:
             try:
-                det_res, extr = await self._run_chunk(
+                result = await self._run_chunk(
                     text=chunk.text,
                     options=options,
                 )
@@ -152,8 +152,8 @@ class AcronymPipelineExecutor(BasePipelineExecutor):
                 ) from exc
 
             blocks = map_acronym_pipeline_to_blocks(
-                det_res=det_res,
-                extr=extr,
+                det_res=result.detector_result,
+                extr=result.extraction_result,
                 opts=opts,
                 lang=lang,
                 glossary_repo=self._glossary_repo,
