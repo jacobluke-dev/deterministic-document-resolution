@@ -247,9 +247,14 @@ def score_term_occurrence_tier1(
 ) -> TermTier1OccurrenceRanking:
     """Score one defined-term occurrence against its candidate meanings.
 
-    Candidates are scored deterministically, sorted by descending score, and the
-    top candidate is selected only when its normalised margin over the runner-up
-    meets the configured threshold.
+    Candidates are scored deterministically and sorted by descending score.
+
+    Selection semantics:
+    - If there is a clear winner above the configured margin threshold, select it.
+    - If the top candidates are not separable within the configured margin:
+      - when ``prefer_prior_definitions`` is enabled, select the earliest
+        introduced candidate by document order
+      - otherwise, leave the occurrence unresolved
 
     Args:
         text: Full source text containing the occurrence.
@@ -262,7 +267,8 @@ def score_term_occurrence_tier1(
 
     Returns:
         A ``TermTier1OccurrenceRanking`` containing candidate scores, the chosen
-        meaning ID when sufficiently separated, and the computed gap and margin.
+        meaning ID when deterministically selectable, and the computed gap and
+        margin between the top two candidates.
     """
     meanings = list(candidate_meanings)
 
@@ -295,11 +301,22 @@ def score_term_occurrence_tier1(
     top_score = scored[0][1]
     second_score = scored[1][1] if len(scored) > 1 else 0.0
     gap = top_score - second_score
-    margin = gap / max(abs(top_score), 1.0)
+    scale = max(abs(top_score), 1.0)
+    margin = gap / scale
 
     chosen_meaning_id: str | None = scored[0][0].meaning_id
+
     if len(scored) > 1 and margin < cfg.tier_1_margin_threshold:
-        chosen_meaning_id = None
+        if cfg.prefer_prior_definitions:
+            candidates_within_margin = [
+                meaning for meaning, score in scored if (top_score - score) / scale <= cfg.tier_1_margin_threshold
+            ]
+            chosen_meaning_id = min(
+                candidates_within_margin,
+                key=lambda meaning: (meaning.intro_span[1], meaning.meaning_id),
+            ).meaning_id
+        else:
+            chosen_meaning_id = None
 
     return TermTier1OccurrenceRanking(
         occ=occ,
