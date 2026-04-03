@@ -1147,7 +1147,7 @@
             "type": "string"
           },
           "reference_span": {
-            "$ref": "#/components/schemas/TextSpan",
+            "$ref": "#/components/schemas/Span",
             "description": "Occurrence span of the structural reference."
           },
           "resolved": {
@@ -1164,7 +1164,7 @@
           "target_span": {
             "anyOf": [
               {
-                "$ref": "#/components/schemas/TextSpan"
+                "$ref": "#/components/schemas/Span"
               },
               {
                 "type": "null"
@@ -1199,9 +1199,15 @@
             "description": "Inclusive start character offset.",
             "title": "Start",
             "type": "integer"
+          },
+          "text": {
+            "description": "The given text field",
+            "title": "Text",
+            "type": "string"
           }
         },
         "required": [
+          "text",
           "start",
           "end"
         ],

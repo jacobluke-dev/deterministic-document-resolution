@@ -18,7 +18,7 @@ from public_api.schemas.extraction_types.defined_terms import (
 )
 from public_api.schemas.extraction_types.structural import StructuralReferenceBlock
 from public_api.schemas.resolve import ResolveOptions
-from public_api.schemas.shared import TextSpan
+from public_api.schemas.shared import Span, TextSpan
 
 
 class _SpanLike(Protocol):
@@ -263,10 +263,10 @@ def map_acronym_pipeline_to_blocks(
     return blocks
 
 
-def _map_span(span: tuple[int, int] | None) -> TextSpan | None:
+def _map_span(span: tuple[int, int] | None) -> Span | None:
     if span is None:
         return None
-    return TextSpan(
+    return Span(
         start=int(span[0]),
         end=int(span[1]),
     )
@@ -275,6 +275,7 @@ def _map_text_span(span: tuple[str, int, int] | None) -> TextSpan | None:
     if span is None:
         return None
     return TextSpan(
+        text=str(span[0]),
         start=int(span[1]),
         end=int(span[2]),
     )

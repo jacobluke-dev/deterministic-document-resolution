@@ -1,8 +1,28 @@
 import plainera_unacronym.nlp.detection.defined_terms.detector as det_mod
+import pytest
+from plainera_unacronym.nlp.detection.defined_terms import DefinedTermIntroduction
 from plainera_unacronym.nlp.detection.defined_terms.detector import (
     _overlaps_any,
     _spans_overlap,
 )
+
+
+@pytest.fixture(autouse=True)
+def _default_introductions(request):
+    """Provide a default introduced-term list for occurrence-iterator tests."""
+    if request.instance is None:
+        return
+
+    request.instance.introductions = [
+        DefinedTermIntroduction(
+            term="Services",
+            start_offset=0,
+            end_offset=10,
+            normalized_key="services",
+            provenance="test",
+            intro_kind="quoted_means",
+        )
+    ]
 
 
 class TestDefinedTermDetectorHelpers:
@@ -321,12 +341,15 @@ class TestDefinedTermDetectorIterTermIntroductions:
 
 
 class TestDefinedTermDetectorIterOccurrences:
+    introductions: list[DefinedTermIntroduction]
+
     def test_detects_quoted_occurrence_for_known_term(self, defined_term_detector_factory):
         detector = defined_term_detector_factory()
         text = 'The "Services" will begin tomorrow.'
 
         out = detector._iter_references(
             text,
+            introductions=self.introductions,
             known_keys={"services"},
             first_intro_end_by_key={"services": 0},
             intro_term_spans=set(),
@@ -343,6 +366,7 @@ class TestDefinedTermDetectorIterOccurrences:
         out = detector._iter_references(
             text,
             known_keys={"services"},
+            introductions=self.introductions,
             first_intro_end_by_key={},
             intro_term_spans=set(),
             cfg=detector.cfg,
@@ -357,6 +381,7 @@ class TestDefinedTermDetectorIterOccurrences:
         out = defined_term_detector_factory(enabled_domains=frozenset({"legal"}))._iter_references(
             text,
             known_keys={"services"},
+            introductions=self.introductions,
             first_intro_end_by_key={},
             intro_term_spans={(0, 10)},  # span for Services without quotes
             cfg=cfg_terms_det_factory(),
@@ -376,6 +401,7 @@ class TestDefinedTermDetectorIterOccurrences:
         out = detector._iter_references(
             text,
             known_keys={"change_of_control"},
+            introductions=self.introductions,
             first_intro_end_by_key={"change_of_control": 0},
             intro_term_spans=set(),
             cfg=cfg,
@@ -400,6 +426,7 @@ class TestDefinedTermDetectorIterOccurrences:
         out = detector._iter_references(
             text,
             known_keys={"change_of_control"},
+            introductions=self.introductions,
             intro_term_spans=set(),
             first_intro_end_by_key={},
             cfg=cfg,
@@ -424,6 +451,7 @@ class TestDefinedTermDetectorIterOccurrences:
         out = detector._iter_references(
             text,
             known_keys={"confidential_information"},
+            introductions=self.introductions,
             first_intro_end_by_key={"confidential_information": 0},
             intro_term_spans=set(),
             cfg=cfg,
@@ -446,6 +474,7 @@ class TestDefinedTermDetectorIterOccurrences:
         out = detector._iter_references(
             text,
             known_keys={"effective_date"},
+            introductions=self.introductions,
             first_intro_end_by_key={},
             intro_term_spans=set(),
             cfg=cfg,
@@ -467,6 +496,7 @@ class TestDefinedTermDetectorIterOccurrences:
         out = detector._iter_references(
             text,
             known_keys={"change_of_control"},
+            introductions=self.introductions,
             first_intro_end_by_key={},
             intro_term_spans={(0, 17)},
             cfg=cfg,
@@ -490,7 +520,10 @@ class TestDefinedTermDetectorDetect:
             enabled_domains=frozenset({"legal"})).detect(text)
 
         assert set(result.unique_terms.keys()) == {"effective_date", "services"}
-        assert [o.normalized_key for o in result.mentions] == ["services", "effective_date"]
+        assert [o.normalized_key for o in result.mentions] == ['effective_date',
+                                                               'services',
+                                                               'services',
+                                                               'effective_date']
 
     def test_detect_includes_parenthetical_alias_as_unique_term(self, defined_term_detector_factory):
         text = """
@@ -503,7 +536,7 @@ class TestDefinedTermDetectorDetect:
             enabled_domains=frozenset({"legal"})).detect(text)
 
         assert "agreement" in result.unique_terms
-        assert [o.term for o in result.mentions] == ["Agreement"]
+        assert [o.term for o in result.mentions] == ["Agreement", "Agreement"]
 
     def test_detect_allows_bare_introduction_when_legal_active(self, defined_term_detector_factory):
         text = """
@@ -516,7 +549,7 @@ class TestDefinedTermDetectorDetect:
             enabled_domains=frozenset({"legal"})).detect(text)
 
         assert "change_of_control" in result.unique_terms
-        assert [o.term for o in result.mentions] == ["Change of Control"]
+        assert [o.term for o in result.mentions] == ["Change of Control", "Change of Control"]
 
     def test_detect_skips_bare_introduction_when_legal_inactive(self, defined_term_detector_factory):
         text = """
@@ -543,7 +576,7 @@ class TestDefinedTermDetectorDetect:
         result = detector.detect(text)
 
         assert set(result.unique_terms.keys()) == {"services"}
-        assert [o.term for o in result.mentions] == ["Services"]
+        assert [o.term for o in result.mentions] == ["Services", "Services"]
 
     def test_detect_resolves_suffix_match_from_broader_capitalised_run(self, defined_term_detector_factory):
         text = """
@@ -556,7 +589,7 @@ class TestDefinedTermDetectorDetect:
             enabled_domains=frozenset({"legal"})).detect(text)
 
         assert "confidential_information" in result.unique_terms
-        assert [o.term for o in result.mentions] == ["Confidential Information"]
+        assert [o.term for o in result.mentions] == ["Confidential Information", "Confidential Information"]
         occ = result.mentions[0]
         assert text[occ.start_offset: occ.end_offset] == "Confidential Information"
 
@@ -577,7 +610,7 @@ class TestDefinedTermDetectorDetect:
     def test_detect_uses_auto_domains_when_not_preenabled(self, _patch, defined_term_detector_factory):
         _patch(
             det_mod.DefinedTermDetector._with_auto_domains,
-            autodetect_domains=lambda text, cfg_: frozenset({"legal"}),
+            autodetect_domains=lambda text_, cfg_: frozenset({"legal"}),
         )
 
         text = """
@@ -590,7 +623,7 @@ class TestDefinedTermDetectorDetect:
             enabled_domains=frozenset()).detect(text)
 
         assert "change_of_control" in result.unique_terms
-        assert [o.term for o in result.mentions] == ["Change of Control"]
+        assert [o.term for o in result.mentions] == ["Change of Control", "Change of Control"]
 
     def test_detect_handles_mixed_introduction_styles(self, defined_term_detector_factory):
         text = """
@@ -611,8 +644,9 @@ class TestDefinedTermDetectorDetect:
             "effective_date",
             "change_of_control",
         }
-        assert [o.normalized_key for o in result.mentions] == [
-            "agreement",
-            "effective_date",
-            "change_of_control",
-        ]
+        assert [o.normalized_key for o in result.mentions] == ['agreement',
+                                                               'effective_date',
+                                                               'change_of_control',
+                                                               'agreement',
+                                                               'effective_date',
+                                                               'change_of_control']

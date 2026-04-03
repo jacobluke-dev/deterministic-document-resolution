@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import re
 from dataclasses import replace as dc_replace
 
 from observability.logger.decorator import logger
@@ -14,6 +15,39 @@ from .normalise import normalize_defined_term_key
 from .types import DefinedTermDetectorResult, DefinedTermIntroduction, DefinedTermMention, IntroKind
 
 _QUOTE_CHARS = {'"', "“", "”"}
+
+
+def _is_word_char(ch: str) -> bool:
+    """Return whether a character should count as part of a word token."""
+    return ch.isalnum() or ch == "_"
+
+
+def _has_token_boundaries(text: str, start: int, end: int) -> bool:
+    """Return whether ``text[start:end]`` is bounded by non-word characters."""
+    if start > 0 and _is_word_char(text[start - 1]):
+        return False
+
+    has_trailing_word_char = end < len(text) and _is_word_char(text[end])
+    return not has_trailing_word_char
+
+
+def _term_surface_variants(term: str) -> list[str]:
+    variants = [term]
+
+    if term.endswith("y") and len(term) > 1 and term[-2].lower() not in "aeiou":
+        variants.append(f"{term[:-1]}ies")
+    elif term.endswith(("s", "x", "z", "ch", "sh")):
+        variants.append(f"{term}es")
+    else:
+        variants.append(f"{term}s")
+
+    seen: set[str] = set()
+    ordered: list[str] = []
+    for variant in variants:
+        if variant not in seen:
+            seen.add(variant)
+            ordered.append(variant)
+    return ordered
 
 
 def _spans_overlap(a_start: int, a_end: int, b_start: int, b_end: int) -> bool:
@@ -141,6 +175,80 @@ class DefinedTermDetector(BaseDetector[DefinedTermDetectorResult]):
                 return candidate, key
 
         return None
+
+    def _iter_exact_known_term_references(
+        self,
+        text: str,
+        *,
+        introductions: list[DefinedTermIntroduction],
+        intro_term_spans: set[Span],
+        first_intro_end_by_key: dict[str, int],
+        seen: set[Span],
+    ) -> list[DefinedTermMention]:
+        """Collect exact later references to introduced defined terms.
+
+        This pass performs a literal scan for each introduced term surface after
+        its first introduction. It is intended to catch straightforward exact
+        later mentions such as ``Effective Date`` that may be missed by the more
+        generic capitalised-run patterns.
+
+        Args:
+            text: Full source text to scan.
+            introductions: Introduced defined terms from the current run.
+            intro_term_spans: Exact introduction-term spans used to suppress
+                re-emitting introduction text as later references.
+            first_intro_end_by_key: Mapping from normalised key to the end offset
+                of the earliest introduction term span.
+            seen: Set of already-emitted spans used for deduplication across all
+                reference passes.
+
+        Returns:
+            A list of exact-match ``DefinedTermMention`` objects detected in
+            document order.
+        """
+        occurrences: list[DefinedTermMention] = []
+        seen_keys: set[str] = set()
+
+        for intro in introductions:
+            if intro.normalized_key in seen_keys:
+                continue
+            seen_keys.add(intro.normalized_key)
+
+            first_intro_end = first_intro_end_by_key.get(intro.normalized_key)
+            if first_intro_end is None:
+                continue
+
+            for variant in _term_surface_variants(intro.term):
+                pattern = re.compile(re.escape(variant))
+
+                for match in pattern.finditer(text):
+                    start_offset, end_offset = match.span()
+                    matched_text = match.group(0)
+
+                    if start_offset < first_intro_end:
+                        continue
+                    if not _has_token_boundaries(text, start_offset, end_offset):
+                        continue
+                    if _overlaps_any(start_offset, end_offset, intro_term_spans):
+                        continue
+
+                    span = (start_offset, end_offset)
+                    if span in seen:
+                        continue
+                    seen.add(span)
+
+                    occurrences.append(
+                        DefinedTermMention(
+                            term=matched_text,
+                            start_offset=start_offset,
+                            end_offset=end_offset,
+                            normalized_key=intro.normalized_key,
+                            confidence=1.0,
+                            segment_window=None,
+                        )
+                    )
+
+        return occurrences
 
     def _iter_term_introductions(
         self,
@@ -379,6 +487,7 @@ class DefinedTermDetector(BaseDetector[DefinedTermDetectorResult]):
         self,
         text: str,
         *,
+        introductions: list[DefinedTermIntroduction],
         known_keys: set[str],
         intro_term_spans: set[Span],
         first_intro_end_by_key: dict[str, int],
@@ -386,12 +495,14 @@ class DefinedTermDetector(BaseDetector[DefinedTermDetectorResult]):
         legal_active: bool,
     ) -> list[DefinedTermMention]:
         """Collect later references to previously introduced defined terms.
-        Runs the quoted-reference pass first and then the unquoted capitalised
-        reference pass, sharing a single deduplication set so the same span is not
-        emitted twice.
+
+        Runs an exact known-term pass first, followed by the quoted-reference
+        pass and then the unquoted capitalised reference pass. All passes share a
+        single deduplication set so the same span is not emitted twice.
 
         Args:
             text: Full source text to scan.
+            introductions: Introduced defined terms from the current run.
             known_keys: Set of known normalised defined-term keys introduced earlier in
                 the same run.
             intro_term_spans: Exact spans occupied by introduction terms, used to
@@ -407,6 +518,16 @@ class DefinedTermDetector(BaseDetector[DefinedTermDetectorResult]):
         """
         occurrences: list[DefinedTermMention] = []
         seen: set[Span] = set()
+
+        occurrences.extend(
+            self._iter_exact_known_term_references(
+                text,
+                introductions=introductions,
+                intro_term_spans=intro_term_spans,
+                first_intro_end_by_key=first_intro_end_by_key,
+                seen=seen,
+            )
+        )
 
         occurrences.extend(
             self._iter_quoted_references(
@@ -462,13 +583,28 @@ class DefinedTermDetector(BaseDetector[DefinedTermDetectorResult]):
             unique_terms.setdefault(intro.normalized_key, intro)
         intro_term_spans = {(intro.start_offset, intro.end_offset) for intro in intros}
 
-        occurrences = self._iter_references(
+        intro_mentions = [
+            build_defined_term_mention(
+                term=intro.term,
+                start_offset=intro.start_offset,
+                end_offset=intro.end_offset,
+            )
+            for intro in intros
+        ]
+
+        later_mentions = self._iter_references(
             text,
+            introductions=intros,
             known_keys=set(unique_terms.keys()),
             intro_term_spans=intro_term_spans,
             first_intro_end_by_key=first_intro_end_by_key,
             cfg=cfg,
             legal_active=legal_active,
+        )
+
+        occurrences = sorted(
+            [*intro_mentions, *later_mentions],
+            key=lambda occ: (occ.start_offset, occ.end_offset, occ.normalized_key),
         )
 
         return DefinedTermDetectorResult(
