@@ -333,6 +333,7 @@ class AcronymPipelineResult:
     detector_result: AcronymDetectorResult
     extraction_result: ExtractionResult
 
+
 class OccurrenceBuildError(Exception):
     pass
 

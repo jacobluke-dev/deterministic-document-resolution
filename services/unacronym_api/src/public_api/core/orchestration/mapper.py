@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from plainera_unacronym.nlp.common.types import AcronymPipelineResult, AcronymDetectorResult, ExtractionResult
+from plainera_unacronym.nlp.common.types import AcronymDetectorResult, AcronymPipelineResult, ExtractionResult
 from plainera_unacronym.nlp.extraction.defined_terms.types import TermResolutionResult
 from plainera_unacronym.nlp.extraction.structural.types import StructuralReferenceResolutionResult
 from plainera_unacronym.orchestration import PIPELINE_ACRONYMS, PIPELINE_DEFINED_TERMS, PIPELINE_STRUCTURAL_REFERENCES

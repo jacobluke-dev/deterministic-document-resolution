@@ -26,9 +26,9 @@ def _has_token_boundaries(text: str, start: int, end: int) -> bool:
     """Return whether ``text[start:end]`` is bounded by non-word characters."""
     if start > 0 and _is_word_char(text[start - 1]):
         return False
-    if end < len(text) and _is_word_char(text[end]):
-        return False
-    return True
+
+    has_trailing_word_char = end < len(text) and _is_word_char(text[end])
+    return not has_trailing_word_char
 
 
 def _term_surface_variants(term: str) -> list[str]:
@@ -48,7 +48,6 @@ def _term_surface_variants(term: str) -> list[str]:
             seen.add(variant)
             ordered.append(variant)
     return ordered
-
 
 
 def _spans_overlap(a_start: int, a_end: int, b_start: int, b_end: int) -> bool:

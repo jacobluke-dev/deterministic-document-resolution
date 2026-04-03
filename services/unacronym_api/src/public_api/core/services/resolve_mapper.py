@@ -18,7 +18,7 @@ from public_api.schemas.extraction_types.defined_terms import (
 )
 from public_api.schemas.extraction_types.structural import StructuralReferenceBlock
 from public_api.schemas.resolve import ResolveOptions
-from public_api.schemas.shared import TextSpan, Span
+from public_api.schemas.shared import Span, TextSpan
 
 
 class _SpanLike(Protocol):
