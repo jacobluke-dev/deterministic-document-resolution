@@ -88,20 +88,20 @@ class TestTier2:
         )
 
         assert len(det_res.introductions) == 2
-        assert len(det_res.mentions) == 1
+        assert len(det_res.mentions) == 3
         assert extr.ambiguous_keys == ("services",)
 
         assert state.tier_2.report is not None
-        assert state.tier_2.report.applied == 1
+        assert state.tier_2.report.applied == 3
         assert state.tier_2.report.skipped == 0
 
-        assert len(state.tier_2.ranked) == 1
+        assert len(state.tier_2.ranked) == 3
         assert state.tier_2.ranked[0].applied is True
         assert state.tier_2.ranked[0].blended_scores is not None
         assert state.tier_2.ranked[0].tier2_sims is not None
 
         service_resolutions = _resolutions_for_key(extr, "services")
-        assert len(service_resolutions) == 1
+        assert len(service_resolutions) == 3
 
         resolution = service_resolutions[0]
         assert resolution.chosen_meaning_id == "term|services|2"
@@ -172,21 +172,21 @@ class TestTier2:
         )
 
         assert len(det_res.introductions) == 2
-        assert len(det_res.mentions) == 1
+        assert len(det_res.mentions) == 3
         assert extr.ambiguous_keys == ("services",)
 
         # Tier-2 genuinely ran for this occurrence.
         assert state.tier_2.report is not None
-        assert state.tier_2.report.applied == 1
+        assert state.tier_2.report.applied == 3
         assert state.tier_2.report.skipped == 0
-        assert len(state.tier_2.ranked) == 1
+        assert len(state.tier_2.ranked) == 3
         assert state.tier_2.ranked[0].applied is True
         assert state.tier_2.ranked[0].skip_reason is None
         assert state.tier_2.ranked[0].tier2_sims is not None
         assert state.tier_2.ranked[0].blended_scores is not None
 
         service_resolutions = _resolutions_for_key(extr, "services")
-        assert len(service_resolutions) == 1
+        assert len(service_resolutions) == 3
 
         resolution = service_resolutions[0]
         assert resolution.resolution_method == "tier2_blend"
@@ -200,4 +200,5 @@ class TestTier2:
 
         # Optional: nice report-level sanity check.
         tier2_stage = next(r for r in reports if r.name == "tier2_term_semantic_rerank")
-        assert "applied=1" in tier2_stage.info
+        assert "tier2_ranked=3" in tier2_stage.info
+        assert "applied=3" in tier2_stage.info

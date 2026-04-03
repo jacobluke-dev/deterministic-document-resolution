@@ -27,7 +27,7 @@ class TestDefinedTermUnquotedPolicy:
         assert "services" in mention_keys
         assert "effective_date" in mention_keys
 
-    def test_unquoted_mentions_remain_conservative_when_policy_is_never(self):
+    def test_unquoted_later_mentions_remain_conservative_when_policy_is_never(self):
         text = """
         This Master Services Agreement (the "Agreement") is entered into on the Effective Date.
         "Services" means the software development services described in Schedule A.
@@ -45,11 +45,25 @@ class TestDefinedTermUnquotedPolicy:
 
         det_res, extr = detect_and_resolve_terms(text, det_cfg=det_cfg)
 
-        mention_keys = _mention_keys(det_res)
+        intros_by_key = {intro.normalized_key: intro for intro in det_res.introductions}
+        mentions_by_key = {}
+        for mention in det_res.mentions:
+            mentions_by_key.setdefault(mention.normalized_key, []).append(mention)
 
-        assert "agreement" not in mention_keys
-        assert "services" not in mention_keys
-        assert "effective_date" not in mention_keys
+        assert "agreement" in mentions_by_key
+        assert "services" in mentions_by_key
+        assert "effective_date" in mentions_by_key
+
+        assert len(mentions_by_key["agreement"]) == 3
+        assert len(mentions_by_key["services"]) == 2
+        assert len(mentions_by_key["effective_date"]) == 2
+
+        assert mentions_by_key["agreement"][0].start_offset == intros_by_key["agreement"].start_offset
+        assert mentions_by_key["services"][0].start_offset == intros_by_key["services"].start_offset
+        assert (
+            mentions_by_key["effective_date"][0].start_offset
+            == intros_by_key["effective_date"].start_offset
+        )
 
     def test_unquoted_mentions_do_not_regress_false_positive_guards(self):
         text = """

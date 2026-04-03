@@ -328,6 +328,12 @@ class ExtractionResult:
     tier2_ranked: tuple[Tier2OccurrenceRanking, ...] = ()
 
 
+@dataclass(slots=True)
+class AcronymPipelineResult:
+    detector_result: AcronymDetectorResult
+    extraction_result: ExtractionResult
+
+
 class OccurrenceBuildError(Exception):
     pass
 

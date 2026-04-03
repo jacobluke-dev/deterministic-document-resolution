@@ -1,3 +1,6 @@
+import pytest
+from plainera_unacronym.nlp.detection.defined_terms import DefinedTermIntroduction
+
 
 class TestDefinedTermFalsePositiveRegressions:
     def test_detect_ignores_heading_like_phrase(self, defined_term_detector_factory):
@@ -71,8 +74,27 @@ class TestDefinedTermFalsePositiveRegressions:
 
 
 class TestDefinedTermBoundaryRegressions:
+    @pytest.fixture
+    def default_introductions(self, request):
+        """Provide a default introduced-term list for occurrence-iterator tests."""
+        if request.instance is None:
+            return None
+
+        request.instance.introductions = [
+            DefinedTermIntroduction(
+                term="Services",
+                start_offset=0,
+                end_offset=10,
+                normalized_key="services",
+                provenance="test",
+                intro_kind="quoted_means",
+            )
+        ]
+        return request.instance.introductions
+
     def test_iter_occurrences_excludes_leading_article_from_bare_occurrence(self, cfg_terms_det_factory,
-                                                                            defined_term_detector_factory):
+                                                                            defined_term_detector_factory,
+                                                                            default_introductions):
         cfg = cfg_terms_det_factory(unquoted_capitalised_terms_policy="legal_only",
             enabled_domains=frozenset({"legal"}),
         )
@@ -87,6 +109,7 @@ class TestDefinedTermBoundaryRegressions:
         occurrences = detector._iter_references(
             text,
             known_keys=set(unique_terms.keys()),
+            introductions=default_introductions,
             intro_term_spans=intro_term_spans,
             first_intro_end_by_key={"supplier": 0},
             cfg=cfg,
@@ -97,7 +120,8 @@ class TestDefinedTermBoundaryRegressions:
         assert text[occurrences[0].start_offset : occurrences[0].end_offset] == "Supplier"
 
     def test_iter_occurrences_excludes_trailing_verb_from_bare_occurrence(self, cfg_terms_det_factory,
-                                                                          defined_term_detector_factory):
+                                                                          defined_term_detector_factory,
+                                                                          default_introductions):
         cfg = cfg_terms_det_factory(unquoted_capitalised_terms_policy="legal_only",
             enabled_domains=frozenset({"legal"}),
         )
@@ -112,6 +136,7 @@ class TestDefinedTermBoundaryRegressions:
         occurrences = detector._iter_references(
             text,
             known_keys=set(unique_terms.keys()),
+            introductions=default_introductions,
             intro_term_spans=intro_term_spans,
             first_intro_end_by_key={"supplier": 0},
             cfg=cfg,

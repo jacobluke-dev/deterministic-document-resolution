@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from typing import Any
 
+from plainera_unacronym.nlp.common.types import AcronymDetectorResult, AcronymPipelineResult, ExtractionResult
 from plainera_unacronym.nlp.extraction.defined_terms.types import TermResolutionResult
 from plainera_unacronym.nlp.extraction.structural.types import StructuralReferenceResolutionResult
 from plainera_unacronym.orchestration import PIPELINE_ACRONYMS, PIPELINE_DEFINED_TERMS, PIPELINE_STRUCTURAL_REFERENCES
@@ -21,29 +22,23 @@ def _resolve_defined_term_payload(
     payload: object,
     *,
     error_message: str,
-    allow_prebuilt_blocks: bool = True,
-) -> TermResolutionResult | list[Any]:
+) -> TermResolutionResult:
     """Normalize a defined-term pipeline payload.
 
     Supported payload shapes are:
-
-    * a prebuilt list of public response blocks
     * a ``(detector_result, resolution_result)`` tuple
     * a direct ``TermResolutionResult``
 
     Args:
         payload: Raw pipeline payload stored on orchestration state.
         error_message: Error message raised when the payload shape is unsupported.
-        allow_prebuilt_blocks: Whether a prebuilt block list is accepted.
 
     Returns:
-        Either the prebuilt list of blocks, or the validated resolution result.
+       The validated resolution result.
 
     Raises:
         ValueError: If the payload does not match a supported shape.
     """
-    if allow_prebuilt_blocks and isinstance(payload, list):
-        return payload
     if isinstance(payload, tuple) and len(payload) == 2:
         _, resolution = payload
         if not isinstance(resolution, TermResolutionResult):
@@ -53,20 +48,16 @@ def _resolve_defined_term_payload(
         return payload
     raise ValueError(error_message)
 
+
 def _resolve_structural_payload(
     payload: object,
     *,
     error_message: str,
-    allow_prebuilt_blocks: bool = True,
-) -> StructuralReferenceResolutionResult | list[Any]:
-    """Normalize a pipeline payload to either a result object or prebuilt blocks.
+) -> StructuralReferenceResolutionResult:
+    """Normalize a pipeline payload.
 
-    Pipelines may return one of three shapes:
-
-    * a prebuilt list of public response blocks
     * a ``(detector_result, resolution_result)`` tuple, where the second element
       is the composition-ready resolution object
-    * a direct resolution object
 
     This helper extracts the resolution object when needed and validates that it
     matches the expected result type.
@@ -74,17 +65,14 @@ def _resolve_structural_payload(
     Args:
         payload: Raw pipeline payload stored on orchestration state.
         error_message: Error message raised when the payload shape is unsupported.
-        allow_prebuilt_blocks: Whether a prebuilt block list is accepted.
 
     Returns:
-        Either the prebuilt list of blocks, or the validated resolution result.
+        The validated resolution result.
 
     Raises:
         ValueError: If the payload does not match a supported shape for the
             requested pipeline.
     """
-    if allow_prebuilt_blocks and isinstance(payload, list):
-        return payload
     if isinstance(payload, tuple) and len(payload) == 2:
         _, resolution = payload
         if not isinstance(resolution, StructuralReferenceResolutionResult):
@@ -92,6 +80,48 @@ def _resolve_structural_payload(
         return resolution
     if isinstance(payload, StructuralReferenceResolutionResult):
         return payload
+    raise ValueError(error_message)
+
+
+def _resolve_acronym_payload(
+    payload: object,
+    *,
+    error_message: str
+) -> AcronymPipelineResult:
+    """Normalize an acronym pipeline payload for response composition.
+
+    * an ``AcronymPipelineResult``
+    # TODO remove * a legacy ``(detector_result, extraction_result)`` tuple
+
+    Legacy tuple payloads are converted into ``AcronymPipelineResult`` so
+    downstream composition can rely on a single explicit acronym result shape.
+
+    Args:
+        payload: Raw pipeline payload stored on orchestration state.
+        error_message: Error message raised when the payload shape is unsupported.
+
+    Returns:
+        A normalized ``AcronymPipelineResult``.
+
+    Raises:
+        ValueError: If the payload does not match a supported acronym pipeline
+            shape.
+    """
+
+    if isinstance(payload, AcronymPipelineResult):
+        return payload
+
+    if isinstance(payload, tuple) and len(payload) == 2:
+        det_res, extr = payload
+        if not isinstance(det_res, AcronymDetectorResult):
+            raise ValueError(error_message)
+        if not isinstance(extr, ExtractionResult):
+            raise ValueError(error_message)
+        return AcronymPipelineResult(
+            detector_result=det_res,
+            extraction_result=extr,
+        )
+
     raise ValueError(error_message)
 
 
@@ -165,26 +195,24 @@ def compose_sections(
 
     if PIPELINE_ACRONYMS in state.completed_targets:
         payload = state.results_by_pipeline[PIPELINE_ACRONYMS].payload
+        acronym_result: AcronymPipelineResult = _resolve_acronym_payload(
+            payload,
+            error_message="Unsupported acronym pipeline payload shape.",
+        )
 
-        if isinstance(payload, list):
-            sections["acronyms"] = payload
-        elif isinstance(payload, tuple) and len(payload) == 2:
-            det_res, extr = payload
-            blocks = map_acronym_pipeline_to_blocks(
-                det_res=det_res,
-                extr=extr,
-                opts=opts,
-                lang=lang,
-                glossary_repo=glossary_repo,
-            )
-            sections["acronyms"] = attach_resolution_metadata(
-                blocks=blocks,
-                opts=opts,
-                resolution_mode=resolution_mode,
-                glossary_repo=glossary_repo,
-            )
-        else:
-            raise ValueError("Unsupported acronym pipeline payload shape.")
+        blocks = map_acronym_pipeline_to_blocks(
+            det_res=acronym_result.detector_result,
+            extr=acronym_result.extraction_result,
+            opts=opts,
+            lang=lang,
+            glossary_repo=glossary_repo,
+        )
+        sections["acronyms"] = attach_resolution_metadata(
+            blocks=blocks,
+            opts=opts,
+            resolution_mode=resolution_mode,
+            glossary_repo=glossary_repo,
+        )
 
     if PIPELINE_DEFINED_TERMS in state.completed_targets:
         payload = state.results_by_pipeline[PIPELINE_DEFINED_TERMS].payload
@@ -192,10 +220,7 @@ def compose_sections(
             payload,
             error_message="Unsupported defined-term pipeline payload shape.",
         )
-        if isinstance(defined_term_result, list):
-            sections["defined_terms"] = defined_term_result
-        else:
-            sections["defined_terms"] = map_defined_term_blocks(defined_term_result)
+        sections["defined_terms"] = map_defined_term_blocks(defined_term_result)
 
     if PIPELINE_STRUCTURAL_REFERENCES in state.completed_targets:
         payload = state.results_by_pipeline[PIPELINE_STRUCTURAL_REFERENCES].payload
@@ -203,8 +228,5 @@ def compose_sections(
             payload,
             error_message="Unsupported structural-reference pipeline payload shape.",
         )
-        if isinstance(structural_result, list):
-            sections["structural_references"] = structural_result
-        else:
-            sections["structural_references"] = map_structural_blocks(structural_result)
+        sections["structural_references"] = map_structural_blocks(structural_result)
     return sections

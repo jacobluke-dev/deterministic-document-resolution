@@ -3,11 +3,12 @@ from __future__ import annotations
 import types
 
 from plainera_unacronym.nlp.common.types import DefinedTermDetectorConfig
-from plainera_unacronym.nlp.detection.defined_terms import DefinedTermDetector
+from plainera_unacronym.nlp.detection.defined_terms import DefinedTermDetector, DefinedTermMention
 from plainera_unacronym.nlp.extraction.base.base_execute import run_flow_with_options
 from plainera_unacronym.nlp.extraction.defined_terms.execute import detect_and_resolve_terms
 from plainera_unacronym.nlp.extraction.defined_terms.extract_flow import DefinedTermResolutionFlow
 from plainera_unacronym.nlp.extraction.defined_terms.state import TermFlowState
+from plainera_unacronym.nlp.extraction.defined_terms.types import TermCandidateScore, TermResolution
 
 from tests.test_plainera_unacronym.test_nlp.defined_terms.e2e.defined_terms_e2e_common import (
     chosen_meaning_ids_for_key,
@@ -72,7 +73,7 @@ class TestDefinedTermResolutionE2E:
         assert len(det_res.introductions) == 1
 
         effective_resolutions = resolutions_for_key(extr, "effective_date")
-        assert len(effective_resolutions) == 1
+        assert len(effective_resolutions) == 2
         assert effective_resolutions[0].chosen_meaning_id is not None
 
         assert extr.undecided == []
@@ -101,12 +102,12 @@ class TestDefinedTermResolutionE2E:
             return_state=True,
         )
         assert len(det_res.introductions) == 1
-        assert len(resolutions_for_key(extr, "effective_date")) == 1
+        assert len(resolutions_for_key(extr, "effective_date")) == 2
 
         assert state.tier_2.report is not None
         assert state.tier_2.report.applied == 0
-        assert state.tier_2.report.skipped == 1
-        assert state.tier_2.report.reasons == {"single_candidate": 1}
+        assert state.tier_2.report.skipped == 2
+        assert state.tier_2.report.reasons == {"single_candidate": 2}
 
     def test_model_unavailable_fallback(self, _patch):
         from plainera_unacronym.nlp.extraction.defined_terms import stage_funcs
@@ -138,7 +139,7 @@ class TestDefinedTermResolutionE2E:
         assert len(det_res.introductions) == 1
 
         effective_resolutions = resolutions_for_key(extr, "effective_date")
-        assert len(effective_resolutions) == 1
+        assert len(effective_resolutions) == 2
         assert effective_resolutions[0].chosen_meaning_id is not None
 
         assert state.tier_2.report is not None
@@ -160,14 +161,42 @@ class TestDefinedTermResolutionE2E:
         )
 
         assert len(det_res.introductions) == 1
-        assert det_res.mentions == []
+        assert det_res.mentions == [DefinedTermMention(term='Effective Date',
+                    start_offset=1,
+                    end_offset=15,
+                    normalized_key='effective_date',
+                    confidence=1.0,
+                    segment_window=None)]
 
         assert len(state.definition_entries) == 1
         assert len(state.tier_1.meaning_index) == 1
-        assert len(state.tier_1.occurrences) == 0
-        assert len(state.tier_1.ranked) == 0
+        assert len(state.tier_1.occurrences) == 1
+        assert len(state.tier_1.ranked) == 1
 
-        assert extr.term_resolutions == []
+        assert extr.term_resolutions == [TermResolution(occurrence_span=('Effective Date', 1, 15),
+                term='Effective Date',
+                normalized_key='effective_date',
+                chosen_meaning_id='term|effective_date|1',
+                chosen_definition_span=('the date on which both Parties sign '
+                                        'this Agreement',
+                                        23,
+                                        73),
+                candidate_scores=(TermCandidateScore(meaning_id='term|effective_date|1',
+                                                     total_score=5.0,
+                                                     tier1_score=5.0,
+                                                     tier2_score=None,
+                                                     definition_span=('the '
+                                                                      'date on '
+                                                                      'which '
+                                                                      'both '
+                                                                      'Parties '
+                                                                      'sign '
+                                                                      'this '
+                                                                      'Agreement',
+                                                                      23,
+                                                                      73),
+                                                     components={}),),
+                resolution_method='tier1')]
         assert extr.undecided == []
         assert extr.ambiguous_keys == ()
 
@@ -218,13 +247,20 @@ class TestDefinedTermResolutionE2E:
         )
 
         assert len(det_res.introductions) == 2
-        assert len(det_res.mentions) == 1
+        assert len(det_res.mentions) == 3
         assert extr.ambiguous_keys == ("services",)
 
         service_resolutions = resolutions_for_key(extr, "services")
-        assert len(service_resolutions) == 1
-        assert service_resolutions[0].chosen_meaning_id is None
-        assert service_resolutions[0] in extr.undecided
+        assert len(service_resolutions) == 3
+
+        assert service_resolutions[0].chosen_meaning_id == "term|services|1"
+        assert service_resolutions[0].resolution_method == "tier1"
+
+        assert service_resolutions[1].chosen_meaning_id is None
+        assert service_resolutions[1].resolution_method == "unresolved"
+
+        assert service_resolutions[2].chosen_meaning_id is None
+        assert service_resolutions[2].resolution_method == "unresolved"
 
     # TODO AS PART OF TICKET 97
     # def test_prefer_prior_definition_when_context_is_otherwise_equal(self, _patch):
@@ -331,14 +367,18 @@ class TestDefinedTermResolutionE2E:
         )
 
         assert len(det_res.introductions) == 2
-        assert len(det_res.mentions) == 1
+        assert len(det_res.mentions) == 3
         assert extr.ambiguous_keys == ("services",)
 
-        chosen_ids = chosen_meaning_ids_for_key(extr, "services")
-        assert len(chosen_ids) == 1
+        services_resolutions = resolutions_for_key(extr, "services")
+        assert len(services_resolutions) == 3
 
         meaning_text = meaning_text_by_id(state)
-        assert "maintenance services" in meaning_text[chosen_ids[0]]
+
+        schedule_a_resolution = services_resolutions[-1]
+        assert schedule_a_resolution.resolution_method == "tier1"
+        assert schedule_a_resolution.chosen_meaning_id is not None
+        assert "maintenance services" in meaning_text[schedule_a_resolution.chosen_meaning_id]
 
     def test_quoted_later_mention_resolves(self):
         text = """
@@ -354,10 +394,10 @@ class TestDefinedTermResolutionE2E:
         )
 
         assert len(det_res.introductions) == 1
-        assert len(det_res.mentions) == 1
+        assert len(det_res.mentions) == 2
 
         conf_resolutions = resolutions_for_key(extr, "confidential_information")
-        assert len(conf_resolutions) == 1
+        assert len(conf_resolutions) == 2
         assert conf_resolutions[0].chosen_meaning_id == "term|confidential_information|1"
         assert extr.undecided == []
 
@@ -384,7 +424,7 @@ class TestDefinedTermResolutionE2E:
         assert "agreement" in intro_keys
 
         agreement_resolutions = resolutions_for_key(extr, "agreement")
-        assert len(agreement_resolutions) == 2
+        assert len(agreement_resolutions) == 3
         assert agreement_resolutions[0].chosen_meaning_id == "term|agreement|1"
         assert agreement_resolutions[0].resolution_method in {"tier1", "tier2_blend"}
 
@@ -498,6 +538,60 @@ def test_detector_emits_later_mention_for_defined_term():
     result = DefinedTermDetector(DefinedTermDetectorConfig()).detect(text)
 
     assert len(result.introductions) == 1
-    assert len(result.mentions) == 1
-    assert result.mentions[0].normalized_key == "services"
-    assert result.mentions[0].start_offset > result.introductions[0].end_offset
+    assert len(result.mentions) == 2
+
+    services_mentions = [m for m in result.mentions if m.normalized_key == "services"]
+    assert len(services_mentions) == 2
+
+    intro = result.introductions[0]
+    later_mentions = [m for m in services_mentions if m.start_offset >= intro.end_offset]
+    assert len(later_mentions) == 1
+
+
+def test_defined_term_later_exact_reference_effective_date_is_returned():
+    text = (
+        '"Effective Date" means 1 April 2026. '
+        'The Supplier shall commence delivery on the Effective Date.'
+    )
+
+    det_res, term_result = detect_and_resolve_terms(text)
+
+    assert [intro.term for intro in det_res.introductions] == ["Effective Date"]
+    assert "Effective Date" in [mention.term for mention in det_res.mentions]
+    assert "effective_date" in [res.normalized_key for res in term_result.term_resolutions]
+
+
+def test_defined_term_plural_later_reference_resolves_to_known_singular_term():
+    text = (
+        '"Business Day" means any day other than a Saturday or Sunday. '
+        'The parties must respond within 5 Business Days.'
+    )
+
+    det_res, term_result = detect_and_resolve_terms(text)
+
+    assert [intro.term for intro in det_res.introductions] == ["Business Day"]
+    terms = [mention.term for mention in det_res.mentions]
+    assert len(terms) == 2
+    assert "Business Days" in [mention.term for mention in det_res.mentions]
+    assert "business_day" in [res.normalized_key for res in term_result.term_resolutions]
+
+
+def test_defined_term_with_no_later_occurrence_emits_intro_resolution():
+    text = '"Data Protection Laws" means all applicable privacy legislation.'
+
+    det_res, term_result = detect_and_resolve_terms(text)
+
+    assert [intro.term for intro in det_res.introductions] == ["Data Protection Laws"]
+    assert [res.term for res in term_result.term_resolutions] == ["Data Protection Laws"]
+
+
+def test_defined_term_intro_emits_resolution_even_when_only_pre_definition_occurrence_exists():
+    text = (
+        "The Supplier shall provide all Deliverables. "
+        '"Deliverables" means all reports and outputs produced under this Agreement.'
+    )
+
+    det_res, term_result = detect_and_resolve_terms(text)
+
+    assert [intro.term for intro in det_res.introductions] == ["Deliverables"]
+    assert [res.term for res in term_result.term_resolutions] == ["Deliverables"]

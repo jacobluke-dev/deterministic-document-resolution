@@ -8,6 +8,7 @@ from typing import Any
 
 import anyio
 from fastapi import status
+from plainera_unacronym.nlp.common.types import AcronymPipelineResult
 from plainera_unacronym.orchestration import PipelineRegistry
 from plainera_unacronym.orchestration.interface import (
     OrchestrationRequest,
@@ -217,7 +218,7 @@ class BasePipelineExecutor(ABC):
     async def _run_sync_with_timeout(
         self,
         func: Any,
-    ) -> Any:
+    ) -> Any | AcronymPipelineResult:
         """Run blocking work in a worker thread with the executor timeout applied.
 
         Args:

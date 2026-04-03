@@ -2,7 +2,7 @@ import asyncio
 from collections.abc import Mapping
 from typing import Any, cast
 
-from plainera_unacronym.nlp.common.types import AcronymDetectorConfig, AcronymDetectorResult, ExtractionResult
+from plainera_unacronym.nlp.common.types import AcronymDetectorConfig, AcronymPipelineResult
 from plainera_unacronym.nlp.extraction.acronyms.config import ExtractionConfig
 from plainera_unacronym.nlp.extraction.acronyms.execute import detect_and_extract
 from plainera_unacronym.orchestration import PIPELINE_ACRONYMS, PipelineRegistry, PipelineRunResult
@@ -54,7 +54,7 @@ class AcronymPipelineExecutor(BasePipelineExecutor):
         *,
         text: str,
         options: Mapping[str, object],
-    ) -> tuple[AcronymDetectorResult, ExtractionResult]:
+    ) -> AcronymPipelineResult:
         """Run acronym detection and extraction for a single text chunk.
 
         Args:
@@ -63,7 +63,7 @@ class AcronymPipelineExecutor(BasePipelineExecutor):
                 tracing, and optional Tier-2 reranking.
 
         Returns:
-            A tuple of detector and extraction results for the chunk.
+            AcronymPipelineResult
         """
         det_cfg = cast(AcronymDetectorConfig | None, options.get("det_cfg"))
         ext_cfg = cast(ExtractionConfig | None, options.get("ext_cfg"))
@@ -84,7 +84,7 @@ class AcronymPipelineExecutor(BasePipelineExecutor):
                 trace_filter=trace_filter,
             )
         )
-        return cast(tuple[AcronymDetectorResult, ExtractionResult], result)
+        return result
 
     async def _execute_chunked(
         self,
@@ -135,7 +135,7 @@ class AcronymPipelineExecutor(BasePipelineExecutor):
 
         for chunk in chunks:
             try:
-                det_res, extr = await self._run_chunk(
+                result = await self._run_chunk(
                     text=chunk.text,
                     options=options,
                 )
@@ -152,8 +152,8 @@ class AcronymPipelineExecutor(BasePipelineExecutor):
                 ) from exc
 
             blocks = map_acronym_pipeline_to_blocks(
-                det_res=det_res,
-                extr=extr,
+                det_res=result.detector_result,
+                extr=result.extraction_result,
                 opts=opts,
                 lang=lang,
                 glossary_repo=self._glossary_repo,

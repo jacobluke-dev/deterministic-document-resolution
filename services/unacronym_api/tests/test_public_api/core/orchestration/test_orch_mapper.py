@@ -3,6 +3,7 @@ from __future__ import annotations
 from types import SimpleNamespace
 
 import pytest
+from plainera_unacronym.nlp.common.types import AcronymPipelineResult
 from plainera_unacronym.nlp.extraction.defined_terms.types import TermResolutionResult
 from plainera_unacronym.nlp.extraction.structural.types import StructuralReferenceResolutionResult
 from plainera_unacronym.orchestration.interface import (
@@ -49,15 +50,14 @@ def structural_reference_resolution_result() -> StructuralReferenceResolutionRes
 
 
 class TestResolveDefinedTermPayload:
-    def test_returns_list_payload_as_is(self):
+    def test_raises_for_list_payload(self):
         payload = [{"term": "Services"}]
 
-        out = _resolve_defined_term_payload(
-            payload,
-            error_message="bad payload",
-        )
-
-        assert out is payload
+        with pytest.raises(ValueError, match="bad payload"):
+            _resolve_defined_term_payload(
+                payload,
+                error_message="bad payload",
+            )
 
     def test_returns_direct_result_payload(self, term_resolution_result):
         out = _resolve_defined_term_payload(
@@ -93,25 +93,15 @@ class TestResolveDefinedTermPayload:
                 error_message="bad payload",
             )
 
-    def test_raises_for_list_when_prebuilt_blocks_not_allowed(self):
-        with pytest.raises(ValueError, match="bad payload"):
-            _resolve_defined_term_payload(
-                [{"term": "Services"}],
-                error_message="bad payload",
-                allow_prebuilt_blocks=False,
-            )
-
-
 class TestResolveStructuralPayload:
-    def test_returns_list_payload_as_is(self):
+    def test_raises_for_list_payload_structural(self):
         payload = [{"canonical_key": "section|2"}]
 
-        out = _resolve_structural_payload(
-            payload,
-            error_message="bad payload",
-        )
-
-        assert out is payload
+        with pytest.raises(ValueError, match="bad payload"):
+            _resolve_structural_payload(
+                payload,
+                error_message="bad payload",
+            )
 
     def test_returns_direct_result_payload(self, structural_reference_resolution_result):
         out = _resolve_structural_payload(
@@ -145,14 +135,6 @@ class TestResolveStructuralPayload:
             _resolve_structural_payload(
                 object(),
                 error_message="bad payload",
-            )
-
-    def test_raises_for_list_when_prebuilt_blocks_not_allowed(self):
-        with pytest.raises(ValueError, match="bad payload"):
-            _resolve_structural_payload(
-                [{"canonical_key": "section|2"}],
-                error_message="bad payload",
-                allow_prebuilt_blocks=False,
             )
 
 class TestMapOrchestrationState:
@@ -244,33 +226,18 @@ class TestComposeSections:
             "structural_references": [],
         }
 
-    def test_passes_through_prebuilt_acronym_blocks(self, resolve_options):
+    def test_maps_acronym_pipeline_result_and_attaches_metadata(self, resolve_options, _patch):
         state = OrchestrationState.from_requested_targets((PIPELINE_ACRONYMS,))
+        detector_result = object()
+        extraction_result = object()
+
         state.record_success(
             PipelineRunResult(
                 pipeline=PIPELINE_ACRONYMS,
-                payload=[{"acronym": "MPS"}],
-            )
-        )
-
-        out = compose_sections(
-            state,
-            opts=resolve_options,
-            lang="en",
-            resolution_mode=ResolutionMode.DOMAIN_PRIORITY,
-            glossary_repo=SimpleNamespace(),
-        )
-
-        assert out["acronyms"] == [{"acronym": "MPS"}]
-        assert out["defined_terms"] == []
-        assert out["structural_references"] == []
-
-    def test_maps_acronym_tuple_payload_and_attaches_metadata(self, resolve_options, _patch):
-        state = OrchestrationState.from_requested_targets((PIPELINE_ACRONYMS,))
-        state.record_success(
-            PipelineRunResult(
-                pipeline=PIPELINE_ACRONYMS,
-                payload=("detector_result", "extraction_result"),
+                payload=AcronymPipelineResult(
+                    detector_result=detector_result,
+                    extraction_result=extraction_result,
+                ),
             )
         )
 
@@ -314,8 +281,8 @@ class TestComposeSections:
             {"acronym": "MPS", "selected": {"definition": "Metropolitan Police Service"}}
         ]
         assert calls["map"] == {
-            "det_res": "detector_result",
-            "extr": "extraction_result",
+            "det_res": detector_result,
+            "extr": extraction_result,
             "opts": resolve_options,
             "lang": "en",
             "glossary_repo": glossary_repo,
@@ -336,10 +303,9 @@ class TestComposeSections:
             )
         )
 
-        def fake_resolve_defined_term_payload(payload, *, error_message, allow_prebuilt_blocks=True):
+        def fake_resolve_defined_term_payload(payload, *, error_message):
             assert payload == "term_result"
             assert error_message == "Unsupported defined-term pipeline payload shape."
-            assert allow_prebuilt_blocks is True
             return "resolved_term_result"
 
         def fake_map_defined_term_blocks(resolved):
@@ -364,34 +330,6 @@ class TestComposeSections:
         assert out["acronyms"] == []
         assert out["structural_references"] == []
 
-    def test_passes_through_prebuilt_defined_term_blocks(self, resolve_options, _patch):
-        state = OrchestrationState.from_requested_targets((PIPELINE_DEFINED_TERMS,))
-        state.record_success(
-            PipelineRunResult(
-                pipeline=PIPELINE_DEFINED_TERMS,
-                payload="term_result",
-            )
-        )
-
-        def fake_resolve_defined_term_payload(payload, *, error_message, allow_prebuilt_blocks=True):
-            assert payload == "term_result"
-            return [{"term": "Services"}]
-
-        _patch(
-            compose_sections,
-            _resolve_defined_term_payload=fake_resolve_defined_term_payload,
-        )
-
-        out = compose_sections(
-            state,
-            opts=resolve_options,
-            lang="en",
-            resolution_mode=ResolutionMode.DOMAIN_PRIORITY,
-            glossary_repo=SimpleNamespace(),
-        )
-
-        assert out["defined_terms"] == [{"term": "Services"}]
-
     def test_maps_structural_resolution_payload(self, resolve_options, _patch):
         state = OrchestrationState.from_requested_targets((PIPELINE_STRUCTURAL_REFERENCES,))
         state.record_success(
@@ -401,10 +339,9 @@ class TestComposeSections:
             )
         )
 
-        def fake_resolve_structural_payload(payload, *, error_message, allow_prebuilt_blocks=True):
+        def fake_resolve_structural_payload(payload, *, error_message):
             assert payload == "structural_result"
             assert error_message == "Unsupported structural-reference pipeline payload shape."
-            assert allow_prebuilt_blocks is True
             return "resolved_structural_result"
 
         def fake_map_structural_blocks(resolved):
@@ -428,34 +365,6 @@ class TestComposeSections:
         assert out["structural_references"] == [{"kind": "Section", "label": "2"}]
         assert out["acronyms"] == []
         assert out["defined_terms"] == []
-
-    def test_passes_through_prebuilt_structural_blocks(self, resolve_options, _patch):
-        state = OrchestrationState.from_requested_targets((PIPELINE_STRUCTURAL_REFERENCES,))
-        state.record_success(
-            PipelineRunResult(
-                pipeline=PIPELINE_STRUCTURAL_REFERENCES,
-                payload="structural_result",
-            )
-        )
-
-        def fake_resolve_structural_payload(payload, *, error_message, allow_prebuilt_blocks=True):
-            assert payload == "structural_result"
-            return [{"kind": "Schedule", "label": "1"}]
-
-        _patch(
-            compose_sections,
-            _resolve_structural_payload=fake_resolve_structural_payload,
-        )
-
-        out = compose_sections(
-            state,
-            opts=resolve_options,
-            lang="en",
-            resolution_mode=ResolutionMode.DOMAIN_PRIORITY,
-            glossary_repo=SimpleNamespace(),
-        )
-
-        assert out["structural_references"] == [{"kind": "Schedule", "label": "1"}]
 
     def test_raises_for_unsupported_acronym_payload_shape(self, resolve_options):
         state = OrchestrationState.from_requested_targets((PIPELINE_ACRONYMS,))
