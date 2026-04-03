@@ -18,6 +18,7 @@ python-dotenv = "^1.0"
 SQLAlchemy = ">=2.0.43,<2.1"
 plainera-observability = { path = "../plainera_observability", develop = true }
 numpy = "2.4.2"
+openai = ">=1,<2"
 
 [tool.poetry.group.dev.dependencies]
 plainera-testkit = { path = "../plainera_testkit", develop = true }
