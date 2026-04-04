@@ -5,7 +5,13 @@ from dataclasses import dataclass
 
 @dataclass(frozen=True, slots=True)
 class DemoDocument:
-    """Input document for a demo corpus."""
+    """Represent an input document supplied to the demo corpus.
+
+    Attributes:
+        document_id: Stable identifier for the document within the demo corpus.
+        name: Human-readable document name.
+        text: Full plain-text document content.
+    """
 
     document_id: str
     name: str
@@ -14,7 +20,17 @@ class DemoDocument:
 
 @dataclass(frozen=True, slots=True)
 class DemoChunk:
-    """Chunk derived from a source document."""
+    """Represent a chunk derived from a source document.
+
+    Attributes:
+        chunk_id: Stable identifier for the chunk.
+        document_id: Identifier of the source document.
+        document_name: Human-readable source document name.
+        ordinal: Zero-based chunk position within the source document.
+        start_offset: Inclusive character start offset in the source text.
+        end_offset: Exclusive character end offset in the source text.
+        text: Chunk text content.
+    """
 
     chunk_id: str
     document_id: str
@@ -27,7 +43,12 @@ class DemoChunk:
 
 @dataclass(frozen=True, slots=True)
 class IndexedCorpus:
-    """Chunked corpus ready for retrieval."""
+    """Represent a chunked corpus ready for retrieval.
+
+    Attributes:
+        documents: Source documents included in the corpus.
+        chunks: Emitted chunks derived from the source documents.
+    """
 
     documents: tuple[DemoDocument, ...]
     chunks: tuple[DemoChunk, ...]
@@ -35,7 +56,12 @@ class IndexedCorpus:
 
 @dataclass(frozen=True, slots=True)
 class RetrievedChunk:
-    """Retrieved chunk plus similarity score."""
+    """Represent a retrieved chunk and its retrieval score.
+
+    Attributes:
+        chunk: Retrieved chunk payload.
+        score: Similarity score assigned during retrieval.
+    """
 
     chunk: DemoChunk
     score: float
@@ -43,7 +69,13 @@ class RetrievedChunk:
 
 @dataclass(frozen=True, slots=True)
 class BaselineAnswerResult:
-    """Baseline RAG answer and the retrieved evidence used to produce it."""
+    """Represent the baseline RAG answer and supporting retrieval evidence.
+
+    Attributes:
+        question: User question supplied to the baseline pipeline.
+        answer: Final answer returned by the answer generator.
+        retrieved_chunks: Retrieved evidence used to produce the answer.
+    """
 
     question: str
     answer: str

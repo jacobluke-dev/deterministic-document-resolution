@@ -9,6 +9,19 @@ from plainera_rag_demo.settings import RagDemoSettings, rag_demo_settings
 
 
 def build_baseline_pipeline(settings: RagDemoSettings = rag_demo_settings) -> BaselineRagPipeline:
+    """Build the baseline RAG pipeline from package settings.
+
+    The baseline pipeline uses deterministic fixed-window chunking, OpenAI
+    embeddings, FAISS-backed retrieval, and a simple demo answer generator.
+
+    Args:
+        settings: RAG demo settings providing chunking and embedding
+            configuration.
+
+    Returns:
+        A configured ``BaselineRagPipeline`` instance ready to index documents
+        and answer questions.
+    """
     embedder = build_openai_embedder(settings)
 
     return BaselineRagPipeline(
