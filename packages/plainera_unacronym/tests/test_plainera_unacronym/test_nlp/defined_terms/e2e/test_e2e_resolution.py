@@ -8,8 +8,11 @@ from plainera_unacronym.nlp.extraction.base.base_execute import run_flow_with_op
 from plainera_unacronym.nlp.extraction.defined_terms.execute import detect_and_resolve_terms
 from plainera_unacronym.nlp.extraction.defined_terms.extract_flow import DefinedTermResolutionFlow
 from plainera_unacronym.nlp.extraction.defined_terms.state import TermFlowState
-from plainera_unacronym.nlp.extraction.defined_terms.types import TermCandidateScore, TermResolution, \
-    TermTier1OccurrenceRanking
+from plainera_unacronym.nlp.extraction.defined_terms.types import (
+    TermCandidateScore,
+    TermResolution,
+    TermTier1OccurrenceRanking,
+)
 
 from tests.test_plainera_unacronym.test_nlp.defined_terms.e2e.defined_terms_e2e_common import (
     chosen_meaning_ids_for_key,
