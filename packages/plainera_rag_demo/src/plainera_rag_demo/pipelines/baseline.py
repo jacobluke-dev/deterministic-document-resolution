@@ -3,10 +3,9 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Sequence
 
-from plainera_rag_demo.common import IndexedCorpus, DemoDocument, BaselineAnswerResult
-from plainera_rag_demo.contracts import Chunker, AnswerGenerator
+from plainera_rag_demo.common import BaselineAnswerResult, DemoDocument, IndexedCorpus
+from plainera_rag_demo.contracts import AnswerGenerator, Chunker
 from plainera_rag_demo.contracts.interfaces import ChunkIndex, VectorStore
-
 
 
 @dataclass(frozen=True, slots=True)

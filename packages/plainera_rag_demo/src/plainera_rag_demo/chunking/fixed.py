@@ -5,6 +5,7 @@ from collections.abc import Sequence
 from plainera_rag_demo.common.models import DemoChunk, DemoDocument
 from plainera_rag_demo.contracts.interfaces import Chunker
 
+
 class FixedWindowChunker(Chunker):
     """Deterministic fixed-size character chunker with overlap."""
 

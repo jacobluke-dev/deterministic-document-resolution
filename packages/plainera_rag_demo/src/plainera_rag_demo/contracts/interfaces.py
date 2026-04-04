@@ -3,8 +3,8 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from collections.abc import Sequence
 
-from plainera_rag_demo.common.types import FloatMatrix
 from plainera_rag_demo.common.models import DemoChunk, DemoDocument, RetrievedChunk
+from plainera_rag_demo.common.types import FloatMatrix
 
 
 class Chunker(ABC):
@@ -15,7 +15,7 @@ class Chunker(ABC):
         """Return chunks in deterministic input order."""
 
 
-class ChunkIndex(ABC):
+class ChunkIndex:
     """Marker base class for retrieval index payloads."""
 
 

@@ -1,9 +1,8 @@
 from __future__ import annotations
 
 import numpy as np
-
 from plainera_rag_demo.chunking import FixedWindowChunker
-from plainera_rag_demo.common import RetrievedChunk, DemoDocument
+from plainera_rag_demo.common import DemoDocument, RetrievedChunk
 from plainera_rag_demo.contracts import AnswerGenerator, Embedder
 from plainera_rag_demo.pipelines import BaselineRagPipeline
 from plainera_rag_demo.retrieval import InMemoryVectorStore

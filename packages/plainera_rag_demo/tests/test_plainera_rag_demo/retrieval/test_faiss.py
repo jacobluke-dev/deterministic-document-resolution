@@ -1,8 +1,6 @@
 from __future__ import annotations
 
 import numpy as np
-
-
 from plainera_rag_demo.chunking import FixedWindowChunker
 from plainera_rag_demo.common import DemoDocument
 from plainera_rag_demo.retrieval.faiss import FaissVectorStore

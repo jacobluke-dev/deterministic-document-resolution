@@ -8,7 +8,7 @@ import numpy as np
 
 from plainera_rag_demo.common import DemoChunk, RetrievedChunk
 from plainera_rag_demo.common.types import FloatMatrix
-from plainera_rag_demo.contracts.interfaces import ChunkIndex, VectorStore, Embedder
+from plainera_rag_demo.contracts.interfaces import ChunkIndex, Embedder, VectorStore
 
 
 @dataclass(frozen=True, slots=True)
