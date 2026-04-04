@@ -5,7 +5,8 @@ from typing import Sequence
 
 from plainera_rag_demo.common import IndexedCorpus, DemoDocument, BaselineAnswerResult
 from plainera_rag_demo.contracts import Chunker, AnswerGenerator
-from plainera_rag_demo.retrieval import InMemoryChunkIndex, InMemoryVectorStore
+from plainera_rag_demo.contracts.interfaces import ChunkIndex, VectorStore
+
 
 
 @dataclass(frozen=True, slots=True)
@@ -13,7 +14,7 @@ class BaselineCorpusIndex:
     """Indexed baseline corpus ready for question answering."""
 
     corpus: IndexedCorpus
-    vector_index: InMemoryChunkIndex
+    vector_index: ChunkIndex
 
 
 class BaselineRagPipeline:
@@ -23,7 +24,7 @@ class BaselineRagPipeline:
         self,
         *,
         chunker: Chunker,
-        vector_store: InMemoryVectorStore,
+        vector_store: VectorStore,
         answer_generator: AnswerGenerator,
     ) -> None:
         self._chunker = chunker

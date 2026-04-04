@@ -6,19 +6,20 @@ from typing import Sequence
 import numpy as np
 
 from plainera_rag_demo.common.types import FloatMatrix
-from plainera_rag_demo.contracts.interfaces import Embedder
+from plainera_rag_demo.contracts.interfaces import Embedder, VectorStore, ChunkIndex
 from plainera_rag_demo.common.models import DemoChunk, RetrievedChunk
 
 
 @dataclass(frozen=True, slots=True)
-class InMemoryChunkIndex:
+class InMemoryChunkIndex(ChunkIndex):
     """Indexed chunk vectors for retrieval."""
 
     chunks: tuple[DemoChunk, ...]
     vectors: FloatMatrix
 
 
-class InMemoryVectorStore:
+class InMemoryVectorStore(VectorStore):
+    """Simple cosine-similarity retriever for demo use and tests."""
     """Simple cosine-similarity retriever for demo use and tests."""
 
     def __init__(self, *, embedder: Embedder) -> None:

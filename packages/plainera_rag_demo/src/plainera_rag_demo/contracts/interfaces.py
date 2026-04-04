@@ -15,6 +15,28 @@ class Chunker(ABC):
         """Return chunks in deterministic input order."""
 
 
+class ChunkIndex(ABC):
+    """Marker base class for retrieval index payloads."""
+
+
+class VectorStore(ABC):
+    """Index and retrieve chunks for question answering."""
+
+    @abstractmethod
+    def index_chunks(self, chunks: Sequence[DemoChunk]) -> ChunkIndex:
+        """Build a retrieval index for the supplied chunks."""
+
+    @abstractmethod
+    def retrieve(
+        self,
+        *,
+        index: ChunkIndex,
+        question: str,
+        top_k: int,
+    ) -> list[RetrievedChunk]:
+        """Return top-k retrieved chunks for the question."""
+
+
 class Embedder(ABC):
     """Generate dense vectors for text inputs."""
 
