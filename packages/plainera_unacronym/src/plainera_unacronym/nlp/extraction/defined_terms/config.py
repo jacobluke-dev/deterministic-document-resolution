@@ -36,6 +36,7 @@ class DefinedTermExtractionConfig:
             where candidates are otherwise not separable above the configured
             margin threshold. Strong non-tied winners are unchanged.
     """
+
     tier2: Tier2Config = field(default_factory=Tier2Config)
     multi_tier: ResolutionConfig = field(default_factory=ResolutionConfig)
 
@@ -47,4 +48,4 @@ class DefinedTermExtractionConfig:
     directionality_weight: float = 1.0
     intro_type_weight: float = 1.0
 
-    prefer_prior_definitions: bool = True # might stay might not, I'm not sure
+    prefer_prior_definitions: bool = True  # might stay might not, I'm not sure

@@ -19,9 +19,11 @@ httpx = "^0.28.1"
 asyncpg = "^0.30.0"
 numpy = "^2.4.2"
 reportlab = "^4.4.10"
+openai = ">=1,<2"
 
 plainera-core = { path = "packages/plainera_core", develop = true }
 plainera-unacronym = { path = "packages/plainera_unacronym", develop = true }
+plainera-rag-demo = { path = "packages/plainera_rag_demo", develop = true }
 plainera-testkit = { path = "packages/plainera_testkit", develop = true }
 plainera-observability = { path = "packages/plainera_observability", develop = true, extras = ["fastapi"] }
 unacronym-api = { path = "services/unacronym_api", develop = true }
@@ -53,6 +55,7 @@ types-requests = "^2.32.4.20250809"
 types-PyYAML = "^6.0.12.20250822"
 jupyterlab = "^4.5.5"
 ipykernel = "^7.2.0"
+faiss-cpu = ">=1.9,<2"
 
 [build-system]
 requires = ["poetry-core"]
