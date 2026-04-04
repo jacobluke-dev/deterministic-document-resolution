@@ -40,15 +40,19 @@ class OpenAIEmbedder(Embedder):
         for start in range(0, len(text_list), self._batch_size):
             batch = text_list[start : start + self._batch_size]
 
-            request_kwargs: dict[str, object] = {
-                "input": batch,
-                "model": self._model,
-                "encoding_format": "float",
-            }
-            if self._dimensions is not None:
-                request_kwargs["dimensions"] = self._dimensions
-
-            response = self._client.embeddings.create(**request_kwargs)
+            if self._dimensions is None:
+                response = self._client.embeddings.create(
+                    input=batch,
+                    model=self._model,
+                    encoding_format="float",
+                )
+            else:
+                response = self._client.embeddings.create(
+                    input=batch,
+                    model=self._model,
+                    encoding_format="float",
+                    dimensions=self._dimensions,
+                )
 
             for item in sorted(response.data, key=lambda item: item.index):
                 rows.append(item.embedding)

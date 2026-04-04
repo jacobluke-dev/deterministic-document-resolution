@@ -21,8 +21,6 @@ class InMemoryChunkIndex(ChunkIndex):
 class InMemoryVectorStore(VectorStore):
     """Simple cosine-similarity retriever for demo use and tests."""
 
-    """Simple cosine-similarity retriever for demo use and tests."""
-
     def __init__(self, *, embedder: Embedder) -> None:
         self._embedder = embedder
 
@@ -46,13 +44,14 @@ class InMemoryVectorStore(VectorStore):
     def retrieve(
         self,
         *,
-        index: InMemoryChunkIndex,
+        index: ChunkIndex,
         question: str,
         top_k: int,
     ) -> list[RetrievedChunk]:
         if top_k <= 0:
             raise ValueError("top_k must be > 0")
-
+        if not isinstance(index, InMemoryChunkIndex):
+            raise TypeError("InMemoryVectorStore requires an InMemoryChunkIndex")
         if not index.chunks:
             return []
 

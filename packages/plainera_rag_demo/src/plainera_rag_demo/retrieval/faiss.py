@@ -3,7 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Sequence
 
-import faiss
+import faiss  # type: ignore[import-untyped]
 import numpy as np
 
 from plainera_rag_demo.common import DemoChunk, RetrievedChunk
