@@ -27,6 +27,7 @@ mypy = "^1.11.1"
 ruff = "^0.5.7"
 pytest-asyncio = "^1.1.0"
 pytest-cov = "^6.2.1"
+faiss-cpu = ">=1.9,<2"
 
 [build-system]
 requires = ["poetry-core"]
