@@ -13,6 +13,9 @@ class RagDemoSettings(BaseSettings):
     baseline_chunk_size: int = 1_000
     baseline_chunk_overlap: int = 150
     baseline_top_k: int = 5
+    grounded_chunk_size: int = 1_000
+    grounded_chunk_overlap: int = 150
+    grounded_top_k: int = 5
 
     model_config = SettingsConfigDict(
         env_file=".env",
