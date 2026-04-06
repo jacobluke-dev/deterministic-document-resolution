@@ -120,7 +120,17 @@ class GroundedRagPipeline:
 
 
 class ResolveBackedGroundingStage(GroundingStage):
-    """Ground documents using deterministic resolution before retrieval."""
+    """Ground documents by prepending deterministic resolve output.
+
+    This stage adapts ``ResolveService`` into the grounded RAG pipeline. For each
+    source document, it calls the resolve flow over the raw text, serialises the
+    resulting deterministic JSON, and prepends that context to the original
+    document text before chunking and retrieval.
+
+    The current implementation uses the full ``ResolveResponse`` JSON as the
+    grounded context so the retrieval layer operates over an explicitly enriched
+    representation of the source document.
+    """
 
     def __init__(
         self,
@@ -130,8 +140,9 @@ class ResolveBackedGroundingStage(GroundingStage):
         """Initialise the grounding stage.
 
         Args:
-            resolve_service: Service used to produce deterministic grounding
-                output for a document.
+            resolve_service: Resolve service used to produce deterministic
+                acronym, defined-term, and structural-reference output for each
+                document.
         """
         self._resolve_service = resolve_service
 
@@ -139,7 +150,16 @@ class ResolveBackedGroundingStage(GroundingStage):
         self,
         documents: Sequence[DemoDocument],
     ) -> tuple[DemoDocument, ...]:
-        """Return grounded documents ready for downstream chunking."""
+        """Ground each document and return the transformed document set.
+
+        Args:
+            documents: Source documents to enrich with deterministic resolve
+                output before chunking.
+
+        Returns:
+            A tuple of grounded ``DemoDocument`` instances whose ``text`` fields
+            contain deterministic context prepended to the original source text.
+        """
         grounded_documents: list[DemoDocument] = []
 
         for document in documents:
@@ -149,17 +169,40 @@ class ResolveBackedGroundingStage(GroundingStage):
 
     @staticmethod
     def _build_grounded_text(*, text: str, resolved: ResolveResponse) -> str:
-        """Build grounded retrieval text from resolve output.
+        """Build the grounded retrieval text for a single document.
 
-        The first pass prepends deterministic JSON context to the source text so the
-        downstream chunking and retrieval stages carry that grounding information.
+        The current grounding representation prepends the full serialized
+        ``ResolveResponse`` JSON ahead of the original source text. This makes
+        deterministic resolution output visible to downstream chunking,
+        embedding, and retrieval without altering the original document body.
+
+        Args:
+            text: Original raw document text.
+            resolved: Deterministic resolve output produced for the document.
+
+        Returns:
+            A single grounded text block containing deterministic context
+            followed by the original document text.
         """
         deterministic_context = resolved.model_dump_json(indent=2)
 
         return "[DETERMINISTIC_GROUNDING]\n" f"{deterministic_context}\n\n" "[DOCUMENT]\n" f"{text}"
 
     async def _ground_document(self, document: DemoDocument) -> DemoDocument:
-        """Ground a single document."""
+        """Ground a single document using the resolve service.
+
+        This method builds a ``ResolveRequest`` from the source document text,
+        executes deterministic resolution with the configured targets, converts
+        the resulting ``ResolveResponse`` into grounded text, and returns a new
+        document carrying that enriched representation.
+
+        Args:
+            document: Source document to ground.
+
+        Returns:
+            A new ``DemoDocument`` with the same identity metadata as the source
+            document and grounded text suitable for downstream chunking.
+        """
         payload = ResolveRequest(
             text=document.text,
             resolution_mode=ResolutionMode.DOMAIN_PRIORITY,
