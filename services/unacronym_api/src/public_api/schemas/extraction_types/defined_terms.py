@@ -94,7 +94,7 @@ class DefinedTermMeaningBlock(BaseSchema):
         default_factory=list,
         description="Structural path locating the introduction within the document.",
     )
-    alias_target_span: Span | None = Field(
+    alias_target_span: TextSpan | None = Field(
         None,
         description="Antecedent span for parenthetical alias introductions when present.",
     )
