@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from public_api.core.services.resolve_service import ResolveService
+
 from plainera_rag_demo.answering import DemoAnswerGenerator
 from plainera_rag_demo.chunking import FixedWindowChunker
 from plainera_rag_demo.composition.embedder import build_openai_embedder
@@ -7,7 +9,6 @@ from plainera_rag_demo.pipelines.baseline import BaselineRagPipeline
 from plainera_rag_demo.pipelines.grounded import GroundedRagPipeline, ResolveBackedGroundingStage
 from plainera_rag_demo.retrieval import FaissVectorStore
 from plainera_rag_demo.settings import RagDemoSettings, rag_demo_settings
-from public_api.core.services.resolve_service import ResolveService
 
 
 def build_baseline_pipeline(settings: RagDemoSettings = rag_demo_settings) -> BaselineRagPipeline:
@@ -64,5 +65,5 @@ def build_grounded_pipeline(
         ),
         vector_store=FaissVectorStore(embedder=embedder),
         answer_generator=DemoAnswerGenerator(),
-        grounding_stage=ResolveBackedGroundingStage(resolve_service=resolve_service)
+        grounding_stage=ResolveBackedGroundingStage(resolve_service=resolve_service),
     )

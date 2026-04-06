@@ -3,11 +3,12 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Sequence
 
+from public_api.core.services.resolve_service import ResolveService
+from public_api.schemas.resolve import ResolutionMode, ResolveOptions, ResolveRequest, ResolveResponse, ResolveTarget
+
 from plainera_rag_demo.common import BaselineAnswerResult, DemoDocument, IndexedCorpus
 from plainera_rag_demo.contracts import AnswerGenerator, Chunker
-from plainera_rag_demo.contracts.interfaces import ChunkIndex, VectorStore, GroundingStage
-from public_api.core.services.resolve_service import ResolveService
-from public_api.schemas.resolve import ResolveOptions, ResolveTarget, ResolutionMode, ResolveRequest, ResolveResponse
+from plainera_rag_demo.contracts.interfaces import ChunkIndex, GroundingStage, VectorStore
 
 
 @dataclass(frozen=True, slots=True)
@@ -67,9 +68,7 @@ class GroundedRagPipeline:
             grounded chunked corpus, and its associated retrieval index.
         """
         source_documents = tuple(documents)
-        grounded_documents = tuple(
-            await self._grounding_stage.ground_documents(source_documents)
-        )
+        grounded_documents = tuple(await self._grounding_stage.ground_documents(source_documents))
         chunks = tuple(self._chunker.chunk_documents(grounded_documents))
         grounded_corpus = IndexedCorpus(
             documents=grounded_documents,
@@ -119,6 +118,7 @@ class GroundedRagPipeline:
             retrieved_chunks=retrieved_chunks,
         )
 
+
 class ResolveBackedGroundingStage(GroundingStage):
     """Ground documents using deterministic resolution before retrieval."""
 
@@ -143,9 +143,7 @@ class ResolveBackedGroundingStage(GroundingStage):
         grounded_documents: list[DemoDocument] = []
 
         for document in documents:
-            grounded_documents.append(
-                await self._ground_document(document)
-            )
+            grounded_documents.append(await self._ground_document(document))
 
         return tuple(grounded_documents)
 
@@ -158,12 +156,7 @@ class ResolveBackedGroundingStage(GroundingStage):
         """
         deterministic_context = resolved.model_dump_json(indent=2)
 
-        return (
-            "[DETERMINISTIC_GROUNDING]\n"
-            f"{deterministic_context}\n\n"
-            "[DOCUMENT]\n"
-            f"{text}"
-        )
+        return "[DETERMINISTIC_GROUNDING]\n" f"{deterministic_context}\n\n" "[DOCUMENT]\n" f"{text}"
 
     async def _ground_document(self, document: DemoDocument) -> DemoDocument:
         """Ground a single document."""
@@ -175,12 +168,14 @@ class ResolveBackedGroundingStage(GroundingStage):
                 ResolveTarget.DEFINED_TERMS,
                 ResolveTarget.STRUCTURAL_REFERENCES,
             ],
-            options=ResolveOptions(locale="en-GB",
-                                   window_chars=120,
-                                   max_definitions_per_acronym=5,
-                                   include_glossary_enrichment=True,
-                                   return_occurrences=True,
-                                   min_confidence=0.0,),
+            options=ResolveOptions(
+                locale="en-GB",
+                window_chars=120,
+                max_definitions_per_acronym=5,
+                include_glossary_enrichment=True,
+                return_occurrences=True,
+                min_confidence=0.0,
+            ),
         )
         resolved = await self._resolve_service.resolve(payload)
 
