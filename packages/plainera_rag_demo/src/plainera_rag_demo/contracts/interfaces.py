@@ -56,3 +56,14 @@ class AnswerGenerator(ABC):
         retrieved_chunks: Sequence[RetrievedChunk],
     ) -> str:
         """Return a single-turn answer."""
+
+
+class GroundingStage(ABC):
+    """Define deterministic document grounding prior to chunking."""
+
+    @abstractmethod
+    async def ground_documents(
+        self,
+        documents: Sequence[DemoDocument],
+    ) -> tuple[DemoDocument, ...]:
+        """Return grounded documents ready for chunking."""

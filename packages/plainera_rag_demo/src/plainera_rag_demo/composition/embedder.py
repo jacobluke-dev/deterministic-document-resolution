@@ -3,10 +3,10 @@ from __future__ import annotations
 from openai import OpenAI
 
 from plainera_rag_demo.embeddings.openai import OpenAIEmbedder
-from plainera_rag_demo.settings import RagDemoSettings, rag_demo_settings
+from plainera_rag_demo.settings import RagDemoSettings, get_rag_demo_settings
 
 
-def build_openai_embedder(settings: RagDemoSettings = rag_demo_settings) -> OpenAIEmbedder:
+def build_openai_embedder(settings: RagDemoSettings | None = None) -> OpenAIEmbedder:
     """Build an OpenAI-backed embedder from package settings.
 
     Args:
@@ -17,6 +17,7 @@ def build_openai_embedder(settings: RagDemoSettings = rag_demo_settings) -> Open
         A configured ``OpenAIEmbedder`` instance ready for use in retrieval
         indexing and query embedding.
     """
+    settings = settings or get_rag_demo_settings()
     return OpenAIEmbedder(
         client=OpenAI(api_key=settings.openai_api_key),
         model=settings.embedding_model,

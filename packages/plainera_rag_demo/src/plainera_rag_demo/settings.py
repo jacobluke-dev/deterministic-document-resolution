@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-import os
+from functools import lru_cache
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
@@ -13,6 +13,9 @@ class RagDemoSettings(BaseSettings):
     baseline_chunk_size: int = 1_000
     baseline_chunk_overlap: int = 150
     baseline_top_k: int = 5
+    grounded_chunk_size: int = 1_000
+    grounded_chunk_overlap: int = 150
+    grounded_top_k: int = 5
 
     model_config = SettingsConfigDict(
         env_file=".env",
@@ -20,6 +23,7 @@ class RagDemoSettings(BaseSettings):
     )
 
 
-rag_demo_settings = RagDemoSettings(
-    openai_api_key=os.environ["OPENAI_API_KEY"],
-)
+@lru_cache(maxsize=1)
+def get_rag_demo_settings() -> RagDemoSettings:
+    """Return cached RAG demo settings loaded from environment sources."""
+    return RagDemoSettings()  # type: ignore[call-arg]
