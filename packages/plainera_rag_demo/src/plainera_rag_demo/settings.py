@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-import os
+from functools import lru_cache
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
@@ -23,6 +23,7 @@ class RagDemoSettings(BaseSettings):
     )
 
 
-rag_demo_settings = RagDemoSettings(
-    openai_api_key=os.environ["OPENAI_API_KEY"],
-)
+@lru_cache(maxsize=1)
+def get_rag_demo_settings() -> RagDemoSettings:
+    """Return cached RAG demo settings loaded from environment sources."""
+    return RagDemoSettings()  # type: ignore[call-arg]

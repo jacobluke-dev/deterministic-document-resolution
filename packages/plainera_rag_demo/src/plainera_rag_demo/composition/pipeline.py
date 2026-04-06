@@ -8,10 +8,10 @@ from plainera_rag_demo.composition.embedder import build_openai_embedder
 from plainera_rag_demo.pipelines.baseline import BaselineRagPipeline
 from plainera_rag_demo.pipelines.grounded import GroundedRagPipeline, ResolveBackedGroundingStage
 from plainera_rag_demo.retrieval import FaissVectorStore
-from plainera_rag_demo.settings import RagDemoSettings, rag_demo_settings
+from plainera_rag_demo.settings import RagDemoSettings, get_rag_demo_settings
 
 
-def build_baseline_pipeline(settings: RagDemoSettings = rag_demo_settings) -> BaselineRagPipeline:
+def build_baseline_pipeline(settings: RagDemoSettings | None = None) -> BaselineRagPipeline:
     """Build the baseline RAG pipeline from package settings.
 
     The baseline pipeline uses deterministic fixed-window chunking, OpenAI
@@ -25,6 +25,7 @@ def build_baseline_pipeline(settings: RagDemoSettings = rag_demo_settings) -> Ba
         A configured ``BaselineRagPipeline`` instance ready to index documents
         and answer questions.
     """
+    settings = settings or get_rag_demo_settings()
     embedder = build_openai_embedder(settings)
 
     return BaselineRagPipeline(
@@ -40,7 +41,7 @@ def build_baseline_pipeline(settings: RagDemoSettings = rag_demo_settings) -> Ba
 def build_grounded_pipeline(
     *,
     resolve_service: ResolveService,
-    settings: RagDemoSettings = rag_demo_settings,
+    settings: RagDemoSettings | None = None,
 ) -> GroundedRagPipeline:
     """Build the grounded RAG pipeline from package settings.
 
@@ -56,6 +57,7 @@ def build_grounded_pipeline(
         A configured ``groundedRagPipeline`` instance ready to index documents
         and answer questions.
     """
+    settings = settings or get_rag_demo_settings()
     embedder = build_openai_embedder(settings)
 
     return GroundedRagPipeline(
