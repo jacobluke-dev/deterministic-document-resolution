@@ -6,6 +6,8 @@ from typing import Sequence
 from plainera_rag_demo.common import BaselineAnswerResult, DemoDocument, IndexedCorpus
 from plainera_rag_demo.contracts import AnswerGenerator, Chunker
 from plainera_rag_demo.contracts.interfaces import ChunkIndex, VectorStore, GroundingStage
+from public_api.core.services.resolve_service import ResolveService
+from public_api.schemas.resolve import ResolveOptions, ResolveTarget, ResolutionMode, ResolveRequest, ResolveResponse
 
 
 @dataclass(frozen=True, slots=True)
@@ -115,4 +117,80 @@ class GroundedRagPipeline:
             question=question,
             answer=answer,
             retrieved_chunks=retrieved_chunks,
+        )
+
+class ResolveBackedGroundingStage(GroundingStage):
+    """Ground documents using deterministic resolution before retrieval."""
+
+    def __init__(
+        self,
+        *,
+        resolve_service: ResolveService,
+    ) -> None:
+        """Initialise the grounding stage.
+
+        Args:
+            resolve_service: Service used to produce deterministic grounding
+                output for a document.
+        """
+        self._resolve_service = resolve_service
+
+    async def ground_documents(
+        self,
+        documents: Sequence[DemoDocument],
+    ) -> tuple[DemoDocument, ...]:
+        """Return grounded documents ready for downstream chunking."""
+        grounded_documents: list[DemoDocument] = []
+
+        for document in documents:
+            grounded_documents.append(
+                await self._ground_document(document)
+            )
+
+        return tuple(grounded_documents)
+
+    @staticmethod
+    def _build_grounded_text(*, text: str, resolved: ResolveResponse) -> str:
+        """Build grounded retrieval text from resolve output.
+
+        The first pass prepends deterministic JSON context to the source text so the
+        downstream chunking and retrieval stages carry that grounding information.
+        """
+        deterministic_context = resolved.model_dump_json(indent=2)
+
+        return (
+            "[DETERMINISTIC_GROUNDING]\n"
+            f"{deterministic_context}\n\n"
+            "[DOCUMENT]\n"
+            f"{text}"
+        )
+
+    async def _ground_document(self, document: DemoDocument) -> DemoDocument:
+        """Ground a single document."""
+        payload = ResolveRequest(
+            text=document.text,
+            resolution_mode=ResolutionMode.DOMAIN_PRIORITY,
+            targets=[
+                ResolveTarget.ACRONYMS,
+                ResolveTarget.DEFINED_TERMS,
+                ResolveTarget.STRUCTURAL_REFERENCES,
+            ],
+            options=ResolveOptions(locale="en-GB",
+                                   window_chars=120,
+                                   max_definitions_per_acronym=5,
+                                   include_glossary_enrichment=True,
+                                   return_occurrences=True,
+                                   min_confidence=0.0,),
+        )
+        resolved = await self._resolve_service.resolve(payload)
+
+        grounded_text = self._build_grounded_text(
+            text=document.text,
+            resolved=resolved,
+        )
+
+        return DemoDocument(
+            document_id=document.document_id,
+            name=document.name,
+            text=grounded_text,
         )
