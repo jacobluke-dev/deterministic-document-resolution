@@ -3,7 +3,7 @@ from __future__ import annotations
 from typing import Literal
 
 from public_api.schemas.base import BaseSchema
-from public_api.schemas.shared import Span, TextSpan
+from public_api.schemas.shared import TextSpan
 from pydantic import Field
 
 
