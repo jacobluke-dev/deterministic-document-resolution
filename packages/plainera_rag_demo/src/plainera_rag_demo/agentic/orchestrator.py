@@ -13,7 +13,13 @@ from plainera_rag_demo.agentic.types import (
 
 
 class GroundedEvidenceReviewer(ABC):
-    """Bounded reviewer that adjudicates over grounded evidence."""
+    """Review structured grounded evidence and return a bounded decision.
+
+    Implementations operate over deterministic grounding that has already been
+    produced upstream. Reviewers may decide whether the current evidence is
+    sufficient, whether a retry is warranted, or whether the pipeline should
+    abstain, but they must not perform independent meaning resolution.
+    """
 
     @abstractmethod
     def review(
@@ -22,19 +28,29 @@ class GroundedEvidenceReviewer(ABC):
         evidence: GroundedEvidencePacket,
         has_second_pass_available: bool,
     ) -> GroundedEvidenceAssessment:
-        """Review a structured grounded evidence packet and return a decision."""
+        """Review a grounded evidence packet and return an assessment.
+
+        Args:
+            evidence: Structured grounded evidence assembled from the current
+                retrieval result set.
+            has_second_pass_available: Whether the pipeline still permits one
+                additional retrieval pass before a final decision is required.
+
+        Returns:
+            A bounded assessment describing whether to proceed, retry once, or
+            abstain, together with user-facing reasoning metadata.
+        """
 
 
 @dataclass(frozen=True, slots=True)
 class StructuredGroundingReviewer(GroundedEvidenceReviewer):
-    """Interim reviewer operating over structured grounding payloads.
+    """Interim reviewer over parsed deterministic grounding payloads.
 
-    This reviewer is intentionally simple. Its purpose is to prove the correct
-    orchestration seam: the reviewer receives a structured evidence packet built
-    from deterministic grounding output rather than raw chunk-text heuristics.
-
-    It can later be replaced by a model-backed reviewer without changing the
-    grounded pipeline contract.
+    This reviewer exists to prove the orchestration seam rather than to provide
+    sophisticated adjudication. It inspects whether retrieved evidence includes
+    parseable grounding payloads and returns a conservative bounded assessment.
+    A later model-backed reviewer can replace this implementation without
+    changing the surrounding pipeline contract.
     """
 
     def review(
@@ -43,7 +59,19 @@ class StructuredGroundingReviewer(GroundedEvidenceReviewer):
         evidence: GroundedEvidencePacket,
         has_second_pass_available: bool,
     ) -> GroundedEvidenceAssessment:
-        """Review structured grounded evidence and return a bounded decision."""
+        """Review structured grounded evidence and return a bounded decision.
+
+        Args:
+            evidence: Structured grounded evidence assembled from retrieved
+                chunks.
+            has_second_pass_available: Whether one additional retrieval pass may
+                still be requested.
+
+        Returns:
+            A bounded assessment describing whether the grounded pipeline should
+            proceed, retry once, or abstain based on the presence of usable
+            deterministic grounding payloads.
+        """
         docs_with_grounding = tuple(
             document for document in evidence.documents if document.grounding_payload is not None
         )
@@ -106,7 +134,13 @@ class StructuredGroundingReviewer(GroundedEvidenceReviewer):
 
 @dataclass(frozen=True, slots=True)
 class SingleAgentEvidenceOrchestrator:
-    """Build a grounded evidence packet and delegate review to a bounded reviewer."""
+    """Assemble grounded evidence and delegate bounded review.
+
+    The orchestrator is responsible for normalizing retrieved chunks into a
+    structured evidence packet that combines retrieval metadata with parsed
+    deterministic grounding content. It does not decide meanings itself; it
+    delegates the final bounded assessment to the configured reviewer.
+    """
 
     reviewer: GroundedEvidenceReviewer
 
@@ -117,7 +151,20 @@ class SingleAgentEvidenceOrchestrator:
         retrieved_chunks: tuple[Any, ...],
         has_second_pass_available: bool,
     ) -> GroundedEvidenceAssessment:
-        """Build structured grounded evidence and delegate to the reviewer."""
+        """Build a structured evidence packet and delegate review.
+
+        Args:
+            question: User question being evaluated against the retrieved
+                grounded evidence.
+            retrieved_chunks: Retrieval results for the current pass. Each item
+                may either be a stored chunk directly or a wrapper that exposes
+                the stored chunk via a ``chunk`` attribute.
+            has_second_pass_available: Whether the pipeline still permits one
+                additional retrieval pass before a final decision must be made.
+
+        Returns:
+            The bounded assessment returned by the configured reviewer.
+        """
         evidence = self._build_evidence_packet(
             question=question,
             retrieved_chunks=retrieved_chunks,
@@ -134,7 +181,19 @@ class SingleAgentEvidenceOrchestrator:
         question: str,
         retrieved_chunks: tuple[Any, ...],
     ) -> GroundedEvidencePacket:
-        """Convert retrieved chunks into a structured grounded evidence packet."""
+        """Convert retrieved chunks into a structured grounded evidence packet.
+
+        Each retrieved chunk is normalized into a ``GroundedEvidenceDocument``
+        carrying document identity, chunk metadata, an optional parsed grounding
+        payload, and the associated source excerpt.
+
+        Args:
+            question: User question that the evidence packet is being built for.
+            retrieved_chunks: Retrieval results from the current pass.
+
+        Returns:
+            A ``GroundedEvidencePacket`` suitable for bounded review.
+        """
         documents: list[GroundedEvidenceDocument] = []
 
         for retrieved in retrieved_chunks:
@@ -169,20 +228,57 @@ class SingleAgentEvidenceOrchestrator:
 
     @staticmethod
     def _inner_chunk(retrieved: Any) -> Any:
-        """Return the nested chunk object when retrieval wraps the stored chunk."""
+        """Return the stored chunk from a retrieval result shape.
+
+        Args:
+            retrieved: Retrieval result object, which may either be a stored
+                chunk directly or a wrapper exposing the stored chunk via a
+                ``chunk`` attribute.
+
+        Returns:
+            The underlying stored chunk object used by the rest of the packet
+            builder.
+        """
         nested = getattr(retrieved, "chunk", None)
         return nested if nested is not None else retrieved
 
     @classmethod
     def _chunk_text(cls, retrieved: Any) -> str:
-        """Extract text from the retrieved chunk shape."""
+        """Extract text from a retrieval result.
+
+        Args:
+            retrieved: Retrieval result object or stored chunk.
+
+        Returns:
+            The chunk text when available, otherwise an empty string.
+        """
         chunk = cls._inner_chunk(retrieved)
         text = getattr(chunk, "text", None)
         return text if isinstance(text, str) else ""
 
     @staticmethod
     def _split_grounding_and_document(text: str) -> tuple[dict[str, Any] | None, str]:
-        """Split grounded text into parsed grounding payload and source excerpt."""
+        """Split grounded text into deterministic payload and source excerpt.
+
+        The grounded representation is expected to follow this shape:
+
+            [DETERMINISTIC_GROUNDING]
+            <json>
+
+            [DOCUMENT]
+            <source text>
+
+        If the expected markers are not present, the function treats the input
+        as plain source text and returns ``None`` for the grounding payload.
+
+        Args:
+            text: Full grounded text block or plain source text.
+
+        Returns:
+            A tuple containing:
+                - the parsed deterministic grounding payload when available, and
+                - the source document excerpt.
+        """
         grounding_marker = "[DETERMINISTIC_GROUNDING]\n"
         document_marker = "\n\n[DOCUMENT]\n"
 
