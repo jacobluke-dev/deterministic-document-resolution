@@ -173,3 +173,54 @@ class TestSingleAgentEvidenceOrchestrator:
         document = evidence.documents[0]
         assert document.grounding_payload is None
         assert document.source_excerpt == "Just the original source text with no grounding wrapper."
+
+
+class TestSplitGroundingAndDocument:
+    def test_returns_payload_and_source_excerpt_when_grounded_text_is_complete(self) -> None:
+        text = (
+            "[DETERMINISTIC_GROUNDING]\n"
+            '{\n  "acronyms": [{"acronym": "MPS"}],\n  "defined_terms": [],\n  "structural_references": []\n}'
+            "\n\n[DOCUMENT]\n"
+            "The Metropolitan Police Service (MPS) operates in London."
+        )
+
+        payload, source_excerpt = SingleAgentEvidenceOrchestrator._split_grounding_and_document(text)
+
+        assert payload == {
+            "acronyms": [{"acronym": "MPS"}],
+            "defined_terms": [],
+            "structural_references": [],
+        }
+        assert source_excerpt == "The Metropolitan Police Service (MPS) operates in London."
+
+    def test_returns_none_and_original_text_when_grounding_marker_is_absent(self) -> None:
+        text = "Just the original source text with no grounding wrapper."
+
+        payload, source_excerpt = SingleAgentEvidenceOrchestrator._split_grounding_and_document(text)
+
+        assert payload is None
+        assert source_excerpt == text
+
+    def test_returns_none_and_original_text_when_document_marker_is_absent(self) -> None:
+        text = (
+            "[DETERMINISTIC_GROUNDING]\n"
+            '{"acronyms": [{"acronym": "MPS"}]}'
+        )
+
+        payload, source_excerpt = SingleAgentEvidenceOrchestrator._split_grounding_and_document(text)
+
+        assert payload is None
+        assert source_excerpt == text
+
+    def test_returns_none_and_source_excerpt_when_grounding_json_is_invalid(self) -> None:
+        text = (
+            "[DETERMINISTIC_GROUNDING]\n"
+            '{"acronyms": [INVALID JSON]}'
+            "\n\n[DOCUMENT]\n"
+            "The Metropolitan Police Service (MPS) operates in London."
+        )
+
+        payload, source_excerpt = SingleAgentEvidenceOrchestrator._split_grounding_and_document(text)
+
+        assert payload is None
+        assert source_excerpt == "The Metropolitan Police Service (MPS) operates in London."
