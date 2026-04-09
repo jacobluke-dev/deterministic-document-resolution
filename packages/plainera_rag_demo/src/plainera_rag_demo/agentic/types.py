@@ -3,7 +3,6 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any, Literal
 
-
 GroundedAgentOutcome = Literal["answer", "answer_with_warning", "abstain"]
 GroundedAgentAction = Literal["proceed", "retry_once", "abstain"]
 

@@ -45,9 +45,7 @@ class StructuredGroundingReviewer(GroundedEvidenceReviewer):
     ) -> GroundedEvidenceAssessment:
         """Review structured grounded evidence and return a bounded decision."""
         docs_with_grounding = tuple(
-            document
-            for document in evidence.documents
-            if document.grounding_payload is not None
+            document for document in evidence.documents if document.grounding_payload is not None
         )
 
         audit_bindings = tuple(dict.fromkeys(doc.document_id for doc in evidence.documents))
@@ -195,8 +193,8 @@ class SingleAgentEvidenceOrchestrator:
         if marker_index == -1:
             return None, text
 
-        grounding_json = text[len(grounding_marker):marker_index].strip()
-        source_excerpt = text[marker_index + len(document_marker):]
+        grounding_json = text[len(grounding_marker) : marker_index].strip()
+        source_excerpt = text[marker_index + len(document_marker) :]
 
         try:
             payload = json.loads(grounding_json)

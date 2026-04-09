@@ -4,7 +4,7 @@ from dataclasses import dataclass
 from typing import Sequence
 
 from public_api.core.services.resolve_service import ResolveService
-from public_api.schemas.resolve import ResolveOptions, ResolveRequest, ResolveTarget, ResolveResponse
+from public_api.schemas.resolve import ResolveOptions, ResolveRequest, ResolveResponse, ResolveTarget
 
 from plainera_rag_demo.agentic.orchestrator import SingleAgentEvidenceOrchestrator
 from plainera_rag_demo.agentic.types import GroundedAgentAnswerResult

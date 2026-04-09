@@ -3,7 +3,6 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 import pytest
-
 from plainera_rag_demo.agentic.types import GroundedEvidenceAssessment
 from plainera_rag_demo.common import DemoDocument
 from plainera_rag_demo.pipelines.grounded import GroundedRagPipeline, ResolveBackedGroundingStage

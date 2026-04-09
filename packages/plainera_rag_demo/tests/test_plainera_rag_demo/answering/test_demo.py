@@ -3,7 +3,6 @@ from __future__ import annotations
 from typing import Sequence
 
 import pytest
-
 from plainera_rag_demo.agentic.orchestrator import SingleAgentEvidenceOrchestrator
 from plainera_rag_demo.common import DemoDocument
 from plainera_rag_demo.pipelines.grounded import GroundedRagPipeline, ResolveBackedGroundingStage
