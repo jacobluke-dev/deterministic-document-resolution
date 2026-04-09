@@ -2,6 +2,10 @@ from __future__ import annotations
 
 from public_api.core.services.resolve_service import ResolveService
 
+from plainera_rag_demo.agentic.orchestrator import (
+    SingleAgentEvidenceOrchestrator,
+    StructuredGroundingReviewer,
+)
 from plainera_rag_demo.answering import DemoAnswerGenerator
 from plainera_rag_demo.chunking import FixedWindowChunker
 from plainera_rag_demo.composition.embedder import build_openai_embedder
@@ -45,16 +49,17 @@ def build_grounded_pipeline(
 ) -> GroundedRagPipeline:
     """Build the grounded RAG pipeline from package settings.
 
-    The grounded pipeline uses deterministic fixed-window chunking, OpenAI
-    embeddings, FAISS-backed retrieval, and a simple demo answer generator.
+    The grounded pipeline performs deterministic grounding before retrieval and
+    then applies a bounded single-agent evidence orchestrator after retrieval
+    and before final answer generation.
 
     Args:
-        resolve_service: An instance of `ResolveService` from the unacronym_api package.
+        resolve_service: Resolve service instance used to ground documents.
         settings: RAG demo settings providing chunking and embedding
             configuration.
 
     Returns:
-        A configured ``groundedRagPipeline`` instance ready to index documents
+        A configured ``GroundedRagPipeline`` instance ready to index documents
         and answer questions.
     """
     settings = settings or get_rag_demo_settings()
@@ -68,4 +73,7 @@ def build_grounded_pipeline(
         vector_store=FaissVectorStore(embedder=embedder),
         answer_generator=DemoAnswerGenerator(),
         grounding_stage=ResolveBackedGroundingStage(resolve_service=resolve_service),
+        evidence_orchestrator=SingleAgentEvidenceOrchestrator(
+            reviewer=StructuredGroundingReviewer(),
+        ),
     )

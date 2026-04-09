@@ -4,9 +4,11 @@ from dataclasses import dataclass
 from typing import Sequence
 
 from public_api.core.services.resolve_service import ResolveService
-from public_api.schemas.resolve import ResolutionMode, ResolveOptions, ResolveRequest, ResolveResponse, ResolveTarget
+from public_api.schemas.resolve import ResolveOptions, ResolveRequest, ResolveTarget, ResolveResponse
 
-from plainera_rag_demo.common import BaselineAnswerResult, DemoDocument, IndexedCorpus
+from plainera_rag_demo.agentic.orchestrator import SingleAgentEvidenceOrchestrator
+from plainera_rag_demo.agentic.types import GroundedAgentAnswerResult
+from plainera_rag_demo.common import DemoDocument, IndexedCorpus
 from plainera_rag_demo.contracts import AnswerGenerator, Chunker
 from plainera_rag_demo.contracts.interfaces import ChunkIndex, GroundingStage, VectorStore
 
@@ -31,7 +33,8 @@ class GroundedRagPipeline:
 
     This pipeline performs deterministic grounding before chunking so that
     selected bindings are injected into the retrieval representation prior to
-    embedding and retrieval.
+    embedding and retrieval. After retrieval, it applies a bounded evidence
+    orchestration step before final answer generation.
     """
 
     def __init__(
@@ -41,6 +44,7 @@ class GroundedRagPipeline:
         chunker: Chunker,
         vector_store: VectorStore,
         answer_generator: AnswerGenerator,
+        evidence_orchestrator: SingleAgentEvidenceOrchestrator,
     ) -> None:
         """Initialise the grounded pipeline.
 
@@ -51,11 +55,14 @@ class GroundedRagPipeline:
             vector_store: Retrieval backend used to index and retrieve chunks.
             answer_generator: Answer generator used to produce the final answer
                 from retrieved evidence.
+            evidence_orchestrator: Bounded post-retrieval controller used to
+                decide whether to answer, warn, retry once, or abstain.
         """
         self._grounding_stage = grounding_stage
         self._chunker = chunker
         self._vector_store = vector_store
         self._answer_generator = answer_generator
+        self._evidence_orchestrator = evidence_orchestrator
 
     async def index_documents(self, documents: Sequence[DemoDocument]) -> GroundedCorpusIndex:
         """Ground documents, chunk them, and build a retrieval index.
@@ -88,17 +95,17 @@ class GroundedRagPipeline:
         index: GroundedCorpusIndex,
         question: str,
         top_k: int = 5,
-    ) -> BaselineAnswerResult:
-        """Retrieve evidence for a question and generate a grounded answer.
+    ) -> GroundedAgentAnswerResult:
+        """Retrieve grounded evidence, assess it, and answer or abstain.
 
         Args:
             index: Indexed grounded corpus to query.
             question: User question to answer.
-            top_k: Maximum number of chunks to retrieve.
+            top_k: Maximum number of chunks to retrieve on the first pass.
 
         Returns:
-            A ``BaselineAnswerResult`` containing the final answer and the
-            retrieved evidence used to produce it.
+            A ``GroundedAgentAnswerResult`` containing the final bounded
+            outcome, retrieved evidence, and orchestration metadata.
         """
         retrieved_chunks = tuple(
             self._vector_store.retrieve(
@@ -107,15 +114,47 @@ class GroundedRagPipeline:
                 top_k=top_k,
             )
         )
+
+        assessment = self._evidence_orchestrator.assess(
+            question=question,
+            retrieved_chunks=retrieved_chunks,
+            has_second_pass_available=True,
+        )
+
+        if assessment.action == "retry_once":
+            retrieved_chunks = tuple(
+                self._vector_store.retrieve(
+                    index=index.vector_index,
+                    question=question,
+                    top_k=max(top_k * 2, top_k + 1),
+                )
+            )
+            assessment = self._evidence_orchestrator.assess(
+                question=question,
+                retrieved_chunks=retrieved_chunks,
+                has_second_pass_available=False,
+            )
+
+        if assessment.action == "abstain":
+            return GroundedAgentAnswerResult(
+                question=question,
+                outcome=assessment.outcome,
+                answer=None,
+                retrieved_chunks=retrieved_chunks,
+                assessment=assessment,
+            )
+
         answer = self._answer_generator.generate_answer(
             question=question,
             retrieved_chunks=retrieved_chunks,
         )
 
-        return BaselineAnswerResult(
+        return GroundedAgentAnswerResult(
             question=question,
+            outcome=assessment.outcome,
             answer=answer,
             retrieved_chunks=retrieved_chunks,
+            assessment=assessment,
         )
 
 
@@ -205,7 +244,6 @@ class ResolveBackedGroundingStage(GroundingStage):
         """
         payload = ResolveRequest(
             text=document.text,
-            resolution_mode=ResolutionMode.DOMAIN_PRIORITY,
             targets=[
                 ResolveTarget.ACRONYMS,
                 ResolveTarget.DEFINED_TERMS,
