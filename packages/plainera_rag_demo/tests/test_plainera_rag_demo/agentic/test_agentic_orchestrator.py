@@ -1,0 +1,175 @@
+from __future__ import annotations
+
+from dataclasses import dataclass
+from typing import Any
+
+from plainera_rag_demo.agentic.orchestrator import SingleAgentEvidenceOrchestrator
+from plainera_rag_demo.agentic.types import GroundedEvidenceAssessment, GroundedEvidencePacket
+
+
+@dataclass(frozen=True, slots=True)
+class _DemoChunk:
+    chunk_id: str
+    document_id: str
+    document_name: str
+    ordinal: int
+    start_offset: int
+    end_offset: int
+    text: str
+
+
+@dataclass(frozen=True, slots=True)
+class _RetrievedChunk:
+    chunk: _DemoChunk
+    score: float
+
+
+class _ReviewerSpy:
+    def __init__(self, assessment: GroundedEvidenceAssessment) -> None:
+        self.assessment = assessment
+        self.calls: list[dict[str, Any]] = []
+
+    def review(
+        self,
+        *,
+        evidence: GroundedEvidencePacket,
+        has_second_pass_available: bool,
+    ) -> GroundedEvidenceAssessment:
+        self.calls.append(
+            {
+                "evidence": evidence,
+                "has_second_pass_available": has_second_pass_available,
+            }
+        )
+        return self.assessment
+
+
+class TestSingleAgentEvidenceOrchestrator:
+    def test_builds_structured_evidence_packet_and_delegates_to_reviewer(self) -> None:
+        reviewer = _ReviewerSpy(
+            GroundedEvidenceAssessment(
+                action="proceed",
+                outcome="answer_with_warning",
+                sufficient_evidence=True,
+                ambiguity_detected=False,
+                requested_second_pass=False,
+                abstain_reason=None,
+                warning_reason="Answer supported by structured grounded evidence.",
+                reasoning_notes=("reviewed",),
+                selected_audit_bindings=("police",),
+                selected_audit_spans=((0, 1000),),
+            )
+        )
+        orchestrator = SingleAgentEvidenceOrchestrator(reviewer=reviewer)
+
+        assessment = orchestrator.assess(
+            question="What does MPS mean?",
+            retrieved_chunks=(
+                _RetrievedChunk(
+                    chunk=_DemoChunk(
+                        chunk_id="police:0",
+                        document_id="police",
+                        document_name="police.txt",
+                        ordinal=0,
+                        start_offset=0,
+                        end_offset=1000,
+                        text=(
+                            "[DETERMINISTIC_GROUNDING]\n"
+                            '{"acronyms":[{"acronym":"MPS"}]}\n\n'
+                            "[DOCUMENT]\n"
+                            "The Metropolitan Police Service (MPS) operates in London."
+                        ),
+                    ),
+                    score=0.91,
+                ),
+            ),
+            has_second_pass_available=True,
+        )
+
+        assert assessment.outcome == "answer_with_warning"
+
+        assert len(reviewer.calls) == 1
+        call = reviewer.calls[0]
+
+        assert call["has_second_pass_available"] is True
+
+        evidence = call["evidence"]
+        assert evidence.question == "What does MPS mean?"
+        assert len(evidence.documents) == 1
+
+        document = evidence.documents[0]
+        assert document.document_id == "police"
+        assert document.document_name == "police.txt"
+        assert document.chunk_id == "police:0"
+        assert document.chunk_span == (0, 1000)
+        assert document.score == 0.91
+        assert document.grounding_payload == {"acronyms": [{"acronym": "MPS"}]}
+        assert document.source_excerpt == "The Metropolitan Police Service (MPS) operates in London."
+
+    def test_passes_through_second_pass_flag_to_reviewer(self) -> None:
+        reviewer = _ReviewerSpy(
+            GroundedEvidenceAssessment(
+                action="retry_once",
+                outcome="answer_with_warning",
+                sufficient_evidence=False,
+                ambiguity_detected=False,
+                requested_second_pass=True,
+                abstain_reason=None,
+                warning_reason="Initial retrieval did not include a usable grounding payload.",
+                reasoning_notes=("retry",),
+                selected_audit_bindings=(),
+                selected_audit_spans=(),
+            )
+        )
+        orchestrator = SingleAgentEvidenceOrchestrator(reviewer=reviewer)
+
+        assessment = orchestrator.assess(
+            question="What does GP mean?",
+            retrieved_chunks=(),
+            has_second_pass_available=False,
+        )
+
+        assert assessment.action == "retry_once"
+        assert len(reviewer.calls) == 1
+        assert reviewer.calls[0]["has_second_pass_available"] is False
+
+    def test_uses_plain_text_as_source_excerpt_when_grounding_marker_is_absent(self) -> None:
+        reviewer = _ReviewerSpy(
+            GroundedEvidenceAssessment(
+                action="abstain",
+                outcome="abstain",
+                sufficient_evidence=False,
+                ambiguity_detected=False,
+                requested_second_pass=False,
+                abstain_reason="No usable deterministic grounding payload was available after retrieval.",
+                warning_reason=None,
+                reasoning_notes=("abstain",),
+                selected_audit_bindings=(),
+                selected_audit_spans=(),
+            )
+        )
+        orchestrator = SingleAgentEvidenceOrchestrator(reviewer=reviewer)
+
+        orchestrator.assess(
+            question="What is this document about?",
+            retrieved_chunks=(
+                _RetrievedChunk(
+                    chunk=_DemoChunk(
+                        chunk_id="doc-1:0",
+                        document_id="doc-1",
+                        document_name="doc-1.txt",
+                        ordinal=0,
+                        start_offset=0,
+                        end_offset=120,
+                        text="Just the original source text with no grounding wrapper.",
+                    ),
+                    score=0.5,
+                ),
+            ),
+            has_second_pass_available=True,
+        )
+
+        evidence = reviewer.calls[0]["evidence"]
+        document = evidence.documents[0]
+        assert document.grounding_payload is None
+        assert document.source_excerpt == "Just the original source text with no grounding wrapper."
