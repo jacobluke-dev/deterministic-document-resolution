@@ -3,6 +3,8 @@ from __future__ import annotations
 from typing import Sequence
 
 import pytest
+
+from plainera_rag_demo.agentic.orchestrator import SingleAgentEvidenceOrchestrator
 from plainera_rag_demo.common import DemoDocument
 from plainera_rag_demo.pipelines.grounded import GroundedRagPipeline, ResolveBackedGroundingStage
 from public_api.schemas.resolve import ResolveRequest
@@ -123,6 +125,7 @@ class TestGroundedIndexDocuments:
             chunker=chunker,
             vector_store=vector_store,
             answer_generator=answer_generator,
+            evidence_orchestrator=SingleAgentEvidenceOrchestrator,
         )
         document = DemoDocument(
             document_id="doc-1",
