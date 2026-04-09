@@ -1,10 +1,13 @@
 from __future__ import annotations
 
+from openai import OpenAI
+
+from plainera_rag_demo.agentic.reviewer_model import OpenAIReviewerModel
 from public_api.core.services.resolve_service import ResolveService
 
 from plainera_rag_demo.agentic.orchestrator import (
     SingleAgentEvidenceOrchestrator,
-    StructuredGroundingReviewer,
+    PromptedGroundingReviewer,
 )
 from plainera_rag_demo.answering import DemoAnswerGenerator
 from plainera_rag_demo.chunking import FixedWindowChunker
@@ -65,6 +68,13 @@ def build_grounded_pipeline(
     settings = settings or get_rag_demo_settings()
     embedder = build_openai_embedder(settings)
 
+    reviewer_model = OpenAIReviewerModel(
+        client=OpenAI(api_key=settings.openai_api_key),
+        model=settings.reviewer_model,
+    )
+
+    model_complete = reviewer_model.complete
+
     return GroundedRagPipeline(
         chunker=FixedWindowChunker(
             chunk_size=settings.grounded_chunk_size,
@@ -74,6 +84,6 @@ def build_grounded_pipeline(
         answer_generator=DemoAnswerGenerator(),
         grounding_stage=ResolveBackedGroundingStage(resolve_service=resolve_service),
         evidence_orchestrator=SingleAgentEvidenceOrchestrator(
-            reviewer=StructuredGroundingReviewer(),
+            reviewer=PromptedGroundingReviewer(model_complete=model_complete),
         ),
     )
