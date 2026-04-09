@@ -3,7 +3,7 @@ from __future__ import annotations
 import json
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
-from typing import Any
+from typing import Any, Callable
 
 from plainera_rag_demo.agentic.types import (
     GroundedEvidenceAssessment,
@@ -11,6 +11,41 @@ from plainera_rag_demo.agentic.types import (
     GroundedEvidencePacket,
 )
 
+
+_REVIEWER_SYSTEM_PROMPT = """You are a bounded reviewer for grounded evidence in a regulated-document RAG pipeline.
+
+Deterministic grounding is the source of semantic truth.
+You must not invent, infer, override, or independently resolve meanings.
+You may only reason over the supplied grounded evidence packet and source excerpts.
+
+Your task is to decide whether the supplied evidence is sufficient to:
+- answer
+- answer_with_warning
+- abstain
+- retry_once (only when explicitly allowed)
+
+You must not:
+- guess acronym expansions
+- invent defined-term meanings
+- resolve conflicts by preference or intuition
+- rely on general world knowledge in place of supplied evidence
+
+Return strict JSON only.
+Do not wrap the JSON in markdown fences.
+"""
+
+_REVIEWER_OUTPUT_SCHEMA = {
+    "action": "proceed | retry_once | abstain",
+    "outcome": "answer | answer_with_warning | abstain",
+    "sufficient_evidence": "boolean",
+    "ambiguity_detected": "boolean",
+    "requested_second_pass": "boolean",
+    "abstain_reason": "string | null",
+    "warning_reason": "string | null",
+    "reasoning_notes": ["string", "..."],
+    "selected_audit_bindings": ["string", "..."],
+    "selected_audit_spans": [[0, 10], "..."],
+}
 
 class GroundedEvidenceReviewer(ABC):
     """Review structured grounded evidence and return a bounded decision.
@@ -43,15 +78,14 @@ class GroundedEvidenceReviewer(ABC):
 
 
 @dataclass(frozen=True, slots=True)
-class StructuredGroundingReviewer(GroundedEvidenceReviewer):
-    """Interim reviewer over parsed deterministic grounding payloads.
+class PromptedGroundingReviewer(GroundedEvidenceReviewer):
+    """Model-backed bounded reviewer over structured grounded evidence.
 
-    This reviewer exists to prove the orchestration seam rather than to provide
-    sophisticated adjudication. It inspects whether retrieved evidence includes
-    parseable grounding payloads and returns a conservative bounded assessment.
-    A later model-backed reviewer can replace this implementation without
-    changing the surrounding pipeline contract.
+    The model is constrained to reason only over deterministic grounding and
+    supplied excerpts. It must not independently resolve meanings.
     """
+
+    model_complete: Callable[[str, str], str]
 
     def review(
         self,
@@ -59,7 +93,7 @@ class StructuredGroundingReviewer(GroundedEvidenceReviewer):
         evidence: GroundedEvidencePacket,
         has_second_pass_available: bool,
     ) -> GroundedEvidenceAssessment:
-        """Review structured grounded evidence and return a bounded decision.
+        """Review structured grounded evidence using a bounded prompt.
 
         Args:
             evidence: Structured grounded evidence assembled from retrieved
@@ -68,48 +102,265 @@ class StructuredGroundingReviewer(GroundedEvidenceReviewer):
                 still be requested.
 
         Returns:
-            A bounded assessment describing whether the grounded pipeline should
-            proceed, retry once, or abstain based on the presence of usable
-            deterministic grounding payloads.
+            A bounded assessment produced from validated model output, or a
+            conservative fallback when the output is invalid.
         """
-        docs_with_grounding = tuple(
-            document for document in evidence.documents if document.grounding_payload is not None
+        user_prompt = self._render_user_prompt(
+            evidence=evidence,
+            has_second_pass_available=has_second_pass_available,
         )
 
+        try:
+            raw = self.model_complete(_REVIEWER_SYSTEM_PROMPT, user_prompt)
+        except Exception as exc:
+            return self._fallback_assessment(
+                evidence=evidence,
+                has_second_pass_available=has_second_pass_available,
+                reason=f"Reviewer model call failed: {type(exc).__name__}: {exc}",
+            )
+
+        return self._parse_response(
+            raw=raw,
+            evidence=evidence,
+            has_second_pass_available=has_second_pass_available,
+        )
+
+    @classmethod
+    def _render_user_prompt(
+        cls,
+        *,
+        evidence: GroundedEvidencePacket,
+        has_second_pass_available: bool,
+    ) -> str:
+        """Render the bounded reviewer prompt payload."""
+        packet = {
+            "question": evidence.question,
+            "has_second_pass_available": has_second_pass_available,
+            "instructions": {
+                "deterministic_grounding_is_semantic_truth": True,
+                "do_not_independently_resolve_meanings": True,
+                "reason_only_over_supplied_evidence": True,
+            },
+            "response_schema": _REVIEWER_OUTPUT_SCHEMA,
+            "documents": [cls._render_document(document) for document in evidence.documents],
+        }
+
+        return json.dumps(packet, indent=2, ensure_ascii=False)
+
+    @staticmethod
+    def _render_document(document: GroundedEvidenceDocument) -> dict[str, Any]:
+        """Render one evidence document into prompt-safe structured form."""
+        grounding_payload = document.grounding_payload or {}
+        ambiguity_indicators = PromptedGroundingReviewer._extract_ambiguity_indicators(
+            grounding_payload
+        )
+
+        return {
+            "document_id": document.document_id,
+            "document_name": document.document_name,
+            "chunk_id": document.chunk_id,
+            "chunk_span": list(document.chunk_span),
+            "score": document.score,
+            "grounding_present": document.grounding_payload is not None,
+            "ambiguity_indicators": ambiguity_indicators,
+            "grounding_payload": grounding_payload,
+            "source_excerpt": document.source_excerpt,
+        }
+
+    @staticmethod
+    def _extract_ambiguity_indicators(grounding_payload: dict[str, Any]) -> dict[str, Any]:
+        """Extract lightweight ambiguity markers from grounding payload."""
+        acronyms = grounding_payload.get("acronyms", [])
+        defined_terms = grounding_payload.get("defined_terms", [])
+        structural_references = grounding_payload.get("structural_references", [])
+
+        def _count_unresolved(items: Any) -> int:
+            if not isinstance(items, list):
+                return 0
+
+            unresolved = 0
+            for item in items:
+                if not isinstance(item, dict):
+                    continue
+
+                selected = item.get("selected")
+                if isinstance(selected, dict):
+                    resolution_method = selected.get("resolution_method")
+                    chosen_meaning_id = selected.get("chosen_meaning_id")
+                    if resolution_method == "unresolved" or chosen_meaning_id is None:
+                        unresolved += 1
+                    continue
+
+                if item.get("resolution_method") == "unresolved":
+                    unresolved += 1
+
+            return unresolved
+
+        return {
+            "acronym_count": len(acronyms) if isinstance(acronyms, list) else 0,
+            "defined_term_count": len(defined_terms) if isinstance(defined_terms, list) else 0,
+            "structural_reference_count": (
+                len(structural_references) if isinstance(structural_references, list) else 0
+            ),
+            "unresolved_acronyms": _count_unresolved(acronyms),
+            "unresolved_defined_terms": _count_unresolved(defined_terms),
+            "unresolved_structural_references": _count_unresolved(structural_references),
+        }
+
+    @classmethod
+    def _parse_response(
+        cls,
+        *,
+        raw: str,
+        evidence: GroundedEvidencePacket,
+        has_second_pass_available: bool,
+    ) -> GroundedEvidenceAssessment:
+        """Parse and validate model JSON output conservatively."""
+        try:
+            payload = json.loads(raw)
+        except json.JSONDecodeError:
+            return cls._fallback_assessment(
+                evidence=evidence,
+                has_second_pass_available=has_second_pass_available,
+                reason="Reviewer returned malformed JSON.",
+            )
+
+        if not isinstance(payload, dict):
+            return cls._fallback_assessment(
+                evidence=evidence,
+                has_second_pass_available=has_second_pass_available,
+                reason="Reviewer returned a non-object JSON payload.",
+            )
+
+        action = payload.get("action")
+        outcome = payload.get("outcome")
+        sufficient_evidence = payload.get("sufficient_evidence")
+        ambiguity_detected = payload.get("ambiguity_detected")
+        requested_second_pass = payload.get("requested_second_pass")
+        abstain_reason = payload.get("abstain_reason")
+        warning_reason = payload.get("warning_reason")
+        reasoning_notes = payload.get("reasoning_notes")
+        selected_audit_bindings = payload.get("selected_audit_bindings")
+        selected_audit_spans = payload.get("selected_audit_spans")
+
+        valid_actions = {"proceed", "retry_once", "abstain"}
+        valid_outcomes = {"answer", "answer_with_warning", "abstain"}
+
+        if action not in valid_actions or outcome not in valid_outcomes:
+            return cls._fallback_assessment(
+                evidence=evidence,
+                has_second_pass_available=has_second_pass_available,
+                reason="Reviewer returned an unsupported action or outcome.",
+            )
+
+        if not isinstance(sufficient_evidence, bool) or not isinstance(ambiguity_detected, bool):
+            return cls._fallback_assessment(
+                evidence=evidence,
+                has_second_pass_available=has_second_pass_available,
+                reason="Reviewer omitted required boolean fields.",
+            )
+
+        if not isinstance(requested_second_pass, bool):
+            return cls._fallback_assessment(
+                evidence=evidence,
+                has_second_pass_available=has_second_pass_available,
+                reason="Reviewer omitted requested_second_pass.",
+            )
+
+        parsed_notes = cls._parse_reasoning_notes(reasoning_notes)
+        parsed_bindings = cls._parse_bindings(selected_audit_bindings)
+        parsed_spans = cls._parse_spans(selected_audit_spans)
+
+        if action == "retry_once" and not has_second_pass_available:
+            return cls._fallback_assessment(
+                evidence=evidence,
+                has_second_pass_available=has_second_pass_available,
+                reason="Reviewer requested retry when no second pass remained.",
+            )
+
+        if action == "abstain" and outcome != "abstain":
+            return cls._fallback_assessment(
+                evidence=evidence,
+                has_second_pass_available=has_second_pass_available,
+                reason="Reviewer produced an inconsistent abstain decision.",
+            )
+
+        if action == "proceed" and outcome == "abstain":
+            return cls._fallback_assessment(
+                evidence=evidence,
+                has_second_pass_available=has_second_pass_available,
+                reason="Reviewer produced an inconsistent proceed decision.",
+            )
+
+        return GroundedEvidenceAssessment(
+            action=action,
+            outcome=outcome,
+            sufficient_evidence=sufficient_evidence,
+            ambiguity_detected=ambiguity_detected,
+            requested_second_pass=requested_second_pass,
+            abstain_reason=abstain_reason if isinstance(abstain_reason, str) else None,
+            warning_reason=warning_reason if isinstance(warning_reason, str) else None,
+            reasoning_notes=parsed_notes,
+            selected_audit_bindings=parsed_bindings,
+            selected_audit_spans=parsed_spans,
+        )
+
+    @staticmethod
+    def _parse_reasoning_notes(value: Any) -> tuple[str, ...]:
+        """Parse reasoning notes into a clean tuple of strings."""
+        if not isinstance(value, list):
+            return ()
+        return tuple(item for item in value if isinstance(item, str))
+
+    @staticmethod
+    def _parse_bindings(value: Any) -> tuple[str, ...]:
+        """Parse selected audit bindings into a clean tuple of strings."""
+        if not isinstance(value, list):
+            return ()
+        return tuple(item for item in value if isinstance(item, str))
+
+    @staticmethod
+    def _parse_spans(value: Any) -> tuple[tuple[int, int], ...]:
+        """Parse selected audit spans into validated integer tuples."""
+        if not isinstance(value, list):
+            return ()
+
+        spans: list[tuple[int, int]] = []
+
+        for item in value:
+            if (
+                isinstance(item, list | tuple)
+                and len(item) == 2
+                and isinstance(item[0], int)
+                and isinstance(item[1], int)
+            ):
+                spans.append((item[0], item[1]))
+
+        return tuple(spans)
+
+    @staticmethod
+    def _fallback_assessment(
+        *,
+        evidence: GroundedEvidencePacket,
+        has_second_pass_available: bool,
+        reason: str,
+    ) -> GroundedEvidenceAssessment:
+        """Return a conservative bounded fallback assessment."""
         audit_bindings = tuple(dict.fromkeys(doc.document_id for doc in evidence.documents))
         audit_spans = tuple(doc.chunk_span for doc in evidence.documents)
-
-        if docs_with_grounding:
-            return GroundedEvidenceAssessment(
-                action="proceed",
-                outcome="answer_with_warning",
-                sufficient_evidence=True,
-                ambiguity_detected=False,
-                requested_second_pass=False,
-                abstain_reason=None,
-                warning_reason="Answer supported by structured grounded evidence.",
-                reasoning_notes=(
-                    f"Retrieved {len(evidence.documents)} grounded chunks.",
-                    f"Structured grounding payloads available for {len(docs_with_grounding)} retrieved chunks.",
-                    "Reviewer operated over parsed deterministic grounding rather than raw chunk text.",
-                ),
-                selected_audit_bindings=audit_bindings,
-                selected_audit_spans=audit_spans,
-            )
 
         if has_second_pass_available:
             return GroundedEvidenceAssessment(
                 action="retry_once",
                 outcome="answer_with_warning",
                 sufficient_evidence=False,
-                ambiguity_detected=False,
+                ambiguity_detected=True,
                 requested_second_pass=True,
                 abstain_reason=None,
-                warning_reason="Initial retrieval did not include a usable grounding payload.",
+                warning_reason="Reviewer output was invalid; requesting one bounded retry.",
                 reasoning_notes=(
-                    f"Retrieved {len(evidence.documents)} grounded chunks.",
-                    "No parseable deterministic grounding payload was available in the current retrieval set.",
-                    "One additional retrieval pass was requested.",
+                    reason,
+                    "Fallback behaviour remained bounded and conservative.",
                 ),
                 selected_audit_bindings=audit_bindings,
                 selected_audit_spans=audit_spans,
@@ -119,13 +370,13 @@ class StructuredGroundingReviewer(GroundedEvidenceReviewer):
             action="abstain",
             outcome="abstain",
             sufficient_evidence=False,
-            ambiguity_detected=False,
+            ambiguity_detected=True,
             requested_second_pass=False,
-            abstain_reason="No usable deterministic grounding payload was available after retrieval.",
+            abstain_reason="Reviewer output was invalid after bounded review.",
             warning_reason=None,
             reasoning_notes=(
-                f"Retrieved {len(evidence.documents)} grounded chunks.",
-                "The reviewer could not find a parseable deterministic grounding payload to support a safe answer.",
+                reason,
+                "Fallback behaviour remained bounded and conservative.",
             ),
             selected_audit_bindings=audit_bindings,
             selected_audit_spans=audit_spans,
