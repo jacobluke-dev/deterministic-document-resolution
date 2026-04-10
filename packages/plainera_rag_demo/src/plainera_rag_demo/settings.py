@@ -8,6 +8,7 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 class RagDemoSettings(BaseSettings):
     openai_api_key: str
     embedding_model: str = "text-embedding-3-small"
+    reviewer_model: str = "gpt-5-mini"
     embedding_batch_size: int = 64
     embedding_dimensions: int | None = None
     baseline_chunk_size: int = 1_000

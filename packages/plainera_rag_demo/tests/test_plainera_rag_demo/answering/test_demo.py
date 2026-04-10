@@ -118,12 +118,10 @@ class TestGroundedIndexDocuments:
         grounding_stage = _RecordingGroundingStage()
         chunker = _RecordingChunker()
         vector_store = _FakeVectorStore()
-        answer_generator = _FakeAnswerGenerator()
         pipeline = GroundedRagPipeline(
             grounding_stage=grounding_stage,
             chunker=chunker,
             vector_store=vector_store,
-            answer_generator=answer_generator,
             evidence_orchestrator=SingleAgentEvidenceOrchestrator,
         )
         document = DemoDocument(
