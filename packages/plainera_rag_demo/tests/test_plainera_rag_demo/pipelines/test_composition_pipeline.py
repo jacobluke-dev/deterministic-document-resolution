@@ -3,6 +3,8 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 import pytest
+
+from plainera_rag_demo.agentic.orchestrator import SingleAgentEvidenceOrchestrator
 from plainera_rag_demo.agentic.types import GroundedEvidenceAssessment
 from plainera_rag_demo.answering import DemoAnswerGenerator
 from plainera_rag_demo.chunking import FixedWindowChunker
@@ -68,15 +70,6 @@ class _VectorStore:
         return self._responses.pop(0)
 
 
-class _AnswerGenerator:
-    def __init__(self) -> None:
-        self.called = False
-
-    def generate_answer(self, *, question, retrieved_chunks):
-        self.called = True
-        return f"{question} :: answer"
-
-
 class _RetryThenAnswerOrchestrator:
     def __init__(self) -> None:
         self.calls = 0
@@ -90,6 +83,7 @@ class _RetryThenAnswerOrchestrator:
                 sufficient_evidence=False,
                 ambiguity_detected=False,
                 requested_second_pass=True,
+                answer_text="Initial retrieval support was limited; one additional retrieval pass is required.",
                 abstain_reason=None,
                 warning_reason="Initial retrieval support was limited.",
                 reasoning_notes=("retry",),
@@ -103,6 +97,7 @@ class _RetryThenAnswerOrchestrator:
             sufficient_evidence=True,
             ambiguity_detected=False,
             requested_second_pass=False,
+            answer_text="MPS stands for Metropolitan Police Service.",
             abstain_reason=None,
             warning_reason=None,
             reasoning_notes=("answer",),
@@ -119,6 +114,7 @@ class _AbstainOrchestrator:
             sufficient_evidence=False,
             ambiguity_detected=True,
             requested_second_pass=False,
+            answer_text=None,
             abstain_reason="Grounded evidence remained insufficient or ambiguous.",
             warning_reason=None,
             reasoning_notes=("abstain",),
@@ -135,13 +131,13 @@ class _ProceedOrchestrator:
             sufficient_evidence=True,
             ambiguity_detected=False,
             requested_second_pass=False,
+            answer_text="MPS stands for Metropolitan Police Service.",
             abstain_reason=None,
             warning_reason="Answer supported by structured grounded evidence.",
             reasoning_notes=("proceed",),
             selected_audit_bindings=("doc-1",),
             selected_audit_spans=((0, 10),),
         )
-
 
 class _ResolveResponseStub:
     def __init__(self, json_text: str) -> None:
@@ -214,12 +210,10 @@ class TestGroundedRagPipeline:
                 (retrieved_chunk,),
             ]
         )
-        answer_generator = _AnswerGenerator()
         pipeline = GroundedRagPipeline(
             grounding_stage=_GroundingStage(),
             chunker=_Chunker(),
             vector_store=vector_store,
-            answer_generator=answer_generator,
             evidence_orchestrator=_ProceedOrchestrator(),
         )
 
@@ -229,9 +223,8 @@ class TestGroundedRagPipeline:
         result = pipeline.answer_question(index=index, question="What does it mean?")
 
         assert vector_store.calls == [5]
-        assert answer_generator.called is True
         assert result.outcome == "answer_with_warning"
-        assert result.answer == "What does it mean? :: answer"
+        assert result.answer == "MPS stands for Metropolitan Police Service."
 
     @pytest.mark.asyncio
     async def test_retries_once_before_answering(self) -> None:
@@ -279,12 +272,10 @@ class TestGroundedRagPipeline:
                 ),
             ]
         )
-        answer_generator = _AnswerGenerator()
         pipeline = GroundedRagPipeline(
             grounding_stage=_GroundingStage(),
             chunker=_Chunker(),
             vector_store=vector_store,
-            answer_generator=answer_generator,
             evidence_orchestrator=_RetryThenAnswerOrchestrator(),
         )
 
@@ -294,9 +285,8 @@ class TestGroundedRagPipeline:
         result = pipeline.answer_question(index=index, question="What does it mean?")
 
         assert vector_store.calls == [5, 10]
-        assert answer_generator.called is True
         assert result.outcome == "answer"
-        assert result.answer == "What does it mean? :: answer"
+        assert result.answer == "MPS stands for Metropolitan Police Service."
 
     @pytest.mark.asyncio
     async def test_does_not_generate_answer_when_outcome_is_abstain(self) -> None:
@@ -318,12 +308,10 @@ class TestGroundedRagPipeline:
                 ),
             ]
         )
-        answer_generator = _AnswerGenerator()
         pipeline = GroundedRagPipeline(
             grounding_stage=_GroundingStage(),
             chunker=_Chunker(),
             vector_store=vector_store,
-            answer_generator=answer_generator,
             evidence_orchestrator=_AbstainOrchestrator(),
         )
 
@@ -332,7 +320,6 @@ class TestGroundedRagPipeline:
         )
         result = pipeline.answer_question(index=index, question="What does it mean?")
 
-        assert answer_generator.called is False
         assert result.outcome == "abstain"
         assert result.answer is None
 
@@ -354,7 +341,6 @@ class TestBuildBaselinePipeline:
         assert isinstance(pipeline, BaselineRagPipeline)
         assert isinstance(pipeline._chunker, FixedWindowChunker)
         assert isinstance(pipeline._vector_store, FaissVectorStore)
-        assert isinstance(pipeline._answer_generator, DemoAnswerGenerator)
 
 
 class TestBuildGroundedPipeline:
@@ -381,4 +367,3 @@ class TestBuildGroundedPipeline:
         assert pipeline._grounding_stage._resolve_service is resolve_service
         assert isinstance(pipeline._chunker, FixedWindowChunker)
         assert isinstance(pipeline._vector_store, FaissVectorStore)
-        assert isinstance(pipeline._answer_generator, DemoAnswerGenerator)
