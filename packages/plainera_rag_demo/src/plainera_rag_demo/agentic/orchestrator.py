@@ -109,8 +109,8 @@ class SingleAgentEvidenceOrchestrator:
             item
             for item in items
             if item.source_excerpt
-               and item.grounding_payload is None
-               and not cls._looks_like_grounding_fragment(item.source_excerpt)
+            and item.grounding_payload is None
+            and not cls._looks_like_grounding_fragment(item.source_excerpt)
         ]
         if not excerpt_items:
             return None
@@ -186,9 +186,7 @@ class SingleAgentEvidenceOrchestrator:
             if grounding_doc is not None:
                 selected.append(grounding_doc)
 
-            if excerpt_doc is not None and (
-                grounding_doc is None or excerpt_doc.chunk_id != grounding_doc.chunk_id
-            ):
+            if excerpt_doc is not None and (grounding_doc is None or excerpt_doc.chunk_id != grounding_doc.chunk_id):
                 selected.append(excerpt_doc)
 
         return selected

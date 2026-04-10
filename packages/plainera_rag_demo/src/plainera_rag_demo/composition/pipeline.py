@@ -1,12 +1,11 @@
 from __future__ import annotations
 
 from openai import OpenAI
-
-from plainera_rag_demo.agentic.prompted_reviewer import PromptedGroundingReviewer
-from plainera_rag_demo.agentic.reviewer_model import OpenAIReviewerModel
 from public_api.core.services.resolve_service import ResolveService
 
 from plainera_rag_demo.agentic.orchestrator import SingleAgentEvidenceOrchestrator
+from plainera_rag_demo.agentic.prompted_reviewer import PromptedGroundingReviewer
+from plainera_rag_demo.agentic.reviewer_model import OpenAIReviewerModel
 from plainera_rag_demo.answering import DemoAnswerGenerator
 from plainera_rag_demo.chunking import FixedWindowChunker
 from plainera_rag_demo.composition.embedder import build_openai_embedder

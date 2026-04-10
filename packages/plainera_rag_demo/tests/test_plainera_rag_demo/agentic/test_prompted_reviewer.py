@@ -3,7 +3,7 @@ from __future__ import annotations
 import json
 
 from plainera_rag_demo.agentic.prompted_reviewer import PromptedGroundingReviewer
-from plainera_rag_demo.agentic.types import GroundedEvidencePacket, GroundedEvidenceDocument
+from plainera_rag_demo.agentic.types import GroundedEvidenceDocument, GroundedEvidencePacket
 
 
 class TestReview:
