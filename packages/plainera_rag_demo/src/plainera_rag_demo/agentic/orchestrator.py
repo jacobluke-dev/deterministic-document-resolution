@@ -339,13 +339,13 @@ class SingleAgentEvidenceOrchestrator:
         if marker_index == -1:
             return None, text
 
-        source_excerpt = text[marker_index + len(document_marker):]
+        source_excerpt = text[marker_index + len(document_marker) :]
 
         grounding_start = text.find(grounding_marker)
         if grounding_start == -1:
             return None, source_excerpt
 
-        grounding_json = text[grounding_start + len(grounding_marker): marker_index].strip()
+        grounding_json = text[grounding_start + len(grounding_marker) : marker_index].strip()
 
         try:
             payload = json.loads(grounding_json)
