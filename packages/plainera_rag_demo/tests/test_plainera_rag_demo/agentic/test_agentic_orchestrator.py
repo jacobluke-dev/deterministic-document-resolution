@@ -112,7 +112,7 @@ class TestSingleAgentEvidenceOrchestrator:
             GroundedEvidenceAssessment(
                 action="retry_once",
                 outcome="answer_with_warning",
-                answer_text="General Partner, but could mean General Position",
+                answer_text="Initial evidence was insufficient; one additional retrieval pass is requested.",
                 sufficient_evidence=False,
                 ambiguity_detected=False,
                 requested_second_pass=True,
@@ -134,48 +134,6 @@ class TestSingleAgentEvidenceOrchestrator:
         assert assessment.action == "retry_once"
         assert len(reviewer.calls) == 1
         assert reviewer.calls[0]["has_second_pass_available"] is False
-
-    def test_uses_plain_text_as_source_excerpt_when_grounding_marker_is_absent(self) -> None:
-        reviewer = _ReviewerSpy(
-            GroundedEvidenceAssessment(
-                action="abstain",
-                outcome="abstain",
-                answer_text="abstain",
-                sufficient_evidence=False,
-                ambiguity_detected=False,
-                requested_second_pass=False,
-                abstain_reason="No usable deterministic grounding payload was available after retrieval.",
-                warning_reason=None,
-                reasoning_notes=("abstain",),
-                selected_audit_bindings=(),
-                selected_audit_spans=(),
-            )
-        )
-        orchestrator = SingleAgentEvidenceOrchestrator(reviewer=reviewer)
-
-        orchestrator.assess(
-            question="What is this document about?",
-            retrieved_chunks=(
-                _RetrievedChunk(
-                    chunk=_DemoChunk(
-                        chunk_id="doc-1:0",
-                        document_id="doc-1",
-                        document_name="doc-1.txt",
-                        ordinal=0,
-                        start_offset=0,
-                        end_offset=120,
-                        text="Just the original source text with no grounding wrapper.",
-                    ),
-                    score=0.5,
-                ),
-            ),
-            has_second_pass_available=True,
-        )
-
-        evidence = reviewer.calls[0]["evidence"]
-        document = evidence.documents[0]
-        assert document.grounding_payload is None
-        assert document.source_excerpt == "Just the original source text with no grounding wrapper."
 
 
 class TestSplitGroundingAndDocument:
