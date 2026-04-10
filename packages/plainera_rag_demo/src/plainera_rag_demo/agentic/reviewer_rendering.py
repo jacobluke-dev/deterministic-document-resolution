@@ -1,6 +1,34 @@
 from typing import Any
 
 
+def _extract_acronym_definition_and_reason(
+    item: dict[str, Any],
+) -> tuple[str | None, str | None]:
+    """Extract the best available acronym definition and selection reason."""
+    selected = item.get("selected")
+    definition = None
+    reason = None
+
+    if isinstance(selected, dict):
+        raw_definition = selected.get("definition")
+        if isinstance(raw_definition, str):
+            definition = raw_definition
+        raw_reason = selected.get("reason")
+        if isinstance(raw_reason, str):
+            reason = raw_reason
+
+    if definition is None:
+        definitions = item.get("definitions")
+        if isinstance(definitions, list) and definitions:
+            first = definitions[0]
+            if isinstance(first, dict):
+                raw_text = first.get("text")
+                if isinstance(raw_text, str):
+                    definition = raw_text
+
+    return definition, reason
+
+
 def summarize_acronyms(value: Any) -> list[dict[str, Any]]:
     """Summarise acronym bindings for reviewer use."""
     if not isinstance(value, list):
@@ -12,26 +40,7 @@ def summarize_acronyms(value: Any) -> list[dict[str, Any]]:
         if not isinstance(item, dict):
             continue
 
-        selected = item.get("selected")
-        definition = None
-        reason = None
-
-        if isinstance(selected, dict):
-            raw_definition = selected.get("definition")
-            if isinstance(raw_definition, str):
-                definition = raw_definition
-            raw_reason = selected.get("reason")
-            if isinstance(raw_reason, str):
-                reason = raw_reason
-
-        if definition is None:
-            definitions = item.get("definitions")
-            if isinstance(definitions, list) and definitions:
-                first = definitions[0]
-                if isinstance(first, dict):
-                    raw_text = first.get("text")
-                    if isinstance(raw_text, str):
-                        definition = raw_text
+        definition, reason = _extract_acronym_definition_and_reason(item)
 
         summaries.append(
             {
@@ -106,15 +115,9 @@ def summarize_structural_references(value: Any) -> list[dict[str, Any]]:
 def summarize_grounding_payload(grounding_payload: dict[str, Any]) -> dict[str, Any]:
     """Reduce raw resolve output to the small subset the reviewer actually needs."""
     return {
-        "acronyms": summarize_acronyms(
-            grounding_payload.get("acronyms")
-        ),
-        "defined_terms": summarize_defined_terms(
-            grounding_payload.get("defined_terms")
-        ),
-        "structural_references": summarize_structural_references(
-            grounding_payload.get("structural_references")
-        ),
+        "acronyms": summarize_acronyms(grounding_payload.get("acronyms")),
+        "defined_terms": summarize_defined_terms(grounding_payload.get("defined_terms")),
+        "structural_references": summarize_structural_references(grounding_payload.get("structural_references")),
     }
 
 
@@ -163,9 +166,7 @@ def extract_ambiguity_indicators(grounding_payload: dict[str, Any]) -> dict[str,
     return {
         "acronym_count": len(acronyms) if isinstance(acronyms, list) else 0,
         "defined_term_count": len(defined_terms) if isinstance(defined_terms, list) else 0,
-        "structural_reference_count": (
-            len(structural_references) if isinstance(structural_references, list) else 0
-        ),
+        "structural_reference_count": (len(structural_references) if isinstance(structural_references, list) else 0),
         "unresolved_acronyms": _count_unresolved(acronyms),
         "unresolved_defined_terms": _count_unresolved(defined_terms),
         "unresolved_structural_references": _count_unresolved(structural_references),

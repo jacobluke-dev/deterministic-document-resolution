@@ -11,9 +11,10 @@ from plainera_rag_demo.agentic.reviewer_rendering import (
     summarize_grounding_payload,
 )
 from plainera_rag_demo.agentic.types import (
+    GroundedAgentOutcome,
     GroundedEvidenceAssessment,
     GroundedEvidenceDocument,
-    GroundedEvidencePacket, GroundedAgentOutcome,
+    GroundedEvidencePacket,
 )
 
 _REVIEWER_SYSTEM_PROMPT = """You are a bounded reviewer for grounded evidence in a regulated-document RAG pipeline.
@@ -51,6 +52,7 @@ _REVIEWER_OUTPUT_SCHEMA = {
     "selected_audit_bindings": ["string", "..."],
     "selected_audit_spans": [[0, 10], "..."],
 }
+
 
 @dataclass(frozen=True, slots=True)
 class PromptedGroundingReviewer(GroundedEvidenceReviewer):
@@ -144,9 +146,7 @@ class PromptedGroundingReviewer(GroundedEvidenceReviewer):
 
         if warning_reason is None:
             joined = ", ".join(conflicting_keys)
-            warning_reason = (
-                f"Cross-document evidence contains conflicting deterministic bindings for: {joined}."
-            )
+            warning_reason = f"Cross-document evidence contains conflicting deterministic bindings for: {joined}."
 
         return GroundedEvidenceAssessment(
             action=assessment.action,
@@ -163,7 +163,56 @@ class PromptedGroundingReviewer(GroundedEvidenceReviewer):
         )
 
     @staticmethod
+    def _collect_acronym_bindings(
+        *,
+        payload: dict[str, Any],
+        bindings_by_key: dict[str, set[str]],
+    ) -> None:
+        """Collect resolved acronym bindings from one grounding payload."""
+        acronyms = payload.get("acronyms")
+        if not isinstance(acronyms, list):
+            return
+
+        for item in acronyms:
+            if not isinstance(item, dict):
+                continue
+
+            key = item.get("acronym")
+            selected = item.get("selected")
+            if not isinstance(key, str) or not isinstance(selected, dict):
+                continue
+
+            definition = selected.get("definition")
+            if isinstance(definition, str) and definition.strip():
+                bindings_by_key.setdefault(f"acronym:{key}", set()).add(definition.strip())
+
+    @staticmethod
+    def _collect_defined_term_bindings(
+        *,
+        payload: dict[str, Any],
+        bindings_by_key: dict[str, set[str]],
+    ) -> None:
+        """Collect resolved defined-term bindings from one grounding payload."""
+        defined_terms = payload.get("defined_terms")
+        if not isinstance(defined_terms, list):
+            return
+
+        for item in defined_terms:
+            if not isinstance(item, dict):
+                continue
+
+            key = item.get("normalized_key")
+            chosen_span = item.get("chosen_definition_span")
+            if not isinstance(key, str) or not isinstance(chosen_span, dict):
+                continue
+
+            definition = chosen_span.get("text")
+            if isinstance(definition, str) and definition.strip():
+                bindings_by_key.setdefault(f"defined_term:{key}", set()).add(definition.strip())
+
+    @classmethod
     def _find_cross_document_binding_conflicts(
+        cls,
         evidence: GroundedEvidencePacket,
     ) -> tuple[str, ...]:
         """Return binding keys whose selected meanings conflict across documents."""
@@ -174,31 +223,14 @@ class PromptedGroundingReviewer(GroundedEvidenceReviewer):
             if not isinstance(payload, dict):
                 continue
 
-            acronyms = payload.get("acronyms")
-            if isinstance(acronyms, list):
-                for item in acronyms:
-                    if not isinstance(item, dict):
-                        continue
-                    key = item.get("acronym")
-                    selected = item.get("selected")
-                    if not isinstance(key, str) or not isinstance(selected, dict):
-                        continue
-                    definition = selected.get("definition")
-                    if isinstance(definition, str) and definition.strip():
-                        bindings_by_key.setdefault(f"acronym:{key}", set()).add(definition.strip())
-
-            defined_terms = payload.get("defined_terms")
-            if isinstance(defined_terms, list):
-                for item in defined_terms:
-                    if not isinstance(item, dict):
-                        continue
-                    key = item.get("normalized_key")
-                    chosen_span = item.get("chosen_definition_span")
-                    if not isinstance(key, str) or not isinstance(chosen_span, dict):
-                        continue
-                    definition = chosen_span.get("text")
-                    if isinstance(definition, str) and definition.strip():
-                        bindings_by_key.setdefault(f"defined_term:{key}", set()).add(definition.strip())
+            cls._collect_acronym_bindings(
+                payload=payload,
+                bindings_by_key=bindings_by_key,
+            )
+            cls._collect_defined_term_bindings(
+                payload=payload,
+                bindings_by_key=bindings_by_key,
+            )
 
         conflicts = [key for key, values in bindings_by_key.items() if len(values) > 1]
         return tuple(sorted(conflicts))
@@ -208,9 +240,7 @@ class PromptedGroundingReviewer(GroundedEvidenceReviewer):
         """Render one evidence document into prompt-safe structured form."""
         grounding_payload = document.grounding_payload or {}
         grounding_summary = summarize_grounding_payload(grounding_payload)
-        ambiguity_indicators = extract_ambiguity_indicators(
-            grounding_payload
-        )
+        ambiguity_indicators = extract_ambiguity_indicators(grounding_payload)
 
         return {
             "document_id": document.document_id,
@@ -224,16 +254,15 @@ class PromptedGroundingReviewer(GroundedEvidenceReviewer):
             "source_excerpt": document.source_excerpt[:500],
         }
 
-
     @classmethod
-    def _parse_response(
+    def _parse_response_payload(
         cls,
         *,
         raw: str,
         evidence: GroundedEvidencePacket,
         has_second_pass_available: bool,
-    ) -> GroundedEvidenceAssessment:
-        """Parse and validate model JSON output conservatively."""
+    ) -> dict[str, Any] | GroundedEvidenceAssessment:
+        """Decode raw reviewer JSON and validate the top-level payload shape."""
         try:
             payload = json.loads(raw)
         except json.JSONDecodeError:
@@ -255,12 +284,6 @@ class PromptedGroundingReviewer(GroundedEvidenceReviewer):
         sufficient_evidence = payload.get("sufficient_evidence")
         ambiguity_detected = payload.get("ambiguity_detected")
         requested_second_pass = payload.get("requested_second_pass")
-        answer_text = payload.get("answer_text")
-        abstain_reason = payload.get("abstain_reason")
-        warning_reason = payload.get("warning_reason")
-        reasoning_notes = payload.get("reasoning_notes")
-        selected_audit_bindings = payload.get("selected_audit_bindings")
-        selected_audit_spans = payload.get("selected_audit_spans")
 
         valid_actions = {"proceed", "retry_once", "abstain"}
         valid_outcomes = {"answer", "answer_with_warning", "abstain"}
@@ -286,9 +309,20 @@ class PromptedGroundingReviewer(GroundedEvidenceReviewer):
                 reason="Reviewer omitted requested_second_pass.",
             )
 
-        parsed_notes = cls._parse_reasoning_notes(reasoning_notes)
-        parsed_bindings = cls._parse_bindings(selected_audit_bindings)
-        parsed_spans = cls._parse_spans(selected_audit_spans)
+        return payload
+
+    @classmethod
+    def _validate_response_semantics(
+        cls,
+        *,
+        payload: dict[str, Any],
+        evidence: GroundedEvidencePacket,
+        has_second_pass_available: bool,
+    ) -> GroundedEvidenceAssessment | None:
+        """Validate reviewer decision semantics after top-level payload checks."""
+        action = payload["action"]
+        outcome = payload["outcome"]
+        answer_text = payload.get("answer_text")
 
         if action == "retry_once" and not has_second_pass_available:
             return cls._fallback_assessment(
@@ -310,32 +344,70 @@ class PromptedGroundingReviewer(GroundedEvidenceReviewer):
                     has_second_pass_available=has_second_pass_available,
                     reason="Reviewer returned answer_text while abstaining.",
                 )
-        else:
-            if outcome == "abstain":
-                return cls._fallback_assessment(
-                    evidence=evidence,
-                    has_second_pass_available=has_second_pass_available,
-                    reason="Reviewer produced an inconsistent proceed decision.",
-                )
-            if not isinstance(answer_text, str) or not answer_text.strip():
-                return cls._fallback_assessment(
-                    evidence=evidence,
-                    has_second_pass_available=has_second_pass_available,
-                    reason="Reviewer omitted answer_text for a non-abstain outcome.",
-                )
+            return None
+
+        if outcome == "abstain":
+            return cls._fallback_assessment(
+                evidence=evidence,
+                has_second_pass_available=has_second_pass_available,
+                reason="Reviewer produced an inconsistent proceed decision.",
+            )
+
+        if not isinstance(answer_text, str) or not answer_text.strip():
+            return cls._fallback_assessment(
+                evidence=evidence,
+                has_second_pass_available=has_second_pass_available,
+                reason="Reviewer omitted answer_text for a non-abstain outcome.",
+            )
+
+        return None
+
+    @classmethod
+    def _parse_response(
+        cls,
+        *,
+        raw: str,
+        evidence: GroundedEvidencePacket,
+        has_second_pass_available: bool,
+    ) -> GroundedEvidenceAssessment:
+        """Parse and validate model JSON output conservatively."""
+        payload_or_fallback = cls._parse_response_payload(
+            raw=raw,
+            evidence=evidence,
+            has_second_pass_available=has_second_pass_available,
+        )
+        if isinstance(payload_or_fallback, GroundedEvidenceAssessment):
+            return payload_or_fallback
+
+        payload = payload_or_fallback
+
+        semantic_fallback = cls._validate_response_semantics(
+            payload=payload,
+            evidence=evidence,
+            has_second_pass_available=has_second_pass_available,
+        )
+        if semantic_fallback is not None:
+            return semantic_fallback
+
+        reasoning_notes = payload.get("reasoning_notes")
+        selected_audit_bindings = payload.get("selected_audit_bindings")
+        selected_audit_spans = payload.get("selected_audit_spans")
+        answer_text = payload.get("answer_text")
+        abstain_reason = payload.get("abstain_reason")
+        warning_reason = payload.get("warning_reason")
 
         assessment = GroundedEvidenceAssessment(
-            action=action,
-            outcome=outcome,
-            sufficient_evidence=sufficient_evidence,
-            ambiguity_detected=ambiguity_detected,
-            requested_second_pass=requested_second_pass,
+            action=payload["action"],
+            outcome=payload["outcome"],
+            sufficient_evidence=payload["sufficient_evidence"],
+            ambiguity_detected=payload["ambiguity_detected"],
+            requested_second_pass=payload["requested_second_pass"],
             answer_text=answer_text.strip() if isinstance(answer_text, str) else None,
             abstain_reason=abstain_reason if isinstance(abstain_reason, str) else None,
             warning_reason=warning_reason if isinstance(warning_reason, str) else None,
-            reasoning_notes=parsed_notes,
-            selected_audit_bindings=parsed_bindings,
-            selected_audit_spans=parsed_spans,
+            reasoning_notes=cls._parse_reasoning_notes(reasoning_notes),
+            selected_audit_bindings=cls._parse_bindings(selected_audit_bindings),
+            selected_audit_spans=cls._parse_spans(selected_audit_spans),
         )
         return cls._apply_evidence_guards(assessment=assessment, evidence=evidence)
 
