@@ -41,6 +41,8 @@ class GroundedEvidenceAssessment:
             evidence set.
         requested_second_pass: Whether the orchestrator is asking for one
             additional retrieval pass.
+        answer_text: The user-facing response text to return when ``action`` is not
+         ``"abstain"``. Must be ``None`` when ``action`` is ``"abstain"``.
         abstain_reason: Human-readable abstention reason when abstaining.
         warning_reason: Human-readable warning reason when answering with
             caution.
@@ -54,6 +56,7 @@ class GroundedEvidenceAssessment:
     sufficient_evidence: bool
     ambiguity_detected: bool
     requested_second_pass: bool
+    answer_text: str | None
     abstain_reason: str | None
     warning_reason: str | None
     reasoning_notes: tuple[str, ...]

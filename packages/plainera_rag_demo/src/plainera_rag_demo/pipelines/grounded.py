@@ -9,7 +9,7 @@ from public_api.schemas.resolve import ResolveOptions, ResolveRequest, ResolveRe
 from plainera_rag_demo.agentic.orchestrator import SingleAgentEvidenceOrchestrator
 from plainera_rag_demo.agentic.types import GroundedAgentAnswerResult
 from plainera_rag_demo.common import DemoDocument, IndexedCorpus
-from plainera_rag_demo.contracts import AnswerGenerator, Chunker
+from plainera_rag_demo.contracts import Chunker
 from plainera_rag_demo.contracts.interfaces import ChunkIndex, GroundingStage, VectorStore
 
 
@@ -43,7 +43,6 @@ class GroundedRagPipeline:
         grounding_stage: GroundingStage,
         chunker: Chunker,
         vector_store: VectorStore,
-        answer_generator: AnswerGenerator,
         evidence_orchestrator: SingleAgentEvidenceOrchestrator,
     ) -> None:
         """Initialise the grounded pipeline.
@@ -53,15 +52,12 @@ class GroundedRagPipeline:
                 transform source documents into grounded documents.
             chunker: Chunking strategy used to split grounded documents.
             vector_store: Retrieval backend used to index and retrieve chunks.
-            answer_generator: Answer generator used to produce the final answer
-                from retrieved evidence.
             evidence_orchestrator: Bounded post-retrieval controller used to
                 decide whether to answer, warn, retry once, or abstain.
         """
         self._grounding_stage = grounding_stage
         self._chunker = chunker
         self._vector_store = vector_store
-        self._answer_generator = answer_generator
         self._evidence_orchestrator = evidence_orchestrator
 
     async def index_documents(self, documents: Sequence[DemoDocument]) -> GroundedCorpusIndex:
@@ -144,10 +140,9 @@ class GroundedRagPipeline:
                 assessment=assessment,
             )
 
-        answer = self._answer_generator.generate_answer(
-            question=question,
-            retrieved_chunks=retrieved_chunks,
-        )
+        answer = assessment.answer_text
+        if answer is None:
+            raise ValueError("Non-abstain grounded assessment must include answer_text.")
 
         return GroundedAgentAnswerResult(
             question=question,

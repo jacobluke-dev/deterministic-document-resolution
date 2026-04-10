@@ -58,21 +58,6 @@ class _VectorStoreStub:
         self.calls.append(top_k)
         return self._retrieval_batches.pop(0)
 
-
-class _AnswerGeneratorSpy:
-    def __init__(self) -> None:
-        self.calls: list[dict[str, object]] = []
-
-    def generate_answer(self, *, question, retrieved_chunks):
-        self.calls.append(
-            {
-                "question": question,
-                "retrieved_chunks": tuple(retrieved_chunks),
-            }
-        )
-        return f"{question} :: answer"
-
-
 class _RetryThenProceedOrchestrator:
     def __init__(self) -> None:
         self.calls = 0
@@ -87,6 +72,7 @@ class _RetryThenProceedOrchestrator:
                 sufficient_evidence=False,
                 ambiguity_detected=False,
                 requested_second_pass=True,
+                answer_text="Initial retrieval was insufficient; one additional retrieval pass is required.",
                 abstain_reason=None,
                 warning_reason="Initial retrieval did not include a usable grounding payload.",
                 reasoning_notes=("retry",),
@@ -100,6 +86,7 @@ class _RetryThenProceedOrchestrator:
             sufficient_evidence=True,
             ambiguity_detected=False,
             requested_second_pass=False,
+            answer_text="MPS stands for Metropolitan Police Service.",
             abstain_reason=None,
             warning_reason=None,
             reasoning_notes=("proceed",),
@@ -116,6 +103,7 @@ class _AbstainOrchestrator:
             sufficient_evidence=False,
             ambiguity_detected=False,
             requested_second_pass=False,
+            answer_text=None,
             abstain_reason="No usable deterministic grounding payload was available after retrieval.",
             warning_reason=None,
             reasoning_notes=("abstain",),
@@ -132,6 +120,7 @@ class _ProceedOrchestrator:
             sufficient_evidence=True,
             ambiguity_detected=False,
             requested_second_pass=False,
+            answer_text="MPS stands for Metropolitan Police Service.",
             abstain_reason=None,
             warning_reason="Answer supported by structured grounded evidence.",
             reasoning_notes=("proceed",),
@@ -194,12 +183,10 @@ class TestGroundedRagPipeline:
                 ),
             ]
         )
-        answer_generator = _AnswerGeneratorSpy()
         pipeline = GroundedRagPipeline(
             grounding_stage=_GroundingStageStub(),
             chunker=_ChunkerStub(),
             vector_store=vector_store,
-            answer_generator=answer_generator,
             evidence_orchestrator=_RetryThenProceedOrchestrator(),
         )
 
@@ -220,9 +207,8 @@ class TestGroundedRagPipeline:
         )
 
         assert vector_store.calls == [5, 10]
-        assert len(answer_generator.calls) == 1
         assert result.outcome == "answer"
-        assert result.answer == "What does MPS mean? :: answer"
+        assert result.answer == "MPS stands for Metropolitan Police Service."
 
     @pytest.mark.anyio
     async def test_pipeline_does_not_generate_answer_when_assessment_abstains(self) -> None:
@@ -244,12 +230,10 @@ class TestGroundedRagPipeline:
                 ),
             ]
         )
-        answer_generator = _AnswerGeneratorSpy()
         pipeline = GroundedRagPipeline(
             grounding_stage=_GroundingStageStub(),
             chunker=_ChunkerStub(),
             vector_store=vector_store,
-            answer_generator=answer_generator,
             evidence_orchestrator=_AbstainOrchestrator(),
         )
 
@@ -270,7 +254,6 @@ class TestGroundedRagPipeline:
         )
 
         assert vector_store.calls == [5]
-        assert answer_generator.calls == []
         assert result.outcome == "abstain"
         assert result.answer is None
         assert result.assessment.abstain_reason == (
@@ -296,12 +279,10 @@ class TestGroundedRagPipeline:
                 (retrieved_chunk,),
             ]
         )
-        answer_generator = _AnswerGeneratorSpy()
         pipeline = GroundedRagPipeline(
             grounding_stage=_GroundingStageStub(),
             chunker=_ChunkerStub(),
             vector_store=vector_store,
-            answer_generator=answer_generator,
             evidence_orchestrator=_ProceedOrchestrator(),
         )
 
@@ -322,11 +303,8 @@ class TestGroundedRagPipeline:
         )
 
         assert vector_store.calls == [5]
-        assert len(answer_generator.calls) == 1
-        assert answer_generator.calls[0]["question"] == "What does MPS stand for?"
-        assert answer_generator.calls[0]["retrieved_chunks"] == (retrieved_chunk,)
         assert result.outcome == "answer_with_warning"
-        assert result.answer == "What does MPS stand for? :: answer"
+        assert result.answer == "MPS stands for Metropolitan Police Service."
 
 
 class TestResolveBackedGroundingStage:
