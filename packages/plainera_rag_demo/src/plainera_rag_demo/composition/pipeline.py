@@ -2,13 +2,11 @@ from __future__ import annotations
 
 from openai import OpenAI
 
+from plainera_rag_demo.agentic.prompted_reviewer import PromptedGroundingReviewer
 from plainera_rag_demo.agentic.reviewer_model import OpenAIReviewerModel
 from public_api.core.services.resolve_service import ResolveService
 
-from plainera_rag_demo.agentic.orchestrator import (
-    SingleAgentEvidenceOrchestrator,
-    PromptedGroundingReviewer,
-)
+from plainera_rag_demo.agentic.orchestrator import SingleAgentEvidenceOrchestrator
 from plainera_rag_demo.answering import DemoAnswerGenerator
 from plainera_rag_demo.chunking import FixedWindowChunker
 from plainera_rag_demo.composition.embedder import build_openai_embedder
@@ -81,7 +79,6 @@ def build_grounded_pipeline(
             chunk_overlap=settings.grounded_chunk_overlap,
         ),
         vector_store=FaissVectorStore(embedder=embedder),
-        answer_generator=DemoAnswerGenerator(),
         grounding_stage=ResolveBackedGroundingStage(resolve_service=resolve_service),
         evidence_orchestrator=SingleAgentEvidenceOrchestrator(
             reviewer=PromptedGroundingReviewer(model_complete=model_complete),
