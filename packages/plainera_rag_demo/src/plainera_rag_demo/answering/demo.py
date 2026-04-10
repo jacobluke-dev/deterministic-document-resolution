@@ -1,18 +1,31 @@
 from __future__ import annotations
 
-from collections.abc import Sequence
+from collections.abc import Callable, Sequence
 
 from plainera_rag_demo.common import RetrievedChunk
 from plainera_rag_demo.contracts.interfaces import AnswerGenerator
 
+_BASELINE_SYSTEM_PROMPT = """You are answering questions from retrieved document excerpts in a baseline RAG demo.
+
+Use only the retrieved excerpts provided.
+Do not mention missing grounding, deterministic binding, or internal system design.
+Answer as directly as possible in 1-3 sentences.
+
+If the retrieved excerpts do not contain enough information, say so briefly.
+"""
+
 
 class DemoAnswerGenerator(AnswerGenerator):
-    """Generate a simple demonstrator answer from the top retrieved chunk.
+    """Generate a baseline answer from retrieved chunks using plain context inference."""
 
-    This implementation is intentionally lightweight and deterministic. It does
-    not call an LLM. Instead, it echoes the highest-ranked retrieved chunk so
-    the baseline pipeline can be exercised end to end during early development.
-    """
+    def __init__(self, *, model_complete: Callable[[str, str], str]) -> None:
+        """Initialise the baseline answer generator.
+
+        Args:
+            model_complete: Callable that accepts a system prompt and user prompt
+                and returns the model text response.
+        """
+        self._model_complete = model_complete
 
     def generate_answer(
         self,
@@ -20,7 +33,7 @@ class DemoAnswerGenerator(AnswerGenerator):
         question: str,
         retrieved_chunks: Sequence[RetrievedChunk],
     ) -> str:
-        """Return a simple answer derived from the top retrieved chunk.
+        """Return a baseline answer inferred from retrieved chunk text.
 
         Args:
             question: User question supplied to the pipeline.
@@ -28,12 +41,48 @@ class DemoAnswerGenerator(AnswerGenerator):
                 order.
 
         Returns:
-            A deterministic string containing the question and either:
-                - a no-evidence marker when no chunks were retrieved, or
-                - the top chunk's document name and span.
+            A model-generated answer based only on the retrieved chunk text, or
+            a no-evidence marker when nothing was retrieved.
         """
         if not retrieved_chunks:
-            return f"{question} :: no evidence"
+            return "Insufficient retrieved evidence to answer the question."
 
-        best = retrieved_chunks[0].chunk
-        return f"{question} :: {best.document_name} [{best.start_offset}:{best.end_offset}]"
+        prompt = self._render_user_prompt(
+            question=question,
+            retrieved_chunks=retrieved_chunks,
+        )
+        return self._model_complete(_BASELINE_SYSTEM_PROMPT, prompt).strip()
+
+    @staticmethod
+    def _render_user_prompt(
+        *,
+        question: str,
+        retrieved_chunks: Sequence[RetrievedChunk],
+    ) -> str:
+        """Render retrieved chunks into a compact baseline answering prompt."""
+        rendered_chunks: list[str] = []
+
+        for idx, retrieved in enumerate(retrieved_chunks, start=1):
+            chunk = retrieved.chunk
+            rendered_chunks.append(
+                "\n".join(
+                    (
+                        f"[Chunk {idx}]",
+                        f"Document: {chunk.document_name}",
+                        f"Span: {chunk.start_offset}:{chunk.end_offset}",
+                        "Text:",
+                        chunk.text,
+                    )
+                )
+            )
+
+        joined_chunks = "\n\n".join(rendered_chunks)
+
+        return "\n\n".join(
+            (
+                f"Question: {question}",
+                "Retrieved excerpts:",
+                joined_chunks,
+                "Answer using only the retrieved excerpts.",
+            )
+        )
