@@ -19,7 +19,8 @@ def build_baseline_pipeline(settings: RagDemoSettings | None = None) -> Baseline
     """Build the baseline RAG pipeline from package settings.
 
     The baseline pipeline uses deterministic fixed-window chunking, OpenAI
-    embeddings, FAISS-backed retrieval, and a simple demo answer generator.
+    embeddings, FAISS-backed retrieval, and a simple baseline answer generator
+    that answers only from retrieved context without deterministic grounding.
 
     Args:
         settings: RAG demo settings providing chunking and embedding
@@ -32,13 +33,21 @@ def build_baseline_pipeline(settings: RagDemoSettings | None = None) -> Baseline
     settings = settings or get_rag_demo_settings()
     embedder = build_openai_embedder(settings)
 
+    baseline_client = OpenAI(api_key=settings.openai_api_key)
+    baseline_model = OpenAIReviewerModel(
+        client=baseline_client,
+        model=settings.reviewer_model,
+    )
+
     return BaselineRagPipeline(
         chunker=FixedWindowChunker(
             chunk_size=settings.baseline_chunk_size,
             chunk_overlap=settings.baseline_chunk_overlap,
         ),
         vector_store=FaissVectorStore(embedder=embedder),
-        answer_generator=DemoAnswerGenerator(),
+        answer_generator=DemoAnswerGenerator(
+            model_complete=baseline_model.complete,
+        ),
     )
 
 

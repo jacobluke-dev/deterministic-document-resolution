@@ -320,9 +320,6 @@ class SingleAgentEvidenceOrchestrator:
             [DOCUMENT]
             <source text>
 
-        If the expected markers are not present, the function treats the input
-        as plain source text and returns ``None`` for the grounding payload.
-
         Args:
             text: Full grounded text block or plain source text.
 
@@ -330,19 +327,25 @@ class SingleAgentEvidenceOrchestrator:
             A tuple containing:
                 - the parsed deterministic grounding payload when available, and
                 - the source document excerpt.
+
+        If the full grounding payload is not present in the chunk, the function
+        still strips any leading grounding fragment when the document marker is
+        present so the returned source excerpt is cleaner for reviewer use.
         """
         grounding_marker = "[DETERMINISTIC_GROUNDING]\n"
         document_marker = "\n\n[DOCUMENT]\n"
-
-        if not text.startswith(grounding_marker):
-            return None, text
 
         marker_index = text.find(document_marker)
         if marker_index == -1:
             return None, text
 
-        grounding_json = text[len(grounding_marker) : marker_index].strip()
-        source_excerpt = text[marker_index + len(document_marker) :]
+        source_excerpt = text[marker_index + len(document_marker):]
+
+        grounding_start = text.find(grounding_marker)
+        if grounding_start == -1:
+            return None, source_excerpt
+
+        grounding_json = text[grounding_start + len(grounding_marker): marker_index].strip()
 
         try:
             payload = json.loads(grounding_json)
