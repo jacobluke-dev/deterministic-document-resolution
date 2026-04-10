@@ -1,27 +1,9 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
 from typing import Any
 
 from plainera_rag_demo.agentic.orchestrator import SingleAgentEvidenceOrchestrator
 from plainera_rag_demo.agentic.types import GroundedEvidenceAssessment, GroundedEvidencePacket
-
-
-@dataclass(frozen=True, slots=True)
-class _DemoChunk:
-    chunk_id: str
-    document_id: str
-    document_name: str
-    ordinal: int
-    start_offset: int
-    end_offset: int
-    text: str
-
-
-@dataclass(frozen=True, slots=True)
-class _RetrievedChunk:
-    chunk: _DemoChunk
-    score: float
 
 
 class _ReviewerSpy:
@@ -45,7 +27,7 @@ class _ReviewerSpy:
 
 
 class TestSingleAgentEvidenceOrchestrator:
-    def test_builds_structured_evidence_packet_and_delegates_to_reviewer(self) -> None:
+    def test_builds_structured_evidence_packet_and_delegates_to_reviewer(self, demo_chunk, retrieved_chunk) -> None:
         reviewer = _ReviewerSpy(
             GroundedEvidenceAssessment(
                 action="proceed",
@@ -66,8 +48,8 @@ class TestSingleAgentEvidenceOrchestrator:
         assessment = orchestrator.assess(
             question="What does MPS mean?",
             retrieved_chunks=(
-                _RetrievedChunk(
-                    chunk=_DemoChunk(
+                retrieved_chunk(
+                    chunk=demo_chunk(
                         chunk_id="police:0",
                         document_id="police",
                         document_name="police.txt",
