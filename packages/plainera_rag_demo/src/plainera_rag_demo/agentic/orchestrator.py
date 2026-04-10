@@ -44,12 +44,17 @@ class GroundedEvidenceReviewer(ABC):
 
 @dataclass(frozen=True, slots=True)
 class SingleAgentEvidenceOrchestrator:
-    """Assemble grounded evidence and delegate bounded review.
+    """Coordinate post-retrieval grounded evidence assessment.
 
-    The orchestrator is responsible for normalizing retrieved chunks into a
-    structured evidence packet that combines retrieval metadata with parsed
-    deterministic grounding content. It does not decide meanings itself; it
-    delegates the final bounded assessment to the configured reviewer.
+    This orchestrator is a small service object configured with a single
+    reviewer dependency. Its role is to normalize retrieved chunks into a
+    compact ``GroundedEvidencePacket`` containing parsed deterministic
+    grounding, source excerpts, and retrieval metadata, then delegate the final
+    bounded decision to the configured reviewer.
+
+    The orchestrator does not resolve meanings itself and does not generate the
+    final answer text independently. It is responsible only for evidence
+    preparation and reviewer delegation.
     """
 
     reviewer: GroundedEvidenceReviewer
@@ -67,8 +72,8 @@ class SingleAgentEvidenceOrchestrator:
             question: User question being evaluated against the retrieved
                 grounded evidence.
             retrieved_chunks: Retrieval results for the current pass. Each item
-                may either be a stored chunk directly or a wrapper that exposes
-                the stored chunk via a ``chunk`` attribute.
+                may either be a stored chunk directly or a wrapper exposing the
+                stored chunk via a ``chunk`` attribute.
             has_second_pass_available: Whether the pipeline still permits one
                 additional retrieval pass before a final decision must be made.
 
@@ -86,7 +91,18 @@ class SingleAgentEvidenceOrchestrator:
 
     @staticmethod
     def _looks_like_grounding_fragment(text: str) -> bool:
-        """Return whether a chunk looks like a sliced fragment of grounding JSON."""
+        """Return whether text appears to be a sliced grounding JSON fragment.
+
+        This heuristic helps exclude partial grounding-only chunks when choosing
+        the best source excerpt for reviewer use.
+
+        Args:
+            text: Chunk text to inspect.
+
+        Returns:
+            ``True`` when the text appears to be a partial grounding fragment
+            rather than ordinary document content.
+        """
         markers = (
             '"acronyms"',
             '"defined_terms"',
@@ -104,7 +120,18 @@ class SingleAgentEvidenceOrchestrator:
         cls,
         items: list[GroundedEvidenceDocument],
     ) -> GroundedEvidenceDocument | None:
-        """Return the best non-JSON-like source excerpt for reviewer use."""
+        """Select the best source-excerpt candidate for one document.
+
+        Only non-grounding, non-JSON-like excerpts are considered. Candidates
+        are ranked by retrieval score first and span length second.
+
+        Args:
+            items: Candidate evidence documents for a single source document.
+
+        Returns:
+            The best excerpt candidate, or ``None`` when no suitable excerpt is
+            available.
+        """
         excerpt_items = [
             item
             for item in items
@@ -126,7 +153,18 @@ class SingleAgentEvidenceOrchestrator:
     def _best_grounding_candidate(
         items: list[GroundedEvidenceDocument],
     ) -> GroundedEvidenceDocument | None:
-        """Return the highest-value chunk carrying parseable deterministic grounding."""
+        """Select the best grounding-bearing candidate for one document.
+
+        Preference is given to chunks that start at offset zero, then to higher
+        retrieval scores, then to longer spans.
+
+        Args:
+            items: Candidate evidence documents for a single source document.
+
+        Returns:
+            The best grounding-bearing candidate, or ``None`` when no parseable
+            grounding payload is available.
+        """
         grounding_items = [item for item in items if item.grounding_payload is not None]
         if not grounding_items:
             return None
@@ -141,7 +179,16 @@ class SingleAgentEvidenceOrchestrator:
 
     @classmethod
     def _candidate_document(cls, retrieved: Any) -> GroundedEvidenceDocument:
-        """Build a candidate evidence document from one retrieved chunk."""
+        """Build a candidate evidence document from one retrieved chunk.
+
+        Args:
+            retrieved: Retrieval result object or stored chunk.
+
+        Returns:
+            A normalized ``GroundedEvidenceDocument`` containing document
+            identity, chunk metadata, optional parsed grounding payload, and the
+            associated source excerpt.
+        """
         chunk = cls._inner_chunk(retrieved)
         document_id = str(getattr(chunk, "document_id", ""))
         document_name = str(getattr(chunk, "document_name", ""))
@@ -169,7 +216,18 @@ class SingleAgentEvidenceOrchestrator:
         cls,
         candidates: list[GroundedEvidenceDocument],
     ) -> list[GroundedEvidenceDocument]:
-        """Reduce overlapping evidence to a compact per-document set."""
+        """Reduce raw candidates to a compact per-document evidence set.
+
+        For each source document, the compact set retains at most one best
+        grounding-bearing chunk and one best source-excerpt chunk.
+
+        Args:
+            candidates: Candidate evidence documents derived from retrieved
+                chunks.
+
+        Returns:
+            A reduced list of evidence documents suitable for reviewer input.
+        """
         grouped: dict[str, list[GroundedEvidenceDocument]] = {}
 
         for candidate in candidates:
@@ -198,14 +256,19 @@ class SingleAgentEvidenceOrchestrator:
         question: str,
         retrieved_chunks: tuple[Any, ...],
     ) -> GroundedEvidencePacket:
-        """Convert retrieved chunks into a compact structured grounded evidence packet.
+        """Convert retrieved chunks into a compact grounded evidence packet.
 
-        For each source document, keep at most:
-        - one best grounding-bearing chunk, and
-        - one best source-excerpt chunk.
+        For each source document, the packet keeps at most one best
+        grounding-bearing chunk and one best source-excerpt chunk. This reduces
+        prompt duplication while preserving both deterministic binding context
+        and question-relevant source text.
 
-        This reduces prompt duplication while preserving both deterministic binding
-        context and question-relevant source text.
+        Args:
+            question: User question for which evidence is being assembled.
+            retrieved_chunks: Retrieval results from the current pass.
+
+        Returns:
+            A compact ``GroundedEvidencePacket`` suitable for bounded review.
         """
         candidates = [cls._candidate_document(retrieved) for retrieved in retrieved_chunks]
         documents = cls._select_compact_documents(candidates)
