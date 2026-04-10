@@ -1,49 +1,14 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
-
 import pytest
 from plainera_rag_demo.agentic.types import GroundedEvidenceAssessment
 from plainera_rag_demo.common import DemoDocument
 from plainera_rag_demo.pipelines.grounded import GroundedRagPipeline, ResolveBackedGroundingStage
 
 
-@dataclass(frozen=True, slots=True)
-class _DemoChunk:
-    chunk_id: str
-    document_id: str
-    document_name: str
-    ordinal: int
-    start_offset: int
-    end_offset: int
-    text: str
-
-
-@dataclass(frozen=True, slots=True)
-class _RetrievedChunk:
-    chunk: _DemoChunk
-    score: float
-
-
 class _GroundingStageStub:
     async def ground_documents(self, documents):
         return tuple(documents)
-
-
-class _ChunkerStub:
-    def chunk_documents(self, documents):
-        document = documents[0]
-        return (
-            _DemoChunk(
-                chunk_id=f"{document.document_id}:0",
-                document_id=document.document_id,
-                document_name=document.name,
-                ordinal=0,
-                start_offset=0,
-                end_offset=len(document.text),
-                text=document.text,
-            ),
-        )
 
 
 class _VectorStoreStub:
@@ -150,12 +115,15 @@ class _ResolveResponseStub:
 
 class TestGroundedRagPipeline:
     @pytest.mark.anyio
-    async def test_pipeline_retries_once_when_assessment_requests_retry(self) -> None:
+    async def test_pipeline_retries_once_when_assessment_requests_retry(self,
+                                                                        retrieved_chunk,
+                                                                        demo_chunk,
+                                                                        chunk_stub) -> None:
         vector_store = _VectorStoreStub(
             retrieval_batches=[
                 (
-                    _RetrievedChunk(
-                        chunk=_DemoChunk(
+                    retrieved_chunk(
+                        chunk=demo_chunk(
                             chunk_id="doc-1:0",
                             document_id="doc-1",
                             document_name="doc-1.txt",
@@ -168,8 +136,8 @@ class TestGroundedRagPipeline:
                     ),
                 ),
                 (
-                    _RetrievedChunk(
-                        chunk=_DemoChunk(
+                    retrieved_chunk(
+                        chunk=demo_chunk(
                             chunk_id="doc-1:1",
                             document_id="doc-1",
                             document_name="doc-1.txt",
@@ -185,7 +153,7 @@ class TestGroundedRagPipeline:
         )
         pipeline = GroundedRagPipeline(
             grounding_stage=_GroundingStageStub(),
-            chunker=_ChunkerStub(),
+            chunker=chunk_stub,
             vector_store=vector_store,
             evidence_orchestrator=_RetryThenProceedOrchestrator(),
         )
@@ -211,12 +179,15 @@ class TestGroundedRagPipeline:
         assert result.answer == "MPS stands for Metropolitan Police Service."
 
     @pytest.mark.anyio
-    async def test_pipeline_does_not_generate_answer_when_assessment_abstains(self) -> None:
+    async def test_pipeline_does_not_generate_answer_when_assessment_abstains(self,
+                                                                              retrieved_chunk,
+                                                                              demo_chunk,
+                                                                              chunk_stub) -> None:
         vector_store = _VectorStoreStub(
             retrieval_batches=[
                 (
-                    _RetrievedChunk(
-                        chunk=_DemoChunk(
+                    retrieved_chunk(
+                        chunk=demo_chunk(
                             chunk_id="doc-1:0",
                             document_id="doc-1",
                             document_name="doc-1.txt",
@@ -232,7 +203,7 @@ class TestGroundedRagPipeline:
         )
         pipeline = GroundedRagPipeline(
             grounding_stage=_GroundingStageStub(),
-            chunker=_ChunkerStub(),
+            chunker=chunk_stub,
             vector_store=vector_store,
             evidence_orchestrator=_AbstainOrchestrator(),
         )
@@ -261,9 +232,12 @@ class TestGroundedRagPipeline:
         )
 
     @pytest.mark.anyio
-    async def test_pipeline_generates_answer_when_assessment_proceeds(self) -> None:
-        retrieved_chunk = _RetrievedChunk(
-            chunk=_DemoChunk(
+    async def test_pipeline_generates_answer_when_assessment_proceeds(self,
+                                                                      retrieved_chunk,
+                                                                      demo_chunk,
+                                                                      chunk_stub) -> None:
+        retrieved_chunk = retrieved_chunk(
+            chunk=demo_chunk(
                 chunk_id="doc-1:0",
                 document_id="doc-1",
                 document_name="doc-1.txt",
@@ -281,7 +255,7 @@ class TestGroundedRagPipeline:
         )
         pipeline = GroundedRagPipeline(
             grounding_stage=_GroundingStageStub(),
-            chunker=_ChunkerStub(),
+            chunker=chunk_stub,
             vector_store=vector_store,
             evidence_orchestrator=_ProceedOrchestrator(),
         )

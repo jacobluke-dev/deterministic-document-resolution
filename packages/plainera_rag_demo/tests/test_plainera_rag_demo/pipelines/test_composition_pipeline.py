@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
-
 import pytest
 from plainera_rag_demo.agentic.types import GroundedEvidenceAssessment
 from plainera_rag_demo.chunking import FixedWindowChunker
@@ -15,43 +13,6 @@ from plainera_rag_demo.settings import RagDemoSettings
 
 class _DummyResolveService:
     pass
-
-@dataclass(frozen=True, slots=True)
-class _DemoChunk:
-    chunk_id: str
-    document_id: str
-    document_name: str
-    ordinal: int
-    start_offset: int
-    end_offset: int
-    text: str
-
-
-@dataclass(frozen=True, slots=True)
-class _RetrievedChunk:
-    chunk: _DemoChunk
-    score: float
-
-
-class _GroundingStage:
-    async def ground_documents(self, documents):
-        return tuple(documents)
-
-
-class _Chunker:
-    def chunk_documents(self, documents):
-        document = documents[0]
-        return (
-            _DemoChunk(
-                chunk_id=f"{document.document_id}:0",
-                document_id=document.document_id,
-                document_name=document.name,
-                ordinal=0,
-                start_offset=0,
-                end_offset=len(document.text),
-                text=document.text,
-            ),
-        )
 
 
 class _VectorStore:
@@ -189,27 +150,34 @@ class TestResolveBackedGroundingStage:
 class TestGroundedRagPipeline:
 
     @pytest.mark.asyncio
-    async def test_generates_answer_when_assessment_proceeds(self) -> None:
-        retrieved_chunk = _RetrievedChunk(
-            chunk=_DemoChunk(
-                chunk_id="doc-1:0",
-                document_id="doc-1",
-                document_name="doc-1.txt",
-                ordinal=0,
-                start_offset=0,
-                end_offset=10,
-                text="grounded",
-            ),
+    async def test_generates_answer_when_assessment_proceeds(
+        self,
+        demo_chunk,
+        retrieved_chunk,
+        grounding_stage,
+        chunker,
+    ) -> None:
+        chunk = demo_chunk(
+            chunk_id="doc-1:0",
+            document_id="doc-1",
+            document_name="doc-1.txt",
+            ordinal=0,
+            start_offset=0,
+            end_offset=10,
+            text="grounded",
+        )
+        retrieved = retrieved_chunk(
+            chunk=chunk,
             score=0.95,
         )
         vector_store = _VectorStore(
             responses=[
-                (retrieved_chunk,),
+                (retrieved,),
             ]
         )
         pipeline = GroundedRagPipeline(
-            grounding_stage=_GroundingStage(),
-            chunker=_Chunker(),
+            grounding_stage=grounding_stage,
+            chunker=chunker,
             vector_store=vector_store,
             evidence_orchestrator=_ProceedOrchestrator(),
         )
@@ -224,12 +192,17 @@ class TestGroundedRagPipeline:
         assert result.answer == "MPS stands for Metropolitan Police Service."
 
     @pytest.mark.asyncio
-    async def test_retries_once_before_answering(self) -> None:
+    async def test_retries_once_before_answering(self,
+        demo_chunk,
+        retrieved_chunk,
+        grounding_stage,
+        chunker,
+    ) -> None:
         vector_store = _VectorStore(
             responses=[
                 (
-                    _RetrievedChunk(
-                        chunk=_DemoChunk(
+                    retrieved_chunk(
+                        chunk=demo_chunk(
                             chunk_id="doc-1:0",
                             document_id="doc-1",
                             document_name="doc-1.txt",
@@ -242,8 +215,8 @@ class TestGroundedRagPipeline:
                     ),
                 ),
                 (
-                    _RetrievedChunk(
-                        chunk=_DemoChunk(
+                    retrieved_chunk(
+                        chunk=demo_chunk(
                             chunk_id="doc-1:1",
                             document_id="doc-1",
                             document_name="doc-1.txt",
@@ -254,8 +227,8 @@ class TestGroundedRagPipeline:
                         ),
                         score=0.9,
                     ),
-                    _RetrievedChunk(
-                        chunk=_DemoChunk(
+                    retrieved_chunk(
+                        chunk=demo_chunk(
                             chunk_id="doc-1:2",
                             document_id="doc-1",
                             document_name="doc-1.txt",
@@ -270,8 +243,8 @@ class TestGroundedRagPipeline:
             ]
         )
         pipeline = GroundedRagPipeline(
-            grounding_stage=_GroundingStage(),
-            chunker=_Chunker(),
+            grounding_stage=grounding_stage,
+            chunker=chunker,
             vector_store=vector_store,
             evidence_orchestrator=_RetryThenAnswerOrchestrator(),
         )
@@ -286,12 +259,17 @@ class TestGroundedRagPipeline:
         assert result.answer == "MPS stands for Metropolitan Police Service."
 
     @pytest.mark.asyncio
-    async def test_does_not_generate_answer_when_outcome_is_abstain(self) -> None:
+    async def test_does_not_generate_answer_when_outcome_is_abstain(self,
+        demo_chunk,
+        retrieved_chunk,
+        grounding_stage,
+        chunker,
+    ) -> None:
         vector_store = _VectorStore(
             responses=[
                 (
-                    _RetrievedChunk(
-                        chunk=_DemoChunk(
+                    retrieved_chunk(
+                        chunk=demo_chunk(
                             chunk_id="doc-1:0",
                             document_id="doc-1",
                             document_name="doc-1.txt",
@@ -306,8 +284,8 @@ class TestGroundedRagPipeline:
             ]
         )
         pipeline = GroundedRagPipeline(
-            grounding_stage=_GroundingStage(),
-            chunker=_Chunker(),
+            grounding_stage=grounding_stage,
+            chunker=chunker,
             vector_store=vector_store,
             evidence_orchestrator=_AbstainOrchestrator(),
         )
