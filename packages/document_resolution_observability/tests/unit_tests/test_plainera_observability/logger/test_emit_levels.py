@@ -63,7 +63,7 @@ class _BoomSink:
 
 @pytest.mark.parametrize("which", ["enqueue", "enqueue_async"])
 def test_emit_calls_db_sink_variants(caplog, which):
-    caplog.set_level(logging.DEBUG, logger="plainera")
+    caplog.set_level(logging.DEBUG, logger="document_resolution")
 
     sink = _SyncSink() if which == "enqueue" else _AsyncSink()
     emit("evt", db_sink=sink, logger_type="t")
@@ -76,7 +76,7 @@ def test_emit_calls_db_sink_variants(caplog, which):
 
 
 def test_emit_db_sink_exception_does_not_break_logging(caplog):
-    caplog.set_level(logging.DEBUG, logger="plainera")
+    caplog.set_level(logging.DEBUG, logger="document_resolution")
 
     emit("evt", db_sink=_BoomSink(), logger_type="t")
 
@@ -90,7 +90,7 @@ def test_emit_db_sink_exception_does_not_break_logging(caplog):
 
 @pytest.mark.asyncio
 async def test_emit_async_prefers_enqueue_async(caplog):
-    caplog.set_level(logging.DEBUG, logger="plainera")
+    caplog.set_level(logging.DEBUG, logger="document_resolution")
 
     sink = _AsyncSink()
     await emit_async("evt", db_sink=sink, logger_type="t")
@@ -104,7 +104,7 @@ async def test_emit_async_prefers_enqueue_async(caplog):
 
 @pytest.mark.asyncio
 async def test_emit_async_falls_back_to_to_thread_for_sync_sink(caplog, monkeypatch):
-    caplog.set_level(logging.DEBUG, logger="plainera")
+    caplog.set_level(logging.DEBUG, logger="document_resolution")
 
     sink = _SyncSink()
 

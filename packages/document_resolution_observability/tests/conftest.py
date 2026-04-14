@@ -4,8 +4,8 @@ import pytest
 
 
 @pytest.fixture(autouse=True)
-def _reset_plainera_logger():
-    lg = logging.getLogger("plainera")
+def _reset_document_resolution_logger():
+    lg = logging.getLogger("document_resolution")
 
     # snapshot
     old_handlers = list(lg.handlers)

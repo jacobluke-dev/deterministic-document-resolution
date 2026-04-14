@@ -7,7 +7,7 @@ from typing import Any, Optional
 from .emit import emit
 from .levels import LogLevel
 
-LOG_NAME = "plainera"
+LOG_NAME = "document_resolution"
 log = logging.getLogger(LOG_NAME)
 
 # library best practice

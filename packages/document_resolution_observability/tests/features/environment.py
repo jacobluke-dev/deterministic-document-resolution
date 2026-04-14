@@ -20,7 +20,7 @@ from test_kit.behave_env import (
     teardown_database as _teardown_database,
 )
 
-SERVICE_NAME = "plainera_observability"
+SERVICE_NAME = "document_resolution_observability"
 
 def before_all(context):
     _before_all(context, service_name=SERVICE_NAME)

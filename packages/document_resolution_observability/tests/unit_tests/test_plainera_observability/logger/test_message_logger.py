@@ -85,11 +85,11 @@ class TestToText:
 class TestMessageLogger:
     @staticmethod
     def setup_method():
-        # Our structured logger writes under the "plainera" logger
-        logging.getLogger("plainera").setLevel(logging.INFO)
+        # Our structured logger writes under the "document_resolution" logger
+        logging.getLogger("document_resolution").setLevel(logging.INFO)
 
     def test_emits_structured_payload_and_redacts_auth(self, caplog):
-        caplog.set_level(logging.INFO, logger="plainera")
+        caplog.set_level(logging.INFO, logger="document_resolution")
         message_logger(
             "custom_event",
             level=LogLevel.WARNING,
@@ -105,10 +105,10 @@ class TestMessageLogger:
         # Caller function auto-captured
         assert payload["function"] == "test_emits_structured_payload_and_redacts_auth"
         # Sanity: we actually logged via the expected logger
-        assert rec.name == "plainera"
+        assert rec.name == "document_resolution"
 
     def test_maps_details_to_info_and_truncates_long_values(self, caplog):
-        caplog.set_level(logging.INFO, logger="plainera")
+        caplog.set_level(logging.INFO, logger="document_resolution")
         big = {"a": "x" * 2100}
         message_logger("evt", details=big)
 
@@ -124,7 +124,7 @@ class TestMessageLogger:
         assert info_field.endswith("chars)")
 
     def test_details_non_json_serializable_falls_back_to_str(self, caplog):
-        caplog.set_level(logging.INFO, logger="plainera")
+        caplog.set_level(logging.INFO, logger="document_resolution")
 
         class Unserializable:
             pass
@@ -144,19 +144,19 @@ class TestMessageLogger:
         ],
     )
     def test_level_helper_shorthands(self, caplog, caller, level_name):
-        caplog.set_level(logging.DEBUG, logger="plainera")
+        caplog.set_level(logging.DEBUG, logger="document_resolution")
         caller()
         payload, _ = _last_json(caplog)
         assert payload["level"] == level_name
 
     def test_custom_logger_type_passthrough(self, caplog):
-        caplog.set_level(logging.INFO, logger="plainera")
+        caplog.set_level(logging.INFO, logger="document_resolution")
         message_logger("evt", level=LogLevel.INFO, logger_type="audit")
         payload, _ = _last_json(caplog)
         assert payload["logger_type"] == "message_logger.audit"
 
     def test_args_none_and_details_none_are_handled(self, caplog):
-        caplog.set_level(logging.INFO, logger="plainera")
+        caplog.set_level(logging.INFO, logger="document_resolution")
         message_logger("evt")  # defaults only
         payload, _ = _last_json(caplog)
         # args omitted → null; details omitted → info null

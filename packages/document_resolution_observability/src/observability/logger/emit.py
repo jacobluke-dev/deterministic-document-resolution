@@ -10,7 +10,7 @@ from .context import request_id_var
 from .levels import STD_LEVEL, LogLevel
 from .redact import scrub
 
-logger = logging.getLogger("plainera")
+logger = logging.getLogger("document_resolution")
 
 
 def _make_payload(event: str, level: LogLevel | int | str, logger_type: str, **fields: Any) -> dict[str, Any]:

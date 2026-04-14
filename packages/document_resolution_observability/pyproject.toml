@@ -1,7 +1,7 @@
 [tool.poetry]
-name = "plainera-observability"
+name = "document-resolution-observability"
 version = "0.1.0"
-description = "Plainera Observability Package"
+description = "Document Resolution Observability Package"
 authors = ["Jacob Bickerstaff"]
 
 packages = [{ include = "observability", from = "src" }]
@@ -11,7 +11,7 @@ include = ["src/observability/py.typed"]
 python = "^3.13"
 
 [tool.poetry.group.dev.dependencies]
-plainera-testkit = { path = "../../packages/plainera_testkit", develop = true }
+document-resolution-testkit = { path = "../../packages/plainera_testkit", develop = true }
 pytest = "^8.3.0"
 mypy = "^1.11.1"
 ruff = "^0.5.7"

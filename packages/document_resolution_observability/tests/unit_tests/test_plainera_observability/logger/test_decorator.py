@@ -75,7 +75,7 @@ def test_std_level_mapping():
 
 
 def test_log_result_included_and_truncated(caplog):
-    caplog.set_level(logging.INFO, logger="plainera")
+    caplog.set_level(logging.INFO, logger="document_resolution")
     from observability.logger.decorator import logger
 
     @logger("calc", arg_names=["x"], log_result=True, result_max_len=20)
@@ -102,7 +102,7 @@ def _last(caplog) -> dict:
 
 
 def test_log_before_emits_pre_call_then_success(caplog):
-    caplog.set_level(logging.INFO, logger="plainera")
+    caplog.set_level(logging.INFO, logger="document_resolution")
 
     @logger("do", arg_names=["x"], log_before=True)
     def do(x: int) -> int:
@@ -121,7 +121,7 @@ def test_log_before_emits_pre_call_then_success(caplog):
 
 
 def test_sync_exception_path_emits_error_and_reraises(caplog):
-    caplog.set_level(logging.INFO, logger="plainera")
+    caplog.set_level(logging.INFO, logger="document_resolution")
 
     @logger("kaboom", arg_names=["x"])
     def kaboom(x: int) -> int:
@@ -138,7 +138,7 @@ def test_sync_exception_path_emits_error_and_reraises(caplog):
 
 
 def test_result_transform_failure_is_captured(caplog):
-    caplog.set_level(logging.INFO, logger="plainera")
+    caplog.set_level(logging.INFO, logger="document_resolution")
 
     def bad_transform(_):
         raise RuntimeError("transform broke")
@@ -154,7 +154,7 @@ def test_result_transform_failure_is_captured(caplog):
 
 
 def test_preview_falls_back_to_repr_when_json_fails(caplog):
-    caplog.set_level(logging.INFO, logger="plainera")
+    caplog.set_level(logging.INFO, logger="document_resolution")
 
     class Unjsonable:
         def __repr__(self):
@@ -250,7 +250,7 @@ async def test_async_success_and_log_before_and_db_sink():
 
 @pytest.mark.asyncio
 async def test_async_exception_path_emits_and_reraises(caplog):
-    caplog.set_level(logging.INFO, logger="plainera")
+    caplog.set_level(logging.INFO, logger="document_resolution")
 
     @logger("a", arg_names=["x"])
     async def a(x: int) -> int:
