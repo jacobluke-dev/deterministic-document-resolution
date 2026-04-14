@@ -271,7 +271,7 @@ class ResolveResponse(BaseSchema):
                     ],
                     "meta": {
                         "processing_ms": 12,
-                        "model_version": "plainera-core@1.0.0",
+                        "model_version": "document-resolution@1.0.0",
                         "input_chars": 680,
                         "resolution_mode": "domain_priority",
                     },
