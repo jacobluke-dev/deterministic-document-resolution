@@ -17,7 +17,7 @@ services:
       # optional but recommended to avoid host node_modules weirdness
       - web_node_modules:/repo/apps/documentResolutionWeb/node_modules
     ports:
-      - "3000:3000"
+      - "3001:3000"
     depends_on:
       - api
 

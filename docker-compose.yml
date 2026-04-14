@@ -12,17 +12,18 @@ services:
     env_file: ./.env
     working_dir: /app/services/document_resolution_api
     ports:
-      - "8000:8000"
+      - "8001:8000"
     depends_on:
       db:
         condition: service_healthy
     volumes:
-      - ./services/document_resolution_api/alembic.ini:/app/services/document-resolution-api/alembic.ini:ro
-      - ./services/document_resolution_api/migrations:/app/services/document-resolution-api/migrations
+      - ./services/document_resolution_api/alembic.ini:/app/services/document_resolution_api/alembic.ini:ro
+      - ./services/document_resolution_api/migrations:/app/services/document_resolution_api/migrations
       - ./services/document_resolution_api/src:/app/src
-    command: [ "uvicorn", "--app-dir", "/app/src", "public_api.main:create_app", "--factory",
-               "--host", "0.0.0.0", "--port", "8000",
-               "--reload", "--reload-dir", "/app/src" ]
+    command: ["uvicorn", "--app-dir", "/app/src", "public_api.main:create_app", "--factory",
+              "--host", "0.0.0.0", "--port", "8000",
+              "--reload", "--reload-dir", "/app/src"]
+
   web:
     build:
       context: .
@@ -34,7 +35,7 @@ services:
     environment:
       DOCUMENT_RESOLUTION_API_KEY: ${DOCUMENT_RESOLUTION_API_KEY:-devkey}
     ports:
-      - "3000:3000"
+      - "3001:3000"
     depends_on:
       - api
 
@@ -45,10 +46,9 @@ services:
       POSTGRES_USER: ${POSTGRES_USER:-document_resolution}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-test-password}
     ports:
-      - "${POSTGRES_PORT:-5432}:5432"          # optional; can remove to keep DB private to the network
+      - "${POSTGRES_PORT:-5433}:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
-    # keep host port closed by default to avoid collisions
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-document_resolution} -d ${POSTGRES_DB:-document_resolution}"]
       interval: 5s

@@ -36,6 +36,6 @@ COPY --from=builder /repo/apps/documentResolutionWeb/.next/standalone ./
 COPY --from=builder /repo/apps/documentResolutionWeb/.next/static ./.next/static
 COPY --from=builder /repo/apps/documentResolutionWeb/public ./public
 
-EXPOSE 3000
+EXPOSE 3001
 
 CMD ["node", "apps/documentResolutionWeb/server.js"]
