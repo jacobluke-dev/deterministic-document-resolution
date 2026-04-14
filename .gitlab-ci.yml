@@ -187,10 +187,10 @@ rag_demo:
   rules:
     - if: $CI_PIPELINE_SOURCE == "merge_request_event"
       changes:
-        - packages/plainera_rag_demo/**/*
+        - packages/document_resolution_rag_demo/**/*
     - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
       changes:
-        - packages/plainera_rag_demo/**/*
+        - packages/document_resolution_rag_demo/**/*
         - poetry.lock
         - pyproject.toml
         - .gitlab-ci.yml
@@ -215,17 +215,17 @@ rag_demo:
       print("DB not ready in time", file=sys.stderr); sys.exit(2)
       PY
   script:
-    - make -C packages/plainera_rag_demo lint      RUN="$VENV_BIN/python -m"
-    - make -C packages/plainera_rag_demo typecheck RUN="$VENV_BIN/python -m"
-    - make -C packages/plainera_rag_demo test      RUN="$VENV_BIN/python -m"
+    - make -C packages/document_resolution_rag_demo lint      RUN="$VENV_BIN/python -m"
+    - make -C packages/document_resolution_rag_demo typecheck RUN="$VENV_BIN/python -m"
+    - make -C packages/document_resolution_rag_demo test      RUN="$VENV_BIN/python -m"
   artifacts:
     when: always
     paths:
-      - packages/plainera_rag_demo/coverage.xml
+      - packages/document_resolution_rag_demo/coverage.xml
     reports:
       coverage_report:
         coverage_format: cobertura
-        path: packages/plainera_rag_demo/coverage.xml
+        path: packages/document_resolution_rag_demo/coverage.xml
     expire_in: 1 week
 
 observability:
@@ -236,24 +236,24 @@ observability:
       when: never
     - if: $CI_PIPELINE_SOURCE == "merge_request_event"
       changes:
-        - packages/plainera_observability/**/*
+        - packages/document_resolution_observability/**/*
     - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
       changes:
-        - packages/plainera_observability/**/*
+        - packages/document_resolution_observability/**/*
     - when: never
   <<: *before-poetry
   script:
-    - make -C packages/plainera_observability lint      RUN="$VENV_BIN/python -m"
-    - make -C packages/plainera_observability typecheck RUN="$VENV_BIN/python -m"
-    - make -C packages/plainera_observability test      RUN="$VENV_BIN/python -m"
+    - make -C packages/document_resolution_observability lint      RUN="$VENV_BIN/python -m"
+    - make -C packages/document_resolution_observability typecheck RUN="$VENV_BIN/python -m"
+    - make -C packages/document_resolution_observability test      RUN="$VENV_BIN/python -m"
   artifacts:
     when: always
     paths:
-      - packages/plainera_observability/coverage.xml
+      - packages/document_resolution_observability/coverage.xml
     reports:
       coverage_report:
         coverage_format: cobertura
-        path: packages/plainera_observability/coverage.xml
+        path: packages/document_resolution_observability/coverage.xml
     expire_in: 1 week
 api:
   stage: core
@@ -286,13 +286,13 @@ api:
       changes:
         - services/unacronym_api/**/*
         - packages/document_resolution_core/**/*
-        - packages/plainera_observability/**/*
+        - packages/document_resolution_observability/**/*
         - packages/plainera_testkit/**/*
     - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
       changes:
         - services/unacronym_api/**/*
         - packages/document_resolution_core/**/*
-        - packages/plainera_observability/**/*
+        - packages/document_resolution_observability/**/*
         - packages/plainera_testkit/**/*
     - when: never
   <<: *before-poetry
