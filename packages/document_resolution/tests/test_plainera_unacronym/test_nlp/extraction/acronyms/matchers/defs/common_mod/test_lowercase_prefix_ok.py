@@ -1,4 +1,4 @@
-from plainera_unacronym.nlp.extraction.acronyms.matchers.defs.common import _lowercase_prefix_ok
+from document_resolution.nlp.extraction.acronyms.matchers.defs.common import _lowercase_prefix_ok
 
 
 class TestLowercasePrefixOkUnit:

@@ -1,5 +1,5 @@
-from plainera_unacronym.nlp.common.types import AcronymDetectorConfig
-from plainera_unacronym.nlp.detection.heuristics.context import blacklist_context_drop
+from document_resolution.nlp.common.types import AcronymDetectorConfig
+from document_resolution.nlp.detection.heuristics.context import blacklist_context_drop
 
 
 def mk_cfg(**overrides) -> AcronymDetectorConfig:
@@ -23,7 +23,7 @@ def mk_cfg(**overrides) -> AcronymDetectorConfig:
 
 class TestBlacklistContextDrop:
     def test_all_caps_heading_drops(self, span, monkeypatch):
-        import plainera_unacronym.nlp.detection.heuristics.context as ctx
+        import document_resolution.nlp.detection.heuristics.context as ctx
 
         monkeypatch.setattr(ctx, "_drop_all_caps_heading", lambda *args, **kwargs: True)
         text = "INTRODUCTION\nWe begin here."

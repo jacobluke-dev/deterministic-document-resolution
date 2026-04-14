@@ -1,4 +1,4 @@
-from plainera_unacronym.nlp.extraction.acronyms.matchers.defs.common import kept_token_indices
+from document_resolution.nlp.extraction.acronyms.matchers.defs.common import kept_token_indices
 
 
 class TestKeptTokenIndices:

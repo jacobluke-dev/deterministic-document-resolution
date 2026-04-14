@@ -1,4 +1,4 @@
-from plainera_unacronym.nlp.extraction.acronyms.matchers.defs import find_parenthetical_longform_before_acr
+from document_resolution.nlp.extraction.acronyms.matchers.defs import find_parenthetical_longform_before_acr
 
 
 class TestFindParentheticalLongformBeforeAcrIntegration:

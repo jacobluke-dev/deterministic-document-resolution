@@ -24,9 +24,9 @@ export async function POST(req: Request) {
   const text = body?.text?.trim() ?? "";
   if (!text) return jsonError(422, "Please paste some text.");
 
-  const upstreamBase = process.env.UNACRONYM_API_BASE_URL || process.env.NEXT_PUBLIC_API_BASE_URL; // prefer server-only var
+  const upstreamBase = process.env.DOCUMENT_RESOLUTION_API_BASE_URL || process.env.NEXT_PUBLIC_API_BASE_URL; // prefer server-only var
 
-  const serverKey = process.env.UNACRONYM_API_KEY;
+  const serverKey = process.env.DOCUMENT_RESOLUTION_API_KEY;
   const env = process.env.NEXT_PUBLIC_ENV ?? "local";
 
 // Optional per-request override from demo UI

@@ -1,16 +1,16 @@
 from types import SimpleNamespace as NS
 
-import plainera_unacronym.nlp.detection.acronym.detector as acr_det
-import plainera_unacronym.nlp.extraction.acronyms.engine.stage_funcs as stage_fxn
-import plainera_unacronym.nlp.extraction.acronyms.engine.state as state
-from plainera_unacronym.nlp.common.types import (
+import document_resolution.nlp.detection.acronym.detector as acr_det
+import document_resolution.nlp.extraction.acronyms.engine.stage_funcs as stage_fxn
+import document_resolution.nlp.extraction.acronyms.engine.state as state
+from document_resolution.nlp.common.types import (
     AcronymDetectorConfig,
     AcronymDetectorResult,
     InTextPick,
     Occurrence,
 )
-from plainera_unacronym.nlp.extraction.acronyms.config import ExtractionConfig
-from plainera_unacronym.nlp.extraction.acronyms.execute import detect_and_extract
+from document_resolution.nlp.extraction.acronyms.config import ExtractionConfig
+from document_resolution.nlp.extraction.acronyms.execute import detect_and_extract
 
 
 def _ed(

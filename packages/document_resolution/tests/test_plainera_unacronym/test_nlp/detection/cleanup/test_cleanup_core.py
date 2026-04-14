@@ -1,6 +1,6 @@
 from dataclasses import replace
 
-from plainera_unacronym.nlp.detection.cleanup.core import recompute_firsts
+from document_resolution.nlp.detection.cleanup.core import recompute_firsts
 
 
 class TestRecomputeFirstsUnit:

@@ -1,6 +1,6 @@
 import pytest
-from plainera_unacronym.nlp.detection.domains.bio.bio_gate import bio_signal_score, should_enable_bio
-from plainera_unacronym.nlp.detection.domains.bio.config import (
+from document_resolution.nlp.detection.domains.bio.bio_gate import bio_signal_score, should_enable_bio
+from document_resolution.nlp.detection.domains.bio.config import (
     CYTOKINE,
     GREEK,
     PCR_RE,

@@ -8,12 +8,12 @@ relative_files = True
 
 source =
     packages/document_resolution_core/src/document_resolution_core
-    packages/plainera_observability/src/plainera_observability
-    packages/plainera_unacronym/src/plainera_unacronym
-    services/unacronym_api/src/public_api
+    packages/document_resolution_observability/src/document_resolution_observability
+    packages/document_resolution/src/document_resolution
+    services/document_resolution_api/src/public_api
     src/document_resolution_core
-    src/plainera_observability
-    src/plainera_unacronym
+    src/document_resolution_observability
+    src/document_resolution
     src/public_api
 
 [paths]
@@ -22,14 +22,14 @@ document_resolution_core =
     */packages/document_resolution_core/src/document_resolution_core
     src/document_resolution_core
 
-plainera_unacronym =
-    packages/plainera_unacronym/src/plainera_unacronym
-    */packages/plainera_unacronym/src/plainera_unacronym
-    src/plainera_unacronym
+document_resolution =
+    packages/document_resolution/src/document_resolution
+    */packages/document_resolution/src/document_resolution
+    src/document_resolution
 
 #public_api =
-#    services/unacronym_api/src/public_api
- #   */services/unacronym_api/src/public_api
+#    services/document_resolution_api/src/public_api
+ #   */services/document_resolution_api/src/public_api
   #  src/public_api
 
 [report]

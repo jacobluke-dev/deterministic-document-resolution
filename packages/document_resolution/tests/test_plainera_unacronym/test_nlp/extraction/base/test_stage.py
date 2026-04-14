@@ -1,6 +1,6 @@
 from types import SimpleNamespace
 
-from plainera_unacronym.nlp.extraction.base.stages import Stage, StageReport, StageResult, Tracer
+from document_resolution.nlp.extraction.base.stages import Stage, StageReport, StageResult, Tracer
 
 
 class DummyState:

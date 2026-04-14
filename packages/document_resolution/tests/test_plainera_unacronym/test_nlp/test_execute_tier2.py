@@ -7,26 +7,26 @@ from dataclasses import asdict, replace
 from typing import Any, Literal
 
 import numpy as np
-import plainera_unacronym.nlp.extraction.tiers.tier_2 as t2
+import document_resolution.nlp.extraction.tiers.tier_2 as t2
 from _pytest.python_api import approx
-from plainera_unacronym.nlp.common.types import (
+from document_resolution.nlp.common.types import (
     AcronymMeaning,
     ExtractedDefinition,
     OccurrenceLite,
     Span,
 )
-from plainera_unacronym.nlp.extraction.acronyms.config import ExtractionConfig
-from plainera_unacronym.nlp.extraction.acronyms.core.defs import dedupe_defs
-from plainera_unacronym.nlp.extraction.acronyms.engine import stage_funcs as f
-from plainera_unacronym.nlp.extraction.acronyms.engine.extract_flow import ExtractionFlow
-from plainera_unacronym.nlp.extraction.acronyms.engine.state import FlowState
-from plainera_unacronym.nlp.extraction.acronyms.execute import detect_and_extract
-from plainera_unacronym.nlp.extraction.acronyms.meanings.disambiguate import (
+from document_resolution.nlp.extraction.acronyms.config import ExtractionConfig
+from document_resolution.nlp.extraction.acronyms.core.defs import dedupe_defs
+from document_resolution.nlp.extraction.acronyms.engine import stage_funcs as f
+from document_resolution.nlp.extraction.acronyms.engine.extract_flow import ExtractionFlow
+from document_resolution.nlp.extraction.acronyms.engine.state import FlowState
+from document_resolution.nlp.extraction.acronyms.execute import detect_and_extract
+from document_resolution.nlp.extraction.acronyms.meanings.disambiguate import (
     choose_with_tiebreak,
     disambiguate_occurrences,
 )
-from plainera_unacronym.nlp.extraction.acronyms.meanings.meaning_build import build_meanings
-from plainera_unacronym.nlp.extraction.tiers.config import Tier2Config
+from document_resolution.nlp.extraction.acronyms.meanings.meaning_build import build_meanings
+from document_resolution.nlp.extraction.tiers.config import Tier2Config
 
 # -----------------------
 # helpers
@@ -103,7 +103,7 @@ class TestDetectAndExtractE2ETier2Contracts:
             "General Purpose Unit (GPU) is used elsewhere. "
             "Later, GPU appears again."
         )
-        import plainera_unacronym.nlp.extraction.tiers.tier_2 as t2
+        import document_resolution.nlp.extraction.tiers.tier_2 as t2
 
         def _raise_unavailable(*args, **kwargs):
             raise RuntimeError("model_unavailable")
@@ -220,7 +220,7 @@ class TestDetectAndExtractE2ETier2AcronymWins:
         assert last1.chosen_meaning_id != baseline or "graphics_processing_unit" in baseline
 
     def test_tier2_api_programming_interface_vs_active_pharmaceutical_ingredient(self, monkeypatch):
-        import plainera_unacronym.nlp.extraction.tiers.tier_2 as t2
+        import document_resolution.nlp.extraction.tiers.tier_2 as t2
 
         def fake_embed_texts(texts, *, model=None, model_name=None, **_kw):
             xs = list(texts)
@@ -277,7 +277,7 @@ class TestDetectAndExtractE2ETier2AcronymWins:
         assert "application_programming_interface" in r_rest.chosen_meaning_id
 
     def test_tier2_nhs_can_pick_honour_society_when_context_mentions_students(self, monkeypatch):
-        import plainera_unacronym.nlp.extraction.tiers.tier_2 as t2
+        import document_resolution.nlp.extraction.tiers.tier_2 as t2
 
         def fake_embed_texts(texts, *, model=None, model_name=None, **_kw):
             xs = list(texts)
@@ -511,7 +511,7 @@ class TestDisambiguationE2EConfidenceContract:
         toward the higher-confidence meaning (when enabled).
         """
         # Patch base scoring to guarantee a near-tie, regardless of text/layout.
-        from plainera_unacronym.nlp.extraction.acronyms.meanings import disambiguate as mod
+        from document_resolution.nlp.extraction.acronyms.meanings import disambiguate as mod
 
         def fake_base_scores_for_occurrence(*_, **__):
             # Near tie: gap = 0.01 (<= NEAR_TIE_GAP 0.06), and relative margin is small.

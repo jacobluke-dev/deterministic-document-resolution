@@ -1,10 +1,10 @@
 from __future__ import annotations
 
-from plainera_unacronym.nlp.extraction.structural.anchor import (
+from document_resolution.nlp.extraction.structural.anchor import (
     build_structural_anchor_index,
     extract_structural_anchors,
 )
-from plainera_unacronym.nlp.extraction.structural.config import (
+from document_resolution.nlp.extraction.structural.config import (
     StructuralReferenceExtractionConfig,
 )
 

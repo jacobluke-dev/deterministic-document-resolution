@@ -1,4 +1,4 @@
-from plainera_unacronym.nlp.extraction.acronyms.matchers.defs import find_inline_longform_after_acr
+from document_resolution.nlp.extraction.acronyms.matchers.defs import find_inline_longform_after_acr
 
 
 class TestFindInlineLongformAfterAcrIntegrationFastPath:

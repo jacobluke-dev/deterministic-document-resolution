@@ -3070,7 +3070,7 @@ develop = true
 
 [package.source]
 type = "directory"
-url = "packages/plainera_observability"
+url = "packages/document_resolution_observability"
 
 [[package]]
 name = "plainera-rag-demo"
@@ -3085,7 +3085,7 @@ develop = true
 [package.dependencies]
 numpy = "2.4.2"
 openai = ">=1,<2"
-plainera-observability = {path = "../plainera_observability", develop = true}
+plainera-observability = {path = "../document_resolution_observability", develop = true}
 python-dotenv = "^1.0"
 SQLAlchemy = ">=2.0.43,<2.1"
 
@@ -3112,10 +3112,10 @@ testcontainers = {version = "^4.12.0", extras = ["postgresql"]}
 
 [package.source]
 type = "directory"
-url = "packages/plainera_testkit"
+url = "packages/document_resolution_testkit"
 
 [[package]]
-name = "plainera-unacronym"
+name = "document-resolution"
 version = "0.1.0"
 description = "Unacronym product library (detector + heuristics)"
 optional = false
@@ -3126,13 +3126,13 @@ develop = true
 
 [package.dependencies]
 numpy = "2.4.2"
-plainera-observability = {path = "../plainera_observability", develop = true}
+plainera-observability = {path = "../document_resolution_observability", develop = true}
 python-dotenv = "^1.0"
 SQLAlchemy = ">=2.0.43,<2.1"
 
 [package.source]
 type = "directory"
-url = "packages/plainera_unacronym"
+url = "packages/document_resolution"
 
 [[package]]
 name = "platformdirs"
@@ -5279,7 +5279,7 @@ files = [
 markers = {main = "sys_platform == \"win32\""}
 
 [[package]]
-name = "unacronym-api"
+name = "document-resolution-api"
 version = "0.1.0"
 description = "Public API for Unacronym"
 optional = false
@@ -5294,8 +5294,8 @@ argon2-cffi = "^25.1.0"
 fastapi = "^0.116.1"
 httpx = "^0.28.1"
 plainera-core = {path = "../../packages/document_resolution_core", develop = true}
-plainera-observability = {path = "../../packages/plainera_observability", develop = true, extras = ["fastapi"]}
-plainera-unacronym = {path = "../../packages/plainera_unacronym", develop = true}
+plainera-observability = {path = "../../packages/document_resolution_observability", develop = true, extras = ["fastapi"]}
+document-resolution = {path = "../../packages/document_resolution", develop = true}
 psycopg = {version = ">=3.2,<3.3", extras = ["binary"]}
 pydantic-settings = "^2.4.0"
 python-dotenv = "^1.0.1"
@@ -5306,7 +5306,7 @@ uvicorn = {version = "^0.30.0", extras = ["standard"]}
 
 [package.source]
 type = "directory"
-url = "services/unacronym_api"
+url = "services/document_resolution_api"
 
 [[package]]
 name = "uri-template"

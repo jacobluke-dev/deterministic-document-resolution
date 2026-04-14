@@ -8,8 +8,8 @@ If scores are close, the near-tie tiebreak chooses the meaning ≥3 chars closer
 """
 
 import pytest
-from plainera_unacronym.nlp.common.types import AcronymMeaning, OccurrenceLite, Span
-from plainera_unacronym.nlp.extraction.acronyms.meanings.disambiguate import (
+from document_resolution.nlp.common.types import AcronymMeaning, OccurrenceLite, Span
+from document_resolution.nlp.extraction.acronyms.meanings.disambiguate import (
     choose_with_tiebreak,
     disambiguate_occurrences,
 )

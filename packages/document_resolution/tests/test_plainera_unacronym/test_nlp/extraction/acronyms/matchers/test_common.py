@@ -1,5 +1,5 @@
 import pytest
-from plainera_unacronym.nlp.extraction.acronyms.matchers.common import (
+from document_resolution.nlp.extraction.acronyms.matchers.common import (
     initials_seq,
     is_mixed_case_acronym,
     match_from,

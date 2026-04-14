@@ -1,8 +1,8 @@
-# tests/test_plainera_unacronym/test_nlp/plugins/test_activation.py
+# tests/test_document_resolution/test_nlp/plugins/test_activation.py
 
-import plainera_unacronym.nlp.plugins.activation as activation_mod
-from plainera_unacronym.nlp.common.types import AcronymDetectorConfig
-from plainera_unacronym.nlp.plugins.activation import _safe_sniff, autodetect_domains
+import document_resolution.nlp.plugins.activation as activation_mod
+from document_resolution.nlp.common.types import AcronymDetectorConfig
+from document_resolution.nlp.plugins.activation import _safe_sniff, autodetect_domains
 
 # --------- Test doubles (plugins) ---------------------------------------------
 

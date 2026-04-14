@@ -2,8 +2,8 @@ import math
 from types import SimpleNamespace as NS
 
 import pytest
-from plainera_unacronym.nlp.common.types import AcronymMeaning, OccurrenceLite, Span
-from plainera_unacronym.nlp.extraction.acronyms.meanings.disambiguate import (
+from document_resolution.nlp.common.types import AcronymMeaning, OccurrenceLite, Span
+from document_resolution.nlp.extraction.acronyms.meanings.disambiguate import (
     _ascii_tokens,
     _center,
     _min_distance_to_spans,
@@ -473,7 +473,7 @@ class TestDisambiguateOccurrencesUnit:
         With forced near-tie base scores, disabling the prior should leave the
         occurrence undecided *when distance tiebreak cannot distinguish meanings*.
         """
-        from plainera_unacronym.nlp.extraction.acronyms.meanings import disambiguate as mod
+        from document_resolution.nlp.extraction.acronyms.meanings import disambiguate as mod
 
         def fake_base_scores_for_occurrence(*_, **__):
             return {

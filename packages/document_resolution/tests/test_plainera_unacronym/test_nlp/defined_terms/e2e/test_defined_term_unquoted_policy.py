@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-from plainera_unacronym.nlp.common.types import DefinedTermDetectorConfig
-from plainera_unacronym.nlp.extraction.defined_terms.execute import detect_and_resolve_terms
+from document_resolution.nlp.common.types import DefinedTermDetectorConfig
+from document_resolution.nlp.extraction.defined_terms.execute import detect_and_resolve_terms
 
 
 def _mention_keys(det_res) -> list[str]:

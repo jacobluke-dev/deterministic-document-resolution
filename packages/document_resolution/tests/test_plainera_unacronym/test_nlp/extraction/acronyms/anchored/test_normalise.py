@@ -1,5 +1,5 @@
 import pytest
-from plainera_unacronym.nlp.extraction.acronyms.anchored.normalise import tighten_definition_span
+from document_resolution.nlp.extraction.acronyms.anchored.normalise import tighten_definition_span
 
 
 class TestTightenDefinitionSpan:

@@ -79,7 +79,7 @@ def session_factory(engine_factory):
 
 @pytest.fixture(scope="session", name="apply_migrations_once")
 def apply_migrations_once(engine_factory):
-    cfg = Config(get_project_path(os.getenv("ALEMBIC_INI_PATH", "services/unacronym_api/alembic.ini"), raise_error=True))
+    cfg = Config(get_project_path(os.getenv("ALEMBIC_INI_PATH", "services/document_resolution_api/alembic.ini"), raise_error=True))
     with engine_factory.connect() as conn:
         cfg.attributes["connection"] = conn
         command.upgrade(cfg, "head")

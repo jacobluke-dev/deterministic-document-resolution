@@ -1,14 +1,14 @@
 # needed to 'activate' plugin
-import plainera_unacronym.nlp.detection.domains  # noqa: F401
-from plainera_unacronym.nlp.common.types import AcronymDetectorConfig
-from plainera_unacronym.nlp.detection.acronym.compiler import compile_acronym_pattern
-from plainera_unacronym.nlp.detection.acronym.detector import AcronymDetector
-from plainera_unacronym.nlp.detection.domains import LegalPlugin
-from plainera_unacronym.nlp.detection.domains.legal.config import LEGAL_CONTRACT_SUBJECT_SHALL_RE, LEGAL_QUOTED_MEANS_RE
-from plainera_unacronym.nlp.detection.domains.legal.legal_gate import should_enable_legal
-from plainera_unacronym.nlp.detection.heuristics.core import iter_acronym_candidates
-from plainera_unacronym.nlp.plugins.activation import autodetect_domains
-from plainera_unacronym.nlp.plugins.registry import DOMAIN_PLUGINS
+import document_resolution.nlp.detection.domains  # noqa: F401
+from document_resolution.nlp.common.types import AcronymDetectorConfig
+from document_resolution.nlp.detection.acronym.compiler import compile_acronym_pattern
+from document_resolution.nlp.detection.acronym.detector import AcronymDetector
+from document_resolution.nlp.detection.domains import LegalPlugin
+from document_resolution.nlp.detection.domains.legal.config import LEGAL_CONTRACT_SUBJECT_SHALL_RE, LEGAL_QUOTED_MEANS_RE
+from document_resolution.nlp.detection.domains.legal.legal_gate import should_enable_legal
+from document_resolution.nlp.detection.heuristics.core import iter_acronym_candidates
+from document_resolution.nlp.plugins.activation import autodetect_domains
+from document_resolution.nlp.plugins.registry import DOMAIN_PLUGINS
 
 
 class TestAutodetectDomains:

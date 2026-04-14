@@ -1,10 +1,10 @@
-import plainera_unacronym.nlp.detection.acronym.detector as det
-import plainera_unacronym.nlp.plugins.activation as act
-from plainera_unacronym.nlp.common.types import AcronymDetectorConfig
-from plainera_unacronym.nlp.detection.acronym.detector import AcronymDetector
-from plainera_unacronym.nlp.detection.domains.bio.config import BioConfig
-from plainera_unacronym.nlp.detection.domains.bio.plugin import BioPlugin
-from plainera_unacronym.nlp.plugins.activation import autodetect_domains
+import document_resolution.nlp.detection.acronym.detector as det
+import document_resolution.nlp.plugins.activation as act
+from document_resolution.nlp.common.types import AcronymDetectorConfig
+from document_resolution.nlp.detection.acronym.detector import AcronymDetector
+from document_resolution.nlp.detection.domains.bio.config import BioConfig
+from document_resolution.nlp.detection.domains.bio.plugin import BioPlugin
+from document_resolution.nlp.plugins.activation import autodetect_domains
 
 
 class TestBioAutodetect:

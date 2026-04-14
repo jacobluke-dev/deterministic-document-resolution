@@ -1,13 +1,13 @@
 from __future__ import annotations
 
-from plainera_unacronym.nlp.extraction.structural.assemble import (
+from document_resolution.nlp.extraction.structural.assemble import (
     assemble_structural_reference_resolution_result,
 )
-from plainera_unacronym.nlp.extraction.structural.config import (
+from document_resolution.nlp.extraction.structural.config import (
     StructuralReferenceExtractionConfig,
 )
-from plainera_unacronym.nlp.extraction.structural.state import StructuralFlowState
-from plainera_unacronym.nlp.extraction.structural.types import (
+from document_resolution.nlp.extraction.structural.state import StructuralFlowState
+from document_resolution.nlp.extraction.structural.types import (
     StructuralReferenceEntry,
     StructuralReferenceLink,
     StructuralReferenceResolutionResult,

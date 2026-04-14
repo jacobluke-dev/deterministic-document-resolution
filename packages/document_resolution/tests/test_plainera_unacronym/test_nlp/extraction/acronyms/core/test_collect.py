@@ -1,5 +1,5 @@
 import pytest
-from plainera_unacronym.nlp.extraction.acronyms.core.collect import initials_match
+from document_resolution.nlp.extraction.acronyms.core.collect import initials_match
 
 
 def _msg(acr, phrase):

@@ -1,11 +1,11 @@
 from __future__ import annotations
 
-from plainera_unacronym.nlp.detection.defined_terms.types import DefinedTermMention
-from plainera_unacronym.nlp.extraction.defined_terms.config import DefinedTermExtractionConfig
-from plainera_unacronym.nlp.extraction.defined_terms.tiers.tier_1_score import (
+from document_resolution.nlp.detection.defined_terms.types import DefinedTermMention
+from document_resolution.nlp.extraction.defined_terms.config import DefinedTermExtractionConfig
+from document_resolution.nlp.extraction.defined_terms.tiers.tier_1_score import (
     score_term_occurrence_tier1,
 )
-from plainera_unacronym.nlp.extraction.defined_terms.types import TermMeaning
+from document_resolution.nlp.extraction.defined_terms.types import TermMeaning
 
 
 def _occ(

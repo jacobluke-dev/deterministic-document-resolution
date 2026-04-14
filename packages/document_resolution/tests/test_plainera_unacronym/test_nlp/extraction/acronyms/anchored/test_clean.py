@@ -1,7 +1,7 @@
 import pytest
-from plainera_unacronym.nlp.common.types import INLINE
-from plainera_unacronym.nlp.extraction.acronyms.anchored.clean import _strip_leading_determiner, clean_definition
-from plainera_unacronym.nlp.extraction.acronyms.config import ExtractionConfig
+from document_resolution.nlp.common.types import INLINE
+from document_resolution.nlp.extraction.acronyms.anchored.clean import _strip_leading_determiner, clean_definition
+from document_resolution.nlp.extraction.acronyms.config import ExtractionConfig
 
 
 class TestStripLeadingDeterminer:

@@ -1,11 +1,11 @@
 from __future__ import annotations
 
 import pytest
-from plainera_unacronym.nlp.extraction.structural.link import (
+from document_resolution.nlp.extraction.structural.link import (
     _select_best_anchor,
     build_structural_reference_links,
 )
-from plainera_unacronym.nlp.extraction.structural.types import (
+from document_resolution.nlp.extraction.structural.types import (
     StructuralAnchor,
     StructuralReferenceEntry,
 )

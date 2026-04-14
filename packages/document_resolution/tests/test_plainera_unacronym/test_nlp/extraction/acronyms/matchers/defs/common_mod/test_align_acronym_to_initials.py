@@ -1,5 +1,5 @@
-from plainera_unacronym.nlp.common.constants_regex import DEFAULT_STOPWORDS
-from plainera_unacronym.nlp.extraction.acronyms.matchers.defs.common import (
+from document_resolution.nlp.common.constants_regex import DEFAULT_STOPWORDS
+from document_resolution.nlp.extraction.acronyms.matchers.defs.common import (
     AlignmentHit,
     InitialsStream,
     align_acronym_to_initials,

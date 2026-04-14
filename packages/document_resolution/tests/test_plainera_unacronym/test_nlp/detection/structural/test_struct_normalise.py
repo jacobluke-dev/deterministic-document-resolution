@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from plainera_unacronym.nlp.detection.structural import normalize_structural_reference_key
+from document_resolution.nlp.detection.structural import normalize_structural_reference_key
 
 
 class TestNormalizeStructuralReferenceKey:

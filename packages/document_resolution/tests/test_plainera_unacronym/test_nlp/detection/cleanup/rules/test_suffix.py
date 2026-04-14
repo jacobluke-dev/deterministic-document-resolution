@@ -1,4 +1,4 @@
-from plainera_unacronym.nlp.detection.cleanup.rules.suffix import (
+from document_resolution.nlp.detection.cleanup.rules.suffix import (
     _is_strict_suffix,
     rule_contained_suffix,
     rule_end_suffix_micro,

@@ -1,11 +1,11 @@
 from __future__ import annotations
 
-from plainera_unacronym.orchestration.adapters import (
+from document_resolution.orchestration.adapters import (
     AcronymPipelineRunner,
     DefinedTermsPipelineRunner,
     StructuralReferencesPipelineRunner,
 )
-from plainera_unacronym.orchestration.interface import (
+from document_resolution.orchestration.interface import (
     PIPELINE_ACRONYMS,
     PIPELINE_DEFINED_TERMS,
     PIPELINE_STRUCTURAL_REFERENCES,

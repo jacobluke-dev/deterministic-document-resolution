@@ -1,5 +1,5 @@
 
-from plainera_unacronym.nlp.plugins.activation import autodetect_domains
+from document_resolution.nlp.plugins.activation import autodetect_domains
 
 
 class TestDefinedTermDetectorMentions:

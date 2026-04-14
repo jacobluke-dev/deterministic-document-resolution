@@ -1,5 +1,5 @@
 import pytest
-from plainera_unacronym.nlp.extraction.acronyms.matchers.tighten import (
+from document_resolution.nlp.extraction.acronyms.matchers.tighten import (
     _best_window_for_acronym,
     _numeric_leading,
     _phrase_from_best_window,
@@ -230,7 +230,7 @@ class TestPhraseFromBestWindow:
         def _fake_best_window(tokens, acronym):
             return None
 
-        import plainera_unacronym.nlp.extraction.acronyms.matchers.tighten as mod
+        import document_resolution.nlp.extraction.acronyms.matchers.tighten as mod
 
         monkeypatch.setattr(mod, "_best_window_for_acronym", _fake_best_window)
 
@@ -248,7 +248,7 @@ class TestPhraseFromBestWindow:
         def _fake_best_window(tokens, acronym):
             return 0, 3, {0, 3}
 
-        import plainera_unacronym.nlp.extraction.acronyms.matchers.tighten as mod
+        import document_resolution.nlp.extraction.acronyms.matchers.tighten as mod
 
         monkeypatch.setattr(mod, "_best_window_for_acronym", _fake_best_window)
 
@@ -266,7 +266,7 @@ class TestPhraseFromBestWindow:
         def _fake_best_window(tokens, acronym):
             return 1, 2, {1, 2}
 
-        import plainera_unacronym.nlp.extraction.acronyms.matchers.tighten as mod
+        import document_resolution.nlp.extraction.acronyms.matchers.tighten as mod
 
         monkeypatch.setattr(mod, "_best_window_for_acronym", _fake_best_window)
 
@@ -283,7 +283,7 @@ class TestPhraseFromBestWindow:
         def _fake_best_window(tokens, acronym):
             return 0, 1, {0, 1}
 
-        import plainera_unacronym.nlp.extraction.acronyms.matchers.tighten as mod
+        import document_resolution.nlp.extraction.acronyms.matchers.tighten as mod
 
         monkeypatch.setattr(mod, "_best_window_for_acronym", _fake_best_window)
 
@@ -299,7 +299,7 @@ class TestPhraseFromBestWindow:
         def _fake_best_window(tokens, acronym):
             return 0, 1, {0, 1}
 
-        import plainera_unacronym.nlp.extraction.acronyms.matchers.tighten as mod
+        import document_resolution.nlp.extraction.acronyms.matchers.tighten as mod
 
         monkeypatch.setattr(mod, "_best_window_for_acronym", _fake_best_window)
 
@@ -316,7 +316,7 @@ class TestPhraseFromBestWindow:
         def _fake_best_window(tokens, acronym):
             return 0, 2, set()
 
-        import plainera_unacronym.nlp.extraction.acronyms.matchers.tighten as mod
+        import document_resolution.nlp.extraction.acronyms.matchers.tighten as mod
 
         monkeypatch.setattr(mod, "_best_window_for_acronym", _fake_best_window)
 
@@ -332,7 +332,7 @@ class TestPhraseFromBestWindow:
         def _fake_best_window(tokens, acronym):
             return 0, 2, {0, 2}
 
-        import plainera_unacronym.nlp.extraction.acronyms.matchers.tighten as mod
+        import document_resolution.nlp.extraction.acronyms.matchers.tighten as mod
 
         monkeypatch.setattr(mod, "_best_window_for_acronym", _fake_best_window)
 
@@ -653,7 +653,7 @@ class TestInitialsRuleBenefit:
         s = "cost per acquisition"
         # simulate flow: tighten_definition_span -> tighten_label_by_acronym
         # span function likely returns the whole tail (lowercase), then cleaner kicks in
-        from plainera_unacronym.nlp.extraction.acronyms.anchored.normalise import tighten_definition_span
+        from document_resolution.nlp.extraction.acronyms.anchored.normalise import tighten_definition_span
 
         tail = tighten_definition_span(s)
         out = tighten_label_by_acronym(tail, "C/A", bridges={"per", "of", "and", "&"})

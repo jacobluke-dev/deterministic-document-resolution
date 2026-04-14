@@ -1,6 +1,6 @@
-from plainera_unacronym.nlp.detection.structural import StructuralReference
-from plainera_unacronym.nlp.extraction.structural.config import StructuralReferenceExtractionConfig
-from plainera_unacronym.nlp.extraction.structural.transform import _canonicalize_structural_reference
+from document_resolution.nlp.detection.structural import StructuralReference
+from document_resolution.nlp.extraction.structural.config import StructuralReferenceExtractionConfig
+from document_resolution.nlp.extraction.structural.transform import _canonicalize_structural_reference
 
 
 class TestCanonicalizeStructuralReference:

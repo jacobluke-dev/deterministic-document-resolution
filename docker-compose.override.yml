@@ -4,8 +4,8 @@ services:
       context: .
       dockerfile: apps/unacronym-web/Dockerfile.dev
     environment:
-      UNACRONYM_API_BASE_URL: http://api:8000
-      UNACRONYM_API_KEY: ${UNACRONYM_API_KEY:-devkey}
+      DOCUMENT_RESOLUTION_API_BASE_URL: http://api:8000
+      DOCUMENT_RESOLUTION_API_KEY: ${DOCUMENT_RESOLUTION_API_KEY:-devkey}
       NEXT_PUBLIC_API_BASE_URL: ${NEXT_PUBLIC_API_BASE_URL:-http://api:8000}
       NEXT_PUBLIC_ENV: ${NEXT_PUBLIC_ENV:-local}
 

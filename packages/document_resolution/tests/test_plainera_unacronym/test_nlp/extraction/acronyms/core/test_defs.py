@@ -1,17 +1,17 @@
 from types import SimpleNamespace as NS
 
-import plainera_unacronym.nlp.extraction.acronyms.core.defs as mod
+import document_resolution.nlp.extraction.acronyms.core.defs as mod
 import pytest
-from plainera_unacronym.nlp.common.types import (
+from document_resolution.nlp.common.types import (
     ExtractedDefinition,
     InTextPick,  # noqa: E402
     Span,
 )
-from plainera_unacronym.nlp.extraction.acronyms.backref.extract import (
+from document_resolution.nlp.extraction.acronyms.backref.extract import (
     _score_backref_confidence,
     _valid_backref_candidate,
 )
-from plainera_unacronym.nlp.extraction.acronyms.core.defs import _meaning_key, dedupe_defs, defs_from_picks
+from document_resolution.nlp.extraction.acronyms.core.defs import _meaning_key, dedupe_defs, defs_from_picks
 
 
 def _span(text: str, needle: str) -> Span:

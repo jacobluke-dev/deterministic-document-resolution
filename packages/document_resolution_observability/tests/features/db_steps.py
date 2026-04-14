@@ -21,7 +21,7 @@ def _resolve_raw_path(scenario: str, file_ext: str, file_name: str) -> str:
 
 @given("I setup a temporary database called {db_name}")
 def setup_temp_db(context: Context, db_name: str):
-    setup_temp_db_impl(context, db_name, prefix="temp_unacronym")
+    setup_temp_db_impl(context, db_name, prefix="temp_document_resolution")
 
 @step("I teardown the temporary database")
 def teardown_temp_db(context: Context):

@@ -1,13 +1,13 @@
 import re
 import types
 
-import plainera_unacronym.nlp.detection.acronym.detector as det
-import plainera_unacronym.nlp.detection.heuristics.core as core
-import plainera_unacronym.nlp.plugins.registry as domain_mod
+import document_resolution.nlp.detection.acronym.detector as det
+import document_resolution.nlp.detection.heuristics.core as core
+import document_resolution.nlp.plugins.registry as domain_mod
 import pytest
-from plainera_unacronym.nlp.common.constants_regex import TRAILING_PUNCT_CHARS
-from plainera_unacronym.nlp.common.types import AcronymDetectorConfig, Span
-from plainera_unacronym.nlp.detection.heuristics.core import (
+from document_resolution.nlp.common.constants_regex import TRAILING_PUNCT_CHARS
+from document_resolution.nlp.common.types import AcronymDetectorConfig, Span
+from document_resolution.nlp.detection.heuristics.core import (
     _collect_core_hits,
     _collect_domain_hits,
     _contained_in_any,

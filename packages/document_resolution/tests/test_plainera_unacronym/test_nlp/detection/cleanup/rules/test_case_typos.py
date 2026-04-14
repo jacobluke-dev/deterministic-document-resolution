@@ -1,4 +1,4 @@
-from plainera_unacronym.nlp.detection.cleanup.rules.case_typos import (
+from document_resolution.nlp.detection.cleanup.rules.case_typos import (
     _is_alternating_case,
     _is_mixed_case_typo,
     rule_drop_mixed_case_typos,

@@ -1,15 +1,15 @@
 import re
 from types import SimpleNamespace
 
-import plainera_unacronym.nlp.extraction.acronyms.anchored.extract as mod
+import document_resolution.nlp.extraction.acronyms.anchored.extract as mod
 import pytest
-from plainera_unacronym.nlp.common.types import ExtractedDefinition, FirstOccurrence
-from plainera_unacronym.nlp.extraction.acronyms.config import ExtractionConfig
+from document_resolution.nlp.common.types import ExtractedDefinition, FirstOccurrence
+from document_resolution.nlp.extraction.acronyms.config import ExtractionConfig
 
 
 def _fo(acr: str, start: int, end: int, *, norm: str | None = None):
     # Use your existing helper if you already have one
-    from plainera_unacronym.nlp.common.types import FirstOccurrence
+    from document_resolution.nlp.common.types import FirstOccurrence
 
     return FirstOccurrence(
         acronym=acr, start_offset=start, end_offset=end, occurrence_confidence=0.9, normalized_key=norm

@@ -22,11 +22,11 @@ reportlab = "^4.4.10"
 openai = ">=1,<2"
 
 plainera-core = { path = "packages/document_resolution_core", develop = true }
-plainera-unacronym = { path = "packages/plainera_unacronym", develop = true }
+document-resolution = { path = "packages/document_resolution", develop = true }
 plainera-rag-demo = { path = "packages/plainera_rag_demo", develop = true }
-plainera-testkit = { path = "packages/plainera_testkit", develop = true }
-plainera-observability = { path = "packages/plainera_observability", develop = true, extras = ["fastapi"] }
-unacronym-api = { path = "services/unacronym_api", develop = true }
+plainera-testkit = { path = "packages/document_resolution_testkit", develop = true }
+plainera-observability = { path = "packages/document_resolution_observability", develop = true, extras = ["fastapi"] }
+document-resolution-api = { path = "services/document_resolution_api", develop = true }
 
 
 # -----------------------

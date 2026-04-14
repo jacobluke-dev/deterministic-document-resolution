@@ -2,22 +2,22 @@ from collections.abc import Callable
 from dataclasses import replace
 
 import numpy as np
-import plainera_unacronym.nlp.detection.acronym.detector as acr_det
-import plainera_unacronym.nlp.detection.structural.detector as struct_det
-import plainera_unacronym.nlp.extraction.acronyms.engine.stage_funcs as acr_stage_funcs
-import plainera_unacronym.nlp.extraction.defined_terms.stage_funcs as def_stage_funcs
-import plainera_unacronym.nlp.extraction.structural.stage_funcs as struct_stage_funcs
+import document_resolution.nlp.detection.acronym.detector as acr_det
+import document_resolution.nlp.detection.structural.detector as struct_det
+import document_resolution.nlp.extraction.acronyms.engine.stage_funcs as acr_stage_funcs
+import document_resolution.nlp.extraction.defined_terms.stage_funcs as def_stage_funcs
+import document_resolution.nlp.extraction.structural.stage_funcs as struct_stage_funcs
 import pytest
-from plainera_unacronym.nlp.common.shared import normalize_acronym_key
-from plainera_unacronym.nlp.common.types import (
+from document_resolution.nlp.common.shared import normalize_acronym_key
+from document_resolution.nlp.common.types import (
     AcronymDetectorConfig,
     DefinedTermDetectorConfig,
     FirstOccurrence,
     Occurrence,
     Span,
 )
-from plainera_unacronym.nlp.detection.defined_terms import DefinedTermDetector
-from plainera_unacronym.nlp.extraction.acronyms.config import ExtractionConfig
+from document_resolution.nlp.detection.defined_terms import DefinedTermDetector
+from document_resolution.nlp.extraction.acronyms.config import ExtractionConfig
 
 
 @pytest.fixture
@@ -198,7 +198,7 @@ def cfg_integrated():
 
 @pytest.fixture(autouse=True)
 def _mock_tier2_embeddings(monkeypatch):
-    import plainera_unacronym.nlp.extraction.tiers.tier_2 as t2
+    import document_resolution.nlp.extraction.tiers.tier_2 as t2
 
     def _fast_embed_texts(texts, *, model=None, model_name=None, **_kw):
         xs = list(texts)

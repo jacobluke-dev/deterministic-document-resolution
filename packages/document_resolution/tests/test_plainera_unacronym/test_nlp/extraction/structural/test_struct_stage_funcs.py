@@ -1,14 +1,14 @@
-from plainera_unacronym.nlp.extraction.structural.config import (
+from document_resolution.nlp.extraction.structural.config import (
     StructuralReferenceExtractionConfig,
 )
-from plainera_unacronym.nlp.extraction.structural.stage_funcs import (
+from document_resolution.nlp.extraction.structural.stage_funcs import (
     st_build_structural_anchor_index,
     st_build_structural_reference_entries,
     st_detect_structural_references,
     st_extract_structural_anchors,
     st_link_structural_references,
 )
-from plainera_unacronym.nlp.extraction.structural.state import StructuralFlowState
+from document_resolution.nlp.extraction.structural.state import StructuralFlowState
 
 
 class _DetCfg:

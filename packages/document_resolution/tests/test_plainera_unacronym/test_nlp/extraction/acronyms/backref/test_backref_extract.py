@@ -1,11 +1,11 @@
-from plainera_unacronym.nlp.common.types import ExtractedDefinition, FirstOccurrence
-from plainera_unacronym.nlp.extraction.acronyms.backref.extract import (
+from document_resolution.nlp.common.types import ExtractedDefinition, FirstOccurrence
+from document_resolution.nlp.extraction.acronyms.backref.extract import (
     _candidate_from_prev_sentence,
     _find_backref_candidate,
     _score_backref_confidence,
     extract_sentence_backrefs,
 )
-from plainera_unacronym.nlp.extraction.acronyms.config import ExtractionConfig
+from document_resolution.nlp.extraction.acronyms.config import ExtractionConfig
 
 
 class TestScoreBackrefConfidence:
@@ -312,7 +312,7 @@ def test_sentence_backref_ignores_single_letter_acronyms():
 
 def _fo(acr: str, start: int, end: int, *, norm: str | None = None):
     # If you already have a FirstOccurrence helper in tests, use that instead.
-    from plainera_unacronym.nlp.common.types import FirstOccurrence
+    from document_resolution.nlp.common.types import FirstOccurrence
 
     return FirstOccurrence(
         acronym=acr,

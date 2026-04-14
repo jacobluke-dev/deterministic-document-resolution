@@ -1,8 +1,8 @@
-# tests/test_plainera_unacronym/test_nlp/detection/test_detector/test_inline_cues.py
+# tests/test_document_resolution/test_nlp/detection/test_detector/test_inline_cues.py
 import re
 
 import pytest
-from plainera_unacronym.nlp.detection.heuristics.inline_cues import (
+from document_resolution.nlp.detection.heuristics.inline_cues import (
     _compile_inline_cues_pattern,
     boost_confidence_if_inline_cue,
 )

@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import pytest
-from plainera_unacronym.nlp.detection.structural import StructuralReferenceDetector
+from document_resolution.nlp.detection.structural import StructuralReferenceDetector
 
 
 class _Cfg:

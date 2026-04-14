@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 
 import pytest
-from plainera_unacronym.nlp.extraction.acronyms.meanings.meaning_build import _slug, build_meanings
+from document_resolution.nlp.extraction.acronyms.meanings.meaning_build import _slug, build_meanings
 
 
 @dataclass(frozen=True)

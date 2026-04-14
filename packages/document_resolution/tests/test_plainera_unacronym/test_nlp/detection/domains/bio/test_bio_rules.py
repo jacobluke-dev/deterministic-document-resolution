@@ -1,10 +1,10 @@
-# tests/test_plainera_unacronym/test_nlp/detection/domains/bio/test_rules.py
+# tests/test_document_resolution/test_nlp/detection/domains/bio/test_rules.py
 
 import re
 from dataclasses import replace
 
 import pytest
-from plainera_unacronym.nlp.detection.domains.bio import rules
+from document_resolution.nlp.detection.domains.bio import rules
 
 
 @pytest.fixture

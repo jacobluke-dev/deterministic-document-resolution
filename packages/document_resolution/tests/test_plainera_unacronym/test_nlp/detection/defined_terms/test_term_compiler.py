@@ -1,4 +1,4 @@
-from plainera_unacronym.nlp.detection.defined_terms.compiler import compile_defined_term_patterns
+from document_resolution.nlp.detection.defined_terms.compiler import compile_defined_term_patterns
 
 
 class TestCompileDefinedTermPatterns:

@@ -303,7 +303,7 @@ develop = true
 
 [package.source]
 type = "directory"
-url = "../plainera_testkit"
+url = "../document_resolution_testkit"
 
 [[package]]
 name = "pluggy"

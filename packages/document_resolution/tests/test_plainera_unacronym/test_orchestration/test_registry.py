@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import pytest
-from plainera_unacronym.orchestration.interface import (
+from document_resolution.orchestration.interface import (
     PIPELINE_ACRONYMS,
     PIPELINE_DEFINED_TERMS,
     PIPELINE_STRUCTURAL_REFERENCES,
@@ -9,7 +9,7 @@ from plainera_unacronym.orchestration.interface import (
     PipelineRunner,
     PipelineRunResult,
 )
-from plainera_unacronym.orchestration.registry import (
+from document_resolution.orchestration.registry import (
     DuplicatePipelineKeyError,
     PipelineRegistry,
     UnknownPipelineKeyError,

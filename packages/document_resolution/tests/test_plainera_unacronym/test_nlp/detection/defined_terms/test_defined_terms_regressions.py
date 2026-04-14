@@ -1,5 +1,5 @@
 import pytest
-from plainera_unacronym.nlp.detection.defined_terms import DefinedTermIntroduction
+from document_resolution.nlp.detection.defined_terms import DefinedTermIntroduction
 
 
 class TestDefinedTermFalsePositiveRegressions:

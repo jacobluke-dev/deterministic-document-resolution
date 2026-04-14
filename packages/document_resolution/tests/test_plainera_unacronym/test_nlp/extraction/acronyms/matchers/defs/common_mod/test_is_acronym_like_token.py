@@ -1,5 +1,5 @@
 import pytest
-from plainera_unacronym.nlp.extraction.acronyms.matchers.defs.common import is_acronym_like_token
+from document_resolution.nlp.extraction.acronyms.matchers.defs.common import is_acronym_like_token
 
 
 class TestIsAcronymLikeToken:

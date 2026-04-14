@@ -1,4 +1,4 @@
-from plainera_unacronym.nlp.extraction.acronyms.matchers.defs.common import _numeric_leading
+from document_resolution.nlp.extraction.acronyms.matchers.defs.common import _numeric_leading
 
 
 class TestNumericLeadingUnit:

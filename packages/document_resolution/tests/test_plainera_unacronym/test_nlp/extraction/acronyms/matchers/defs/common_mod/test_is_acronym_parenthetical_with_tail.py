@@ -1,5 +1,5 @@
 import pytest
-from plainera_unacronym.nlp.extraction.acronyms.matchers.defs.common import is_acronym_parenthetical_with_tail
+from document_resolution.nlp.extraction.acronyms.matchers.defs.common import is_acronym_parenthetical_with_tail
 
 
 class TestIsAcronymParentheticalWithTail:

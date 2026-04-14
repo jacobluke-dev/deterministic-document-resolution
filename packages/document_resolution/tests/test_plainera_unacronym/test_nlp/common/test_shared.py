@@ -1,8 +1,8 @@
 import unicodedata
 
 import pytest
-from plainera_unacronym.nlp.common.constants_regex import APOSTROPHE_VARIANTS
-from plainera_unacronym.nlp.common.shared import (
+from document_resolution.nlp.common.constants_regex import APOSTROPHE_VARIANTS
+from document_resolution.nlp.common.shared import (
     _swallow_spaces_around_allowed,
     canonicalize,
     collapse_ws,
@@ -11,7 +11,7 @@ from plainera_unacronym.nlp.common.shared import (
     normalize_acronym_key,
     strip_trailing_punct_str,
 )
-from plainera_unacronym.nlp.extraction.acronyms.anchored.normalise import tighten_definition_span
+from document_resolution.nlp.extraction.acronyms.anchored.normalise import tighten_definition_span
 
 
 def _end_of(text: str, token: str) -> int:

@@ -1,5 +1,5 @@
 import pytest
-from plainera_unacronym.nlp.extraction.acronyms.matchers.numeric_matcher import (
+from document_resolution.nlp.extraction.acronyms.matchers.numeric_matcher import (
     WORD_TO_DIGITS,
     consume_left_numeric_designator,
 )

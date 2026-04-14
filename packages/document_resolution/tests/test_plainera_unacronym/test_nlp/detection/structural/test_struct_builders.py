@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from plainera_unacronym.nlp.detection.structural.builders import build_structural_reference
+from document_resolution.nlp.detection.structural.builders import build_structural_reference
 
 
 class TestBuildStructuralReference:

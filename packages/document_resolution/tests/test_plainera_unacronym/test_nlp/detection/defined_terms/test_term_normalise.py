@@ -1,4 +1,4 @@
-from plainera_unacronym.nlp.detection.defined_terms.normalise import normalize_defined_term_key
+from document_resolution.nlp.detection.defined_terms.normalise import normalize_defined_term_key
 
 
 class TestNormalizeDefinedTermKey:

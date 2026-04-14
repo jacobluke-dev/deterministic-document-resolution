@@ -124,10 +124,10 @@ unacronym:
   rules:
     - if: $CI_PIPELINE_SOURCE == "merge_request_event"
       changes:
-        - packages/plainera_unacronym/**/*
+        - packages/document_resolution/**/*
     - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
       changes:
-        - packages/plainera_unacronym/**/*
+        - packages/document_resolution/**/*
         - poetry.lock
         - pyproject.toml
         - .gitlab-ci.yml
@@ -152,17 +152,17 @@ unacronym:
       print("DB not ready in time", file=sys.stderr); sys.exit(2)
       PY
   script:
-    - make -C packages/plainera_unacronym lint      RUN="$VENV_BIN/python -m"
-    - make -C packages/plainera_unacronym typecheck RUN="$VENV_BIN/python -m"
-    - make -C packages/plainera_unacronym test      RUN="$VENV_BIN/python -m"
+    - make -C packages/document_resolution lint      RUN="$VENV_BIN/python -m"
+    - make -C packages/document_resolution typecheck RUN="$VENV_BIN/python -m"
+    - make -C packages/document_resolution test      RUN="$VENV_BIN/python -m"
   artifacts:
     when: always
     paths:
-      - packages/plainera_unacronym/coverage.xml
+      - packages/document_resolution/coverage.xml
     reports:
       coverage_report:
         coverage_format: cobertura
-        path: packages/plainera_unacronym/coverage.xml
+        path: packages/document_resolution/coverage.xml
     expire_in: 1 week
 
 rag_demo:
@@ -284,16 +284,16 @@ api:
       when: never
     - if: $CI_PIPELINE_SOURCE == "merge_request_event"
       changes:
-        - services/unacronym_api/**/*
+        - services/document_resolution_api/**/*
         - packages/document_resolution_core/**/*
         - packages/document_resolution_observability/**/*
-        - packages/plainera_testkit/**/*
+        - packages/document_resolution_testkit/**/*
     - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
       changes:
-        - services/unacronym_api/**/*
+        - services/document_resolution_api/**/*
         - packages/document_resolution_core/**/*
         - packages/document_resolution_observability/**/*
-        - packages/plainera_testkit/**/*
+        - packages/document_resolution_testkit/**/*
     - when: never
   <<: *before-poetry
   script:
@@ -315,7 +315,7 @@ api:
 
     # Run service steps inside the service dir
     - |
-      cd services/unacronym_api
+      cd services/document_resolution_api
       "$VENV_BIN/python" -m alembic -c alembic.ini upgrade head
       make lint      RUN="$VENV_BIN/python -m"
       make typecheck RUN="$VENV_BIN/python -m"
@@ -323,11 +323,11 @@ api:
   artifacts:
     when: always
     paths:
-      - services/unacronym_api/coverage.xml
+      - services/document_resolution_api/coverage.xml
     reports:
       coverage_report:
         coverage_format: cobertura
-        path: services/unacronym_api/coverage.xml
+        path: services/document_resolution_api/coverage.xml
     expire_in: 1 week
 web:
   stage: core

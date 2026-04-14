@@ -1,5 +1,5 @@
-from plainera_unacronym.nlp.common.types import AcronymDetectorConfig
-from plainera_unacronym.nlp.plugins.activation import autodetect_domains
+from document_resolution.nlp.common.types import AcronymDetectorConfig
+from document_resolution.nlp.plugins.activation import autodetect_domains
 
 
 def test_autodetect_domains_can_enable_legal_and_structural_reference_together():

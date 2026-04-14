@@ -1,5 +1,5 @@
-from plainera_unacronym.nlp.common.types import AcronymDetectorResult
-from plainera_unacronym.nlp.detection.cleanup.post import post_detect_cleanup
+from document_resolution.nlp.common.types import AcronymDetectorResult
+from document_resolution.nlp.detection.cleanup.post import post_detect_cleanup
 
 
 class TestPostCleanup:

@@ -1,6 +1,6 @@
 import pytest
-from plainera_unacronym.nlp.common.types import AcronymDetectorConfig, TextSpanTuple
-from plainera_unacronym.nlp.detection.heuristics.general import (
+from document_resolution.nlp.common.types import AcronymDetectorConfig, TextSpanTuple
+from document_resolution.nlp.detection.heuristics.general import (
     _alpha_len,
     _comma_near_left,
     at_sentence_boundary,
@@ -58,10 +58,10 @@ def _patch_near(monkeypatch, left_gap: int, right_gap: int):
         return i < n and dist <= right_gap
 
     monkeypatch.setattr(
-        "plainera_unacronym.nlp.detection.heuristics.general._comma_near_left", fake_comma_near_left, raising=True
+        "document_resolution.nlp.detection.heuristics.general._comma_near_left", fake_comma_near_left, raising=True
     )
     monkeypatch.setattr(
-        "plainera_unacronym.nlp.detection.heuristics.general.exclam_near_right", fake_exclam_near_right, raising=True
+        "document_resolution.nlp.detection.heuristics.general.exclam_near_right", fake_exclam_near_right, raising=True
     )
 
 

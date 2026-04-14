@@ -1,7 +1,7 @@
 SHELL := /usr/bin/env bash
 RUN ?= python -m
 
-PKG := plainera_unacronym
+PKG := document_resolution
 SRC := src
 
 FORMAT_PATHS := $(SRC)

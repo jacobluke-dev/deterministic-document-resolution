@@ -1,7 +1,7 @@
 from types import SimpleNamespace as NS
 
 import pytest
-from plainera_unacronym.nlp.extraction.acronyms.strategies.harvest import extract_defs_all_occurrences
+from document_resolution.nlp.extraction.acronyms.strategies.harvest import extract_defs_all_occurrences
 
 
 def _cfg(**overrides):

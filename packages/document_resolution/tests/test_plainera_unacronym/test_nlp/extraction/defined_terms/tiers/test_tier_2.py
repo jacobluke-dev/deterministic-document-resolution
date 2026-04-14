@@ -3,9 +3,9 @@ from __future__ import annotations
 from dataclasses import replace as dc_replace
 
 import numpy as np
-from plainera_unacronym.nlp.common.types import DefinedTermDetectorConfig
-from plainera_unacronym.nlp.extraction.defined_terms.config import DefinedTermExtractionConfig
-from plainera_unacronym.nlp.extraction.defined_terms.execute import detect_and_resolve_terms
+from document_resolution.nlp.common.types import DefinedTermDetectorConfig
+from document_resolution.nlp.extraction.defined_terms.config import DefinedTermExtractionConfig
+from document_resolution.nlp.extraction.defined_terms.execute import detect_and_resolve_terms
 
 
 def _resolution_key(r) -> str | None:
@@ -28,7 +28,7 @@ def _resolutions_for_key(extr, key: str):
 
 class TestTier2:
     def test_tier2_applies_and_blended_scores_choose_winner(self, _patch):
-        from plainera_unacronym.nlp.extraction.defined_terms.tiers import tier_2 as tier2_mod
+        from document_resolution.nlp.extraction.defined_terms.tiers import tier_2 as tier2_mod
 
         text = """
         "Services" means the consultancy services described in the main body.
@@ -112,7 +112,7 @@ class TestTier2:
         assert scores_by_id["term|services|2"].total_score > scores_by_id["term|services|1"].total_score
 
     def test_e2e_tier2_applies_and_changes_final_resolution(self, _patch):
-        from plainera_unacronym.nlp.extraction.defined_terms.tiers import tier_2 as tier2_mod
+        from document_resolution.nlp.extraction.defined_terms.tiers import tier_2 as tier2_mod
 
         text = """
         "Services" means the consultancy services described in the main body.

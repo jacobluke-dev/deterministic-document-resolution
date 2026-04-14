@@ -2,19 +2,19 @@ from __future__ import annotations
 
 import types
 
-from plainera_unacronym.nlp.common.types import DefinedTermDetectorConfig
-from plainera_unacronym.nlp.detection.defined_terms import DefinedTermDetector, DefinedTermMention
-from plainera_unacronym.nlp.extraction.base.base_execute import run_flow_with_options
-from plainera_unacronym.nlp.extraction.defined_terms.execute import detect_and_resolve_terms
-from plainera_unacronym.nlp.extraction.defined_terms.extract_flow import DefinedTermResolutionFlow
-from plainera_unacronym.nlp.extraction.defined_terms.state import TermFlowState
-from plainera_unacronym.nlp.extraction.defined_terms.types import (
+from document_resolution.nlp.common.types import DefinedTermDetectorConfig
+from document_resolution.nlp.detection.defined_terms import DefinedTermDetector, DefinedTermMention
+from document_resolution.nlp.extraction.base.base_execute import run_flow_with_options
+from document_resolution.nlp.extraction.defined_terms.execute import detect_and_resolve_terms
+from document_resolution.nlp.extraction.defined_terms.extract_flow import DefinedTermResolutionFlow
+from document_resolution.nlp.extraction.defined_terms.state import TermFlowState
+from document_resolution.nlp.extraction.defined_terms.types import (
     TermCandidateScore,
     TermResolution,
     TermTier1OccurrenceRanking,
 )
 
-from tests.test_plainera_unacronym.test_nlp.defined_terms.e2e.defined_terms_e2e_common import (
+from tests.test_document_resolution.test_nlp.defined_terms.e2e.defined_terms_e2e_common import (
     chosen_meaning_ids_for_key,
     meaning_text_by_id,
     resolutions_for_key,
@@ -114,7 +114,7 @@ class TestDefinedTermResolutionE2E:
         assert state.tier_2.report.reasons == {"single_candidate": 2}
 
     def test_model_unavailable_fallback(self, _patch):
-        from plainera_unacronym.nlp.extraction.defined_terms import stage_funcs
+        from document_resolution.nlp.extraction.defined_terms import stage_funcs
 
         def _fake_tier2(*, text, t1_ranked, meaning_index, cfg):
             report = types.SimpleNamespace(
@@ -205,7 +205,7 @@ class TestDefinedTermResolutionE2E:
         assert extr.ambiguous_keys == ()
 
     def test_ambiguous_term_with_no_strong_winner_stays_unresolved(self, _patch):
-        from plainera_unacronym.nlp.extraction.defined_terms import stage_funcs
+        from document_resolution.nlp.extraction.defined_terms import stage_funcs
 
         def _fake_tier2(*, text, t1_ranked, meaning_index, cfg):
             ranked = [
@@ -268,7 +268,7 @@ class TestDefinedTermResolutionE2E:
 
     # TODO AS PART OF TICKET 97
     def test_prefer_prior_definition_when_context_is_otherwise_equal(self, _patch):
-        from plainera_unacronym.nlp.extraction.defined_terms import stage_funcs
+        from document_resolution.nlp.extraction.defined_terms import stage_funcs
 
         original = stage_funcs.score_term_occurrences_tier1
 

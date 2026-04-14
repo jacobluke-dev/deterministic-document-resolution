@@ -4,11 +4,11 @@ import asyncio
 from dataclasses import replace
 from types import SimpleNamespace
 
-import plainera_unacronym.nlp.detection.acronym.detector as det
-import plainera_unacronym.nlp.detection.base as bs
+import document_resolution.nlp.detection.acronym.detector as det
+import document_resolution.nlp.detection.base as bs
 import pytest
-from plainera_unacronym.nlp.common.types import AcronymDetectorConfig, Occurrence
-from plainera_unacronym.nlp.detection.acronym.detector import AcronymDetector
+from document_resolution.nlp.common.types import AcronymDetectorConfig, Occurrence
+from document_resolution.nlp.detection.acronym.detector import AcronymDetector
 
 # ----- helpers -----
 

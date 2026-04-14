@@ -2,14 +2,14 @@ from dataclasses import replace
 from typing import Literal
 
 import numpy as np
-from plainera_unacronym.nlp.common.types import AcronymDetectorConfig, AcronymMeaning, OccurrenceLite
-from plainera_unacronym.nlp.extraction.acronyms.config import ExtractionConfig
-from plainera_unacronym.nlp.extraction.acronyms.engine import stage_funcs as f
-from plainera_unacronym.nlp.extraction.acronyms.engine.extract_flow import ExtractionFlow
-from plainera_unacronym.nlp.extraction.acronyms.engine.state import FlowState
-from plainera_unacronym.nlp.extraction.tiers import tier_2 as Tier2
-from plainera_unacronym.nlp.extraction.tiers.config import Tier2Config
-from plainera_unacronym.nlp.extraction.tiers.types import Tier1OccurrenceRanking
+from document_resolution.nlp.common.types import AcronymDetectorConfig, AcronymMeaning, OccurrenceLite
+from document_resolution.nlp.extraction.acronyms.config import ExtractionConfig
+from document_resolution.nlp.extraction.acronyms.engine import stage_funcs as f
+from document_resolution.nlp.extraction.acronyms.engine.extract_flow import ExtractionFlow
+from document_resolution.nlp.extraction.acronyms.engine.state import FlowState
+from document_resolution.nlp.extraction.tiers import tier_2 as Tier2
+from document_resolution.nlp.extraction.tiers.config import Tier2Config
+from document_resolution.nlp.extraction.tiers.types import Tier1OccurrenceRanking
 
 
 def _mk_state(*, mode: Literal["off", "auto", "on"]) -> FlowState:

@@ -1,21 +1,21 @@
 # needed to 'activate' plugin
-import plainera_unacronym.nlp.detection.domains  # noqa: F401
-from plainera_unacronym.nlp.common.types import AcronymDetectorConfig
-from plainera_unacronym.nlp.detection.acronym.compiler import compile_acronym_pattern
-from plainera_unacronym.nlp.detection.acronym.detector import AcronymDetector
-from plainera_unacronym.nlp.detection.domains import StructuralReferencePlugin
-from plainera_unacronym.nlp.detection.domains.structural_reference.config import (
+import document_resolution.nlp.detection.domains  # noqa: F401
+from document_resolution.nlp.common.types import AcronymDetectorConfig
+from document_resolution.nlp.detection.acronym.compiler import compile_acronym_pattern
+from document_resolution.nlp.detection.acronym.detector import AcronymDetector
+from document_resolution.nlp.detection.domains import StructuralReferencePlugin
+from document_resolution.nlp.detection.domains.structural_reference.config import (
     STRUCT_APPENDIX_RE,
     STRUCT_CLAUSE_RE,
     STRUCT_SCHEDULE_RE,
     STRUCT_SECTION_RE,
 )
-from plainera_unacronym.nlp.detection.domains.structural_reference.structural_gate import (
+from document_resolution.nlp.detection.domains.structural_reference.structural_gate import (
     should_enable_structural_reference,
 )
-from plainera_unacronym.nlp.detection.heuristics.core import iter_acronym_candidates
-from plainera_unacronym.nlp.plugins.activation import autodetect_domains
-from plainera_unacronym.nlp.plugins.registry import DOMAIN_PLUGINS
+from document_resolution.nlp.detection.heuristics.core import iter_acronym_candidates
+from document_resolution.nlp.plugins.activation import autodetect_domains
+from document_resolution.nlp.plugins.registry import DOMAIN_PLUGINS
 
 
 class TestAutodetectDomains:

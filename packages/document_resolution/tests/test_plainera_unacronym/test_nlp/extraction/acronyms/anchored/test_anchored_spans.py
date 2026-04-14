@@ -1,9 +1,9 @@
 import re
 
-import plainera_unacronym.nlp.extraction.acronyms.anchored.spans as mod
-from plainera_unacronym.nlp.extraction.acronyms.anchored.spans import _trim_span
-from plainera_unacronym.nlp.extraction.acronyms.config import ExtractionConfig
-from plainera_unacronym.nlp.extraction.acronyms.matchers.defs.common import LocalDefMatch
+import document_resolution.nlp.extraction.acronyms.anchored.spans as mod
+from document_resolution.nlp.extraction.acronyms.anchored.spans import _trim_span
+from document_resolution.nlp.extraction.acronyms.config import ExtractionConfig
+from document_resolution.nlp.extraction.acronyms.matchers.defs.common import LocalDefMatch
 
 
 class TestTrimSpan:

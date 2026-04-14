@@ -1,4 +1,4 @@
-from plainera_unacronym.nlp.extraction.acronyms.backref.spans import best_span_by_initials, find_span_index, sent_spans
+from document_resolution.nlp.extraction.acronyms.backref.spans import best_span_by_initials, find_span_index, sent_spans
 
 
 class TestBestSpanByInitials:

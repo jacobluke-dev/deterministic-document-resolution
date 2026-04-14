@@ -1,8 +1,8 @@
 from __future__ import annotations
 
 import pytest
-from plainera_unacronym.orchestration.interface import PipelineRunResult
-from plainera_unacronym.orchestration.state import (
+from document_resolution.orchestration.interface import PipelineRunResult
+from document_resolution.orchestration.state import (
     OrchestrationPipelineError,
     OrchestrationState,
     PipelineErrorCode,

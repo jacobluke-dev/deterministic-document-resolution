@@ -1,10 +1,10 @@
 from __future__ import annotations
 
-from plainera_unacronym.nlp.extraction.structural.config import (
+from document_resolution.nlp.extraction.structural.config import (
     StructuralReferenceDetectorConfig,
     StructuralReferenceExtractionConfig,
 )
-from plainera_unacronym.nlp.extraction.structural.execute import detect_and_resolve_structural_references
+from document_resolution.nlp.extraction.structural.execute import detect_and_resolve_structural_references
 
 
 class TestDetectAndResolveStructuralReferences:

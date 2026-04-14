@@ -1,7 +1,7 @@
-import plainera_unacronym.nlp.detection.defined_terms.detector as det_mod
+import document_resolution.nlp.detection.defined_terms.detector as det_mod
 import pytest
-from plainera_unacronym.nlp.detection.defined_terms import DefinedTermIntroduction
-from plainera_unacronym.nlp.detection.defined_terms.detector import (
+from document_resolution.nlp.detection.defined_terms import DefinedTermIntroduction
+from document_resolution.nlp.detection.defined_terms.detector import (
     _overlaps_any,
     _spans_overlap,
 )
