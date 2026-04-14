@@ -7,9 +7,6 @@ workflow:
     - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH                                            # default branch
     - when: never
 default:
-  tags:
-    - local
-    - docker
 stages: [ core ]
 
 variables:
