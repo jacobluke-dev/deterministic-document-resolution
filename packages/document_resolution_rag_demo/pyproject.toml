@@ -4,7 +4,7 @@ version = "0.1.0"
 description = "RAG demonstrator package for baseline and grounded retrieval experiments"
 authors = ["Jacob Bickerstaff"]
 
-packages = [{ include = "document-resolution_rag_demo", from = "src" }]
+packages = [{ include = "rag_demo", from = "src" }]
 
 [tool.poetry.group.ml]
 optional = true

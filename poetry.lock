@@ -910,6 +910,130 @@ ssh = ["paramiko (>=2.4.3)"]
 websockets = ["websocket-client (>=1.3.0)"]
 
 [[package]]
+name = "document-resolution"
+version = "0.1.0"
+description = "document resolution product library (detector + heuristics)"
+optional = false
+python-versions = "^3.13"
+groups = ["main"]
+files = []
+develop = true
+
+[package.dependencies]
+document-resolution-observability = {path = "../document_resolution_observability", develop = true}
+numpy = "2.4.2"
+python-dotenv = "^1.0"
+SQLAlchemy = ">=2.0.43,<2.1"
+
+[package.source]
+type = "directory"
+url = "packages/document_resolution"
+
+[[package]]
+name = "document-resolution-api"
+version = "0.1.0"
+description = "Public API for document resolution"
+optional = false
+python-versions = "^3.13"
+groups = ["main"]
+files = []
+develop = true
+
+[package.dependencies]
+alembic = ">=1.16.5,<2.0"
+argon2-cffi = "^25.1.0"
+document-resolution = {path = "../../packages/document_resolution", develop = true}
+document-resolution-core = {path = "../../packages/document_resolution_core", develop = true}
+document-resolution-observability = {path = "../../packages/document_resolution_observability", develop = true, extras = ["fastapi"]}
+fastapi = "^0.116.1"
+httpx = "^0.28.1"
+psycopg = {version = ">=3.2,<3.3", extras = ["binary"]}
+pydantic-settings = "^2.4.0"
+python-dotenv = "^1.0.1"
+SQLAlchemy = ">=2.0.43,<2.1"
+starlette = ">=0.40.0,<0.48.0"
+testcontainers = "^4.12.0"
+uvicorn = {version = "^0.30.0", extras = ["standard"]}
+
+[package.source]
+type = "directory"
+url = "services/document_resolution_api"
+
+[[package]]
+name = "document-resolution-core"
+version = "0.1.0"
+description = "Document Resolution Core Package"
+optional = false
+python-versions = "^3.13"
+groups = ["main"]
+files = []
+develop = true
+
+[package.dependencies]
+python-dotenv = "^1.0"
+SQLAlchemy = ">=2.0.43,<2.1"
+
+[package.source]
+type = "directory"
+url = "packages/document_resolution_core"
+
+[[package]]
+name = "document-resolution-observability"
+version = "0.1.0"
+description = "Document Resolution Observability Package"
+optional = false
+python-versions = "^3.13"
+groups = ["main"]
+files = []
+develop = true
+
+[package.source]
+type = "directory"
+url = "packages/document_resolution_observability"
+
+[[package]]
+name = "document-resolution-rag-demo"
+version = "0.1.0"
+description = "RAG demonstrator package for baseline and grounded retrieval experiments"
+optional = false
+python-versions = "^3.13"
+groups = ["main"]
+files = []
+develop = true
+
+[package.dependencies]
+document-resolution-observability = {path = "../document_resolution_observability", develop = true}
+numpy = "2.4.2"
+openai = ">=1,<2"
+python-dotenv = "^1.0"
+SQLAlchemy = ">=2.0.43,<2.1"
+
+[package.source]
+type = "directory"
+url = "packages/document_resolution_rag_demo"
+
+[[package]]
+name = "document-resolution-testkit"
+version = "0.1.0"
+description = ""
+optional = false
+python-versions = "^3.13"
+groups = ["main"]
+files = []
+develop = true
+
+[package.dependencies]
+alembic = ">=1.16.5,<2.0"
+psycopg = {version = ">=3.2,<3.3", extras = ["binary"]}
+python-dotenv = "^1.0"
+SQLAlchemy = ">=2.0.43,<2.1"
+testcontainers = {version = "^4.12.0", extras = ["postgresql"]}
+
+[package.source]
+type = "directory"
+url = "packages/document_resolution_testkit"
+
+[[package]]
 name = "executing"
 version = "2.2.1"
 description = "Get the currently executing AST node of a frame, and other information"
@@ -3039,100 +3163,6 @@ mic = ["olefile"]
 test-arrow = ["arro3-compute", "arro3-core", "nanoarrow", "pyarrow"]
 tests = ["check-manifest", "coverage (>=7.4.2)", "defusedxml", "markdown2", "olefile", "packaging", "pyroma (>=5)", "pytest", "pytest-cov", "pytest-timeout", "pytest-xdist", "trove-classifiers (>=2024.10.12)"]
 xmp = ["defusedxml"]
-
-[[package]]
-name = "plainera-core"
-version = "0.1.0"
-description = "Plainera Core Package"
-optional = false
-python-versions = "^3.13"
-groups = ["main"]
-files = []
-develop = true
-
-[package.dependencies]
-python-dotenv = "^1.0"
-SQLAlchemy = ">=2.0.43,<2.1"
-
-[package.source]
-type = "directory"
-url = "packages/document_resolution_core"
-
-[[package]]
-name = "plainera-observability"
-version = "0.1.0"
-description = "Plainera Observability Package"
-optional = false
-python-versions = "^3.13"
-groups = ["main"]
-files = []
-develop = true
-
-[package.source]
-type = "directory"
-url = "packages/document_resolution_observability"
-
-[[package]]
-name = "plainera-rag-demo"
-version = "0.1.0"
-description = "RAG demonstrator package for baseline and grounded retrieval experiments"
-optional = false
-python-versions = "^3.13"
-groups = ["main"]
-files = []
-develop = true
-
-[package.dependencies]
-numpy = "2.4.2"
-openai = ">=1,<2"
-plainera-observability = {path = "../document_resolution_observability", develop = true}
-python-dotenv = "^1.0"
-SQLAlchemy = ">=2.0.43,<2.1"
-
-[package.source]
-type = "directory"
-url = "packages/plainera_rag_demo"
-
-[[package]]
-name = "plainera-testkit"
-version = "0.1.0"
-description = ""
-optional = false
-python-versions = "^3.13"
-groups = ["main"]
-files = []
-develop = true
-
-[package.dependencies]
-alembic = ">=1.16.5,<2.0"
-psycopg = {version = ">=3.2,<3.3", extras = ["binary"]}
-python-dotenv = "^1.0"
-SQLAlchemy = ">=2.0.43,<2.1"
-testcontainers = {version = "^4.12.0", extras = ["postgresql"]}
-
-[package.source]
-type = "directory"
-url = "packages/document_resolution_testkit"
-
-[[package]]
-name = "document-resolution"
-version = "0.1.0"
-description = "Unacronym product library (detector + heuristics)"
-optional = false
-python-versions = "^3.13"
-groups = ["main"]
-files = []
-develop = true
-
-[package.dependencies]
-numpy = "2.4.2"
-plainera-observability = {path = "../document_resolution_observability", develop = true}
-python-dotenv = "^1.0"
-SQLAlchemy = ">=2.0.43,<2.1"
-
-[package.source]
-type = "directory"
-url = "packages/document_resolution"
 
 [[package]]
 name = "platformdirs"
@@ -5279,36 +5309,6 @@ files = [
 markers = {main = "sys_platform == \"win32\""}
 
 [[package]]
-name = "document-resolution-api"
-version = "0.1.0"
-description = "Public API for Unacronym"
-optional = false
-python-versions = "^3.13"
-groups = ["main"]
-files = []
-develop = true
-
-[package.dependencies]
-alembic = ">=1.16.5,<2.0"
-argon2-cffi = "^25.1.0"
-fastapi = "^0.116.1"
-httpx = "^0.28.1"
-plainera-core = {path = "../../packages/document_resolution_core", develop = true}
-plainera-observability = {path = "../../packages/document_resolution_observability", develop = true, extras = ["fastapi"]}
-document-resolution = {path = "../../packages/document_resolution", develop = true}
-psycopg = {version = ">=3.2,<3.3", extras = ["binary"]}
-pydantic-settings = "^2.4.0"
-python-dotenv = "^1.0.1"
-SQLAlchemy = ">=2.0.43,<2.1"
-starlette = ">=0.40.0,<0.48.0"
-testcontainers = "^4.12.0"
-uvicorn = {version = "^0.30.0", extras = ["standard"]}
-
-[package.source]
-type = "directory"
-url = "services/document_resolution_api"
-
-[[package]]
 name = "uri-template"
 version = "1.3.0"
 description = "RFC 6570 URI Template Processor"
@@ -5789,4 +5789,4 @@ fastapi = ["fastapi"]
 [metadata]
 lock-version = "2.1"
 python-versions = "^3.13"
-content-hash = "995068f9a4e8b8d6ab3c16b7dcef0cfee98ea347816280b0a8a507afb1a8f653"
+content-hash = "aeb6c9f267af7f75be61098cf1335a6e43c643fac85b66d9ed945c36b2b9cb10"
