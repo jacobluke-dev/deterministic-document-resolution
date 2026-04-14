@@ -1,8 +1,7 @@
-# packages/document_resolution_core/pyproject.toml
 [tool.poetry]
-name = "plainera-core"
+name = "document-resolution-core"
 version = "0.1.0"
-description = "Plainera Core Package"
+description = "Document Resolution Core Package"
 authors = ["Jacob Bickerstaff"]
 
 packages = [{ include = "document_resolution_core", from = "src" }]
@@ -13,7 +12,7 @@ SQLAlchemy = ">=2.0.43,<2.1"
 python-dotenv = "^1.0"
 
 [tool.poetry.group.dev.dependencies]
-plainera-testkit = { path = "../plainera_testkit", develop = true }
+plainera-testkit = { path = "../testkit", develop = true }
 pytest = "^8.3.0"
 mypy = "^1.11.1"
 ruff = "^0.5.7"
