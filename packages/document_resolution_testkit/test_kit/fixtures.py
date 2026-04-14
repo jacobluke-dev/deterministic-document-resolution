@@ -52,7 +52,7 @@ def db_ready(TEST_DB_URL):
         return  # container branch or CI will be handled elsewhere
     import psycopg
     dsn = TEST_DB_URL.replace("+psycopg", "")
-    for _ in range(int(os.getenv("PLAINERA_TESTKIT_DB_WAIT_SECONDS", "10"))):
+    for _ in range(int(os.getenv("DOCUMENT_RESOLUTION_TESTKIT_DB_WAIT_SECONDS", "10"))):
         try:
             with psycopg.connect(dsn, connect_timeout=2) as conn:
                 with conn.cursor() as cur:
