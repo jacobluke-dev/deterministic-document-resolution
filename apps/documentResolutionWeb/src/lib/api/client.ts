@@ -10,7 +10,7 @@ export async function resolveText(
   const headers: Record<string, string> = {"content-type": "application/json"};
 
   if (apiKeyOverride?.trim()) {
-    headers["x-unacronym-api-key"] = apiKeyOverride.trim();
+    headers["x-document-resolution-api-key"] = apiKeyOverride.trim();
   }
 
   let resp: Response;

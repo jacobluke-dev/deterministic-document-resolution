@@ -30,7 +30,7 @@ export async function POST(req: Request) {
   const env = process.env.NEXT_PUBLIC_ENV ?? "local";
 
 // Optional per-request override from demo UI
-  const overrideKey = req.headers.get("x-unacronym-api-key") ?? undefined;
+  const overrideKey = req.headers.get("x-document-resolution-api-key") ?? undefined;
 
   const apiKey =
     env === "local" && overrideKey?.trim()
