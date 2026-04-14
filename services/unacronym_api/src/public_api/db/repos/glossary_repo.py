@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from plainera_core.db_manager.connection import DBManager
+from document_resolution_core.db_manager.connection import DBManager
 from sqlalchemy import func, select
 
 from public_api.db.models import GlossaryAcronym, GlossaryMeaning, GlossaryVariant

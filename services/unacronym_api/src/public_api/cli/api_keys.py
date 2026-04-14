@@ -35,7 +35,7 @@ from dataclasses import dataclass
 from datetime import datetime, timezone
 from typing import Literal
 
-from plainera_core.db_manager.factory import make_dbm
+from document_resolution_core.db_manager.factory import make_dbm
 from public_api.core.auth.api_keys import (
     generate_key,
     hash_secret,

@@ -1,4 +1,4 @@
-from plainera_core.utils.utils import find_project_root
+from document_resolution_core.utils.utils import find_project_root
 from pydantic import AnyUrl
 from pydantic_settings import BaseSettings
 

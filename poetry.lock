@@ -3056,7 +3056,7 @@ SQLAlchemy = ">=2.0.43,<2.1"
 
 [package.source]
 type = "directory"
-url = "packages/plainera_core"
+url = "packages/document_resolution_core"
 
 [[package]]
 name = "plainera-observability"
@@ -5293,7 +5293,7 @@ alembic = ">=1.16.5,<2.0"
 argon2-cffi = "^25.1.0"
 fastapi = "^0.116.1"
 httpx = "^0.28.1"
-plainera-core = {path = "../../packages/plainera_core", develop = true}
+plainera-core = {path = "../../packages/document_resolution_core", develop = true}
 plainera-observability = {path = "../../packages/plainera_observability", develop = true, extras = ["fastapi"]}
 plainera-unacronym = {path = "../../packages/plainera_unacronym", develop = true}
 psycopg = {version = ">=3.2,<3.3", extras = ["binary"]}

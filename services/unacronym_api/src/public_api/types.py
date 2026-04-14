@@ -5,7 +5,7 @@ from collections.abc import Awaitable, Callable, Iterable
 from typing import Annotated, Optional, Protocol, TypeAlias, TypedDict
 
 from fastapi import Header
-from plainera_core.db_manager.connection import DBManager
+from document_resolution_core.db_manager.connection import DBManager
 
 # --- Structural contracts (no core imports in annotations) -------------------
 

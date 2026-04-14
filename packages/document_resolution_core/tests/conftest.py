@@ -1,6 +1,6 @@
 import pytest
-from plainera_core.core.domain import DefinitionCandidate
-from plainera_core.core.services.resolver import AcronymResolver
+from document_resolution_core.core.domain import DefinitionCandidate
+from document_resolution_core.core.services.resolver import AcronymResolver
 
 # NOTE: Keep this import as `test_kit.*` (not `packages.*` / `plainera_testkit.*`).
 # It’s a shared fixture module and must be loaded locally because pytest rootdir changes under `make -C`.

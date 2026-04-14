@@ -4,7 +4,7 @@ from public_api.core.settings import db_settings
 from sqlalchemy import NullPool, create_engine
 from sqlalchemy.orm import Session, sessionmaker
 
-from plainera_core.db_manager.connection import DBManager
+from document_resolution_core.db_manager.connection import DBManager
 
 
 def make_dbm(url: Optional[str] = None, *, test_mode: bool = False) -> DBManager:

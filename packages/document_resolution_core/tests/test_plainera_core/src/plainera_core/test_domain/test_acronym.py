@@ -1,6 +1,6 @@
 import pytest
-from plainera_core.core.domain import Acronym, DefinitionCandidate
-from plainera_core.core.services.resolver import AcronymResolver
+from document_resolution_core.core.domain import Acronym, DefinitionCandidate
+from document_resolution_core.core.services.resolver import AcronymResolver
 
 
 @pytest.fixture

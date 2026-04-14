@@ -1,6 +1,6 @@
 from typing import Optional, cast
 
-from plainera_core.core.services.resolver import AcronymResolver
+from document_resolution_core.core.services.resolver import AcronymResolver
 
 from public_api.core.di.providers import AcronymResolverLike, default_lookup
 from public_api.types import LookupFunc

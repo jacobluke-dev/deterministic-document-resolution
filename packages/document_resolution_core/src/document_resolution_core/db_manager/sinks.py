@@ -8,7 +8,7 @@ from sqlalchemy import create_engine, insert
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 from sqlalchemy.orm import sessionmaker
 
-from plainera_core.db_manager.config import MapperFn
+from document_resolution_core.db_manager.config import MapperFn
 
 # ---- Protocol ---------------------------------------------------------------
 

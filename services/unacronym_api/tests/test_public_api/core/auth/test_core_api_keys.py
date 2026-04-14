@@ -5,7 +5,7 @@ from datetime import UTC, datetime, timedelta
 
 import public_api.core.auth.api_keys as auth_mod
 import pytest
-from plainera_core.db_manager.connection import DBManager
+from document_resolution_core.db_manager.connection import DBManager
 from public_api.core.auth.api_keys import parse_api_key
 from public_api.db.models import ApiKey
 

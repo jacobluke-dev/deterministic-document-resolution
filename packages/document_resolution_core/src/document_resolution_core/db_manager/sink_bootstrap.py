@@ -1,8 +1,8 @@
 import os
 
-from plainera_core.db_manager.sessions import make_async_session_maker, to_asyncpg
-from plainera_core.db_manager.sink_factory import make_universal_sink
-from plainera_core.db_manager.sinks import UniversalSink
+from document_resolution_core.db_manager.sessions import make_async_session_maker, to_asyncpg
+from document_resolution_core.db_manager.sink_factory import make_universal_sink
+from document_resolution_core.db_manager.sinks import UniversalSink
 
 
 def build_sink_from_env(name: str) -> UniversalSink:

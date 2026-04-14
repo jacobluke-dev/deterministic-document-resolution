@@ -5,7 +5,7 @@ from types import SimpleNamespace
 from unittest import mock
 
 import pytest
-from plainera_core.db_manager.connection import DBManager
+from document_resolution_core.db_manager.connection import DBManager
 
 
 class TestSessionAndDDL:

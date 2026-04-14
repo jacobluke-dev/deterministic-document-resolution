@@ -36,7 +36,7 @@ COPY packages /app/packages
 
 # 3) install requirements (3rd party)
 RUN pip install --no-cache-dir -r requirements.txt \
-    && pip install --no-cache-dir --no-deps -e /app/packages/plainera_core \
+    && pip install --no-cache-dir --no-deps -e /app/packages/document_resolution_core \
     && pip install --no-cache-dir --no-deps -e /app/packages/plainera_observability \
     && pip install --no-cache-dir --no-deps -e /app/packages/plainera_unacronym
 

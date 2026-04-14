@@ -1,8 +1,8 @@
 from datetime import datetime, timedelta, timezone
 
-import plainera_core.db_manager.mappers as mod
+import document_resolution_core.db_manager.mappers as mod
 import pytest
-from plainera_core.db_manager.mappers import (
+from document_resolution_core.db_manager.mappers import (
     _CODE_TO_LEVEL_NAME,
     _LEVEL_NAME_TO_CODE,
     _level_name,

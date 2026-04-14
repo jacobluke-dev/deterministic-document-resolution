@@ -1,10 +1,8 @@
-# plainera-core
-
-Framework-agnostic core library for Unacronym (Plainera). **No HTTP/DB/cloud deps.**
+Framework-agnostic core library for document_resolution. **No HTTP/DB/cloud deps.**
 
 ## Install
 ```bash
-cd packages/plainera_core
+cd packages/document_resolution_core
 poetry install
 pre-commit install
 pre-commit install -t pre-push

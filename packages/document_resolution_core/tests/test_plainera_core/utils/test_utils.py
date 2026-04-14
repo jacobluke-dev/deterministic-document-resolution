@@ -1,9 +1,9 @@
 from pathlib import Path
 from unittest import mock
 
-import plainera_core.utils.utils as utils
+import document_resolution_core.utils.utils as utils
 import pytest
-from plainera_core.utils.utils import (
+from document_resolution_core.utils.utils import (
     find_project_root,
     get_environment,
     get_project_path,
@@ -181,7 +181,7 @@ class TestFindProjectRoot:
 class TestGetProjectPath:
     @pytest.fixture
     def mock_project_root(self):
-        with mock.patch('plainera_core.utils.utils.find_project_root') as mock_root:
+        with mock.patch('document_resolution_core.utils.utils.find_project_root') as mock_root:
             mock_root.return_value = '/home/user/project'
             yield mock_root
 

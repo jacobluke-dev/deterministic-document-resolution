@@ -4,7 +4,7 @@ from datetime import UTC, datetime
 from types import SimpleNamespace
 
 import pytest
-from plainera_core.db_manager.connection import DBManager
+from document_resolution_core.db_manager.connection import DBManager
 from public_api.core.di.deps_auth import require_api_key
 from public_api.core.services.api_abuse_protection import (
     ApiAbuseProtectionService,

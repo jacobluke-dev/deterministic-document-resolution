@@ -1,4 +1,4 @@
-from plainera_core.core.domain import DefinitionCandidate
+from document_resolution_core.core.domain import DefinitionCandidate
 
 
 class TestAcronymFunctions:

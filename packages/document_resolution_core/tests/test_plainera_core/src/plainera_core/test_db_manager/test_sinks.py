@@ -2,9 +2,9 @@ import types
 from unittest import mock
 from unittest.mock import AsyncMock, Mock
 
-import plainera_core.db_manager.sinks as sinks_mod
+import document_resolution_core.db_manager.sinks as sinks_mod
 import pytest
-from plainera_core.db_manager.sinks import (
+from document_resolution_core.db_manager.sinks import (
     CompositeSink,
     RouterSink,
     SqlAlchemyModelSink,
@@ -78,7 +78,7 @@ class TestSqlAlchemyModelSink:
         # mapper should be called with payload and return mapped row
         mapper = mock.Mock(return_value=mapped)
 
-        monkeypatch.setattr("plainera_core.db_manager.sinks.insert", _InsertStub)
+        monkeypatch.setattr("document_resolution_core.db_manager.sinks.insert", _InsertStub)
 
         class Model:  # sentinel
             pass

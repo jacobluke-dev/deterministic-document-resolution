@@ -1,7 +1,7 @@
 from collections.abc import Callable, Iterable
 from typing import Protocol, runtime_checkable
 
-from plainera_core.core.domain import DefinitionCandidate
+from document_resolution_core.core.domain import DefinitionCandidate
 
 from public_api.types import ResolveReturn
 

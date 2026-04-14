@@ -8,8 +8,8 @@ from alembic.config import Config
 from sqlalchemy import create_engine, event
 from sqlalchemy.orm import sessionmaker
 from public_api.core.settings import db_settings
-from plainera_core.db_manager.connection import DBManager
-from plainera_core.utils.utils import get_project_path
+from document_resolution_core.db_manager.connection import DBManager
+from document_resolution_core.utils.utils import get_project_path
 
 def _normalize(url: str) -> str:
     return url.replace("postgresql+psycopg2://", "postgresql+psycopg://")

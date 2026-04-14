@@ -8,7 +8,7 @@ else:
     # runtime-compatible fallback so we don't need FastAPI or the service package installed
     DefinitionCandidateLike = Mapping[str, Any]
 
-from plainera_core.core.domain import Acronym
+from document_resolution_core.core.domain import Acronym
 
 
 class AcronymResolver:

@@ -1,11 +1,11 @@
-# packages/plainera_core/pyproject.toml
+# packages/document_resolution_core/pyproject.toml
 [tool.poetry]
 name = "plainera-core"
 version = "0.1.0"
 description = "Plainera Core Package"
 authors = ["Jacob Bickerstaff"]
 
-packages = [{ include = "plainera_core", from = "src" }]
+packages = [{ include = "document_resolution_core", from = "src" }]
 
 [tool.poetry.dependencies]
 python = "^3.13"

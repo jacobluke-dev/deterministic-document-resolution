@@ -2,7 +2,7 @@ import os, uuid
 from sqlalchemy import create_engine, text
 from sqlalchemy.orm import sessionmaker
 
-from plainera_core.db_manager.connection import DBManager
+from document_resolution_core.db_manager.connection import DBManager
 
 
 def _base_url() -> str:

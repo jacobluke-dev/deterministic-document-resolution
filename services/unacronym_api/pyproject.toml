@@ -6,7 +6,7 @@ authors = ["Jacob Bickerstaff"]
 packages = [{ include = "public_api", from = "src" }]
 
 [tool.poetry.dependencies]
-plainera-core = { path = "../../packages/plainera_core", develop = true }
+plainera-core = { path = "../../packages/document_resolution_core", develop = true }
 plainera-observability = { path = "../../packages/plainera_observability", develop = true, extras = ["fastapi"] }
 plainera-unacronym = { path = "../../packages/plainera_unacronym", develop=true }
 python = "^3.13"

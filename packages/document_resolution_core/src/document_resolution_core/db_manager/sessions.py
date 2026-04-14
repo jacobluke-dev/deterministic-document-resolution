@@ -32,16 +32,16 @@ def to_asyncpg(url: str) -> str:
 
 
 def make_async_session_maker(url: str) -> async_sessionmaker[AsyncSession]:
-    """Create an ``AsyncSession`` factory for the Unacronym database.
+    """Create an ``AsyncSession`` factory for the document_resolution database.
 
     This builds a SQLAlchemy async engine using ``asyncpg``-compatible settings
     and returns an ``async_sessionmaker`` configured with
     ``expire_on_commit=False``. The engine enables connection liveness checks
     via ``pool_pre_ping`` and sets the PostgreSQL ``search_path`` to the
-    ``unacronym`` schema at connection time.
+    ``document_resolution`` schema at connection time.
 
     Note:
-      ``connect_args={"server_settings": {"search_path": "unacronym"}}`` is
+      ``connect_args={"server_settings": {"search_path": "document_resolution"}}`` is
       specific to the ``asyncpg`` driver. Callers should ensure the supplied
       URL is already using ``postgresql+asyncpg://`` or is normalised before
       engine creation.
@@ -56,6 +56,6 @@ def make_async_session_maker(url: str) -> async_sessionmaker[AsyncSession]:
     engine = create_async_engine(
         url,
         pool_pre_ping=True,
-        connect_args={"server_settings": {"search_path": "unacronym"}},  # asyncpg only
+        connect_args={"server_settings": {"search_path": "document_resolution"}},  # asyncpg only
     )
     return async_sessionmaker(engine, expire_on_commit=False)

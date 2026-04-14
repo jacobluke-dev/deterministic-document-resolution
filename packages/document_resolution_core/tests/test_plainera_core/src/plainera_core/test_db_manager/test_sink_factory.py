@@ -2,7 +2,7 @@ import types
 from collections import defaultdict
 from typing import Any, DefaultDict, Optional, TypedDict
 
-import plainera_core.db_manager.sink_factory as sink_f
+import document_resolution_core.db_manager.sink_factory as sink_f
 import pytest
 
 

@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from alembic.config import Config
 from alembic.script import ScriptDirectory
-from plainera_core.utils.utils import get_project_path
+from document_resolution_core.utils.utils import get_project_path
 from sqlalchemy import text
 from sqlalchemy.engine import Engine
 

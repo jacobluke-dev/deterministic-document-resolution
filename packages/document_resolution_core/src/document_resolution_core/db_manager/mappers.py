@@ -4,7 +4,7 @@ from typing import Any
 
 from sqlalchemy import inspect as sqla_inspect
 
-from plainera_core.db_manager.config import MapperFn
+from document_resolution_core.db_manager.config import MapperFn
 
 _LEVEL_NAME_TO_CODE = {"debug": 10, "info": 20, "warning": 30, "error": 40, "critical": 50}
 _CODE_TO_LEVEL_NAME = {v: k for k, v in _LEVEL_NAME_TO_CODE.items()}

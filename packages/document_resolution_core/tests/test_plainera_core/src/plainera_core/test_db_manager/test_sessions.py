@@ -1,6 +1,6 @@
 from unittest import mock
 
-import plainera_core.db_manager.sessions as sessions
+import document_resolution_core.db_manager.sessions as sessions
 
 
 class TestMakeAsyncSessionmaker:
@@ -24,7 +24,7 @@ class TestMakeAsyncSessionmaker:
         args, kwargs = m_create_async_engine.call_args
         assert args == (url,)
         assert kwargs["pool_pre_ping"] is True
-        assert kwargs["connect_args"] == {"server_settings": {"search_path": "unacronym"}}
+        assert kwargs["connect_args"] == {"server_settings": {"search_path": "document_resolution"}}
 
         # async_sessionmaker called with correct engine and config
         m_async_sessionmaker.assert_called_once_with(fake_engine, expire_on_commit=False)

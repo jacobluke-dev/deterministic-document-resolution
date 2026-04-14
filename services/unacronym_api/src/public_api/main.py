@@ -9,7 +9,7 @@ from fastapi.exceptions import RequestValidationError
 from observability.http.body_limit import BodySizeLimitMiddleware
 from observability.http.request_id import RequestIDMiddleware
 from observability.logger.access_middleware import access_middleware
-from plainera_core.db_manager.factory import make_dbm
+from document_resolution_core.db_manager.factory import make_dbm
 from plainera_unacronym.nlp.extraction.tiers.semantic import _load_st_model
 from sqlalchemy.engine import Engine
 from starlette.exceptions import HTTPException

@@ -6,7 +6,7 @@ from functools import lru_cache
 from typing import Annotated, Any
 
 from fastapi import Depends, Request
-from plainera_core.db_manager.connection import DBManager
+from document_resolution_core.db_manager.connection import DBManager
 from plainera_unacronym.orchestration import PipelineRegistry
 from plainera_unacronym.wiring.composition import build_pipeline_registry
 from sqlalchemy.orm import Session

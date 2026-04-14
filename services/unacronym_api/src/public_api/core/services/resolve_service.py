@@ -68,7 +68,7 @@ def _lang_from_locale(locale: str) -> str:
     return (locale.split("-", 1)[0] or "en").lower()
 
 
-def _plainera_core_version() -> str:
+def _document_resolution_core_version() -> str:
     """Return a human-readable version string for the Plainera core package.
 
     The function tries known distribution names in order and falls back to a
@@ -76,15 +76,15 @@ def _plainera_core_version() -> str:
 
     Returns:
       Version string in the format ``<distribution>@<version>``, or
-      ``"plainera-core@dev"`` if the installed package version cannot be
+      ``"document_resolution_core@dev"`` if the installed package version cannot be
       determined.
     """
-    for dist_name in ("plainera-core", "plainera_core"):
+    for dist_name in ("document_resolution_core", "document_resolution_core"):
         try:
             return f"{dist_name}@{metadata.version(dist_name)}"
         except Exception:
             continue
-    return "plainera-core@dev"
+    return "document_resolution_core@dev"
 
 
 class ResolveService:
@@ -176,7 +176,7 @@ class ResolveService:
                 **sections,
                 "meta": {
                     "processing_ms": processing_ms,
-                    "model_version": _plainera_core_version(),
+                    "model_version": _document_resolution_core_version(),
                     "input_chars": len(text),
                     "resolution_mode": resolution_mode,
                 },

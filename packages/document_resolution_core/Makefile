@@ -1,6 +1,7 @@
 SHELL := /usr/bin/env bash
 export PATH := $(HOME)/.local/bin:$(PATH)
 RUN ?= python -m
+PKG := document_resolution_core
 SRC := src
 TESTS := tests
 COV_FAIL_UNDER ?= 80
@@ -25,15 +26,12 @@ style:
 	$(RUN) ruff check $(SRC) $(TESTS)
 
 typecheck:
-	ROOT=$$(git rev-parse --show-toplevel); \
-	PYTHONPATH=$$ROOT/services/unacronym_api/src:src $(RUN) mypy $(SRC)
+	$(RUN) mypy -p $(PKG)
 
 test:
-	@set -e; \
-	ROOT=$$(git rev-parse --show-toplevel); \
-	PYTHONPATH="$$ROOT/services/unacronym_api/src:src" $(RUN) pytest -q \
-	  --override-ini="addopts=-q --cov=src --cov-report=term --cov-report=xml:coverage.xml --cov-fail-under=$(COV_FAIL_UNDER)" \
-	  tests
+	# keep coverage by import name (not src path)
+	$(RUN) pytest -q --override-ini="addopts=-q --cov=$(PKG) --cov-report=term --cov-report=xml:coverage.xml --cov-fail-under=$(COV_FAIL_UNDER)" tests
+
 
 cover:
 	$(RUN) pytest --cov=$(SRC) --cov-report=term --cov-report=xml --cov-fail-under=$(COVER_FAIL_UNDER)

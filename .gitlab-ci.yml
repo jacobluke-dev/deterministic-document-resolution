@@ -60,10 +60,10 @@ core:
   rules:
     - if: $CI_PIPELINE_SOURCE == "merge_request_event"
       changes:
-        - packages/plainera_core/**/*
+        - packages/document_resolution_core/**/*
     - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
       changes:
-        - packages/plainera_core/**/*
+        - packages/document_resolution_core/**/*
         - poetry.lock
         - pyproject.toml
         - .gitlab-ci.yml
@@ -89,17 +89,17 @@ core:
               time.sleep(1)
       print("DB not ready in time", file=sys.stderr); sys.exit(2)
       PY
-    - make -C packages/plainera_core lint      RUN="$VENV_BIN/python -m"
-    - make -C packages/plainera_core typecheck RUN="$VENV_BIN/python -m"
-    - make -C packages/plainera_core test      RUN="$VENV_BIN/python -m"
+    - make -C packages/document_resolution_core lint      RUN="$VENV_BIN/python -m"
+    - make -C packages/document_resolution_core typecheck RUN="$VENV_BIN/python -m"
+    - make -C packages/document_resolution_core test      RUN="$VENV_BIN/python -m"
   artifacts:
     when: always
     paths:
-      - packages/plainera_core/coverage.xml
+      - packages/document_resolution_core/coverage.xml
     reports:
       coverage_report:
         coverage_format: cobertura
-        path: packages/plainera_core/coverage.xml
+        path: packages/document_resolution_core/coverage.xml
     expire_in: 1 week
 
 unacronym:
@@ -285,13 +285,13 @@ api:
     - if: $CI_PIPELINE_SOURCE == "merge_request_event"
       changes:
         - services/unacronym_api/**/*
-        - packages/plainera_core/**/*
+        - packages/document_resolution_core/**/*
         - packages/plainera_observability/**/*
         - packages/plainera_testkit/**/*
     - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
       changes:
         - services/unacronym_api/**/*
-        - packages/plainera_core/**/*
+        - packages/document_resolution_core/**/*
         - packages/plainera_observability/**/*
         - packages/plainera_testkit/**/*
     - when: never

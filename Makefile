@@ -9,7 +9,7 @@ COV_FAIL_UNDER ?= 80
 
 # Submodules and steps
 PY_SUBDIRS := \
-    packages/plainera_core \
+    packages/document_resolution_core \
     packages/plainera_observability \
     packages/plainera_rag_demo \
     packages/plainera_unacronym \
@@ -171,14 +171,14 @@ env-%:
 # Lock all submodules
 lock-all:
 	$(MAKE) -C packages/plainera_observability lock
-	$(MAKE) -C packages/plainera_core lock
+	$(MAKE) -C packages/document_resolution_core lock
 	$(MAKE) -C services/unacronym_api lock
 
 # Check dependencies across all submodules
 deps-check:
 	$(PYTHON) tools/check_deps.py \
 	  packages/plainera_observability/pyproject.toml \
-	  packages/plainera_core/pyproject.toml \
+	  packages/document_resolution_core/pyproject.toml \
 	  services/unacronym_api/pyproject.toml
 
 update_snapshots:
