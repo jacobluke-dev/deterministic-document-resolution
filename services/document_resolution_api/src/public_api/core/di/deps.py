@@ -5,10 +5,10 @@ from collections.abc import Iterator
 from functools import lru_cache
 from typing import Annotated, Any
 
-from fastapi import Depends, Request
-from document_resolution_core.db_manager.connection import DBManager
 from document_resolution.orchestration import PipelineRegistry
 from document_resolution.wiring.composition import build_pipeline_registry
+from document_resolution_core.db_manager.connection import DBManager
+from fastapi import Depends, Request
 from sqlalchemy.orm import Session
 
 from public_api.core.di.factory import create_resolver

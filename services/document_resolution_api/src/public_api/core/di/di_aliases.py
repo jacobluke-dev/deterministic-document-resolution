@@ -1,8 +1,8 @@
 from asyncio import Semaphore
 from typing import Annotated, TypeAlias
 
-from fastapi import Depends
 from document_resolution_core.db_manager.connection import DBManager
+from fastapi import Depends
 
 from public_api.core.di import deps
 

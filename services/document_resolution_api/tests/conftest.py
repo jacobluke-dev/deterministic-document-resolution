@@ -11,8 +11,8 @@ import pytest
 import pytest_asyncio
 from alembic import command
 from alembic.config import Config
-from httpx import ASGITransport, AsyncClient
 from document_resolution_core.utils.utils import find_project_root, get_project_path
+from httpx import ASGITransport, AsyncClient
 from public_api.core.di import deps
 from public_api.core.settings import AppSettings, db_settings
 from public_api.main import create_app

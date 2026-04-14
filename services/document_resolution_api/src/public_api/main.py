@@ -4,13 +4,13 @@ from contextlib import AbstractContextManager, asynccontextmanager
 from types import TracebackType
 from typing import Any, AsyncGenerator, Literal
 
+from document_resolution.nlp.extraction.tiers.semantic import _load_st_model
+from document_resolution_core.db_manager.factory import make_dbm
 from fastapi import FastAPI
 from fastapi.exceptions import RequestValidationError
 from observability.http.body_limit import BodySizeLimitMiddleware
 from observability.http.request_id import RequestIDMiddleware
 from observability.logger.access_middleware import access_middleware
-from document_resolution_core.db_manager.factory import make_dbm
-from document_resolution.nlp.extraction.tiers.semantic import _load_st_model
 from sqlalchemy.engine import Engine
 from starlette.exceptions import HTTPException
 from starlette.middleware.cors import CORSMiddleware

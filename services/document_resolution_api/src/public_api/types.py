@@ -4,8 +4,8 @@ from __future__ import annotations
 from collections.abc import Awaitable, Callable, Iterable
 from typing import Annotated, Optional, Protocol, TypeAlias, TypedDict
 
-from fastapi import Header
 from document_resolution_core.db_manager.connection import DBManager
+from fastapi import Header
 
 # --- Structural contracts (no core imports in annotations) -------------------
 

@@ -7,7 +7,6 @@ from dataclasses import dataclass
 from typing import Any
 
 import anyio
-from fastapi import status
 from document_resolution.nlp.common.types import AcronymPipelineResult
 from document_resolution.orchestration import PipelineRegistry
 from document_resolution.orchestration.interface import (
@@ -16,6 +15,7 @@ from document_resolution.orchestration.interface import (
     PipelineRequest,
     PipelineRunResult,
 )
+from fastapi import status
 
 from public_api.core.errors import ResolveError
 from public_api.schemas.error import ErrorCode

@@ -4,7 +4,10 @@ from document_resolution.nlp.common.types import AcronymDetectorConfig
 from document_resolution.nlp.detection.acronym.compiler import compile_acronym_pattern
 from document_resolution.nlp.detection.acronym.detector import AcronymDetector
 from document_resolution.nlp.detection.domains import LegalPlugin
-from document_resolution.nlp.detection.domains.legal.config import LEGAL_CONTRACT_SUBJECT_SHALL_RE, LEGAL_QUOTED_MEANS_RE
+from document_resolution.nlp.detection.domains.legal.config import (
+    LEGAL_CONTRACT_SUBJECT_SHALL_RE,
+    LEGAL_QUOTED_MEANS_RE,
+)
 from document_resolution.nlp.detection.domains.legal.legal_gate import should_enable_legal
 from document_resolution.nlp.detection.heuristics.core import iter_acronym_candidates
 from document_resolution.nlp.plugins.activation import autodetect_domains

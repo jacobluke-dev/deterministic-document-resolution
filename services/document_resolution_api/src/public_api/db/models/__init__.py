@@ -1,5 +1,5 @@
-from observability.db.models.base import Base, BaseWithTimestamps
 from document_resolution.db.models.logger import PackageLogger
+from observability.db.models.base import Base, BaseWithTimestamps
 
 from .api_key import ApiKey
 from .api_usage_daily import ApiUsageDaily

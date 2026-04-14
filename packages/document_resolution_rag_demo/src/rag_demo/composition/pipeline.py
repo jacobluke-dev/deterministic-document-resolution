@@ -1,8 +1,6 @@
 from __future__ import annotations
 
 from openai import OpenAI
-
-
 from public_api.core.services.resolve_service import ResolveService
 
 from rag_demo.agentic.orchestrator import SingleAgentEvidenceOrchestrator

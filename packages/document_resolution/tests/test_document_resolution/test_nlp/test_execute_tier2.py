@@ -6,8 +6,8 @@ from collections.abc import Iterable
 from dataclasses import asdict, replace
 from typing import Any, Literal
 
-import numpy as np
 import document_resolution.nlp.extraction.tiers.tier_2 as t2
+import numpy as np
 from _pytest.python_api import approx
 from document_resolution.nlp.common.types import (
     AcronymMeaning,

@@ -1,7 +1,6 @@
 from document_resolution.nlp.common.types import DefinedTermDetectorConfig
 from document_resolution.nlp.extraction.defined_terms.execute import detect_and_resolve_terms
-
-from tests.test_document_resolution.test_nlp.defined_terms.e2e.defined_terms_e2e_common import (
+from test_document_resolution.test_nlp.defined_terms.e2e.defined_terms_e2e_common import (
     meaning_by_id,
     resolutions_for_key,
 )

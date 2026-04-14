@@ -7,9 +7,7 @@ from typing import Annotated, Any
 import anyio
 from fastapi import Depends, Header, HTTPException
 from observability.logger.levels import LogLevel
-
 from observability.logger.message_logger import message_logger
-
 from wiring.composition import sink
 
 from public_api.cli.api_keys import parse_hash_scheme
@@ -18,6 +16,7 @@ from public_api.core.di.deps import get_dbm
 from public_api.core.di.deps_settings import get_settings
 from public_api.core.services.api_abuse_protection import ApiAbuseProtectionService
 from public_api.core.settings import AppSettings
+
 
 def _unauthenticated_exc() -> HTTPException:
     return HTTPException(status_code=401, detail="UNAUTHENTICATED")

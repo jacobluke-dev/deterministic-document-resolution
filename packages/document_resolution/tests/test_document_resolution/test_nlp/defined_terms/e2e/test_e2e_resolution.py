@@ -13,8 +13,7 @@ from document_resolution.nlp.extraction.defined_terms.types import (
     TermResolution,
     TermTier1OccurrenceRanking,
 )
-
-from tests.test_document_resolution.test_nlp.defined_terms.e2e.defined_terms_e2e_common import (
+from test_document_resolution.test_nlp.defined_terms.e2e.defined_terms_e2e_common import (
     chosen_meaning_ids_for_key,
     meaning_text_by_id,
     resolutions_for_key,

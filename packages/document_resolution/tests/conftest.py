@@ -1,12 +1,12 @@
 from collections.abc import Callable
 from dataclasses import replace
 
-import numpy as np
 import document_resolution.nlp.detection.acronym.detector as acr_det
 import document_resolution.nlp.detection.structural.detector as struct_det
 import document_resolution.nlp.extraction.acronyms.engine.stage_funcs as acr_stage_funcs
 import document_resolution.nlp.extraction.defined_terms.stage_funcs as def_stage_funcs
 import document_resolution.nlp.extraction.structural.stage_funcs as struct_stage_funcs
+import numpy as np
 import pytest
 from document_resolution.nlp.common.shared import normalize_acronym_key
 from document_resolution.nlp.common.types import (

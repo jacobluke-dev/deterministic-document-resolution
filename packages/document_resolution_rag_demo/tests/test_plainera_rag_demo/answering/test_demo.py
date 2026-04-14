@@ -3,10 +3,10 @@ from __future__ import annotations
 from typing import Sequence
 
 import pytest
+from public_api.schemas.resolve import ResolveRequest
 from rag_demo.agentic.orchestrator import SingleAgentEvidenceOrchestrator
 from rag_demo.common import DemoDocument
 from rag_demo.pipelines.grounded import GroundedRagPipeline, ResolveBackedGroundingStage
-from public_api.schemas.resolve import ResolveRequest
 
 
 class _FakeResolveResponse:

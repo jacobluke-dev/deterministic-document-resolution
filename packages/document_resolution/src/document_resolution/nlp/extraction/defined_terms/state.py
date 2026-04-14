@@ -7,7 +7,11 @@ from document_resolution.nlp.detection.defined_terms import DefinedTermDetectorR
 from document_resolution.nlp.extraction.defined_terms.config import DefinedTermExtractionConfig
 from document_resolution.nlp.extraction.defined_terms.structure import TermStructureIndex
 from document_resolution.nlp.extraction.defined_terms.tiers.work import TermTier1Work, TermTier2Work
-from document_resolution.nlp.extraction.defined_terms.types import TermDefinitionEntry, TermMeaning, TermResolutionResult
+from document_resolution.nlp.extraction.defined_terms.types import (
+    TermDefinitionEntry,
+    TermMeaning,
+    TermResolutionResult,
+)
 
 
 @dataclass

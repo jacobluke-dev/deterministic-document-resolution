@@ -17,7 +17,6 @@ import time
 from importlib import metadata
 from typing import Any
 
-from fastapi import status
 from document_resolution.orchestration import (
     PIPELINE_ACRONYMS,
     PIPELINE_DEFINED_TERMS,
@@ -26,6 +25,7 @@ from document_resolution.orchestration import (
     PipelineRegistry,
 )
 from document_resolution.orchestration.state import OrchestrationState
+from fastapi import status
 
 from public_api.core.errors import ResolveError
 from public_api.core.orchestration import Orchestrator
