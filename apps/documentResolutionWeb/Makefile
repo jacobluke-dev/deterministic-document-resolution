@@ -36,4 +36,4 @@ build:
 	pnpm build
 
 ci-local: install lint typecheck test build
-	@echo "✅ unacronym-web OK"
+	@echo "✅ documentResolutionWeb OK"

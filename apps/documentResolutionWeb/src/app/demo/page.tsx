@@ -16,8 +16,8 @@ import FormTextarea from "@/components/form/FormTextArea";
 import {ResolveRow, toResolveRows} from "@/lib/api/mapper";
 import {isResolveClientError} from "@/utils/errors";
 
-const LS_KEY = "unacronym.demo.text";
-const LS_REMEMBER = "unacronym.demo.remember";
+const LS_KEY = "documentResolutionWeb.demo.text";
+const LS_REMEMBER = "documentResolutionWeb.demo.remember";
 
 
 export default function DemoPage() {
