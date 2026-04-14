@@ -11,11 +11,11 @@ COV_FAIL_UNDER ?= 80
 PY_SUBDIRS := \
     packages/document_resolution_core \
     packages/document_resolution_observability \
-    packages/plainera_rag_demo \
+    packages/document_resolution_rag_demo \
     packages/document_resolution \
     services/document_resolution_api
 
-APP_SUBDIRS := apps/unacronym-web
+APP_SUBDIRS := apps/documentResolutionWeb
 
 STEPS := install lint typecheck test build
 

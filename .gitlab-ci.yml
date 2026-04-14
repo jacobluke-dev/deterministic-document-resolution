@@ -53,9 +53,9 @@ core:
     PIP_DISABLE_PIP_VERSION_CHECK: "1"
     POETRY_VIRTUALENVS_IN_PROJECT: "true"
     # Point tests at the job-local DB so testcontainers is NOT used
-    TEST_DB_URL: "postgresql+psycopg://unacronym:test-password@db:5432/unacronym"
-    POSTGRES_DB: "unacronym"
-    POSTGRES_USER: "unacronym"
+    TEST_DB_URL: "postgresql+psycopg://document_resolution:test-password@db:5432/document_resolution"
+    POSTGRES_DB: "document_resolution"
+    POSTGRES_USER: "document_resolution"
     POSTGRES_PASSWORD: "test-password"
   rules:
     - if: $CI_PIPELINE_SOURCE == "merge_request_event"
@@ -102,7 +102,7 @@ core:
         path: packages/document_resolution_core/coverage.xml
     expire_in: 1 week
 
-unacronym:
+document_resolution:
   stage: core
   image: python:3.13
   services:
@@ -114,13 +114,13 @@ unacronym:
     POETRY_VIRTUALENVS_IN_PROJECT: "true"
     PIP_DISABLE_PIP_VERSION_CHECK: "1"
     # Single source for DB; use it for sync
-    TEST_DB_URL: "postgresql+psycopg://unacronym:test-password@db:5432/unacronym"
-    POSTGRES_DB: "unacronym"
-    POSTGRES_USER: "unacronym"
+    TEST_DB_URL: "postgresql+psycopg://document_resolution:test-password@db:5432/document_resolution"
+    POSTGRES_DB: "document_resolution"
+    POSTGRES_USER: "document_resolution"
     POSTGRES_PASSWORD: "test-password"
     # What composition.py expects:
     DATABASE_URL_SYNC: "$TEST_DB_URL"
-    DATABASE_URL: "postgresql+asyncpg://unacronym:test-password@db:5432/unacronym"
+    DATABASE_URL: "postgresql+asyncpg://document_resolution:test-password@db:5432/document_resolution"
   rules:
     - if: $CI_PIPELINE_SOURCE == "merge_request_event"
       changes:
@@ -177,13 +177,13 @@ rag_demo:
     POETRY_VIRTUALENVS_IN_PROJECT: "true"
     PIP_DISABLE_PIP_VERSION_CHECK: "1"
     # Single source for DB; use it for sync
-    TEST_DB_URL: "postgresql+psycopg://unacronym:test-password@db:5432/unacronym"
-    POSTGRES_DB: "unacronym"
-    POSTGRES_USER: "unacronym"
+    TEST_DB_URL: "postgresql+psycopg://document_resolution:test-password@db:5432/document_resolution"
+    POSTGRES_DB: "document_resolution"
+    POSTGRES_USER: "document_resolution"
     POSTGRES_PASSWORD: "test-password"
     # What composition.py expects:
     DATABASE_URL_SYNC: "$TEST_DB_URL"
-    DATABASE_URL: "postgresql+asyncpg://unacronym:test-password@db:5432/unacronym"
+    DATABASE_URL: "postgresql+asyncpg://document_resolution:test-password@db:5432/document_resolution"
   rules:
     - if: $CI_PIPELINE_SOURCE == "merge_request_event"
       changes:
@@ -263,19 +263,19 @@ api:
       alias: db
       command: [ "postgres", "-c", "log_statement=none" ]
   variables:
-      POSTGRES_DB: "unacronym"
-      POSTGRES_USER: "unacronym"
+      POSTGRES_DB: "document_resolution"
+      POSTGRES_USER: "document_resolution"
       POSTGRES_PASSWORD: "test-password"
 
       # Alembic must use sync URL
-      DATABASE_URL: "postgresql+psycopg://unacronym:test-password@db:5432/unacronym"
+      DATABASE_URL: "postgresql+psycopg://document_resolution:test-password@db:5432/document_resolution"
 
       # For packages that insist on both being present
-      DATABASE_URL_SYNC: "postgresql+psycopg://unacronym:test-password@db:5432/unacronym"
-      TEST_DB_URL: "postgresql+psycopg://unacronym:test-password@db:5432/unacronym"
+      DATABASE_URL_SYNC: "postgresql+psycopg://document_resolution:test-password@db:5432/document_resolution"
+      TEST_DB_URL: "postgresql+psycopg://document_resolution:test-password@db:5432/document_resolution"
 
       # Optional: if your app/tests want an async URL, provide it separately
-      DATABASE_URL_ASYNC: "postgresql+asyncpg://unacronym:test-password@db:5432/unacronym"
+      DATABASE_URL_ASYNC: "postgresql+asyncpg://document_resolution:test-password@db:5432/document_resolution"
 
       APP_ENV: "test"
       DATABASE_DISABLED: "false"
@@ -335,13 +335,13 @@ web:
   rules:
     - if: $CI_PIPELINE_SOURCE == "merge_request_event"
       changes:
-        - apps/unacronym-web/**/*
+        - apps/documentResolutionWeb/**/*
         - pnpm-lock.yaml
         - pnpm-workspace.yaml
         - package.json
     - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
       changes:
-        - apps/unacronym-web/**/*
+        - apps/documentResolutionWeb/**/*
         - pnpm-lock.yaml
         - pnpm-workspace.yaml
         - package.json
@@ -349,7 +349,7 @@ web:
   variables:
     NODE_ENV: "production"
     # Build-time public env required by your build validation:
-    NEXT_PUBLIC_API_BASE_URL: "http://api.unacronym.dev"  # or staging URL
+    NEXT_PUBLIC_API_BASE_URL: "http://api.document_resolution.dev"  # or staging URL
     NEXT_PUBLIC_ENV: "staging"
     NEXT_PUBLIC_ENABLE_ANALYTICS: "false"
   before_script:
@@ -358,8 +358,8 @@ web:
     - pnpm --version
     - pnpm config set store-dir "$PNPM_STORE_DIR"
   script:
-    - pnpm -C apps/unacronym-web install --frozen-lockfile
-    - pnpm -C apps/unacronym-web lint
-    - pnpm -C apps/unacronym-web exec tsc -p tsconfig.json --noEmit
-    - pnpm -C apps/unacronym-web test
-    - pnpm -C apps/unacronym-web build
+    - pnpm -C apps/documentResolutionWeb install --frozen-lockfile
+    - pnpm -C apps/documentResolutionWeb lint
+    - pnpm -C apps/documentResolutionWeb exec tsc -p tsconfig.json --noEmit
+    - pnpm -C apps/documentResolutionWeb test
+    - pnpm -C apps/documentResolutionWeb build

@@ -2,9 +2,9 @@ services:
   api:
     environment:
       DB_HOST: localhost
-      DATABASE_URL: postgresql+psycopg://unacronym:test-password@db:5432/unacronym
-      DATABASE_URL_SYNC: postgresql+psycopg://unacronym:test-password@db:5432/unacronym
-      DATABASE_URL_ASYNC: postgresql+asyncpg://unacronym:test-password@db:5432/unacronym
+      DATABASE_URL: postgresql+psycopg://document_resolution:test-password@db:5432/document_resolution
+      DATABASE_URL_SYNC: postgresql+psycopg://document_resolution:test-password@db:5432/document_resolution
+      DATABASE_URL_ASYNC: postgresql+asyncpg://document_resolution:test-password@db:5432/document_resolution
       WATCHFILES_FORCE_POLLING: "true"
     build:
       context: .
@@ -17,8 +17,8 @@ services:
       db:
         condition: service_healthy
     volumes:
-      - ./services/document_resolution_api/alembic.ini:/app/services/document_resolution_api/alembic.ini:ro
-      - ./services/document_resolution_api/migrations:/app/services/document_resolution_api/migrations
+      - ./services/document_resolution_api/alembic.ini:/app/services/document-resolution-api/alembic.ini:ro
+      - ./services/document_resolution_api/migrations:/app/services/document-resolution-api/migrations
       - ./services/document_resolution_api/src:/app/src
     command: [ "uvicorn", "--app-dir", "/app/src", "public_api.main:create_app", "--factory",
                "--host", "0.0.0.0", "--port", "8000",
@@ -26,7 +26,7 @@ services:
   web:
     build:
       context: .
-      dockerfile: apps/unacronym-web/Dockerfile
+      dockerfile: apps/documentResolutionWeb/Dockerfile
       args:
         NEXT_PUBLIC_API_BASE_URL: ${NEXT_PUBLIC_API_BASE_URL:-http://api:8000}
         NEXT_PUBLIC_ENV: ${NEXT_PUBLIC_ENV:-local}
@@ -37,14 +37,12 @@ services:
       - "3000:3000"
     depends_on:
       - api
-    env_file:
-      - ./apps/unacronym-web/.env.unacronym-web
 
   db:
     image: postgres:15-alpine
     environment:
-      POSTGRES_DB: ${POSTGRES_DB:-unacronym}
-      POSTGRES_USER: ${POSTGRES_USER:-unacronym}
+      POSTGRES_DB: ${POSTGRES_DB:-document_resolution}
+      POSTGRES_USER: ${POSTGRES_USER:-document_resolution}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-test-password}
     ports:
       - "${POSTGRES_PORT:-5432}:5432"          # optional; can remove to keep DB private to the network
@@ -52,7 +50,7 @@ services:
       - pgdata:/var/lib/postgresql/data
     # keep host port closed by default to avoid collisions
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-unacronym} -d ${POSTGRES_DB:-unacronym}"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-document_resolution} -d ${POSTGRES_DB:-document_resolution}"]
       interval: 5s
       timeout: 3s
       retries: 30

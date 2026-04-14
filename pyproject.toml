@@ -1,7 +1,7 @@
 [tool.poetry]
-name = "plainera-monorepo"
+name = "document-resolution-monorepo"
 version = "0.1.0"
-description = "Plainera mono-repo: dev tooling and orchestration"
+description = "mono-repo: dev tooling and orchestration"
 authors = ["Jacob Bickerstaff"]
 package-mode = false
 
@@ -21,11 +21,11 @@ numpy = "^2.4.2"
 reportlab = "^4.4.10"
 openai = ">=1,<2"
 
-plainera-core = { path = "packages/document_resolution_core", develop = true }
+document-resolution-core = { path = "packages/document_resolution_core", develop = true }
 document-resolution = { path = "packages/document_resolution", develop = true }
-plainera-rag-demo = { path = "packages/plainera_rag_demo", develop = true }
-plainera-testkit = { path = "packages/document_resolution_testkit", develop = true }
-plainera-observability = { path = "packages/document_resolution_observability", develop = true, extras = ["fastapi"] }
+document-resolution-rag-demo = { path = "packages/document_resolution_rag_demo", develop = true }
+document-resolution-testkit = { path = "packages/document_resolution_testkit", develop = true }
+document-resolution-observability = { path = "packages/document_resolution_observability", develop = true, extras = ["fastapi"] }
 document-resolution-api = { path = "services/document_resolution_api", develop = true }
 
 
