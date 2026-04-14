@@ -12,7 +12,7 @@ SQLAlchemy = ">=2.0.43,<2.1"
 python-dotenv = "^1.0"
 
 [tool.poetry.group.dev.dependencies]
-plainera-testkit = { path = "../testkit", develop = true }
+document-resolution-testkit = { path = "../../packages/document_resolution_testkit", develop = true }
 pytest = "^8.3.0"
 mypy = "^1.11.1"
 ruff = "^0.5.7"

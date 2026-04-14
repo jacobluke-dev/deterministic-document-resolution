@@ -1,5 +1,5 @@
 [tool.poetry]
-name = "plainera-testkit"
+name = "document-resolution-testkit"
 version = "0.1.0"
 packages = [{ include = "test_kit" }]
 

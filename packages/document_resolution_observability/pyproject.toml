@@ -11,7 +11,7 @@ include = ["src/observability/py.typed"]
 python = "^3.13"
 
 [tool.poetry.group.dev.dependencies]
-document-resolution-testkit = { path = "../../packages/plainera_testkit", develop = true }
+document-resolution-testkit = { path = "../../packages/document_resolution_testkit", develop = true }
 pytest = "^8.3.0"
 mypy = "^1.11.1"
 ruff = "^0.5.7"
