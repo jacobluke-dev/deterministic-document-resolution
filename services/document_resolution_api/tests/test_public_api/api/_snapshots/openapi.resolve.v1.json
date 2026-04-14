@@ -570,7 +570,7 @@
             "type": "integer"
           },
           "model_version": {
-            "description": "plainera-core version used for processing.",
+            "description": "document-resolution-core version used for processing.",
             "title": "Model Version",
             "type": "string"
           },
