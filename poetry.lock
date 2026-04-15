@@ -910,6 +910,130 @@ ssh = ["paramiko (>=2.4.3)"]
 websockets = ["websocket-client (>=1.3.0)"]
 
 [[package]]
+name = "document-resolution"
+version = "0.1.0"
+description = "document resolution product library (detector + heuristics)"
+optional = false
+python-versions = "^3.13"
+groups = ["main"]
+files = []
+develop = true
+
+[package.dependencies]
+document-resolution-observability = {path = "../document_resolution_observability", develop = true}
+numpy = "2.4.2"
+python-dotenv = "^1.1.1"
+SQLAlchemy = ">=2.0.43,<2.1"
+
+[package.source]
+type = "directory"
+url = "packages/document_resolution"
+
+[[package]]
+name = "document-resolution-api"
+version = "0.1.0"
+description = "Public API for document resolution"
+optional = false
+python-versions = "^3.13"
+groups = ["main"]
+files = []
+develop = true
+
+[package.dependencies]
+alembic = ">=1.16.5,<2.0"
+argon2-cffi = "^25.1.0"
+document-resolution = {path = "../../packages/document_resolution", develop = true}
+document-resolution-core = {path = "../../packages/document_resolution_core", develop = true}
+document-resolution-observability = {path = "../../packages/document_resolution_observability", develop = true, extras = ["fastapi"]}
+fastapi = "^0.116.1"
+httpx = "^0.28.1"
+psycopg = {version = ">=3.2,<3.3", extras = ["binary"]}
+pydantic-settings = "^2.4.0"
+python-dotenv = "^1.1.1"
+SQLAlchemy = ">=2.0.43,<2.1"
+starlette = ">=0.40.0,<0.48.0"
+testcontainers = "^4.12.0"
+uvicorn = {version = "^0.30.0", extras = ["standard"]}
+
+[package.source]
+type = "directory"
+url = "services/document_resolution_api"
+
+[[package]]
+name = "document-resolution-core"
+version = "0.1.0"
+description = "Document Resolution Core Package"
+optional = false
+python-versions = "^3.13"
+groups = ["main"]
+files = []
+develop = true
+
+[package.dependencies]
+python-dotenv = "^1.1.1"
+SQLAlchemy = ">=2.0.43,<2.1"
+
+[package.source]
+type = "directory"
+url = "packages/document_resolution_core"
+
+[[package]]
+name = "document-resolution-observability"
+version = "0.1.0"
+description = "Document Resolution Observability Package"
+optional = false
+python-versions = "^3.13"
+groups = ["main"]
+files = []
+develop = true
+
+[package.source]
+type = "directory"
+url = "packages/document_resolution_observability"
+
+[[package]]
+name = "document-resolution-rag-demo"
+version = "0.1.0"
+description = "RAG demonstrator package for baseline and grounded retrieval experiments"
+optional = false
+python-versions = "^3.13"
+groups = ["main"]
+files = []
+develop = true
+
+[package.dependencies]
+document-resolution-observability = {path = "../document_resolution_observability", develop = true}
+numpy = "2.4.2"
+openai = ">=1,<2"
+python-dotenv = "^1.1.1"
+SQLAlchemy = ">=2.0.43,<2.1"
+
+[package.source]
+type = "directory"
+url = "packages/document_resolution_rag_demo"
+
+[[package]]
+name = "document-resolution-testkit"
+version = "0.1.0"
+description = ""
+optional = false
+python-versions = "^3.13"
+groups = ["main"]
+files = []
+develop = true
+
+[package.dependencies]
+alembic = ">=1.16.5,<2.0"
+psycopg = {version = ">=3.2,<3.3", extras = ["binary"]}
+python-dotenv = "^1.1.1"
+SQLAlchemy = ">=2.0.43,<2.1"
+testcontainers = {version = "^4.12.0", extras = ["postgresql"]}
+
+[package.source]
+type = "directory"
+url = "packages/document_resolution_testkit"
+
+[[package]]
 name = "executing"
 version = "2.2.1"
 description = "Get the currently executing AST node of a frame, and other information"
@@ -3041,100 +3165,6 @@ tests = ["check-manifest", "coverage (>=7.4.2)", "defusedxml", "markdown2", "ole
 xmp = ["defusedxml"]
 
 [[package]]
-name = "plainera-core"
-version = "0.1.0"
-description = "Plainera Core Package"
-optional = false
-python-versions = "^3.13"
-groups = ["main"]
-files = []
-develop = true
-
-[package.dependencies]
-python-dotenv = "^1.0"
-SQLAlchemy = ">=2.0.43,<2.1"
-
-[package.source]
-type = "directory"
-url = "packages/plainera_core"
-
-[[package]]
-name = "plainera-observability"
-version = "0.1.0"
-description = "Plainera Observability Package"
-optional = false
-python-versions = "^3.13"
-groups = ["main"]
-files = []
-develop = true
-
-[package.source]
-type = "directory"
-url = "packages/plainera_observability"
-
-[[package]]
-name = "plainera-rag-demo"
-version = "0.1.0"
-description = "RAG demonstrator package for baseline and grounded retrieval experiments"
-optional = false
-python-versions = "^3.13"
-groups = ["main"]
-files = []
-develop = true
-
-[package.dependencies]
-numpy = "2.4.2"
-openai = ">=1,<2"
-plainera-observability = {path = "../plainera_observability", develop = true}
-python-dotenv = "^1.0"
-SQLAlchemy = ">=2.0.43,<2.1"
-
-[package.source]
-type = "directory"
-url = "packages/plainera_rag_demo"
-
-[[package]]
-name = "plainera-testkit"
-version = "0.1.0"
-description = ""
-optional = false
-python-versions = "^3.13"
-groups = ["main"]
-files = []
-develop = true
-
-[package.dependencies]
-alembic = ">=1.16.5,<2.0"
-psycopg = {version = ">=3.2,<3.3", extras = ["binary"]}
-python-dotenv = "^1.0"
-SQLAlchemy = ">=2.0.43,<2.1"
-testcontainers = {version = "^4.12.0", extras = ["postgresql"]}
-
-[package.source]
-type = "directory"
-url = "packages/plainera_testkit"
-
-[[package]]
-name = "plainera-unacronym"
-version = "0.1.0"
-description = "Unacronym product library (detector + heuristics)"
-optional = false
-python-versions = "^3.13"
-groups = ["main"]
-files = []
-develop = true
-
-[package.dependencies]
-numpy = "2.4.2"
-plainera-observability = {path = "../plainera_observability", develop = true}
-python-dotenv = "^1.0"
-SQLAlchemy = ">=2.0.43,<2.1"
-
-[package.source]
-type = "directory"
-url = "packages/plainera_unacronym"
-
-[[package]]
 name = "platformdirs"
 version = "4.4.0"
 description = "A small Python package for determining appropriate platform-specific dirs, e.g. a `user data dir`."
@@ -3623,21 +3653,21 @@ dev = ["argcomplete", "attrs (>=19.2)", "hypothesis (>=3.56)", "mock", "requests
 
 [[package]]
 name = "pytest-asyncio"
-version = "0.23.8"
+version = "1.3.0"
 description = "Pytest support for asyncio"
 optional = false
-python-versions = ">=3.8"
+python-versions = ">=3.10"
 groups = ["dev"]
 files = [
-    {file = "pytest_asyncio-0.23.8-py3-none-any.whl", hash = "sha256:50265d892689a5faefb84df80819d1ecef566eb3549cf915dfb33569359d1ce2"},
-    {file = "pytest_asyncio-0.23.8.tar.gz", hash = "sha256:759b10b33a6dc61cce40a8bd5205e302978bbbcc00e279a8b61d9a6a3c82e4d3"},
+    {file = "pytest_asyncio-1.3.0-py3-none-any.whl", hash = "sha256:611e26147c7f77640e6d0a92a38ed17c3e9848063698d5c93d5aa7aa11cebff5"},
+    {file = "pytest_asyncio-1.3.0.tar.gz", hash = "sha256:d7f52f36d231b80ee124cd216ffb19369aa168fc10095013c6b014a34d3ee9e5"},
 ]
 
 [package.dependencies]
-pytest = ">=7.0.0,<9"
+pytest = ">=8.2,<10"
 
 [package.extras]
-docs = ["sphinx (>=5.3)", "sphinx-rtd-theme (>=1.0)"]
+docs = ["sphinx (>=5.3)", "sphinx-rtd-theme (>=1)"]
 testing = ["coverage (>=6.2)", "hypothesis (>=5.7.1)"]
 
 [[package]]
@@ -5279,36 +5309,6 @@ files = [
 markers = {main = "sys_platform == \"win32\""}
 
 [[package]]
-name = "unacronym-api"
-version = "0.1.0"
-description = "Public API for Unacronym"
-optional = false
-python-versions = "^3.13"
-groups = ["main"]
-files = []
-develop = true
-
-[package.dependencies]
-alembic = ">=1.16.5,<2.0"
-argon2-cffi = "^25.1.0"
-fastapi = "^0.116.1"
-httpx = "^0.28.1"
-plainera-core = {path = "../../packages/plainera_core", develop = true}
-plainera-observability = {path = "../../packages/plainera_observability", develop = true, extras = ["fastapi"]}
-plainera-unacronym = {path = "../../packages/plainera_unacronym", develop = true}
-psycopg = {version = ">=3.2,<3.3", extras = ["binary"]}
-pydantic-settings = "^2.4.0"
-python-dotenv = "^1.0.1"
-SQLAlchemy = ">=2.0.43,<2.1"
-starlette = ">=0.40.0,<0.48.0"
-testcontainers = "^4.12.0"
-uvicorn = {version = "^0.30.0", extras = ["standard"]}
-
-[package.source]
-type = "directory"
-url = "services/unacronym_api"
-
-[[package]]
 name = "uri-template"
 version = "1.3.0"
 description = "RFC 6570 URI Template Processor"
@@ -5789,4 +5789,4 @@ fastapi = ["fastapi"]
 [metadata]
 lock-version = "2.1"
 python-versions = "^3.13"
-content-hash = "995068f9a4e8b8d6ab3c16b7dcef0cfee98ea347816280b0a8a507afb1a8f653"
+content-hash = "059dd6c2e1c2f9d7340d53a8243b69a381e79cd813caaf810ee881e6113c2e1b"

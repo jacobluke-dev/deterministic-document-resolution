@@ -9,13 +9,13 @@ COV_FAIL_UNDER ?= 80
 
 # Submodules and steps
 PY_SUBDIRS := \
-    packages/plainera_core \
-    packages/plainera_observability \
-    packages/plainera_rag_demo \
-    packages/plainera_unacronym \
-    services/unacronym_api
+    packages/document_resolution_core \
+    packages/document_resolution_observability \
+    packages/document_resolution_rag_demo \
+    packages/document_resolution \
+    services/document_resolution_api
 
-APP_SUBDIRS := apps/unacronym-web
+APP_SUBDIRS := apps/documentResolutionWeb
 
 STEPS := install lint typecheck test build
 
@@ -170,16 +170,16 @@ env-%:
 
 # Lock all submodules
 lock-all:
-	$(MAKE) -C packages/plainera_observability lock
-	$(MAKE) -C packages/plainera_core lock
-	$(MAKE) -C services/unacronym_api lock
+	$(MAKE) -C packages/document_resolution_observability lock
+	$(MAKE) -C packages/document_resolution_core lock
+	$(MAKE) -C services/document_resolution_api lock
 
 # Check dependencies across all submodules
 deps-check:
 	$(PYTHON) tools/check_deps.py \
-	  packages/plainera_observability/pyproject.toml \
-	  packages/plainera_core/pyproject.toml \
-	  services/unacronym_api/pyproject.toml
+	  packages/document_resolution_observability/pyproject.toml \
+	  packages/document_resolution_core/pyproject.toml \
+	  services/document_resolution_api/pyproject.toml
 
 update_snapshots:
-	UPDATE_SNAPSHOTS=1 poetry run pytest -q services/unacronym_api/tests/test_public_api/api/test_openapi_snapshot.py
+	UPDATE_SNAPSHOTS=1 poetry run pytest -q services/document_resolution_api/tests/test_public_api/api/test_openapi_snapshot.py

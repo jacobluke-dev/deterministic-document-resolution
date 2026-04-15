@@ -1,7 +1,7 @@
 [tool.poetry]
-name = "plainera-monorepo"
+name = "document-resolution-monorepo"
 version = "0.1.0"
-description = "Plainera mono-repo: dev tooling and orchestration"
+description = "mono-repo: dev tooling and orchestration"
 authors = ["Jacob Bickerstaff"]
 package-mode = false
 
@@ -21,12 +21,12 @@ numpy = "^2.4.2"
 reportlab = "^4.4.10"
 openai = ">=1,<2"
 
-plainera-core = { path = "packages/plainera_core", develop = true }
-plainera-unacronym = { path = "packages/plainera_unacronym", develop = true }
-plainera-rag-demo = { path = "packages/plainera_rag_demo", develop = true }
-plainera-testkit = { path = "packages/plainera_testkit", develop = true }
-plainera-observability = { path = "packages/plainera_observability", develop = true, extras = ["fastapi"] }
-unacronym-api = { path = "services/unacronym_api", develop = true }
+document-resolution-core = { path = "packages/document_resolution_core", develop = true }
+document-resolution = { path = "packages/document_resolution", develop = true }
+document-resolution-rag-demo = { path = "packages/document_resolution_rag_demo", develop = true }
+document-resolution-testkit = { path = "packages/document_resolution_testkit", develop = true }
+document-resolution-observability = { path = "packages/document_resolution_observability", develop = true, extras = ["fastapi"] }
+document-resolution-api = { path = "services/document_resolution_api", develop = true }
 
 
 # -----------------------
@@ -43,7 +43,7 @@ sentence-transformers = { version = "^5.2.3", markers = "python_version < '3.15'
 
 [tool.poetry.group.dev.dependencies]
 pytest = "^8.4.2"
-pytest-asyncio = "^0.23.8"
+pytest-asyncio = "^1.1.0"
 pytest-cov = "^5.0.0"
 mypy = "^1.19.1"
 ruff = "^0.5.7"

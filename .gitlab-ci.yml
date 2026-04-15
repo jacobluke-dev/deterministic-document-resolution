@@ -7,9 +7,6 @@ workflow:
     - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH                                            # default branch
     - when: never
 default:
-  tags:
-    - local
-    - docker
 stages: [ core ]
 
 variables:
@@ -53,17 +50,17 @@ core:
     PIP_DISABLE_PIP_VERSION_CHECK: "1"
     POETRY_VIRTUALENVS_IN_PROJECT: "true"
     # Point tests at the job-local DB so testcontainers is NOT used
-    TEST_DB_URL: "postgresql+psycopg://unacronym:test-password@db:5432/unacronym"
-    POSTGRES_DB: "unacronym"
-    POSTGRES_USER: "unacronym"
+    TEST_DB_URL: "postgresql+psycopg://document_resolution:test-password@db:5432/document_resolution"
+    POSTGRES_DB: "document_resolution"
+    POSTGRES_USER: "document_resolution"
     POSTGRES_PASSWORD: "test-password"
   rules:
     - if: $CI_PIPELINE_SOURCE == "merge_request_event"
       changes:
-        - packages/plainera_core/**/*
+        - packages/document_resolution_core/**/*
     - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
       changes:
-        - packages/plainera_core/**/*
+        - packages/document_resolution_core/**/*
         - poetry.lock
         - pyproject.toml
         - .gitlab-ci.yml
@@ -89,20 +86,20 @@ core:
               time.sleep(1)
       print("DB not ready in time", file=sys.stderr); sys.exit(2)
       PY
-    - make -C packages/plainera_core lint      RUN="$VENV_BIN/python -m"
-    - make -C packages/plainera_core typecheck RUN="$VENV_BIN/python -m"
-    - make -C packages/plainera_core test      RUN="$VENV_BIN/python -m"
+    - make -C packages/document_resolution_core lint      RUN="$VENV_BIN/python -m"
+    - make -C packages/document_resolution_core typecheck RUN="$VENV_BIN/python -m"
+    - make -C packages/document_resolution_core test      RUN="$VENV_BIN/python -m"
   artifacts:
     when: always
     paths:
-      - packages/plainera_core/coverage.xml
+      - packages/document_resolution_core/coverage.xml
     reports:
       coverage_report:
         coverage_format: cobertura
-        path: packages/plainera_core/coverage.xml
+        path: packages/document_resolution_core/coverage.xml
     expire_in: 1 week
 
-unacronym:
+document_resolution:
   stage: core
   image: python:3.13
   services:
@@ -114,20 +111,20 @@ unacronym:
     POETRY_VIRTUALENVS_IN_PROJECT: "true"
     PIP_DISABLE_PIP_VERSION_CHECK: "1"
     # Single source for DB; use it for sync
-    TEST_DB_URL: "postgresql+psycopg://unacronym:test-password@db:5432/unacronym"
-    POSTGRES_DB: "unacronym"
-    POSTGRES_USER: "unacronym"
+    TEST_DB_URL: "postgresql+psycopg://document_resolution:test-password@db:5432/document_resolution"
+    POSTGRES_DB: "document_resolution"
+    POSTGRES_USER: "document_resolution"
     POSTGRES_PASSWORD: "test-password"
     # What composition.py expects:
     DATABASE_URL_SYNC: "$TEST_DB_URL"
-    DATABASE_URL: "postgresql+asyncpg://unacronym:test-password@db:5432/unacronym"
+    DATABASE_URL: "postgresql+asyncpg://document_resolution:test-password@db:5432/document_resolution"
   rules:
     - if: $CI_PIPELINE_SOURCE == "merge_request_event"
       changes:
-        - packages/plainera_unacronym/**/*
+        - packages/document_resolution/**/*
     - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
       changes:
-        - packages/plainera_unacronym/**/*
+        - packages/document_resolution/**/*
         - poetry.lock
         - pyproject.toml
         - .gitlab-ci.yml
@@ -152,17 +149,17 @@ unacronym:
       print("DB not ready in time", file=sys.stderr); sys.exit(2)
       PY
   script:
-    - make -C packages/plainera_unacronym lint      RUN="$VENV_BIN/python -m"
-    - make -C packages/plainera_unacronym typecheck RUN="$VENV_BIN/python -m"
-    - make -C packages/plainera_unacronym test      RUN="$VENV_BIN/python -m"
+    - make -C packages/document_resolution lint      RUN="$VENV_BIN/python -m"
+    - make -C packages/document_resolution typecheck RUN="$VENV_BIN/python -m"
+    - make -C packages/document_resolution test      RUN="$VENV_BIN/python -m"
   artifacts:
     when: always
     paths:
-      - packages/plainera_unacronym/coverage.xml
+      - packages/document_resolution/coverage.xml
     reports:
       coverage_report:
         coverage_format: cobertura
-        path: packages/plainera_unacronym/coverage.xml
+        path: packages/document_resolution/coverage.xml
     expire_in: 1 week
 
 rag_demo:
@@ -177,20 +174,20 @@ rag_demo:
     POETRY_VIRTUALENVS_IN_PROJECT: "true"
     PIP_DISABLE_PIP_VERSION_CHECK: "1"
     # Single source for DB; use it for sync
-    TEST_DB_URL: "postgresql+psycopg://unacronym:test-password@db:5432/unacronym"
-    POSTGRES_DB: "unacronym"
-    POSTGRES_USER: "unacronym"
+    TEST_DB_URL: "postgresql+psycopg://document_resolution:test-password@db:5432/document_resolution"
+    POSTGRES_DB: "document_resolution"
+    POSTGRES_USER: "document_resolution"
     POSTGRES_PASSWORD: "test-password"
     # What composition.py expects:
     DATABASE_URL_SYNC: "$TEST_DB_URL"
-    DATABASE_URL: "postgresql+asyncpg://unacronym:test-password@db:5432/unacronym"
+    DATABASE_URL: "postgresql+asyncpg://document_resolution:test-password@db:5432/document_resolution"
   rules:
     - if: $CI_PIPELINE_SOURCE == "merge_request_event"
       changes:
-        - packages/plainera_rag_demo/**/*
+        - packages/document_resolution_rag_demo/**/*
     - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
       changes:
-        - packages/plainera_rag_demo/**/*
+        - packages/document_resolution_rag_demo/**/*
         - poetry.lock
         - pyproject.toml
         - .gitlab-ci.yml
@@ -215,17 +212,17 @@ rag_demo:
       print("DB not ready in time", file=sys.stderr); sys.exit(2)
       PY
   script:
-    - make -C packages/plainera_rag_demo lint      RUN="$VENV_BIN/python -m"
-    - make -C packages/plainera_rag_demo typecheck RUN="$VENV_BIN/python -m"
-    - make -C packages/plainera_rag_demo test      RUN="$VENV_BIN/python -m"
+    - make -C packages/document_resolution_rag_demo lint      RUN="$VENV_BIN/python -m"
+    - make -C packages/document_resolution_rag_demo typecheck RUN="$VENV_BIN/python -m"
+    - make -C packages/document_resolution_rag_demo test      RUN="$VENV_BIN/python -m"
   artifacts:
     when: always
     paths:
-      - packages/plainera_rag_demo/coverage.xml
+      - packages/document_resolution_rag_demo/coverage.xml
     reports:
       coverage_report:
         coverage_format: cobertura
-        path: packages/plainera_rag_demo/coverage.xml
+        path: packages/document_resolution_rag_demo/coverage.xml
     expire_in: 1 week
 
 observability:
@@ -236,24 +233,24 @@ observability:
       when: never
     - if: $CI_PIPELINE_SOURCE == "merge_request_event"
       changes:
-        - packages/plainera_observability/**/*
+        - packages/document_resolution_observability/**/*
     - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
       changes:
-        - packages/plainera_observability/**/*
+        - packages/document_resolution_observability/**/*
     - when: never
   <<: *before-poetry
   script:
-    - make -C packages/plainera_observability lint      RUN="$VENV_BIN/python -m"
-    - make -C packages/plainera_observability typecheck RUN="$VENV_BIN/python -m"
-    - make -C packages/plainera_observability test      RUN="$VENV_BIN/python -m"
+    - make -C packages/document_resolution_observability lint      RUN="$VENV_BIN/python -m"
+    - make -C packages/document_resolution_observability typecheck RUN="$VENV_BIN/python -m"
+    - make -C packages/document_resolution_observability test      RUN="$VENV_BIN/python -m"
   artifacts:
     when: always
     paths:
-      - packages/plainera_observability/coverage.xml
+      - packages/document_resolution_observability/coverage.xml
     reports:
       coverage_report:
         coverage_format: cobertura
-        path: packages/plainera_observability/coverage.xml
+        path: packages/document_resolution_observability/coverage.xml
     expire_in: 1 week
 api:
   stage: core
@@ -263,19 +260,17 @@ api:
       alias: db
       command: [ "postgres", "-c", "log_statement=none" ]
   variables:
-      POSTGRES_DB: "unacronym"
-      POSTGRES_USER: "unacronym"
+      POSTGRES_DB: "document_resolution"
+      POSTGRES_USER: "document_resolution"
       POSTGRES_PASSWORD: "test-password"
 
       # Alembic must use sync URL
-      DATABASE_URL: "postgresql+psycopg://unacronym:test-password@db:5432/unacronym"
+      DATABASE_URL: "postgresql+psycopg://document_resolution:test-password@db:5432/document_resolution"
 
       # For packages that insist on both being present
-      DATABASE_URL_SYNC: "postgresql+psycopg://unacronym:test-password@db:5432/unacronym"
-      TEST_DB_URL: "postgresql+psycopg://unacronym:test-password@db:5432/unacronym"
-
-      # Optional: if your app/tests want an async URL, provide it separately
-      DATABASE_URL_ASYNC: "postgresql+asyncpg://unacronym:test-password@db:5432/unacronym"
+      DATABASE_URL_SYNC: "postgresql+psycopg://document_resolution:test-password@db:5432/document_resolution"
+      TEST_DB_URL: "postgresql+psycopg://document_resolution:test-password@db:5432/document_resolution"
+      DATABASE_URL_ASYNC: "postgresql+asyncpg://document_resolution:test-password@db:5432/document_resolution"
 
       APP_ENV: "test"
       DATABASE_DISABLED: "false"
@@ -284,16 +279,16 @@ api:
       when: never
     - if: $CI_PIPELINE_SOURCE == "merge_request_event"
       changes:
-        - services/unacronym_api/**/*
-        - packages/plainera_core/**/*
-        - packages/plainera_observability/**/*
-        - packages/plainera_testkit/**/*
+        - services/document_resolution_api/**/*
+        - packages/document_resolution_core/**/*
+        - packages/document_resolution_observability/**/*
+        - packages/document_resolution_testkit/**/*
     - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
       changes:
-        - services/unacronym_api/**/*
-        - packages/plainera_core/**/*
-        - packages/plainera_observability/**/*
-        - packages/plainera_testkit/**/*
+        - services/document_resolution_api/**/*
+        - packages/document_resolution_core/**/*
+        - packages/document_resolution_observability/**/*
+        - packages/document_resolution_testkit/**/*
     - when: never
   <<: *before-poetry
   script:
@@ -315,7 +310,7 @@ api:
 
     # Run service steps inside the service dir
     - |
-      cd services/unacronym_api
+      cd services/document_resolution_api
       "$VENV_BIN/python" -m alembic -c alembic.ini upgrade head
       make lint      RUN="$VENV_BIN/python -m"
       make typecheck RUN="$VENV_BIN/python -m"
@@ -323,11 +318,11 @@ api:
   artifacts:
     when: always
     paths:
-      - services/unacronym_api/coverage.xml
+      - services/document_resolution_api/coverage.xml
     reports:
       coverage_report:
         coverage_format: cobertura
-        path: services/unacronym_api/coverage.xml
+        path: services/document_resolution_api/coverage.xml
     expire_in: 1 week
 web:
   stage: core
@@ -335,21 +330,21 @@ web:
   rules:
     - if: $CI_PIPELINE_SOURCE == "merge_request_event"
       changes:
-        - apps/unacronym-web/**/*
+        - apps/documentResolutionWeb/**/*
         - pnpm-lock.yaml
         - pnpm-workspace.yaml
         - package.json
     - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
       changes:
-        - apps/unacronym-web/**/*
+        - apps/documentResolutionWeb/**/*
         - pnpm-lock.yaml
         - pnpm-workspace.yaml
         - package.json
     - when: never
   variables:
     NODE_ENV: "production"
-    # Build-time public env required by your build validation:
-    NEXT_PUBLIC_API_BASE_URL: "http://api.unacronym.dev"  # or staging URL
+    # Build-time public env required by the build validation:
+    NEXT_PUBLIC_API_BASE_URL: "http://api.document_resolution.dev"  # or staging URL
     NEXT_PUBLIC_ENV: "staging"
     NEXT_PUBLIC_ENABLE_ANALYTICS: "false"
   before_script:
@@ -358,8 +353,8 @@ web:
     - pnpm --version
     - pnpm config set store-dir "$PNPM_STORE_DIR"
   script:
-    - pnpm -C apps/unacronym-web install --frozen-lockfile
-    - pnpm -C apps/unacronym-web lint
-    - pnpm -C apps/unacronym-web exec tsc -p tsconfig.json --noEmit
-    - pnpm -C apps/unacronym-web test
-    - pnpm -C apps/unacronym-web build
+    - pnpm -C apps/documentResolutionWeb install --frozen-lockfile
+    - pnpm -C apps/documentResolutionWeb lint
+    - pnpm -C apps/documentResolutionWeb exec tsc -p tsconfig.json --noEmit
+    - pnpm -C apps/documentResolutionWeb test
+    - pnpm -C apps/documentResolutionWeb build
