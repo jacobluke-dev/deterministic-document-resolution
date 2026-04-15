@@ -265,7 +265,6 @@ class TestDefinedTermResolutionE2E:
         assert service_resolutions[2].chosen_meaning_id is None
         assert service_resolutions[2].resolution_method == "unresolved"
 
-    # TODO AS PART OF TICKET 97
     def test_prefer_prior_definition_when_context_is_otherwise_equal(self, _patch):
         from document_resolution.nlp.extraction.defined_terms import stage_funcs
 

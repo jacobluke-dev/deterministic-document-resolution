@@ -247,9 +247,6 @@ class TestCommaNearLeft:
         assert _comma_near_left(text, start) is expected
 
 
-# TODO write _has_upper_after_with_fillers tests
-
-
 class TestIsInCapsInterjectionContext:
     @staticmethod
     def _extract_span(s: str):

@@ -91,7 +91,6 @@ def _resolve_acronym_payload(
     """Normalize an acronym pipeline payload for response composition.
 
     * an ``AcronymPipelineResult``
-    # TODO remove * a legacy ``(detector_result, extraction_result)`` tuple
 
     Legacy tuple payloads are converted into ``AcronymPipelineResult`` so
     downstream composition can rely on a single explicit acronym result shape.

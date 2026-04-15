@@ -266,25 +266,3 @@ class TestDisambiguateOccurrences:
 
         # And now the margin should indeed be small (< 0.10)
         assert 0.0 <= out[0].margin < 0.10
-
-    # TODO coming later span normalisation isn't currently supported
-    # def test_handles_reversed_span_endpoints(self):
-    #     text = "Zeta Corp (ZC) operates globally. Later, ZC is referenced again."
-    #     occs = [
-    #         OccurrenceLite("ZC", text.index("(ZC)") + 1, text.index("(ZC)") + 3),
-    #         OccurrenceLite("ZC", text.rindex("ZC"), text.rindex("ZC") + 2),
-    #     ]
-    #     meanings = {
-    #         "ZC": [
-    #             AcronmMeaning("ZC", "Zeta Corporation",
-    #             "zc|zeta_corporation", [(text.index("Zeta"), text.index("Zeta") + 4)], 1),
-    #             AcronmMeaning("ZC", "Zero Cool",
-    #             "zc|zero_cool",
-    #             [(text.index("globally") + 2, text.index("globally") - 2)], 1),  # reversed endpoints on purpose
-    #         ]
-    #     }
-    #     out = disambiguate_occurrences(text, occs, meanings, dist_weight=1.0, overlap_weight=0.0)
-    #     # Should not crash; should still choose the appropriate nearest
-    #     assert len(out) == 2
-    #     assert out[0].chosen_meaning_id == "zc|zeta_corporation"
-    #     assert out[1].chosen_meaning_id in {"zc|zeta_corporation", "zc|zero_cool"}
