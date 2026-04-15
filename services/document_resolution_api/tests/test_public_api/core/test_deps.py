@@ -14,10 +14,8 @@ def _reload_deps(max_inflight: int | None, create_stub):
     if max_inflight is None:
         max_inflight = 0
     from public_api.core import settings as settings_mod
-    from public_api.core.di import providers as providers_mod
 
     settings_mod.app_settings.MAX_INFLIGHT = max_inflight
-    providers_mod.create_resolver = create_stub  # stub out real provider
 
     from public_api.core.di import deps as deps_mod
     return importlib.reload(deps_mod)
@@ -63,11 +61,8 @@ class TestAppContainerIntegration:
         # Use the real provider, but control MAX_INFLIGHT to avoid flakiness
         from public_api.core import settings as settings_mod
         from public_api.core.di import deps as deps_mod
-        from public_api.core.di import providers as providers_mod
 
         settings_mod.app_settings.MAX_INFLIGHT = 1
-        # ensure provider is not stubbed
-        importlib.reload(providers_mod)
         # rebuild container with real provider + current settings
         deps = importlib.reload(deps_mod)
 
