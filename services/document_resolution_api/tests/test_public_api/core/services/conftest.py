@@ -29,10 +29,3 @@ def opts_factory():
         return ResolveOptions.model_validate(overrides)
 
     return make
-
-class DummyGlossaryRepo:
-    def __init__(self, meanings_by_acronym):
-        self._meanings_by_acronym = meanings_by_acronym
-
-    def list_meanings(self, *, acronym: str):
-        return self._meanings_by_acronym.get(acronym, [])
