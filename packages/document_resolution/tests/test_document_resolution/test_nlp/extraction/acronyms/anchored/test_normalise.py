@@ -13,7 +13,7 @@ class TestTightenDefinitionSpan:
         assert tighten_definition_span(s) == "Read Only Memory"
 
     def test_lower_hyphen_tail_does_not_win_over_full_title_run(self):
-        # This is the regression your NEW guard actually targets:
+        # This is the regression the NEW guard actually targets:
         # rightmost match would otherwise be "sign-on", but should return "Single sign-on".
         s = "Single sign-on"
         assert tighten_definition_span(s) == "Single sign-on"

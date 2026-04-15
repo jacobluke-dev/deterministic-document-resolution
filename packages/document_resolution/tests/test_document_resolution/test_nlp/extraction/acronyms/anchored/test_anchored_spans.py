@@ -53,7 +53,7 @@ class TestTrimSpan:
 def _m_def_before(seg: str, def_text: str, acr: str) -> re.Match[str]:
     """
     Build a minimal match object with groups 'def' and 'acr' spanning within `seg`.
-    We use the same group names your function expects.
+    We use the same group names the function expects.
     """
     pat = re.compile(rf"(?P<def>{re.escape(def_text)})\s*\(\s*(?P<acr>{re.escape(acr)})\s*\)")
     m = pat.search(seg)

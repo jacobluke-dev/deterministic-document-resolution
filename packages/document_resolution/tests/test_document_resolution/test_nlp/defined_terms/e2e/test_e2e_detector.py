@@ -244,7 +244,7 @@ class TestDefinedTermDetectorE2E:
         """.strip()
 
         auto = autodetect_domains(text, detector.cfg)
-        assert auto == {"legal"}  # or frozenset({"legal"}) depending on your API
+        assert auto == {"legal"}
 
         cfg = detector._with_auto_domains(text)
         assert "legal" in cfg.enabled_domains

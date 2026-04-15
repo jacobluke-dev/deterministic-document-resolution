@@ -42,7 +42,7 @@ class TestExpandNumericLeadingWindowIntegration:
 
     def test_expands_over_punct_wrapped_numeric_leading_tokens(self):
         # This checks real-world tokenisation artefacts (parens / punctuation stuck to token).
-        # If your first_alnum_char_upper strips punctuation, these should still count numeric-leading.
+        # If the first_alnum_char_upper strips punctuation, these should still count numeric-leading.
         tokens = ["(3M)", "Portable", "Format", "2)", "PDF"]
 
         assert expand_numeric_leading_window(tokens, tok_left=1, tok_right=2) == (0, 3)

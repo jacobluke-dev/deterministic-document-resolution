@@ -8,7 +8,6 @@ from document_resolution.nlp.extraction.acronyms.config import ExtractionConfig
 
 
 def _fo(acr: str, start: int, end: int, *, norm: str | None = None):
-    # Use your existing helper if you already have one
     from document_resolution.nlp.common.types import FirstOccurrence
 
     return FirstOccurrence(

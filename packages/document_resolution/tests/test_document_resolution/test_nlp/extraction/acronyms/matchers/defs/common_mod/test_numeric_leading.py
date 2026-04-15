@@ -19,7 +19,7 @@ class TestNumericLeadingUnit:
         assert _numeric_leading("2FA", include_numeric_leading=True) is True
 
     def test_returns_true_when_first_alnum_is_non_alpha_symbol_like_underscore(self, _patch):
-        # if your first_alnum_char_upper ever returns "_" (it shouldn't, underscore isn't alnum),
+        # if the first_alnum_char_upper ever returns "_" (it shouldn't, underscore isn't alnum),
         # but keeping this here as a guard for “non-alpha” behaviour:
         _patch(_numeric_leading, first_alnum_char_upper=lambda _t: "7")
         assert _numeric_leading("__7zip", include_numeric_leading=True) is True

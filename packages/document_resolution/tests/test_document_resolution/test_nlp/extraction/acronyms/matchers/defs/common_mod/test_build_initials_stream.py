@@ -527,5 +527,5 @@ class TestBuildInitialsStreamPunctTrimAndInvariants:
 
         assert len(stream.letters) == len(stream.owners) == len(stream.is_stop)
         # sanity: stopword "of" contributes 'O' but is_stop should mark it True for that letter
-        # depending on your first_alnum/part selection, it should contribute once.
+        # depending on the first_alnum/part selection, it should contribute once.
         assert True in stream.is_stop

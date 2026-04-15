@@ -88,7 +88,6 @@ def _mk_entry_words_and_acronym(
     for w in words[:k]:
         init = _initial_letter(w)
         if init is None:
-            # Very unlikely with your banks, but fallback to a random letter.
             init = rng.choice(string.ascii_uppercase)
         initials.append(init)
 

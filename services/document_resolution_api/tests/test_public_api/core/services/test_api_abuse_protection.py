@@ -215,8 +215,6 @@ class TestApiAbuseProtectionService:
 def _seed_real_api_key(session_factory, *, daily_quota: int | None = None) -> tuple[ApiKey, str]:
     """
     Seed a key row and return the full header value to use in requests.
-
-    Adjust this helper to match your real parse/verify format if needed.
     """
     from public_api.core.auth.api_keys import generate_key
 

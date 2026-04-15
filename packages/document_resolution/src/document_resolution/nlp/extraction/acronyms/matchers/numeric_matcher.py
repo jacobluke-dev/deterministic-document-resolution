@@ -42,7 +42,6 @@ ORDINAL_WORDS: dict[str, str] = {
     "twentieth": "20",
 }
 
-# Optional: enable if you see "five generation (5G)" style in your corpora
 CARDINAL_WORDS: dict[str, str] = {
     "zero": "0",
     "one": "1",

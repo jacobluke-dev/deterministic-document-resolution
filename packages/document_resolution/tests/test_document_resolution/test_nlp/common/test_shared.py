@@ -93,7 +93,7 @@ class TestCanonicalize:
         assert canonicalize(s) == s
 
     def test_nfkc_is_applied(self):
-        # This asserts behaviour without relying on your specific mapping table.
+        # This asserts behaviour without relying on the specific mapping table.
         # Ligature 'ﬁ' (U+FB01) typically NFKC-normalises to "fi".
         assert canonicalize("ﬁ") == unicodedata.normalize("NFKC", "ﬁ")
 

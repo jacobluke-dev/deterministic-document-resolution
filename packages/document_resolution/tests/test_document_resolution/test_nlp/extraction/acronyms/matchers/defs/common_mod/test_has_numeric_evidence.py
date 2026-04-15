@@ -11,7 +11,7 @@ class TestHasNumericEvidenceIntegration:
         assert has_numeric_evidence(["2", "Factor", "Auth"]) is True
 
     def test_true_for_punctuation_wrapped_numeric_leading(self):
-        # If your first_alnum_char_upper skips punctuation, these should still count as numeric-leading
+        # If the first_alnum_char_upper skips punctuation, these should still count as numeric-leading
         assert has_numeric_evidence(["(3M)", "Portable", "Format"]) is True
         assert has_numeric_evidence(["[2]", "Factor"]) is True
         assert has_numeric_evidence(["'10GbE'", "Link"]) is True

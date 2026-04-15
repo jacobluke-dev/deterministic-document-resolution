@@ -140,7 +140,7 @@ class TestSplitCompound:
     @pytest.mark.parametrize(
         "token, expected_prefix",
         [
-            # these are in LEXICAL_SPLITS in your snippet
+            # these are in LEXICAL_SPLITS in the snippet
             ("websocket", ["Web", "Socket"]),
             ("middleware", ["Middle", "Ware"]),
             ("firmware", ["Firm", "Ware"]),

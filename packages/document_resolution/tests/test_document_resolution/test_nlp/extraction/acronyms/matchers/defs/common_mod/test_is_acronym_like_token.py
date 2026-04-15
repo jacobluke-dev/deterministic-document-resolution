@@ -47,7 +47,7 @@ class TestIsAcronymLikeToken:
     def test_trims_only_trailing_punct_not_internal(self):
         # internal punctuation isn't stripped by .strip(...), but dotted initialisms are still supported
         assert is_acronym_like_token("U.S.A") is True
-        assert is_acronym_like_token("U..S") is True  # doesn't match your regex
+        assert is_acronym_like_token("U..S") is True  # doesn't match thr regex
 
     def test_contains_lowercase_is_not_acronym_like(self):
         # violates fallback: contains lowercase

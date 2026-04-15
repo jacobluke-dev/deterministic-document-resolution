@@ -117,7 +117,7 @@ def find_parenthetical_longform_after_acr(  # noqa: C901
         # Use a signature for alignment for any mixed-case acronym (LaTeX, TfL, eBay, iOS, mRNA…)
         acr_for_align = acr
         if acr and any(c.islower() for c in acr) and any(c.isupper() for c in acr):
-            acr_for_align = _acr_signature_for_initials(acr)  # your segment-aware signature
+            acr_for_align = _acr_signature_for_initials(acr)  # the segment-aware signature
 
         hit = align_acronym_to_initials(
             acr_for_align,

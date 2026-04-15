@@ -311,7 +311,6 @@ def test_sentence_backref_ignores_single_letter_acronyms():
 
 
 def _fo(acr: str, start: int, end: int, *, norm: str | None = None):
-    # If you already have a FirstOccurrence helper in tests, use that instead.
     from document_resolution.nlp.common.types import FirstOccurrence
 
     return FirstOccurrence(
@@ -487,7 +486,6 @@ def _span(text: str, needle: str) -> tuple[int, int]:
 class TestExtractSentenceBackrefsIntegration:
     def test_happy_path_sso_previous_sentence(self):
         cfg = ExtractionConfig()
-        # optional: if you introduced a separate backref gate
         # object.__setattr__(cfg, "sentence_backref_require_two_words", True)
 
         text = "We use Single sign-on for authentication. This is known as SSO."

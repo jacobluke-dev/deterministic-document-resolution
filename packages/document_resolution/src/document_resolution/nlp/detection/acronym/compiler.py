@@ -47,7 +47,7 @@ def compile_acronym_pattern(cfg: AcronymDetectorConfig) -> re.Pattern[str]:
     tail_max = max(tail_max, tail_min)
     compact = rf"(?:[A-Z][A-Z0-9]{{{tail_min},{tail_max}}})"
 
-    # 4) digit-prefixed compact, e.g. 3GPP, 2FA, 5G, 80211AX (if you allow those)
+    # 4) digit-prefixed compact, e.g. 3GPP, 2FA, 5G, 80211AX
     # Ensure there's at least one letter after the digit run: [0-9]+[A-Z]
     dmin = max(cfg.min_len - 2, 0)
     dmax = max(cfg.max_len - 2, 0)
@@ -73,7 +73,7 @@ def compile_acronym_pattern(cfg: AcronymDetectorConfig) -> re.Pattern[str]:
     lower_prefix_brand = r"(?:[a-z]{1,2}[A-Z][a-z]+[A-Za-z0-9]*)"
 
     # 6c)
-    # Upper-prefix mixed-case, e.g. LaTeX, PowerBI, OpenAI (if you want), iPhoneOS-style variants
+    # Upper-prefix mixed-case, e.g. LaTeX, PowerBI, OpenAI, iPhoneOS-style variants
     upper_prefix_mixed = r"(?:[A-Z][a-z]{1,}[A-Z][A-Za-z0-9]*)"
 
     # 7)

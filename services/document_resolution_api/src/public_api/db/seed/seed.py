@@ -81,7 +81,7 @@ def main(force: bool = False) -> None:
                 .scalar_one()
             )
 
-            # Idempotent variant insert (case-insensitive to match your unique index)
+            # Idempotent variant insert (case-insensitive to match the unique index)
             existing_variants = {
                 v.variant.lower() for v in getattr(existing, "variants", []) if getattr(v, "variant", None)
             }

@@ -72,5 +72,5 @@ async def map_http_exception(request: Request, exc: Exception) -> Response:
         return JSONResponse(status_code=exc.status_code, content=body.model_dump())
 
     # Fallback: keep FastAPI behaviour for other HTTPExceptions.
-    # If you want ALL HTTPExceptions wrapped, extend this mapping.
+    # If we want ALL HTTPExceptions wrapped, extend this mapping.
     return JSONResponse(status_code=exc.status_code, content={"detail": exc.detail})

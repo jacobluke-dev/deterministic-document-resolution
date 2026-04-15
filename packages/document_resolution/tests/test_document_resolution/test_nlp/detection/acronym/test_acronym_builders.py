@@ -249,7 +249,7 @@ class TestAdjustEndForTrailingDotUnit:
 
     @pytest.mark.parametrize("display_mode", ["strip", "preserve", "unknown"])
     def test_unknown_mode_behaves_like_strip(self, test_cfg, display_mode):
-        # getattr(cfg, "dotted_display", "strip") reads whatever you set,
+        # getattr(cfg, "dotted_display", "strip") reads whatever set,
         # but only "preserve" causes advancement.
         cfg = test_cfg(dotted_display=display_mode)  # type: ignore[arg-type]
         text = "U.S."

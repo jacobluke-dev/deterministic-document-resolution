@@ -50,7 +50,7 @@ async def resolve_document(
 ) -> ResolveResponse | JSONResponse:
     started = time.perf_counter()
 
-    # Headers (validated-model size; actual raw bytes belong in ASGI middleware if you want true wire size)
+    # Headers (validated-model size; actual raw bytes belong in ASGI middleware want true wire size)
     text_bytes = len(payload.model_dump_json().encode("utf-8"))
     response.headers["X-Input-Bytes"] = str(text_bytes)
     response.headers["X-Body-Limit-Bytes"] = str(app_settings.MAX_BODY_BYTES)

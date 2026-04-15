@@ -17,7 +17,6 @@ def _reset_document_resolution_logger():
     lg.handlers.clear()
     lg.propagate = True
     lg.disabled = False
-    # (leave level alone unless you need to force it)
 
     try:
         yield

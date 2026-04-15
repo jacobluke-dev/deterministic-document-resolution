@@ -130,7 +130,7 @@ class TestDetectAndExtractE2ETier2Contracts:
 
         _det, extr, reports = detect_and_extract(text, ext_cfg=_tier2_cfg(mode="on"), return_reports=True)
         info = _stage_info(reports, "tier2_semantic_rerank")
-        # Your info string may differ; assert the intent:
+        # The info string may differ; assert the intent:
         assert "applied(0)" in info or "single_candidate" in info, info
         # sanity: only one meaning
         assert len(extr.meaning_by_acronym["EMA"]) == 1
@@ -531,13 +531,13 @@ class TestDisambiguationE2EConfidenceContract:
         meanings_by_id = extr.meaning_index
 
         # Ensure we have both meanings and that we can control their meaning_confidence:
-        # (E2E-friendly: mutate by rebuilding local objects if your dataclass is frozen elsewhere;
+        # (E2E-friendly: mutate by rebuilding local objects if the dataclass is frozen elsewhere;
         # here, we just assert what's already present and use patch on meaning_prior term behaviour.)
         assert "nlp|natural_language_processing" in meanings_by_id
         assert "nlp|nice_lovely_plants" in meanings_by_id
 
         # Now patch confidence levels by monkeypatching the meaning_index entries via replacement.
-        # If AcronmMeaning is mutable in your codebase, you can direct-set instead.
+        # If AcronmMeaning is mutable in the codebase, can direct-set instead.
         s_hi = meanings_by_id["nlp|natural_language_processing"]
         s_lo = meanings_by_id["nlp|nice_lovely_plants"]
 

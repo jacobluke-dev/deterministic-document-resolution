@@ -447,7 +447,7 @@ def _passes_generic_gates(cfg: AcronymDetectorConfig, surface: str) -> bool:
         # NEW: allow lower-prefix brand tokens like eBay/iOS-style when only 1 upper
         elif upp == 1 and _LOWER_PREFIX_BRAND_RE.match(surface):
             # Keep this conservative: brand tokens should not need 0.7 caps ratio.
-            # 0.25 is enough for eBay (1/4). If you want stricter, use 0.3.
+            # 0.25 is enough for eBay (1/4). If we want stricter, use 0.3.
             req = min(req, 0.25)
 
     return caps_ratio(surface) >= req

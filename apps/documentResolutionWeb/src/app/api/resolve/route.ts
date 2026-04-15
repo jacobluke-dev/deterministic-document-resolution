@@ -1,7 +1,7 @@
 import {NextResponse} from "next/server";
 import type {ResolveRequest, ResolveResponse} from "@/lib/api/types";
 
-export const runtime = "nodejs"; // keep it node for env + SDK compatibility (edge later if you want)
+export const runtime = "nodejs"; // keep it node for env + SDK compatibility
 
 function normaliseStatus(x: unknown, fallback = 502): number {
   const n = typeof x === "number" ? x : Number(x);

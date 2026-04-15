@@ -67,7 +67,6 @@ class TestAlignRtlScanWrapper:
 class TestAlignRtlScan:
     def test_returns_none_when_targets_empty(self):
         # No targets => by current implementation ti=-1, loop skips, returns used (empty list).
-        # Decide what you want. Here we assert current behaviour explicitly.
         assert align_rtl_scan([], ["A"], [False], allow_upper_on_stop=False) == []
 
     def test_returns_none_when_initials_empty(self):

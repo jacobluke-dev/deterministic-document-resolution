@@ -97,8 +97,7 @@ class TestNumericLeading:
             # ---- whitespace ----
             ("   5G", True),
             ("   GPU", False),
-            # ---- non-ascii digits (optional: depends on your policy) ----
-            # If you *don't* want this to count, change implementation to `ch in "0123456789"`.
+            # ---- non-ascii digits  ----
             ("١٢V", True),  # Arabic-Indic digit '١' isdigit() == True
         ],
     )
@@ -215,7 +214,7 @@ class TestTrySplitAcronymInitialsWindow:
 
     def test_allows_digits_in_acronym_letters_stream(self):
         # Acronym letters include digit; initials are derived from token[0] only.
-        # This should fail unless you have tokens starting with a digit in the sequence.
+        # This should fail unless there's tokens starting with a digit in the sequence.
         got = _try_split_acronym_initials_window(
             tokens=["3M", "Portable", "format"],
             acronym="3/P/F",
@@ -587,7 +586,7 @@ class TestTightenLabelByAcronymUnit:
 
 class TestTightenLabelByAcronymIntegration:
     def test_preserves_numeric_leading_token_in_pruned_phrase(self):
-        # This is the *real* path that bit you in your E2E:
+        # This is the *real* path in the E2E:
         # tighten_label_by_acronym() must include numeric-leading neighbours in the chosen window.
         raw = "3M Portable format"
         got = tighten_label_by_acronym(raw, "PF", bridges=set(), keep_case=True)

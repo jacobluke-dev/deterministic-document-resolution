@@ -474,7 +474,7 @@ class TestFindInlineLongformAfterAcrUnitWindowingAndFailureModes:
             kept_token_indices=lambda tokens, **kw: [],
         )
 
-        # kept_idx[0] would crash; this test asserts your function should return []
+        # kept_idx[0] would crash; this test asserts the function should return []
         # If it currently crashes, that’s a bug worth fixing (guard kept_idx).
         assert (
             find_inline_longform_after_acr("Portable Document Format", cfg, acr="PDF", require_initials_match=True)
@@ -555,7 +555,7 @@ class TestFindInlineLongformAfterAcrUnitWindowingAndFailureModes:
 class TestFindInlineLongformAfterAcrUnitConfigKeys:
     def test_uses_cfg_stop_attribute_not_stopwords(self, _patch, dummy_cfg, hit_cfg):
         cfg = dummy_cfg(max_phrase_chars=200)
-        cfg.stop = {"the"}  # your function reads cfg.stop, not cfg.stopwords
+        cfg.stop = {"the"}  # the function reads cfg.stop, not cfg.stopwords
 
         state = {"n": 0}
 

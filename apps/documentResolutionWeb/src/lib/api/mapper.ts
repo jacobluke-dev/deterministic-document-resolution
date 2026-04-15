@@ -25,7 +25,7 @@ export function toResolveRows(blocks: AcronymBlock[]): ResolveRow[] {
     const extracted = (b.definitions ?? []).map((d) => ({
       definition: d.text,
       confidence: d.confidence ?? null,
-      source: d.source, // "extracted" | "glossary" (per your Definition model)
+      source: d.source, // "extracted" | "glossary" (per the Definition model)
     }));
 
     const glossary = (b.glossary?.matches ?? []).map((m) => ({

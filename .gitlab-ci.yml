@@ -270,8 +270,6 @@ api:
       # For packages that insist on both being present
       DATABASE_URL_SYNC: "postgresql+psycopg://document_resolution:test-password@db:5432/document_resolution"
       TEST_DB_URL: "postgresql+psycopg://document_resolution:test-password@db:5432/document_resolution"
-
-      # Optional: if your app/tests want an async URL, provide it separately
       DATABASE_URL_ASYNC: "postgresql+asyncpg://document_resolution:test-password@db:5432/document_resolution"
 
       APP_ENV: "test"
@@ -345,7 +343,7 @@ web:
     - when: never
   variables:
     NODE_ENV: "production"
-    # Build-time public env required by your build validation:
+    # Build-time public env required by the build validation:
     NEXT_PUBLIC_API_BASE_URL: "http://api.document_resolution.dev"  # or staging URL
     NEXT_PUBLIC_ENV: "staging"
     NEXT_PUBLIC_ENABLE_ANALYTICS: "false"

@@ -19,7 +19,7 @@ RULES_SAFE: tuple[RuleFn, ...] = (
     rule_drop_mixed_case_typos,  # likely internal-case OCR/typo weirdness
 )
 
-# Optional alias if you later formalise tiers across the pipeline:
+# Optional alias if later formalise tiers across the pipeline:
 # This will come later if I go with this naming convention
 # RULES_TIER1 = RULES_SAFE
 
