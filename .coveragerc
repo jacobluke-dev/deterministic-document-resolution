@@ -1,0 +1,51 @@
+# .coveragerc (root)
+
+[run]
+branch = True
+relative_files = True
+# parallel = True
+# concurrency = multiprocessing
+
+source =
+    packages/document_resolution_core/src/document_resolution_core
+    packages/document_resolution_observability/src/document_resolution_observability
+    packages/document_resolution/src/document_resolution
+    services/document_resolution_api/src/public_api
+    src/document_resolution_core
+    src/document_resolution_observability
+    src/document_resolution
+    src/public_api
+
+[paths]
+document_resolution_core =
+    packages/document_resolution_core/src/document_resolution_core
+    */packages/document_resolution_core/src/document_resolution_core
+    src/document_resolution_core
+
+document_resolution =
+    packages/document_resolution/src/document_resolution
+    */packages/document_resolution/src/document_resolution
+    src/document_resolution
+
+#public_api =
+#    services/document_resolution_api/src/public_api
+ #   */services/document_resolution_api/src/public_api
+  #  src/public_api
+
+[report]
+show_missing = True
+skip_covered = False
+fail_under = 80
+exclude_lines =
+    pragma: no cover
+    def __repr__
+    if self\.debug
+    raise NotImplementedError
+    assert False
+    if 0:
+    if __name__ == .__main__.:
+exclude_also =
+    ^\s*@\w+
+    ^\s*if TYPE_CHECKING:
+
+[html]

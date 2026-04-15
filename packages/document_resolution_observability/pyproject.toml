@@ -1,0 +1,33 @@
+[tool.poetry]
+name = "document-resolution-observability"
+version = "0.1.0"
+description = "Document Resolution Observability Package"
+authors = ["Jacob Bickerstaff"]
+
+packages = [{ include = "observability", from = "src" }]
+include = ["src/observability/py.typed"]
+
+[tool.poetry.dependencies]
+python = "^3.13"
+
+[tool.poetry.group.dev.dependencies]
+document-resolution-testkit = { path = "../../packages/document_resolution_testkit", develop = true }
+pytest = "^8.3.0"
+mypy = "^1.11.1"
+ruff = "^0.5.7"
+
+# --- Ruff configuration ---
+[tool.ruff]
+line-length = 120
+extend-exclude = ["migrations", ".venv"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP", "SIM", "C90", "TID"]
+fixable = ["ALL"]
+
+[tool.pytest.ini_options]
+pythonpath = ["src"]
+
+[build-system]
+requires = ["poetry-core>=1.8.0"]
+build-backend = "poetry.core.masonry.api"

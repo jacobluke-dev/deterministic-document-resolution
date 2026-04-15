@@ -1,0 +1,107 @@
+from __future__ import annotations
+
+from document_resolution.nlp.detection.defined_terms import DefinedTermDetector
+from document_resolution.nlp.extraction.base.stages import StageResult
+from document_resolution.nlp.extraction.defined_terms.definitions import extract_term_definitions
+from document_resolution.nlp.extraction.defined_terms.meanings import build_term_meaning_index
+from document_resolution.nlp.extraction.defined_terms.state import TermFlowState
+from document_resolution.nlp.extraction.defined_terms.structure import build_term_structure_index
+from document_resolution.nlp.extraction.defined_terms.tiers.assemble import assemble_term_resolution_result
+from document_resolution.nlp.extraction.defined_terms.tiers.tier_1_score import score_term_occurrences_tier1
+from document_resolution.nlp.extraction.defined_terms.tiers.tier_2 import rerank_term_occurrences_tier2
+from document_resolution.wiring.observability import sink
+
+
+def st_detect_terms(s: TermFlowState) -> StageResult[TermFlowState]:
+    """Run defined-term detection and store the detector result."""
+    det = DefinedTermDetector(config=s.det_cfg, sink=sink).detect(s.text)
+    s.det_res = det
+    s.last_info = (
+        f"introductions={len(det.introductions)} "
+        f"unique_terms={len(det.unique_terms)} "
+        f"occurrences={len(det.mentions)}"
+    )
+    return StageResult(s, s.last_info)
+
+
+def st_build_structure_index(s: TermFlowState) -> StageResult[TermFlowState]:
+    """Build lightweight structural context for the document."""
+    s.structure_index = build_term_structure_index(s.text)
+    s.last_info = f"structures={len(s.structure_index.paths_by_span)}"
+    return StageResult(s, s.last_info)
+
+
+def st_extract_term_definitions(s: TermFlowState) -> StageResult[TermFlowState]:
+    """Extract definition spans/text for detected term introductions."""
+    assert s.det_res is not None
+
+    s.definition_entries = extract_term_definitions(
+        text=s.text,
+        detector_result=s.det_res,
+        structure_index=s.structure_index,
+    )
+
+    n_with_text = sum(1 for e in s.definition_entries if e.definition_text)
+    s.last_info = f"definitions={len(s.definition_entries)} with_text={n_with_text}"
+    return StageResult(s, s.last_info)
+
+
+def st_build_term_meaning_index(s: TermFlowState) -> StageResult[TermFlowState]:
+    """Build term meanings from extracted definition entries."""
+    s.tier_1.term_meaning_index, s.tier_1.meaning_index = build_term_meaning_index(
+        definition_entries=s.definition_entries,
+    )
+
+    if s.det_res is not None:
+        s.tier_1.occurrences = list(s.det_res.mentions)
+
+    s.last_info = (
+        f"keys={len(s.tier_1.term_meaning_index)} "
+        f"meanings={len(s.tier_1.meaning_index)} "
+        f"occurrences={len(s.tier_1.occurrences)}"
+    )
+    return StageResult(s, s.last_info)
+
+
+def st_tier1_score_term_occurrences(s: TermFlowState) -> StageResult[TermFlowState]:
+    """Run deterministic Tier-1 scoring over term occurrences."""
+    if s.det_res is not None and not s.tier_1.occurrences:
+        s.tier_1.occurrences = list(s.det_res.mentions)
+
+    s.tier_1.ranked = score_term_occurrences_tier1(
+        text=s.text,
+        occurrences=s.tier_1.occurrences,
+        term_meaning_index=s.tier_1.term_meaning_index,
+        structure_index=s.structure_index,
+        cfg=s.ext_cfg,
+    )
+
+    decided = sum(1 for r in s.tier_1.ranked if r.chosen_meaning_id is not None)
+    s.last_info = f"occurrences={len(s.tier_1.occurrences)} " f"ranked={len(s.tier_1.ranked)} " f"decided={decided}"
+    return StageResult(s, s.last_info)
+
+
+def st_tier2_term_semantic_rerank(s: TermFlowState) -> StageResult[TermFlowState]:
+    """Optionally rerank ambiguous term occurrences using Tier-2 semantics."""
+    ranked, report = rerank_term_occurrences_tier2(
+        text=s.text,
+        t1_ranked=s.tier_1.ranked,
+        meaning_index=s.tier_1.meaning_index,
+        cfg=s.ext_cfg,
+    )
+    s.tier_2.ranked = ranked
+    s.tier_2.report = report
+
+    s.last_info = f"tier2_ranked={len(ranked)} applied={report.applied}"
+    return StageResult(s, s.last_info)
+
+
+def st_assemble_term_resolutions(s: TermFlowState) -> StageResult[TermFlowState]:
+    """Assemble final term resolutions from Tier-1 and Tier-2 outputs."""
+    s.extr = assemble_term_resolution_result(s)
+    s.last_info = (
+        f"term_resolutions={len(s.extr.term_resolutions)} "
+        f"undecided={len(s.extr.undecided)} "
+        f"ambiguous_keys={len(s.extr.ambiguous_keys)}"
+    )
+    return StageResult(s, s.last_info)

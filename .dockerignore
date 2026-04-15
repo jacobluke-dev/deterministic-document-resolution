@@ -1,0 +1,9 @@
+# Keep source; just ignore junk
+.git/
+__pycache__/
+.venv/
+.pytest_cache/
+.mypy_cache/
+htmlcov/
+dist/
+build/

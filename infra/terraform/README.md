@@ -1,0 +1,20 @@
+# Infrastructure (Terraform)
+
+This directory contains Terraform scaffolding for future cloud provisioning.
+
+## Status
+🚧 **Deferred** — local Docker Compose (`services/docker-compose.yml`) is the authoritative way to run Postgres and the API.
+Terraform is provided as placeholders only. **Do not run `terraform apply` in CI.**
+
+## Structure
+- `providers.tf` — required provider declarations (empty/placeholder).
+- `variables.tf` — common input variables (stubbed).
+- `outputs.tf` — common outputs (stubbed).
+- `postgres.tf` — placeholder for a managed Postgres module.
+
+## Usage (future)
+When cloud provisioning / if is enabled:
+```bash
+terraform init
+terraform plan
+terraform apply

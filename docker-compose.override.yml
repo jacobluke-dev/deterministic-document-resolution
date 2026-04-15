@@ -1,0 +1,25 @@
+services:
+  web:
+    build:
+      context: .
+      dockerfile: apps/documentResolutionWeb/Dockerfile.dev
+    environment:
+      DOCUMENT_RESOLUTION_API_BASE_URL: http://api:8000
+      DOCUMENT_RESOLUTION_API_KEY: ${DOCUMENT_RESOLUTION_API_KEY:-devkey}
+      NEXT_PUBLIC_API_BASE_URL: ${NEXT_PUBLIC_API_BASE_URL:-http://api:8000}
+      NEXT_PUBLIC_ENV: ${NEXT_PUBLIC_ENV:-local}
+
+      # file watching in containers
+      WATCHPACK_POLLING: "true"
+      CHOKIDAR_USEPOLLING: "true"
+    volumes:
+      - ./apps/documentResolutionWeb:/repo/apps/documentResolutionWeb
+      # optional but recommended to avoid host node_modules weirdness
+      - web_node_modules:/repo/apps/documentResolutionWeb/node_modules
+    ports:
+      - "3001:3000"
+    depends_on:
+      - api
+
+volumes:
+  web_node_modules:

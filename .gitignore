@@ -1,0 +1,41 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+*.egg
+.pytest_cache/
+.mypy_cache/
+
+**/*-pycharm-support-libs
+
+dist/
+build/
+# Poetry
+.poetry/
+# Editors/OS
+.idea/
+.vscode/
+.DS_Store
+
+# Pre-commit
+.pre-commit-config.yaml.venv/
+.pre-commit-config.yaml
+
+# coverage
+.coverage
+.coverage.*
+coverage.xml
+**/coverage.xml
+htmlcov/
+pytest-results.xml
+
+.env
+.venv
+
+.ipynb_checkpoints/
+
+# local comparison file
+output.json
+
+node_modules/
+.pnpm-store/
