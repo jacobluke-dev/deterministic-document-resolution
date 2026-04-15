@@ -922,7 +922,7 @@ develop = true
 [package.dependencies]
 document-resolution-observability = {path = "../document_resolution_observability", develop = true}
 numpy = "2.4.2"
-python-dotenv = "^1.0"
+python-dotenv = "^1.1.1"
 SQLAlchemy = ">=2.0.43,<2.1"
 
 [package.source]
@@ -949,7 +949,7 @@ fastapi = "^0.116.1"
 httpx = "^0.28.1"
 psycopg = {version = ">=3.2,<3.3", extras = ["binary"]}
 pydantic-settings = "^2.4.0"
-python-dotenv = "^1.0.1"
+python-dotenv = "^1.1.1"
 SQLAlchemy = ">=2.0.43,<2.1"
 starlette = ">=0.40.0,<0.48.0"
 testcontainers = "^4.12.0"
@@ -970,7 +970,7 @@ files = []
 develop = true
 
 [package.dependencies]
-python-dotenv = "^1.0"
+python-dotenv = "^1.1.1"
 SQLAlchemy = ">=2.0.43,<2.1"
 
 [package.source]
@@ -1005,7 +1005,7 @@ develop = true
 document-resolution-observability = {path = "../document_resolution_observability", develop = true}
 numpy = "2.4.2"
 openai = ">=1,<2"
-python-dotenv = "^1.0"
+python-dotenv = "^1.1.1"
 SQLAlchemy = ">=2.0.43,<2.1"
 
 [package.source]
@@ -1025,7 +1025,7 @@ develop = true
 [package.dependencies]
 alembic = ">=1.16.5,<2.0"
 psycopg = {version = ">=3.2,<3.3", extras = ["binary"]}
-python-dotenv = "^1.0"
+python-dotenv = "^1.1.1"
 SQLAlchemy = ">=2.0.43,<2.1"
 testcontainers = {version = "^4.12.0", extras = ["postgresql"]}
 
@@ -3653,21 +3653,21 @@ dev = ["argcomplete", "attrs (>=19.2)", "hypothesis (>=3.56)", "mock", "requests
 
 [[package]]
 name = "pytest-asyncio"
-version = "0.23.8"
+version = "1.3.0"
 description = "Pytest support for asyncio"
 optional = false
-python-versions = ">=3.8"
+python-versions = ">=3.10"
 groups = ["dev"]
 files = [
-    {file = "pytest_asyncio-0.23.8-py3-none-any.whl", hash = "sha256:50265d892689a5faefb84df80819d1ecef566eb3549cf915dfb33569359d1ce2"},
-    {file = "pytest_asyncio-0.23.8.tar.gz", hash = "sha256:759b10b33a6dc61cce40a8bd5205e302978bbbcc00e279a8b61d9a6a3c82e4d3"},
+    {file = "pytest_asyncio-1.3.0-py3-none-any.whl", hash = "sha256:611e26147c7f77640e6d0a92a38ed17c3e9848063698d5c93d5aa7aa11cebff5"},
+    {file = "pytest_asyncio-1.3.0.tar.gz", hash = "sha256:d7f52f36d231b80ee124cd216ffb19369aa168fc10095013c6b014a34d3ee9e5"},
 ]
 
 [package.dependencies]
-pytest = ">=7.0.0,<9"
+pytest = ">=8.2,<10"
 
 [package.extras]
-docs = ["sphinx (>=5.3)", "sphinx-rtd-theme (>=1.0)"]
+docs = ["sphinx (>=5.3)", "sphinx-rtd-theme (>=1)"]
 testing = ["coverage (>=6.2)", "hypothesis (>=5.7.1)"]
 
 [[package]]
@@ -5789,4 +5789,4 @@ fastapi = ["fastapi"]
 [metadata]
 lock-version = "2.1"
 python-versions = "^3.13"
-content-hash = "aeb6c9f267af7f75be61098cf1335a6e43c643fac85b66d9ed945c36b2b9cb10"
+content-hash = "059dd6c2e1c2f9d7340d53a8243b69a381e79cd813caaf810ee881e6113c2e1b"
