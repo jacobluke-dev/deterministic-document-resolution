@@ -11,7 +11,6 @@ from document_resolution.nlp.plugins.registry import register_plugin
 _BIO_SNIFF_RE = re.compile(r"\b(?:mRNA|miRNA|sgRNA|SARS-CoV-2|MERS-CoV|H\d{1,2}N\d{1,2}|IL-\d{1,3}|[35][′'\"]-?UTR)\b")
 
 
-
 class BioPlugin(DomainPlugin):
     """Domain plugin providing biology-specific detection hooks.
 
