@@ -1,7 +1,7 @@
 from behave import given, step
 from behave.runner import Context
 from test_kit.helpers.data import load_file, project_path
-from test_kit.step_implmentations.db_impl import (
+from test_kit.step_implementations.db_impl import (
     load_file_into_db_impl,
     load_raw_impl,
     setup_table_impl,
