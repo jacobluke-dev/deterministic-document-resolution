@@ -1,0 +1,18 @@
+FROM node:20-alpine
+
+WORKDIR /repo
+
+COPY pnpm-lock.yaml pnpm-workspace.yaml package.json ./
+COPY apps/documentResolutionWeb/package.json apps/documentResolutionWeb/package.json
+
+RUN corepack enable && pnpm -C apps/documentResolutionWeb install
+
+# Copy source last (so deps layer caches well)
+COPY apps/documentResolutionWeb apps/documentResolutionWeb
+
+WORKDIR /repo/apps/documentResolutionWeb
+
+ENV NEXT_TELEMETRY_DISABLED=1
+EXPOSE 3001
+
+CMD ["pnpm", "dev"]

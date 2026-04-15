@@ -1,4 +1,32 @@
-#!/usr/bin/env python3
+"""Check for dependency version drift across multiple Poetry pyproject.toml files.
+
+This utility compares overlapping dependencies declared in multiple package
+`pyproject.toml` files and reports cases where the same dependency uses
+different version specifiers across projects.
+
+It inspects:
+- `tool.poetry.dependencies`
+- `tool.poetry.dev-dependencies`
+- `tool.poetry.group.dev.dependencies`
+
+The script is intended for monorepos with several Poetry-managed packages,
+where duplicated dependency declarations can silently drift over time and
+cause inconsistent installs, lockfile churn, or CI surprises.
+
+Usage:
+    python check_deps.py ../packages/document_resolution/pyproject.toml
+    ../packages/document_resolution_core/pyproject.toml
+    ../packages/document_resolution_observability/pyproject.toml
+    ../packages/document_resolution_rag_demo/pyproject.toml
+    ../packages/document_resolution_testkit/pyproject.toml
+    ../services/document_resolution_api/pyproject.toml
+    ... append as required
+Exit codes:
+    0: no overlapping dependency mismatches found
+    1: one or more mismatches found
+    2: invalid usage
+
+"""
 import sys, pathlib, tomllib
 from collections import defaultdict
 
@@ -34,7 +62,7 @@ if not paths:
 
 depmap = {}
 for p in paths:
-    depmap[p.name] = load(p)
+    depmap[p.parent.name] = load(p)
 
 # build per-package versions
 by_name = defaultdict(dict)

@@ -1,0 +1,17 @@
+[tool.poetry]
+name = "document-resolution-testkit"
+version = "0.1.0"
+packages = [{ include = "test_kit" }]
+
+[tool.poetry.dependencies]
+python = "^3.13"
+alembic = ">=1.16.5,<2.0"
+SQLAlchemy = ">=2.0.43,<2.1"
+psycopg = { version = ">=3.2,<3.3", extras = ["binary"] }
+testcontainers = { extras = ["postgresql"], version = "^4.12.0" }
+python-dotenv = "^1.1.1"
+
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
