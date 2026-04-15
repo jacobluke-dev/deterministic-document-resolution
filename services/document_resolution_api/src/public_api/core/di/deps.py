@@ -11,7 +11,6 @@ from document_resolution_core.db_manager.connection import DBManager
 from fastapi import Depends, Request
 from sqlalchemy.orm import Session
 
-from public_api.core.di.factory import create_resolver
 from public_api.core.services.resolve_service import ResolveService
 from public_api.core.settings import app_settings
 from public_api.db.repos import AcronymRepo, GlossaryRepository, SqlAlchemyAcronymRepo
@@ -39,7 +38,6 @@ class AppContainer:
         Creates the resolver and configures a semaphore if concurrency
         limiting is enabled via settings.
         """
-        self.resolver = create_resolver()
         self.semaphore: Semaphore | None = None
         if app_settings.MAX_INFLIGHT and app_settings.MAX_INFLIGHT > 0:
             self.semaphore = Semaphore(app_settings.MAX_INFLIGHT)

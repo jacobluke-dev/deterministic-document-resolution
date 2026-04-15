@@ -6,13 +6,11 @@ import document_resolution_core.db_manager.sink_factory as sink_f
 import pytest
 
 
-# --- dummies -----------------------------------------------------------------
 class DummySessionmaker: ...
 class DummyModelA: ...
 class DummyModelB: ...
 
 
-# --- shared helpers ----------------------------------------------------------
 @pytest.fixture(autouse=True)
 def _clean_caches():
     sink_f._MAPPER_CACHE.clear()
@@ -52,7 +50,6 @@ def _stub_factory(call_log):
     return stub
 
 
-# --- _mapper_for --------------------------------------------------------------
 class TestMapperFor:
     def test_returns_callable_and_caches_per_key(self, monkeypatch):
         calls: CallLog = defaultdict(list)
@@ -116,7 +113,7 @@ class TestMapperFor:
         assert fresh is not first
 
 
-# --- available_sinks ----------------------------------------------------------
+
 class TestAvailableSinks:
     @pytest.mark.parametrize(
         "reg, expected",
@@ -137,7 +134,7 @@ class TestAvailableSinks:
         assert out2 == expected
 
 
-# --- make_sink ----------------------------------------------------------------
+
 class TestMakeSink:
     def test_happy_path_constructs_sink_with_model_and_mapper(self, monkeypatch):
         spec = sink_f.SinkSpec(model=DummyModelA, default_logger_type="alpha")
@@ -181,7 +178,7 @@ class _CallState(TypedDict):
     count: int
     args: Optional[tuple[type[Any], str]]
 
-# --- make_universal_sink ------------------------------------------------------
+
 class TestMakeUniversalSink:
     def test_happy_path_builds_async_and_sync_sinks_and_universal(self, monkeypatch):
         spec = sink_f.SinkSpec(model=DummyModelA, default_logger_type="alpha")
@@ -192,7 +189,7 @@ class TestMakeUniversalSink:
 
         def stub_mapper_for(model, default_logger_type):
             calls["count"] += 1
-            calls["args"] = (model, default_logger_type)  # ← no trailing comma
+            calls["args"] = (model, default_logger_type)
             return mapper_sentinel
 
         monkeypatch.setattr(sink_f, "_mapper_for", stub_mapper_for, raising=True)
@@ -240,7 +237,6 @@ class TestMakeUniversalSink:
         expect_unknown_msg(ei.value, list(reg.keys()), "nope")
 
 
-# --- register_sink ------------------------------------------------------------
 class TestRegisterSink:
     def test_adds_entry_and_invalidates_matching_cache(self, monkeypatch):
         set_registry(monkeypatch, {})
