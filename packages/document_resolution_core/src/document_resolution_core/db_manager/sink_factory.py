@@ -1,5 +1,4 @@
 import os
-from collections.abc import Callable
 from dataclasses import dataclass
 from typing import Any
 
@@ -8,8 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 from .mappers import make_logger_mapper
 from .sessions import make_async_session_maker, to_asyncpg
 from .sinks import SqlAlchemyModelSink, SyncSqlAlchemyModelSink, UniversalSink
-
-MapperFn = Callable[[dict[str, Any]], dict[str, Any]]
+from .types import MapperFn
 
 
 @dataclass(frozen=True)
