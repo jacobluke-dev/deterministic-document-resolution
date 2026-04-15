@@ -1,4 +1,3 @@
-# services/public_api/src/public_api/api/types.py
 from __future__ import annotations
 
 from collections.abc import Awaitable, Callable, Iterable

@@ -1,5 +1,3 @@
-# tests/test_document_resolution/test_nlp/detection/domains/bio/test_rules.py
-
 import re
 from dataclasses import replace
 

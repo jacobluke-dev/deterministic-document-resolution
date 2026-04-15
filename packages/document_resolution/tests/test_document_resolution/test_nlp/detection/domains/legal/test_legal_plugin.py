@@ -1,4 +1,3 @@
-# needed to 'activate' plugin
 import document_resolution.nlp.detection.domains  # noqa: F401
 from document_resolution.nlp.common.types import AcronymDetectorConfig
 from document_resolution.nlp.detection.acronym.compiler import compile_acronym_pattern

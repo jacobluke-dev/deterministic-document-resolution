@@ -1,4 +1,3 @@
-# tests/test_document_resolution/test_nlp/detection/test_detector/test_inline_cues.py
 import re
 
 import pytest

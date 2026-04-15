@@ -1,5 +1,3 @@
-# tests/test_document_resolution/test_nlp/plugins/test_activation.py
-
 import document_resolution.nlp.plugins.activation as activation_mod
 from document_resolution.nlp.common.types import AcronymDetectorConfig
 from document_resolution.nlp.plugins.activation import _safe_sniff, autodetect_domains

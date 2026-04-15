@@ -1,4 +1,3 @@
-# test_kit/fixtures.py
 import os
 import time
 import urllib.parse
