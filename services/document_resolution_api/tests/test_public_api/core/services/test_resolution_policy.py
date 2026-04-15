@@ -10,6 +10,7 @@ from public_api.core.services.resolve_mapper import (
 from public_api.core.services.resolve_service import ResolveService
 from public_api.schemas.resolve import ResolutionMode, ResolveOptions
 
+
 class DummyGlossaryRepo:
     def __init__(self, meanings_by_acronym):
         self._meanings_by_acronym = meanings_by_acronym
