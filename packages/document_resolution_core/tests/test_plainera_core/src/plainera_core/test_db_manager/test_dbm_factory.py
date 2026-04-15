@@ -1,7 +1,7 @@
 import types
 from unittest import mock
 
-import document_resolution_core.db_manager.factory as factory
+import document_resolution_core.db_manager.dbm_factory as factory
 import pytest
 from public_api.core.settings import db_settings
 from sqlalchemy import text
