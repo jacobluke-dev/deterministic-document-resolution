@@ -1,36 +1,33 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# documentResolutionWeb
 
-## Getting Started
+## Overview
 
-First, run the development server:
+`documentResolutionWeb` is the Next.js web application for the Document Resolution repository.
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
-```
+It provides a browser-based interface for interacting with the API and demonstrating the resolution workflows exposed by the wider system.
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## Current scope
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+The current UI is primarily a demonstrator rather than a full product interface.
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+At present, the main surfaced workflow is the acronym-resolution demo page, which allows local testing of API-backed resolution behaviour from the browser.
 
-## Learn More
+## Local usage
 
-To learn more about Next.js, take a look at the following resources:
+In the normal repository workflow, this app is run via Docker Compose from the monorepo root.
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+The local demo page is available at:
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+`http://127.0.0.1:3001/demo`
 
-## Deploy on Vercel
+## Relationship to the repository
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+This application should usually be read alongside:
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+- `services/document_resolution_api/` for the backing FastAPI service,
+- `packages/document_resolution/` for the core resolution logic,
+- the top-level `README.md` for overall repository setup and usage.
+
+## Notes
+
+This app is still relatively lightweight compared with the rest of the repository and is intended mainly as a thin UI layer over the underlying API and resolution engine.

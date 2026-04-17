@@ -98,7 +98,7 @@ export default function DemoPage() {
       const data = await resolveText(req, ac.signal, useApiKey ? apiKey : undefined);
 
       const rows = toResolveRows(data.acronyms).sort((a, b) => a.start - b.start);
-      setUi({ kind: "success", rows });
+      setUi({kind: "success", rows});
       toast.success(`${rows.length} acronym(s) found.`);
 
       const live = document.getElementById("results-live-region");
@@ -137,10 +137,10 @@ export default function DemoPage() {
 
       <div className="mx-auto max-w-8xl p-4">
         <div className="mb-4">
-          <h1 className="text-xl font-semibold text-gray-100">Demo Page do not paste any confidential data in here
-            please.</h1>
+          <h1 className="text-2xl font-semibold">Acronym Resolution Demo</h1>
           <p className="text-sm text-white">
-            Paste text → Resolve → inspect deterministic offsets & sources.
+            Resolve acronyms and inspect deterministic offsets, confidence, and source attribution.
+            Do not paste sensitive or confidential text.
           </p>
         </div>
         {isLocal ?
@@ -152,7 +152,7 @@ export default function DemoPage() {
                 onChange={(e) => setUseApiKey(e.target.checked)}
                 className="h-4 w-4"
               />
-              Provide API key (local/dev only)
+              API key required for local development
             </label>
 
             {useApiKey ? (
