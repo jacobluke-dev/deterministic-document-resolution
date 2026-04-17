@@ -5,23 +5,14 @@ __pycache__/
 *.egg
 .pytest_cache/
 .mypy_cache/
+.ruff_cache/
+.ipynb_checkpoints/
 
-**/*-pycharm-support-libs
-
+# Build artifacts
 dist/
 build/
-# Poetry
-.poetry/
-# Editors/OS
-.idea/
-.vscode/
-.DS_Store
 
-# Pre-commit
-.pre-commit-config.yaml.venv/
-.pre-commit-config.yaml
-
-# coverage
+# Coverage / test outputs
 .coverage
 .coverage.*
 coverage.xml
@@ -29,13 +20,30 @@ coverage.xml
 htmlcov/
 pytest-results.xml
 
+# Virtual environments
+.venv/
+venv/
+
+# Poetry
+.poetry/
+
+# Editors / OS
+.idea/
+.vscode/
+.DS_Store
+**/*-pycharm-support-libs*
+
+# Pre-commit
+.pre-commit-config.yaml
+
+# Environment files
 .env
-.venv
+.env.*
 
-.ipynb_checkpoints/
-
-# local comparison file
-output.json
-
+# JS / frontend
 node_modules/
 .pnpm-store/
+*.tsbuildinfo
+
+# Local-only files
+output.json
