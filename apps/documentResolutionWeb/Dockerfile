@@ -33,8 +33,8 @@ WORKDIR /app
 ENV NODE_ENV=local
 
 COPY --from=builder /repo/apps/documentResolutionWeb/.next/standalone ./
-COPY --from=builder /repo/apps/documentResolutionWeb/.next/static ./.next/static
-COPY --from=builder /repo/apps/documentResolutionWeb/public ./public
+COPY --from=builder /repo/apps/documentResolutionWeb/.next/static ./apps/documentResolutionWeb/.next/static
+COPY --from=builder /repo/apps/documentResolutionWeb/public ./apps/documentResolutionWeb/public
 
 EXPOSE 3001
 
