@@ -1,14 +1,12 @@
-````md id="25126"
 # document_resolution_observability
 
 ## Overview
 
 `document_resolution_observability` is the shared observability and logging package for this repository.
 
-It provides a way to  allow for structured logging, request-level metadata, log context, middleware, redaction, and related observability behaviour across services and packages.
-Its role is to keep these concerns separate from both the core document-resolution logic and the API delivery layer, and store the data in the appropriate tables as requested.
+It provides structured logging, request-level metadata, log context, middleware, redaction, and related observability behaviour across services and packages. Its role is to keep these concerns separate from both the core document-resolution logic and the API delivery layer.
 
-This package is supporting infrastructure and important part of how the wider system remains inspectable and easier to operate.
+This package is supporting infrastructure and an important part of how the wider system remains inspectable and easier to operate.
 
 ## Purpose
 
@@ -34,7 +32,7 @@ At a high level, this package contains:
 - middleware for HTTP-related observability,
 - body-size and request-id helpers,
 - shared observability types,
-- lower-level DB-related mixins and model base support where relevant.
+- lower-level DB-related mixins and model-base support where relevant.
 
 ## Package structure
 
@@ -44,7 +42,7 @@ src/observability/
 ├── core/
 │   └── types.py         # Shared core types
 ├── db/
-│   ├── mixins.py        # Shared DB-related mixins most relevant to the service
+│   ├── mixins.py        # Shared DB-related mixins
 │   └── models/
 │       └── base.py      # Base database model support
 ├── http/
@@ -102,7 +100,6 @@ Some internal boundaries could still be sharpened. For example, the `logger/` pa
 
 Overall, the package is small and useful in its current form, though a further refinement pass would likely tighten a few of these internal package boundaries.
 
-
 ## Design principles
 
 This package was built around a few simple ideas:
@@ -115,16 +112,10 @@ This package was built around a few simple ideas:
 
 ## Development
 
-From this package directory:
+Run tests from this package directory with:
 
 ```bash
 poetry run pytest
 ```
 
 Depending on your workflow, broader checks may also be run from the monorepo root.
-
-## Current status
-
-This is a small supporting package within a larger public-facing repository.
-
-It is intended to provide a cleaner home for observability and logging concerns that support the rest of the system, rather than to stand alone as a large independent library.
