@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from typing import cast
+
 from alembic.config import Config
 from alembic.script import ScriptDirectory
 from document_resolution_core.utils.utils import get_project_path
@@ -18,16 +20,25 @@ def _cfg(alembic_ini_path: str | None) -> Config:
     return cfg
 
 
-
 def is_at_head(engine: Engine, *, schema: str | None) -> bool:
-    cfg = Config(get_project_path("services/document_resolution_api/alembic.ini", raise_error=True))
+    if not schema:
+        raise ValueError("schema is required for alembic head check")
+
+    cfg = Config(
+        get_project_path(
+            "services/document_resolution_api/alembic.ini",
+            raise_error=True,
+        )
+    )
     script = ScriptDirectory.from_config(cfg)
-    head = script.get_current_head()          # expected head revision id
+    head = cast(str, script.get_current_head())
 
     with engine.connect() as conn:
-        # read the current recorded revision directly from the version table
-        current = conn.execute(
-            text(f'SELECT version_num FROM "{schema}".alembic_version')
-        ).scalar()
+        current = cast(
+            str,
+            conn.execute(
+                text(f'SELECT version_num FROM "{schema}".alembic_version')
+            ).scalar_one(),
+        )
 
-    return current == head
+    return bool(current == head)
