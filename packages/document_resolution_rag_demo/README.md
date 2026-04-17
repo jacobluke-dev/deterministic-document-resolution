@@ -1,12 +1,10 @@
-````md
 # document_resolution_rag_demo
 
 ## Overview
 
 `document_resolution_rag_demo` is a demonstrator package used to compare baseline retrieval-augmented generation against a grounded approach built on top of the wider document-resolution system.
 
-Its role in the repository is not to be the primary product surface, but to provide a controlled way of exploring how deterministic document resolution can affect downstream retrieval and answer generation.
-In practice, this package is where the repository moves from extraction and resolution into demonstrable RAG behaviour.
+Its role is not to be the primary product surface, but to provide a controlled way of exploring how deterministic document resolution affects downstream retrieval and answer generation. In practice, this package is where the repository moves from extraction and resolution into demonstrable RAG behaviour.
 
 ## Purpose
 
@@ -99,11 +97,11 @@ This package should be read as an application of the core system rather than as 
 
 This package is intentionally demonstrative in nature.
 
-That means some of its value lies not just in raw functionality, but in how clearly it exposes the difference between competing approaches. The package is meant to make behaviour visible: baseline drift, grounded stability, retry decisions, warning paths, and abstention should all be understandable rather than hidden behind a single undifferentiated answer path.
+Part of its value lies not just in raw functionality, but in how clearly it exposes the difference between competing approaches. The package is meant to make behaviour visible: baseline drift, grounded stability, retry decisions, warning paths, and abstention should all be understandable rather than hidden behind a single undifferentiated answer path.
 
 One of the more deliberate choices here is that the bounded review/orchestration logic is kept narrow. The reviewer is not supposed to independently resolve meanings or act as a free-form agent. Its role is to inspect structured grounded evidence and make a constrained decision about whether the evidence appears sufficient for the next step. That boundary matters to the package design.
 
-As with other parts of the repository, there are areas that could be refined further. This is a demonstrator package rather than a polished standalone platform, and some assembly boundaries are lighter than they would be in a more mature dedicated RAG system. The current shape is intended to be honest to the repository’s goals: clear enough to demonstrate the architectural idea, but not pretending to be a finished product in its own right.
+As with other parts of the repository, there are areas that could be refined further. This is a demonstrator package rather than a polished standalone platform, and some assembly boundaries are lighter than they would be in a more mature dedicated RAG system. The current shape is intended to be honest to the repository’s goals: clear enough to demonstrate the architectural idea, without pretending to be a finished product in its own right.
 
 ## Design principles
 
@@ -117,7 +115,7 @@ This package was built around a few core ideas:
 
 ## Running and testing
 
-From this package directory:
+Run tests from this package directory with:
 
 ```bash
 poetry run pytest
@@ -125,8 +123,3 @@ poetry run pytest
 
 Depending on how the demonstrator is being exercised, parts of the package may also be invoked through higher-level service or application flows elsewhere in the repository.
 
-## Current status
-
-This is an active demonstrator package within a larger public-facing repository.
-
-It is not intended to be a complete general-purpose RAG framework. Its role is narrower and more specific: to show how deterministic document resolution can be carried into a retrieval pipeline, and to make the difference between grounded and baseline behaviour easier to inspect, explain, and evaluate.

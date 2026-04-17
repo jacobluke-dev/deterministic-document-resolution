@@ -25,7 +25,6 @@ def main(force: bool = False) -> None:
 
     # NOTE:
     # - Keep these mostly "paren-regex friendly" for current /v1/resolve demo.
-    # - Avoid punctuation-heavy acronyms like "R&D" unless/until UN-70 pipeline integration is live.
     #
     # Structure:
     #   (ACRONYM, [(DOMAIN, DEFINITION), ...], PROVENANCE, [VARIANT, ...])
@@ -38,8 +37,6 @@ def main(force: bool = False) -> None:
             "PDF",
             [
                 ("general", "Portable Document Format."),
-                # Uncomment when we want to demo ambiguity:
-                # ("statistics", "Probability Density Function."),
             ],
             "seed",
             ["Portable Document Format"],
@@ -90,6 +87,7 @@ def main(force: bool = False) -> None:
                 if norm_v not in existing_variants:
                     s.add(GlossaryVariant(acronym_id=existing.id,  variant=v))
                     existing_variants.add(norm_v)
+        print("completed seeding.")
 
 
 if __name__ == "__main__":

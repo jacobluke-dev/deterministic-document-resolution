@@ -32,21 +32,25 @@ At a high level, this service contains:
 - request orchestration and execution control,
 - response mapping and schema definitions,
 - persistence models and repositories,
-- migrations and seed support (see `./migrations/README.md`),
+- migrations and seed support,
 - service-level configuration.
 
 ## Service structure
 
 ```text
-src/public_api/
-├── api/            # Routers and response-facing API modules
-├── core/           # Service orchestration, DI, settings, and API-layer services
-├── db/             # Database models, repositories, migrations status, and seed support
-├── cli/            # CLI support to create/list/revoke API keys
-├── schemas/        # Request/response and shared API schemas
-├── main.py         # FastAPI application entry point
-└── migrations/     # For handling the alembic migrations see README.md in this directory
-└── wiring/         # Service composition helpers
+services/document_resolution_api/
+├── migrations/      # Alembic migrations and migration support
+├── src/
+│   ├── public_api/
+│   │   ├── api/         # Routers and response-facing API modules
+│   │   ├── cli/         # CLI support for API keys
+│   │   ├── core/        # Service orchestration, DI, settings, and API-layer services
+│   │   ├── db/          # Database models, repositories, migration status, and seed support
+│   │   ├── schemas/     # Request/response and shared API schemas
+│   │   └── main.py      # FastAPI application entry point
+│   └── wiring/      # Service composition helpers
+├── alembic.ini
+└── README.md
 ````
 
 ## Key areas
@@ -93,21 +97,13 @@ In practice, the easiest way to understand the required configuration is to revi
 * the local environment files used by the repository,
 * any example environment configuration provided alongside the service.
 
-I have intentionally not duplicated the full environment variable surface in this README, because that is better maintained closer to the configuration itself.
-
-## API scope
-
-The service exposes document-resolution functionality over HTTP and is designed around stable request and response schemas rather than direct package internals.
-
-At the time of writing, the primary entry point is the resolution flow exposed through the public API, supported by health and supporting operational endpoints where needed.
+The full environment variable surface is intentionally not duplicated in this README, as it is better maintained closer to the configuration itself.
 
 ## Design notes
 
 This service is one of the stronger architectural boundaries in the repository because it separates application delivery concerns from the underlying resolution engine.
 
-That said, there are still a few design trade-offs worth noting.
-
-The clearest example is orchestration. The service contains its own API-facing orchestration layer in `public_api.core.orchestration`, even though the underlying `document_resolution` package also contains orchestration primitives. This split is intentional enough to be functional, but it also reflects an architectural seam that could be clearer. The service-level orchestrator currently owns API-specific concerns such as chunked execution, timeout mapping, and response-oriented execution behaviour that the lower-level orchestration layer does not model cleanly on its own.
+The clearest refinement area is orchestration. The service contains its own API-facing orchestration layer in `public_api.core.orchestration`, while the underlying `document_resolution` package also contains orchestration primitives. That split is functional, but it also reflects an architectural seam that could be clearer. The service-level orchestrator currently owns API-specific concerns such as chunked execution, timeout mapping, and response-oriented execution behaviour that the lower-level orchestration layer does not model cleanly on its own.
 
 As a result, some orchestration control flow is duplicated across package and service boundaries. This is a known refinement area rather than an unknown issue.
 
@@ -129,10 +125,5 @@ Run tests for this service from this directory with:
 poetry run pytest
 ```
 
-Depending on the target, there may also be migration, database-backed, or integration-oriented test flows available through the local Make targets.
+Depending on the target, there may also be migration, database-backed, or integration-oriented test flows available through local Make targets.
 
-## Current status
-
-This is an active service within the wider public-facing repository.
-
-It is not presented as a finished production platform, but as a working service layer over a substantial document-resolution engine. It is intended both to be usable and to show how I approached API design, dependency management, orchestration, persistence integration, and service boundaries within a larger system.
