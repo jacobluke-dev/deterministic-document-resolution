@@ -1,7 +1,7 @@
 services:
   api:
     environment:
-      DB_HOST: localhost
+      DB_HOST: db
       DATABASE_URL: postgresql+psycopg://document_resolution:test-password@db:5432/document_resolution
       DATABASE_URL_SYNC: postgresql+psycopg://document_resolution:test-password@db:5432/document_resolution
       DATABASE_URL_ASYNC: postgresql+asyncpg://document_resolution:test-password@db:5432/document_resolution
@@ -20,10 +20,23 @@ services:
       - ./services/document_resolution_api/alembic.ini:/app/services/document_resolution_api/alembic.ini:ro
       - ./services/document_resolution_api/migrations:/app/services/document_resolution_api/migrations
       - ./services/document_resolution_api/src:/app/src
-    command: ["uvicorn", "--app-dir", "/app/src", "public_api.main:create_app", "--factory",
-              "--host", "0.0.0.0", "--port", "8000",
-              "--reload", "--reload-dir", "/app/src"]
-
+      - ./packages/document_resolution:/app/packages/document_resolution
+      - ./packages/document_resolution_core:/app/packages/document_resolution_core
+      - ./packages/document_resolution_observability:/app/packages/document_resolution_observability
+    command:
+      [
+        "uvicorn",
+        "--app-dir", "/app/src",
+        "public_api.main:create_app",
+        "--factory",
+        "--host", "0.0.0.0",
+        "--port", "8000",
+        "--reload",
+        "--reload-dir", "/app/src",
+        "--reload-dir", "/app/packages/document_resolution/src",
+        "--reload-dir", "/app/packages/document_resolution_core/src",
+        "--reload-dir", "/app/packages/document_resolution_observability/src"
+      ]
   web:
     build:
       context: .
@@ -34,6 +47,11 @@ services:
         NEXT_PUBLIC_ENABLE_ANALYTICS: ${NEXT_PUBLIC_ENABLE_ANALYTICS:-false}
     environment:
       DOCUMENT_RESOLUTION_API_KEY: ${DOCUMENT_RESOLUTION_API_KEY:-devkey}
+      WATCHPACK_POLLING: "true"
+      CHOKIDAR_USEPOLLING: "true"
+    volumes:
+      - ./apps/documentResolutionWeb:/repo/apps/documentResolutionWeb
+      - web_node_modules:/repo/apps/documentResolutionWeb/node_modules
     ports:
       - "3001:3000"
     depends_on:
@@ -58,3 +76,4 @@ services:
 
 volumes:
   pgdata:
+  web_node_modules:
