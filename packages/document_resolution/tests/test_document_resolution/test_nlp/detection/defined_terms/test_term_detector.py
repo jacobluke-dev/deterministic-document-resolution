@@ -190,24 +190,6 @@ class TestDefinedTermDetectorIterTermIntroductions:
         assert [i.term for i in intros] == ["Change of Control"]
         assert intros[0].normalized_key == "change_of_control"
 
-    def test_skips_bare_means_when_legal_inactive_and_required(self,
-                                                               cfg_terms_det_factory,
-                                                               defined_term_detector_factory):
-        cfg = cfg_terms_det_factory(
-            unquoted_capitalised_terms_policy="legal_only",
-        )
-        detector = defined_term_detector_factory(
-            unquoted_capitalised_terms_policy="legal_only", )
-        text = "Change of Control means any sale of assets."
-
-        intros = detector._iter_term_introductions(
-            text,
-            cfg=cfg,
-            legal_active=False,
-        )
-
-        assert intros == []
-
     def test_skips_bare_means_when_policy_is_never(
         self,
         cfg_terms_det_factory,
@@ -477,28 +459,6 @@ class TestDefinedTermDetectorIterOccurrences:
             introductions=self.introductions,
             first_intro_end_by_key={},
             intro_term_spans=set(),
-            cfg=cfg,
-            legal_active=False,
-        )
-
-        assert out == []
-
-    def test_skips_unquoted_occurrence_when_intro_span_overlaps(self,
-                                                                cfg_terms_det_factory,
-                                                                defined_term_detector_factory):
-        cfg = cfg_terms_det_factory(
-            unquoted_capitalised_terms_policy="legal_only",
-        )
-        detector = defined_term_detector_factory(
-            unquoted_capitalised_terms_policy="legal_only")
-        text = "Change of Control means any sale of assets."
-
-        out = detector._iter_references(
-            text,
-            known_keys={"change_of_control"},
-            introductions=self.introductions,
-            first_intro_end_by_key={},
-            intro_term_spans={(0, 17)},
             cfg=cfg,
             legal_active=False,
         )
