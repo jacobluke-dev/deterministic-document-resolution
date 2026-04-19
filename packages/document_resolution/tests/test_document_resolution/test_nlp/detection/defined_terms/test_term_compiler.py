@@ -58,7 +58,7 @@ class TestCompileDefinedTermPatterns:
 
         assert "Change of Control" in matches
 
-    def test_bare_means_does_not_cross_paragraph_boundary(self, pats):
+    def test_bare_means_matches_within_later_paragraph(self, pats):
         text = "Schedule A.\n\nChange of Control means any sale of assets."
         m = pats.bare_means.search(text)
 
