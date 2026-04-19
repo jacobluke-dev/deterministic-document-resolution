@@ -8,25 +8,14 @@ from ..post import DroppedOccurrence  # noqa: TID252
 
 
 def _is_strict_suffix(shorter: str, longer: str) -> bool:
-    """Returns True if `shorter` is a strict suffix of `longer` (case-insensitive).
-
-    “Strict” means `shorter` must be strictly shorter than `longer`. Matching is
-    performed using a simple case-insensitive `.endswith()` comparison; no other
-    normalisation is applied (e.g., punctuation trimming is the caller’s responsibility).
+    """Return whether `shorter` is a strict case-insensitive suffix of `longer`.
 
     Args:
         shorter: Candidate suffix string.
-        longer: Candidate superstring that may end with `shorter`.
+        longer: Candidate superstring.
 
     Returns:
-        True if `longer` ends with `shorter` ignoring case and `len(shorter) < len(longer)`;
-        otherwise False.
-
-    Examples:
-        _is_strict_suffix("RNA", "mRNA") -> True
-        _is_strict_suffix("rna", "mRNA") -> True
-        _is_strict_suffix("mRNA", "mRNA") -> False
-        _is_strict_suffix("", "mRNA") -> True  # empty string is a strict suffix by definition
+        True if `shorter` is shorter than `longer` and `longer` ends with it.
     """
     if len(shorter) >= len(longer):
         return False
@@ -37,28 +26,14 @@ def rule_contained_suffix(
     text: str,
     occs: list[Occurrence],
 ) -> tuple[list[Occurrence], list[DroppedOccurrence]]:
-    """Drops occurrences strictly contained within a longer occurrence when they are a strict suffix.
-
-    This rule removes fragment hits created by tokenisation/overlap where an acronym is
-    fully contained inside a longer acronym span and is a strict suffix of the longer
-    acronym (case-insensitive).
-
-    Example:
-        "mRNA" at (15, 19) and "RNA" at (16, 19) -> drop "RNA"
-        because "RNA" is strictly contained and "mRNA".endswith("RNA") == True.
-
-    Ordering:
-        Input ordering is not assumed. Occurrences are sorted deterministically so that
-        drop decisions and reports are stable across runs.
+    """Drop occurrences contained within a longer occurrence when they are its strict suffix.
 
     Args:
-        text: Source text (unused by this rule; included for the RuleFn contract).
-        occs: Current occurrence list from the cleanup pipeline.
+        text: Source text, unused but kept for the rule-function contract.
+        occs: Current occurrence list.
 
     Returns:
-        A tuple of:
-          - kept: Occurrences with contained strict-suffix fragments removed.
-          - dropped: Drop records for each removed occurrence, with rule="contained_suffix".
+        Kept occurrences and drop records for removed suffix fragments.
     """
     ordered = sorted(occs, key=lambda o: (o.start_offset, -(o.end_offset - o.start_offset), o.acronym))
     n = len(ordered)
@@ -102,32 +77,14 @@ def rule_end_suffix_micro(
     text: str,
     occs: list[Occurrence],
 ) -> tuple[list[Occurrence], list[DroppedOccurrence]]:
-    """Drops shorter occurrences that share an end offset and are strict suffixes of longer ones.
-
-    This rule handles “micro-overlap” cases where two different occurrences end at the same
-    character offset, but are not necessarily strictly contained due to tokenisation quirks.
-    Within each `end_offset` group, if a shorter acronym is a strict suffix of a longer acronym
-    (case-insensitive), the shorter occurrence is dropped.
-
-    Example:
-        Occurrences ending at 19:
-          - "mRNA" (15, 19)
-          - "RNA"  (16, 19)
-        -> drop "RNA" because "mRNA" endswith "RNA".
-
-    Ordering:
-        - Input ordering is not assumed.
-        - Occurrences are grouped by `end_offset`.
-        - Within each group, longer occurrences are preferred as the “container” candidate.
+    """Drop shorter same-end occurrences when they are strict suffixes of longer ones.
 
     Args:
-        text: Source text (unused by this rule; included for the RuleFn contract).
-        occs: Current occurrence list from the cleanup pipeline.
+        text: Source text, unused but kept for the rule-function contract.
+        occs: Current occurrence list.
 
     Returns:
-        A tuple of:
-          - kept: Occurrences with end-aligned strict-suffix fragments removed.
-          - dropped: Drop records for each removed occurrence, with rule="end_suffix_micro".
+        Kept occurrences and drop records for removed end-aligned suffix fragments.
     """
     ordered = sorted(occs, key=lambda o: (o.end_offset, o.start_offset, -(o.end_offset - o.start_offset), o.acronym))
 
@@ -174,31 +131,14 @@ def rule_inside_paren_suffix_of_left_acronym(
     text: str,
     occs: list[Occurrence],
 ) -> tuple[list[Occurrence], list[DroppedOccurrence]]:
-    """Drops ALLCAPS acronyms inside parentheses when they are strict suffixes of the left acronym.
-
-    This rule targets a common “alias clarification” pattern where an acronym is followed
-    by a parenthetical containing a shorter ALLCAPS fragment that is merely a suffix of
-    the left acronym.
-
-    Example:
-        "mRNA (RNA)" -> drop "RNA" because it is inside the parentheses and is a strict
-        suffix of "mRNA".
-
-    Constraints (intentional narrowness):
-        - The left occurrence must be immediately followed by '(' allowing whitespace.
-        - The inner occurrence must be fully inside the next ')' after that '('.
-        - The inner token must be an ALLCAPS alphabetic acronym (len > 1) after
-          punctuation trimming via `PUNCT_TRIM`.
-        - Matching uses strict, case-insensitive suffix logic.
+    """Drop ALLCAPS parenthetical acronyms that are strict suffixes of the left acronym.
 
     Args:
-        text: Source text used to locate parentheses boundaries.
-        occs: Current occurrence list from the cleanup pipeline.
+        text: Source text used to validate parentheses boundaries.
+        occs: Current occurrence list.
 
     Returns:
-        A tuple of:
-          - kept: Occurrences with qualifying parenthetical suffix fragments removed.
-          - dropped: Drop records for each removed occurrence, with rule="inside_paren_suffix_of_left".
+        Kept occurrences and drop records for removed parenthetical suffix fragments.
     """
 
     ordered = sorted(occs, key=lambda o: (o.start_offset, o.end_offset, o.acronym))
@@ -244,20 +184,7 @@ def rule_inside_paren_suffix_of_left_acronym(
 
 
 def _skip_ws(text: str, i: int, *, max_ws: int | None = None) -> int:
-    """Advance an index over whitespace characters.
-
-    If `max_ws` is provided, advances at most `max_ws` whitespace characters.
-    Otherwise, consumes all consecutive whitespace.
-
-    Args:
-        text: Source text being scanned.
-        i: Starting index.
-        max_ws: Optional cap on how many whitespace characters may be consumed.
-
-    Returns:
-        The first index at or after `i` that is not whitespace (or where `max_ws`
-        whitespace characters have been consumed).
-    """
+    """Advance `i` over whitespace, optionally capped by `max_ws`."""
     n = len(text)
     ws = 0
     while i < n and text[i].isspace() and (max_ws is None or ws < max_ws):
@@ -267,19 +194,7 @@ def _skip_ws(text: str, i: int, *, max_ws: int | None = None) -> int:
 
 
 def _best_occ_at_start(by_start: dict[int, list[Occurrence]], start: int) -> Occurrence | None:
-    """Pick the best occurrence among those that start at a given offset.
-
-    Selection policy:
-      1) Prefer the longest span (end-start).
-      2) Break ties by higher confidence.
-
-    Args:
-        by_start: Mapping from start_offset -> occurrences starting there.
-        start: Start offset to select from.
-
-    Returns:
-        The selected best occurrence, or None if no occurrences start at `start`.
-    """
+    """Return the longest, then highest-confidence occurrence starting at `start`."""
     bs = by_start.get(start)
     if not bs:
         return None
@@ -293,30 +208,7 @@ def _find_paren_occurrence_after(
     *,
     max_ws: int,
 ) -> Occurrence | None:
-    """Find a parenthetical occurrence B immediately following occurrence A.
-
-    Validates the narrow pattern:
-
-        A [ws<=max_ws] '(' [ws*] B [ws*] ')'
-
-    Where:
-      - A is a prior occurrence.
-      - '(' must appear after A with up to `max_ws` whitespace characters.
-      - B must start immediately after '(' allowing any whitespace.
-      - ')' must occur immediately after B allowing any whitespace.
-      - If multiple occurrences start where B begins, selects the "best" one
-        using `_best_occ_at_start`.
-
-    Args:
-        text: Source text used to validate parentheses boundaries/whitespace.
-        a: The candidate pre-parenthesis occurrence (A).
-        by_start: Mapping from start_offset -> occurrences starting there.
-        max_ws: Maximum whitespace allowed between A and '('.
-
-    Returns:
-        The selected parenthetical occurrence B if the pattern is satisfied,
-        otherwise None.
-    """
+    """Find the occurrence immediately inside parentheses following `a`."""
     j = _skip_ws(text, a.end_offset, max_ws=max_ws)
     if j >= len(text) or text[j] != "(":
         return None
