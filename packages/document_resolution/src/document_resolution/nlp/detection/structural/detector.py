@@ -12,16 +12,6 @@ from .types import StructuralReference, StructuralReferenceDetectorResult
 class StructuralReferenceDetector(BaseDetector[StructuralReferenceDetectorResult]):
     """Detect structural document references such as Section 4.2 and Schedule A.
 
-    The detector scans text for a conservative, bounded set of known structural
-    reference forms used in legal and similarly structured documents. Each match
-    is emitted directly as a canonical ``StructuralReference`` with preserved
-    source offsets and deterministic normalisation.
-
-    Detection is intentionally narrow:
-        * only known structural keywords are recognised
-        * a valid label is required after the keyword
-        * ordinary capitalised phrases are ignored
-
     This detector returns:
         * ``references``: structural references detected in document order
     """
@@ -65,11 +55,6 @@ class StructuralReferenceDetector(BaseDetector[StructuralReferenceDetectorResult
 
     def _iter_structural_references(self, text: str) -> list[StructuralReference]:
         """Collect structural references from supported keyword+label patterns.
-
-        The scan runs across all compiled structural-reference patterns,
-        deduplicates exact repeated matches, builds canonical output objects, and
-        returns results sorted by source order.
-
         Args:
             text: Full source text to scan.
 
@@ -139,9 +124,7 @@ class StructuralReferenceDetector(BaseDetector[StructuralReferenceDetectorResult
     ) -> StructuralReferenceDetectorResult:
         """Detect structural references using the current single-pass implementation.
 
-        This method currently delegates directly to ``detect``. The parallel entry
-        point exists to preserve a stable detector interface and allow future
-        structure-aware chunking if needed.
+        This method currently delegates directly to ``detect``.
 
         Args:
             text: Full source text to analyse.
