@@ -4,8 +4,8 @@ from document_resolution.nlp.detection.defined_terms.builders import (
 )
 
 
-class TestBuildDefinedTermMeaning:
-    def test_build_defined_term_meaning_sets_expected_fields(self):
+class TestBuildDefinedTermIntro:
+    def test_build_defined_term_intro_sets_expected_fields(self):
         result = build_defined_term_intro(
             term='"Effective Date"',
             term_start=10,
@@ -20,7 +20,7 @@ class TestBuildDefinedTermMeaning:
         assert result.normalized_key == "effective_date"
         assert result.provenance == "defined_term_detector"
 
-    def test_build_defined_term_meaning_strips_trailing_punctuation_and_quotes(self):
+    def test_build_defined_term_intro_strips_trailing_punctuation_and_quotes(self):
         result = build_defined_term_intro(
             term='"Confidential Information."',
             term_start=50,
@@ -32,7 +32,7 @@ class TestBuildDefinedTermMeaning:
         assert result.term == "Confidential Information"
         assert result.normalized_key == "confidential_information"
 
-    def test_build_defined_term_meaning_normalizes_bridge_words(self):
+    def test_build_defined_term_intro_normalizes_bridge_words(self):
         result = build_defined_term_intro(
             term="Change of Control",
             term_start=100,
@@ -45,8 +45,8 @@ class TestBuildDefinedTermMeaning:
         assert result.normalized_key == "change_of_control"
 
 
-class TestBuildDefinedTermOccurrence:
-    def test_build_defined_term_occurrence_sets_expected_fields(self):
+class TestBuildDefinedTermMention:
+    def test_build_defined_term_mention_sets_expected_fields(self):
         result = build_defined_term_mention(
             term='"Services"',
             start_offset=200,
@@ -62,7 +62,7 @@ class TestBuildDefinedTermOccurrence:
         assert result.confidence == 0.85
         assert result.segment_window == "...the Services from the Effective Date..."
 
-    def test_build_defined_term_occurrence_strips_trailing_punctuation_and_quotes(self):
+    def test_build_defined_term_mention_strips_trailing_punctuation_and_quotes(self):
         result = build_defined_term_mention(
             term='"Effective Date."',
             start_offset=300,
@@ -72,7 +72,7 @@ class TestBuildDefinedTermOccurrence:
         assert result.term == "Effective Date"
         assert result.normalized_key == "effective_date"
 
-    def test_build_defined_term_occurrence_defaults_confidence_and_segment_window(self):
+    def test_build_defined_term_mention_defaults_confidence_and_segment_window(self):
         result = build_defined_term_mention(
             term="Change of Control",
             start_offset=400,
