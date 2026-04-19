@@ -5,30 +5,19 @@ from document_resolution.nlp.detection.heuristics.general import strip_terminal_
 
 
 def adjust_end_for_trailing_dot(cfg: AcronymDetectorConfig, text: str, s: int, e: int) -> int:
-    """
-    Apply the dotted-display policy to an occurrence end-offset.
-
-    If `cfg.dotted_display == "preserve"` and the character immediately following the
-    matched span (`text[e]`) is a literal '.', advance the end offset by one so the
-    occurrence span includes that trailing dot (e.g. matching "U.S" in "U.S." yields an
-    end offset that includes the final period). In "strip" mode (or when no trailing dot
-    exists), the end offset is returned unchanged.
-
-    This function validates that the resulting span `[s, end_for_occ)` is a well-formed
-    slice into `text`.
+    """Apply dotted-display policy to an occurrence end offset.
 
     Args:
-        cfg: Detection configuration; reads `dotted_display` ("strip" or "preserve").
-        text: The full source text the offsets refer to.
-        s: Start offset (inclusive) of the matched surface.
-        e: End offset (exclusive) of the matched surface (before trailing-dot adjustment).
+        cfg: Detector configuration.
+        text: Full source text.
+        s: Match start offset.
+        e: Match end offset before trailing-dot adjustment.
 
     Returns:
-        int: The adjusted end offset (exclusive) to use for the occurrence.
+        Adjusted end offset.
 
     Raises:
-        OccurrenceBuildError: If the adjusted offsets are invalid (out of bounds or
-            start/end ordering is wrong).
+        OccurrenceBuildError: If the resulting slice bounds are invalid.
     """
     display_mode = getattr(cfg, "dotted_display", "strip")
     has_trailing_dot = e < len(text) and text[e] == "."
@@ -44,16 +33,10 @@ def adjust_end_for_trailing_dot(cfg: AcronymDetectorConfig, text: str, s: int, e
 
 def normalize_surface_for_key(surface: str) -> str:
     """
-    Normalise a matched surface into (base_surface, key_base) for occurrence/key construction.
+    Normalise a matched surface for occurrence and key construction.
 
-    The `base_surface` is produced by stripping terminal plural suffixes from fully-uppercase
-    acronym tokens (e.g. "GPUs" -> "GPU", "CPU's" -> "CPU"). The `key_base` is then derived
-    from `base_surface` by removing trailing punctuation via `strip_trailing_punct_str()`,
-    ensuring acronym/key strings do not end with punctuation.
-
-    Note:
-        This does not canonicalize internal punctuation (e.g. dotted initialisms) — that is
-        handled later by `normalize_acronym_key(..., dotted_mode=cfg.dotted_display)`.
+    Strips terminal plural suffixes and trailing punctuation, but leaves internal
+    punctuation handling to later key normalisation.
 
     Args:
         surface: Raw matched surface form, typically `text[s:e]`.
@@ -75,34 +58,24 @@ def build_occurrence_from_match(
     e: int,
     conf: float,
 ) -> tuple[Occurrence, str]:
-    """
-    Build an `Occurrence` from a single candidate span and return it with its display key.
+    """Build an occurrence from a matched span and return it with its display key.
 
-    Applies the dotted-display policy from `cfg.dotted_display` ("strip" or "preserve").
-    preserve mode extends the occurrence span to include a trailing dot (offset only);
-    the acronym/key do not retain terminal punctuation
-    When `cfg.debug_reasons` is enabled, reason tags are attached.
+    Applies dotted-display offset handling, normalises the surface for acronym/key
+    construction, derives the context window, and optionally attaches debug reasons.
 
     Args:
-        cfg: Detection configuration
+        cfg: Detector configuration.
         text: Full source text.
-        surface: Matched surface form (typically `text[s:e]`).
-        s: Start offset (inclusive) of the match.
-        e: End offset (exclusive) of the match before any trailing-dot adjustment.
-        conf: Confidence score for this match.
+        surface: Matched surface form.
+        s: Match start offset.
+        e: Match end offset before trailing-dot adjustment.
+        conf: Confidence score for the match.
 
     Returns:
-        tuple[Occurrence, str]: The constructed `Occurrence` and its normalized
-        display key (used for deduping/first-occurrence tracking).
+        Constructed occurrence and its normalised display key.
 
     Raises:
-        OccurrenceBuildError: If occurrence is invalid, not of type `str`, or empty, or poor
-        offsets.
-
-    Notes:
-        * Trailing-dot handling is offset-based only; no regex is modified.
-        * `context_window` is derived from the adjusted `(s, end_for_occ)` span.
-        * Normalization uses `normalize_key(..., dotted_mode=cfg.dotted_display)`.
+        OccurrenceBuildError: If the occurrence surface, key, or offsets are invalid.
     """
     end_for_occ = adjust_end_for_trailing_dot(cfg, text, s, e)
 
