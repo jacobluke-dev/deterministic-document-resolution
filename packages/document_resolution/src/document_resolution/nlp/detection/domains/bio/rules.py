@@ -9,12 +9,6 @@ from .patterns import bio_pattern
 
 def extra_candidates(text: str, cfg: BioConfig) -> Iterator[TextSpanTuple]:
     """Yield bio-domain candidate spans found by bio-specific patterns.
-
-    Runs the domain regex to capture biomedical tokens that the generic detector
-    may miss (e.g. cytokines/viruses/UTRs), then optionally adds explicit RNA-like
-    terms from `cfg.rna_like`. This yields raw spans only; downstream gates decide
-    acceptance.
-
     Args:
         text (str): Source text to scan.
         cfg (BioConfig): Bio configuration (uses `rna_like` to add explicit tokens).

@@ -9,11 +9,6 @@ def structural_signal_score(text: str, cap: int = 80_000) -> tuple[int, list[str
     clauses). Each matched cue contributes a deterministic weight to the total
     score, and matched cue labels are collected into ``reasons``.
 
-    Strong cues additionally set ``has_strong`` to ``True``. Repeated weak
-    references such as multiple section or clause mentions can add a small
-    bonus to improve recall for formally structured documents without requiring
-    a strong cue.
-
     Args:
         text (str): Source document text to inspect.
         cap (int, optional): Maximum number of characters from the start of
@@ -28,11 +23,6 @@ def structural_signal_score(text: str, cap: int = 80_000) -> tuple[int, list[str
             - ``has_strong``: ``True`` if any strong cue matched; otherwise
               ``False``.
 
-    Notes:
-        - Matching is deterministic and side-effect free.
-        - The function operates only on the first ``cap`` characters.
-        - ``reasons`` may contain both direct cue labels and derived repetition
-          labels such as ``"repeated_section"``.
     """
     t = text[:cap]
     score, reasons, has_strong = 0, [], False
@@ -73,10 +63,6 @@ def should_enable_structural_reference(
 ) -> tuple[bool, list[str]]:
     """Decide whether to enable the structural-reference domain for a document.
 
-    Runs structural signal scoring over a capped prefix of the input text and
-    returns whether the document should be considered structurally referential
-    enough to enable downstream structural-reference logic.
-
     The domain is enabled if either:
 
     - at least one **strong** structural cue is present; or
@@ -99,9 +85,6 @@ def should_enable_structural_reference(
             - ``reasons``: Labels describing which cues contributed to the
               decision.
 
-    Notes:
-        This function is intended for lightweight, deterministic domain gating.
-        It does not perform structural-reference extraction.
     """
     score, reasons, has_strong = structural_signal_score(text, cap=cap)
     return (has_strong or score >= threshold), reasons

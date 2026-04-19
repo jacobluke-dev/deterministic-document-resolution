@@ -2,14 +2,10 @@ from document_resolution.nlp.detection.domains.bio.config import STRONG, SUPPORT
 
 
 def bio_signal_score(text: str, cap: int = 80_000) -> tuple[int, list[str], bool]:
-    """
-    Compute a lightweight heuristic score for biomedical / life-sciences signals.
+    """Score biomedical/life-sciences signals in the input text.
 
-    The function scans the first `cap` characters of `text` using two cue tiers:
-    - STRONG: high-confidence biomedical markers (e.g., RNA types, cytokines, viruses).
-    - SUPPORT: contextual markers (e.g., PCR terms, lab units, stats phrasing, section headings, Greek letters).
-
-    Each cue contributes a fixed weight once (presence/absence), not per occurrence.
+    Scans up to `cap` characters and awards each matched cue once. Returns the
+    total score, matched cue labels, and whether any strong cue was present.
 
     Args:
         text: Input text to score.
@@ -40,14 +36,10 @@ def bio_signal_score(text: str, cap: int = 80_000) -> tuple[int, list[str], bool
 
 def should_enable_bio(text: str, threshold: int = 5) -> tuple[bool, list[str]]:
     """
-    Decide whether to enable "bio mode" for downstream processing based on cue scoring.
+    Decide whether biomedical mode should be enabled for the input text.
 
-    Uses `bio_signal_score` and applies a conservative gating rule:
-    - Enable if at least one STRONG cue matched, OR
-    - Enable if the overall score is high even without a STRONG cue (score >= threshold + 3).
-
-    This biases toward precision: a single strong biomedical marker is decisive,
-    while multiple weaker signals must accumulate to surpass the higher score bar.
+    Enables when at least one strong cue is present, or when weaker cues
+    accumulate to a sufficiently high score.
 
     Args:
         text: Input text to evaluate.
