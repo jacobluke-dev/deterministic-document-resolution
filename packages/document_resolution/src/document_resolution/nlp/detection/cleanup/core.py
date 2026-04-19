@@ -6,32 +6,17 @@ def recompute_firsts(
     occurrences: list[Occurrence],
     cfg: AcronymDetectorConfig,
 ) -> dict[str, FirstOccurrence]:
-    """Recomputes first-occurrence metadata from a list of kept occurrences.
+    """Recompute first-occurrence metadata from kept occurrences.
 
-    Produces a mapping of `normalized_key -> FirstOccurrence`, selecting the earliest
-    occurrence (lowest `start_offset`) per normalized key. This is used after cleanup
-    so that `DetectorResult.unique_acronyms` is derived from the authoritative
-    occurrence list rather than the pre-cleanup detector output.
-
-    Normalization:
-      - Prefer `Occurrence.normalized_key` when present.
-      - Otherwise compute a key via `normalize_acronym_key()` using `cfg.allow_chars`
-        and `cfg.dotted_display`.
-      - If a key cannot be computed, the occurrence is ignored.
+    Prefers `Occurrence.normalized_key` when present, otherwise recomputes the key
+    from the occurrence acronym and detector config.
 
     Args:
-        occurrences: Occurrences to derive first occurrences from (typically the
-            post-cleanup kept list). Input ordering is not assumed.
-        cfg: Detector configuration used for key normalization.
+        occurrences: Occurrences to derive first occurrences from.
+        cfg: Detector configuration used for key normalisation.
 
     Returns:
-        A dict mapping normalized keys to `FirstOccurrence` entries, where each entry
-        corresponds to the earliest occurrence for that key.
-
-    Notes:
-        - Deterministic: ties on start offset are resolved by first-seen iteration
-          order (stable for a fixed input list).
-        - Does not mutate the input occurrences.
+        Mapping of normalised key to the earliest occurrence for that key.
     """
 
     firsts: dict[str, FirstOccurrence] = {}
