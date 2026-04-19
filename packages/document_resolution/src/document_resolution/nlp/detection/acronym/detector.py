@@ -42,17 +42,13 @@ class AcronymDetector(BaseDetector[AcronymDetectorResult]):
         self._pat = compile_acronym_pattern(config)
 
     def _with_auto_domains(self, text: str) -> AcronymDetectorConfig:
-        """
-        Return a config updated with any domains auto-detected from the text.
-
-        Merges inferred domains with the current `enabled_domains`. If nothing new
-        is detected, the existing config is returned unchanged.
+        """Return a config updated with any auto-detected domains.
 
         Args:
             text: Input text to scan for domain cues.
 
         Returns:
-            AcronymDetectorConfig | dict[str|Any]: Config with augmented `enabled_domains` when applicable.
+            Config with augmented `enabled_domains` when new domains are detected.
         """
         auto = autodetect_domains(text, self.cfg)
         if auto:
@@ -63,23 +59,16 @@ class AcronymDetector(BaseDetector[AcronymDetectorResult]):
 
     @logger(message="acronym_detector.detect", db_sink="sink")
     def detect(self, text: str) -> AcronymDetectorResult:
-        """
-        Run acronym detection over the given text and return matches.
+        """Run acronym detection over the input text.
 
-        Applies auto-domain detection to augment the active config, scans for
-        candidate acronyms, filters by context/thresholds, and builds both the
-        full list of occurrences and the first-occurrence map per normalized key.
-
-        Structured logging:
-          - Emits a lightweight “start” and “summary” event.
-          - The @logger decorator also records duration/function metadata.
-          - message_logs at points providing structured detail.
+        Applies auto-domain detection, scores and filters candidate spans, and returns
+        both accepted occurrences and first occurrences keyed by normalised acronym.
 
         Args:
-            text: Input text to analyze.
+            text: Input text to analyse.
 
         Returns:
-            AcronymDetectorResult: Contains `occurrences` and `unique_acronyms`.
+            Detection result containing `occurrences` and `unique_acronyms`.
         """
         cfg0 = self.cfg
         cfg = self._with_auto_domains(text)
@@ -176,27 +165,19 @@ class AcronymDetector(BaseDetector[AcronymDetectorResult]):
 
     @logger(message="acronym_detector.parallel", db_sink="sink")
     def detect_parallel(self, text: str, threshold: int = 1000, chunk_size: int = 256) -> AcronymDetectorResult:
-        """
-        Run detection with optional multiprocess fan-out for large inputs.
+        """Run acronym detection with optional parallel scoring for large inputs.
 
-        Computes candidates, and if their count is below `threshold` defers to
-        `detect()`. Otherwise, splits work into `chunk_size` batches and processes
-        them via a lazily-created `ProcessPoolExecutor`, then merges results and
-        builds the first-occurrence map.
-
-        Structured logging:
-          - Emits pool creation and parallel-selection events.
-          - Logs per-chunk failures (with a traceback).
-          - The @logger decorator also records duration/function metadata.
-          - message_logs at points providing structured detail.
+        Falls back to `detect()` when the candidate count is below `threshold`.
+        Otherwise, scores candidates in chunks and rebuilds first occurrences from the
+        merged results.
 
         Args:
-            text: Input text to analyze.
-            threshold: Minimum candidate count to trigger parallel execution.
-            chunk_size: Number of candidates per process task.
+            text: Input text to analyse.
+            threshold: Minimum candidate count required for parallel execution.
+            chunk_size: Number of candidates per worker task.
 
         Returns:
-            AcronymDetectorResult: Contains `occurrences` and `unique_acronyms`.
+            Detection result containing `occurrences` and `unique_acronyms`.
         """
         cfg = self._with_auto_domains(text)
         cands = list(iter_acronym_candidates(text, cfg, self._pat))
