@@ -19,18 +19,7 @@ from document_resolution.nlp.detection.heuristics.general import (
 
 
 class HeuristicCfg(Protocol):
-    """
-    Structural subset of DetectorConfig required by context-based heuristics.
-
-    This protocol lets context heuristics accept either the full DetectorConfig or a
-    lightweight config implementation, while remaining type-safe and read-only.
-
-    Attributes:
-        allow_chars (FrozenSet[str]): Allowed internal separator characters.
-        non_acronym_upper (FrozenSet[str]): Uppercase tokens treated as non-acronyms (e.g. OK, PM).
-        soft_blacklist (FrozenSet[str]): Short, locale-aware blacklist of common words in caps.
-        enable_dotted (bool): Whether dotted initialisms (e.g. U.S.A) are enabled.
-    """
+    """Config subset required by context-based acronym heuristics."""
 
     @property
     def allow_chars(self) -> FrozenSet[str]: ...
@@ -57,41 +46,13 @@ else:
 
 
 def _in_definition_context(text: str, start: int, end: int) -> bool:
-    """
-    Detect “definition context” signals around a candidate span.
-
-    Treats a token as definition-backed if it is inside brackets, followed by a
-    parenthetical definition, or followed by a “stands for …” cue.
-
-    Args:
-        text (str): Full source text.
-        start (int): Start offset (inclusive) of the candidate span.
-        end (int): End offset (exclusive) of the candidate span.
-
-    Returns:
-        bool: True if the span is likely part of an explicit definition/expansion.
-    """
+    """Return whether the candidate appears in explicit definition context."""
     inside, _ = in_brackets(text, start, end)
     return inside or has_paren_definition(text, end) or has_stands_for_follow(text, end)
 
 
 def _drop_interjection(surface: str, text: str, s: int, e: int, cfg: CfgLike) -> bool:
-    """
-    Drop candidates that appear in ALL-CAPS interjection contexts.
-
-    Delegates to general heuristics that detect “shouty” tokens used as discourse markers
-    (e.g., OK!, NO!, YES!) either at the current span or immediately before it.
-
-    Args:
-        surface (str): Candidate surface text.
-        text (str): Full source text.
-        s (int): Start offset (inclusive) of the candidate span.
-        e (int): End offset (exclusive) of the candidate span.
-        cfg (CfgLike): Config implementing the HeuristicCfg subset.
-
-    Returns:
-        bool: True if the token should be dropped as an interjection; else False.
-    """
+    """Return whether the candidate appears in an ALL-CAPS interjection context."""
     # general.py expects HeuristicCfg; cast once here
     hcfg = cast(HeuristicCfg, cfg)
     return is_in_caps_interjection_context(surface, text, s, e, hcfg) or is_in_caps_interjection_context_prev(
@@ -100,37 +61,12 @@ def _drop_interjection(surface: str, text: str, s: int, e: int, cfg: CfgLike) ->
 
 
 def _drop_all_caps_heading(surface: str, text: str, s: int, e: int, cfg: HeuristicCfg) -> bool:
-    """
-    Drop candidates that are part of an ALL-CAPS heading.
-
-    Uses a strict ALL-CAPS token predicate plus a heading-context predicate to suppress
-    section headings that tend to produce noisy uppercase “matches”.
-
-    Args:
-        surface (str): Candidate surface text.
-        text (str): Full source text.
-        s (int): Start offset (inclusive) of the candidate span.
-        e (int): End offset (exclusive) of the candidate span.
-        cfg (HeuristicCfg): Config subset (uses allow_chars for ALL-CAPS checks).
-
-    Returns:
-        bool: True if the token should be dropped as a heading artifact; else False.
-    """
+    """Return whether the candidate is part of an ALL-CAPS heading."""
     return is_all_caps_word(surface, cfg.allow_chars) and is_all_caps_heading(text, s, e)
 
 
 def effective_blacklist(cfg: AcronymDetectorConfig) -> frozenset[str]:
-    """
-    Returns the complete black list system and user / organisational
-    defined list.
-
-    Args:
-        cfg (AcronymDetectorConfig): Config implementing the HeuristicCfg subset.
-
-    returns:
-        frozenset[str]: A complete black list system and user / organisational defined list
-
-    """
+    """Return the combined system and user/organisation blacklist."""
     return cfg.blacklist | cfg.user_org_blacklist
 
 

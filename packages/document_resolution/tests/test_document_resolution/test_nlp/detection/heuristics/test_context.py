@@ -3,11 +3,7 @@ from document_resolution.nlp.detection.heuristics.context import blacklist_conte
 
 
 def mk_cfg(**overrides) -> AcronymDetectorConfig:
-    """
-    Build a config with pragmatic defaults for this unit under test.
-    We ensure 'IT' and 'AM' are in blacklist (so token-specific rules run),
-    and include some common non-acronym uppercase tokens.
-    """
+    """Build a detector config with defaults for context-drop tests."""
     base = {
         "non_acronym_upper": frozenset({"OK", "LTD", "PLC", "NO"}),
     }
