@@ -3,10 +3,6 @@ from document_resolution.nlp.extraction.acronyms.anchored.spans import resolve_d
 from document_resolution.nlp.extraction.acronyms.config import ExtractionConfig
 
 
-def _by_kind(specs, kind: str):
-    return [s for s in specs if s.kind == kind]
-
-
 def _first_match(specs, text: str):
     for s in specs:
         m = s.pat.search(text)
@@ -38,7 +34,7 @@ class TestCompileAnchoredExactContracts:
         specs = compile_anchored_for_surface("PTO", cfg)
         text = "Please turn over (PTO)."
 
-        spec, m = _first_match(specs, text)
+        _, m = _first_match(specs, text)
         assert m is not None
 
         assert m.group("acr") == "PTO"
@@ -49,7 +45,7 @@ class TestCompileAnchoredExactContracts:
         specs = compile_anchored_for_surface("SSO", cfg)
         text = "SSO (Single sign-on) is enabled."
 
-        spec, m = _first_match(specs, text)
+        _, m = _first_match(specs, text)
         assert m is not None
 
         assert m.group("acr") == "SSO"
@@ -78,7 +74,7 @@ class TestCompileAnchoredExactContracts:
         specs = compile_anchored_for_surface("U.S", cfg)
 
         text = "United States (U.S.)."
-        spec, m = _first_match(specs, text)
+        _, m = _first_match(specs, text)
         assert m is not None
 
         # Acr group should be EXACT "U.S" (dot-optional is outside group)
@@ -90,7 +86,7 @@ class TestCompileAnchoredExactContracts:
         specs = compile_anchored_for_surface("NHS", cfg)
 
         text = 'National Health Service ("NHS")'
-        spec, m = _first_match(specs, text)
+        _, m = _first_match(specs, text)
         assert m is not None
         assert m.group("acr") == "NHS"
         assert m.group("def") == "National Health Service"
@@ -100,7 +96,7 @@ class TestCompileAnchoredExactContracts:
         specs = compile_anchored_for_surface("PPE", cfg)
 
         text = "Personal Protective Equipment (PPE, including masks)."
-        spec, m = _first_match(specs, text)
+        _, m = _first_match(specs, text)
         assert m is not None
 
         assert m.group("acr") == "PPE"

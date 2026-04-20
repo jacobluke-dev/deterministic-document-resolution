@@ -28,18 +28,11 @@ _TITLECASE_RUN_ANY_RE = re.compile(
 
 def _pick_best_run(text: str) -> str | None:
     """
-    Select the “best” title-case run from `text`.
-
-    This scans `text` for title-cased spans matched by `_TITLECASE_RUN_ANY_RE`,
-    filters out empty/degenerate candidates (e.g. spans that contain no valid
-    title tokens per `_TITLE_TOKEN_RE`), and then chooses a winner using a
+    Select the “best” title-case run from `text`. Chooses a winner using a
     deterministic ranking:
 
       1) Prefer the candidate with the greatest number of tokens (as counted by `TOKEN_RE`).
       2) If tied on token count, prefer the rightmost candidate (largest match end offset).
-
-    This heuristic is designed to pick the most information-dense and most
-    context-relevant title-case phrase when multiple runs are present.
 
     Args:
         text: Source text to scan for title-case runs.
@@ -69,11 +62,6 @@ def _pick_best_run(text: str) -> str | None:
 
 def tighten_definition_span(s: str) -> str:
     """Tighten a noisy definition string down to its most plausible “definition-ish” span.
-
-    The function prefers the rightmost TitleCase/ALLCAPS run found by TITLECASE_RUN_RE,
-    but avoids selecting a pure lowercase-hyphen tail (e.g., "sign-on") as the result.
-    If no acceptable run is found, it falls back to analysing the last clause and then
-    finally returns a whitespace-collapsed, trailing-punctuation-trimmed tail.
 
     Args:
         s: Raw definition string (may include punctuation, multiple clauses, etc.).

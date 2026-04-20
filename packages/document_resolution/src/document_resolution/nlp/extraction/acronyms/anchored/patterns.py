@@ -16,22 +16,15 @@ class PatternSpec:
 
 
 def compile_anchored_for_surface(acr: str, cfg: ExtractionConfig) -> tuple[PatternSpec, ...]:
-    """Compile anchored extraction patterns for a specific acronym.
+    """Compile anchored acronym-definition patterns for a specific acronym surface.
 
-    Builds a set of compiled regex patterns that detect common long-form/acronym
-    structures around an exact acronym surface, including:
+    Covers forward and reverse wrapper forms such as `Long Form (ACR)` and
+    `ACR (Long Form)`, wrapper-before-acronym forms, and inline cue forms where
+    either the acronym or the long form appears before the cue phrase.
 
-      - Forward wrappers:  Long Form (ACR) / Long Form [ACR]
-      - Reverse wrappers:  ACR (Long Form) / ACR [Long Form]
-      - Wrapper-before-acr: (Long Form) ACR / [Long Form] ACR
-      - Inline cues: ACR ... <cue> ... Long Form  and  Long Form ... <cue> ... ACR
-
-    Each pattern exposes named capture groups:
-      - ``acr``: the acronym only (excluding optional trailing dot, quotes, tails,
-        and optional possessive markers like ``PDF's`` / ``PDF’s``).
-      - ``def``: a candidate definition region (may be intentionally minimal for
-        some inline patterns; use ``resolve_def_span(spec.strategy, ...)`` to
-        compute the final span to slice).
+    Each pattern exposes:
+        - `acr`: the acronym surface aligned to detector occurrences
+        - `def`: a candidate definition region to be resolved or cleaned downstream
 
     Args:
         acr: Exact acronym surface to compile patterns for (e.g., ``"PPE"``).

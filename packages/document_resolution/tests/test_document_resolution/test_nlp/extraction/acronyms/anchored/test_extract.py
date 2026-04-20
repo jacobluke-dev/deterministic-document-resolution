@@ -132,7 +132,7 @@ class TestDistanceFromFoUnit:
         assert mod._distance_from_fo(a0_local=5, left=10, fo_start_offset=12) == 3
 
 
-def _fo_extract_near_firsts_only(
+def _make_first_occurrence(
     acr: str, text: str, *, norm: str | None = None, end_extra: int = 0
 ) -> FirstOccurrence:
     a0 = text.index(acr)
@@ -148,7 +148,7 @@ def _fo_extract_near_firsts_only(
 class TestExtractNearFirstsIntegration:
     def test_extracts_parenthetical_forward_form(self):
         text = "Single sign-on (SSO) is enabled."
-        firsts = {"SSO": _fo_extract_near_firsts_only("SSO", text, norm="SSO")}
+        firsts = {"SSO": _make_first_occurrence("SSO", text, norm="SSO")}
         cfg = ExtractionConfig()
 
         picks = mod.extract_near_firsts(text, firsts, window_left=80, window_right=80, cfg=cfg)
@@ -165,7 +165,7 @@ class TestExtractNearFirstsUnit:
 
     def test_picks_best_by_confidence_then_shorter_span(self, _patch):
         text = "Alpha (AAA) ... Beta (AAA)"
-        fo = _fo_extract_near_firsts_only("AAA", text)
+        fo = _make_first_occurrence("AAA", text)
         firsts = {"AAA": fo}
 
         # Two “matches” against the same FO; select higher conf, or if tie, shorter def span.
@@ -198,7 +198,7 @@ class TestExtractNearFirstsUnit:
 
     def test_skips_non_aligned_matches(self, _patch):
         text = "X AAA Y"
-        fo = _fo_extract_near_firsts_only("AAA", text)
+        fo = _make_first_occurrence("AAA", text)
         firsts = {"AAA": fo}
 
         # Pattern matches "AAA" but we’ll force mismatch by moving FO window offsets via fake build window.
@@ -220,7 +220,7 @@ class TestExtractNearFirstsUnit:
         # FO includes trailing dot; regex captures without it; should still accept.
         text = "U.S. Senate is a body."
         # FO spans "U.S." including the trailing dot (end_extra=1 because acr string below is "U.S")
-        fo = _fo_extract_near_firsts_only("U.S", text, end_extra=1)
+        fo = _make_first_occurrence("U.S", text, end_extra=1)
         firsts = {
             "U.S.": FirstOccurrence(
                 acronym="U.S.",
