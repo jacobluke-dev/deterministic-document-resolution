@@ -85,25 +85,9 @@ def consume_left_numeric_designator(
     acr: str,
     tokens: Sequence[str],
     tok_left: int,
-    word_to_digits: Mapping[str, str] = WORD_TO_DIGITS,
+    word_to_digits=None,
 ) -> int:
     """Optionally consume a left-hand numeric designator for digit-prefixed acronyms.
-
-    If ``acr`` begins with one or more digits (e.g. ``"5G"``, ``"12V"``) and the
-    token immediately to the left of ``tok_left`` expresses the same number,
-    this function returns ``tok_left - 1`` to expand the candidate phrase window
-    left by one token. Otherwise, it returns ``tok_left`` unchanged.
-
-    Recognised forms for the left token (after light normalisation):
-      - Numeric ordinals: ``"5th"``, ``"12th"`` (case-insensitive suffix)
-      - Plain numerics: ``"5"``, ``"12"``
-      - Word numerics/ordinals via ``word_to_digits``: ``"fifth" -> "5"``, ``"twelve" -> "12"``
-      - Hyphenated tokens: if the token is hyphenated (e.g. ``"5th-generation"``),
-        only the head segment (``"5th"``) is considered.
-
-    Normalisation rules:
-      - Strips *edge* punctuation (keeps internal hyphens).
-      - Lowercases the left token for matching.
 
     Args:
         acr (str): Acronym surface form. Only digit-prefixed acronyms are eligible.
@@ -114,15 +98,9 @@ def consume_left_numeric_designator(
     Returns:
         int: ``tok_left - 1`` if the immediate left token matches the acronym's
         leading digits; otherwise ``tok_left``.
-
-    Examples:
-        >>> consume_left_numeric_designator(acr="5G", tokens=["fifth","generation"], tok_left=1)
-        0
-        >>> consume_left_numeric_designator(acr="12V", tokens=["12th","edition"], tok_left=1)
-        0
-        >>> consume_left_numeric_designator(acr="GPU", tokens=["graphics","processing"], tok_left=1)
-        1
     """
+    if word_to_digits is None:
+        word_to_digits = WORD_TO_DIGITS
     if tok_left <= 0 or not acr:
         return tok_left
 

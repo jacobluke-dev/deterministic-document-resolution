@@ -11,24 +11,6 @@ _word_re = re.compile(r"[A-Za-z0-9'’\-\/&\.]+", flags=re.UNICODE)
 def _tokenize_preserve(text: str) -> list[str]:
     """Tokenise `text` into “word-ish” tokens while preserving certain punctuation.
 
-    This tokenizer is intentionally conservative and ASCII-centric: it extracts runs
-    of characters matching `[A-Za-z0-9'’\\-\\/&\\.]+` and returns them as tokens.
-    It preserves internal punctuation that commonly appears in acronyms, names, and
-    technical identifiers (e.g. hyphens, slashes, ampersands, dots, apostrophes).
-
-    Examples:
-        - "Foo-Bar"      -> ["Foo-Bar"]
-        - "Foo/Bar"      -> ["Foo/Bar"]
-        - "R&D"          -> ["R&D"]
-        - "U.S.A."       -> ["U.S.A."]
-        - "can't / don’t"-> ["can't", "don’t"]
-
-    Notes:
-        - Non-ASCII letters act as boundaries; ASCII runs around them can still
-          be emitted as separate tokens.
-        - Whitespace and other punctuation (e.g. commas, parentheses) act as
-          boundaries and are not included.
-
     Args:
         text (str): Input string to tokenise.
 
@@ -40,13 +22,6 @@ def _tokenize_preserve(text: str) -> list[str]:
 
 def _best_window_for_acronym(tokens: list[str], acronym: str) -> Optional[tuple[int, int, set[int]]]:
     """Select the shortest contiguous token window whose initials match an acronym.
-
-    Builds a compound-aware initials stream from `tokens` (via `initials_seq`) and
-    searches for the shortest contiguous window of tokens whose initials contain
-    the alphanumeric characters of `acronym` as an ordered subsequence.
-
-    Returns both the chosen token-span and the set of token indices that actually
-    contributed matched initials ("hits").
 
     Args:
         tokens (list[str]): Token strings to search within.
@@ -87,16 +62,7 @@ _NUMERIC_LEADING_RE = re.compile(r"^[^A-Za-z]*[0-9]")  # fast-ish heuristic
 def _numeric_leading(tok: str) -> bool:
     """Return True if `tok` begins with a digit once leading punctuation is ignored.
 
-    Scans LTR for the first alphanumeric character. Returns True if that
-    character is a digit, otherwise False. If `tok` contains no alphanumeric
-    characters, returns False.
-
-    Examples:
-        - "3M" -> True
-        - "5th" -> True
-        - "(12V)" -> True
-        - "GPU" -> False
-        - "--" -> False
+    Scans LTR for the first alphanumeric character.
 
     Args:
         tok (str): Token to inspect (may include punctuation).
@@ -121,19 +87,6 @@ def _try_split_acronym_initials_window(
     keep_case: bool,
 ) -> str | None:
     """Extract a minimal initials-aligned token window for split acronyms.
-
-    This helper targets acronyms that *explicitly* contain split markers (e.g. `/`, `&`, `.`, `-`)
-    such as ``"C/A"``, ``"R&D"``, or ``"A/B/C"``. It attempts to find a subsequence of token
-    initials that matches the acronym's alphanumeric characters in order, then returns a pruned
-    phrase consisting of:
-
-    - Tokens whose initials participated in the match,
-    - Any bridge tokens (e.g. "and", "of") within the matched window,
-    - Any numeric-leading tokens within the window (e.g. "3M", "5th") and numeric-leading
-      neighbours immediately adjacent to the window.
-
-    If no full initials sequence is found, returns ``None`` so the caller can fall back to the
-    default tightening strategy.
 
     Args:
         tokens (list[str]): Tokenised phrase (case-preserving).
@@ -163,9 +116,6 @@ def _try_split_acronym_initials_window(
 def _split_acr_letters(acronym: str) -> list[str] | None:
     """Return cleaned acronym letters for split-marker acronyms.
 
-    Only applies to acronyms containing explicit split markers (e.g. '/', '&', '.', '-').
-    Produces an uppercase list of alphanumeric characters, and requires at least 2 letters.
-
     Args:
         acronym (str): Acronym surface form.
 
@@ -181,9 +131,6 @@ def _split_acr_letters(acronym: str) -> list[str] | None:
 
 def _match_initials_subsequence(tokens: list[str], letters: list[str]) -> list[int] | None:
     """Find the first token-index subsequence whose initials match `letters` in order.
-
-    Uses the first character of each token as its initial (uppercased). Returns the first
-    full match found scanning left-to-right.
 
     Args:
         tokens (list[str]): Tokenised phrase.
@@ -231,11 +178,6 @@ def _collect_kept_tokens(
 ) -> list[str]:
     """Collect tokens to keep from a matched window.
 
-    Keeps:
-      - tokens whose indices are in `seq_idxs`,
-      - bridge tokens (by lowercased value) within the window,
-      - numeric-leading tokens within the window.
-
     Falls back to returning the full window if the keep-set is empty.
 
     Args:
@@ -266,18 +208,6 @@ def _phrase_from_best_window(
     keep_case: bool,
 ) -> str | None:
     """Build a pruned definition phrase from the best acronym-alignment window.
-
-    Uses the legacy alignment strategy:
-      1) Find the smallest token window whose initials can align to `acronym`
-         via `_best_window_for_acronym(...)`.
-      2) Expand the window to include adjacent numeric-leading tokens (e.g., "3M")
-         immediately outside the window.
-      3) Prune the window down to:
-           - tokens that were part of the alignment (`hit_tokens`),
-           - bridge words inside the window (e.g., "of", "and"),
-           - numeric-leading tokens (e.g., "3M", "5th") anywhere in the window.
-         If pruning removes everything, fall back to the full expanded window.
-      4) Collapse whitespace and strip trailing punctuation.
 
     Args:
         tokens (list[str]): Tokenised label/definition candidate.
@@ -324,24 +254,6 @@ def tighten_label_by_acronym(
     keep_case: bool = True,
 ) -> str:
     """Tighten a candidate definition by aligning it to an acronym.
-
-    Canonicalises and tokenises `raw_label` (compound-aware), then attempts to
-    reduce the label to the smallest defensible phrase that still corresponds to
-    `acronym`.
-
-    The tightening proceeds in two stages:
-
-    1) Split-acronym preference:
-       If `acronym` contains split markers (e.g. "C/A", "R&D", "A/B/C"), prefer
-       an "initials-in-order" window over tokens and keep only:
-         - tokens that contributed matched initials,
-         - bridge words within the chosen window (e.g. "of", "and") if supplied,
-         - numeric-leading neighbours (e.g. "3M") adjacent to the window.
-
-    2) Legacy fallback:
-       Otherwise, select the shortest contiguous token window whose initials match
-       the acronym in order (via `_best_window_for_acronym`), then prune to hit
-       tokens plus any bridge words (and numeric-leading neighbours).
 
     This function does *not* implement stopword logic beyond the optional `bridges`
     set. Any stopword filtering used to compute initials/alignments is handled by
