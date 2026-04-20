@@ -35,11 +35,6 @@ def _resolve_definition_start(
 ) -> int | None:
     """Resolve the starting offset of the trailing definition body.
 
-    For introduction kinds that support a trailing ``means`` or ``shall mean``
-    clause, this helper skips the definitional anchor and returns the start of
-    the actual definition text. Parenthetical aliases do not produce trailing
-    definition spans and therefore return ``None``.
-
     Args:
         text: Full source text.
         intro_end: Exclusive end offset of the introduction term span.
@@ -68,9 +63,6 @@ def _find_definition_end(
     max_chars: int = 400,
 ) -> int | None:
     """Find the end offset of a trailing definition fragment.
-
-    Scans forward from ``start`` up to ``max_chars`` and stops at the earliest
-    recognised boundary marker such as a blank line, semicolon, or period.
 
     Args:
         text: Full source text.
@@ -107,17 +99,9 @@ def _extract_parenthetical_alias_target(
     intro_span: TextSpanTuple,
 ) -> tuple[TextSpanTuple | None, str | None]:
     """Extract the antecedent phrase for a parenthetical alias introduction.
-
-    Walks left from the alias parenthetical opening bracket and captures the
-    immediately preceding phrase up to the nearest hard boundary. This is used
-    for introduction forms such as:
-
+        e.g:
         This Master Services Agreement (the "Agreement")
         Acme Limited (the "Supplier")
-
-    The extraction is intentionally conservative. It does not attempt full
-    noun-phrase parsing and stops at simple sentence or line boundaries to
-    avoid swallowing trailing clause text from earlier context.
 
     Args:
         text: Full source text containing the introduction.
@@ -168,11 +152,6 @@ def extract_term_definitions(
     max_definition_chars: int = 400,
 ) -> list[TermDefinitionEntry]:
     """Extract definition entries from detected defined-term introductions.
-
-    For each introduction, this function records the introduction span, attempts
-    to extract a trailing definition span and text when the introduction form
-    supports it, and attaches structural section-path context from the document
-    structure index.
 
     Args:
         text: Full source text containing the detected introductions.

@@ -17,33 +17,6 @@ from document_resolution.nlp.extraction.defined_terms.types import (
 @dataclass
 class TermFlowState:
     """Mutable state container for the defined-term resolution pipeline.
-
-    This object is passed through the staged extraction flow and accumulates the
-    intermediate artefacts produced at each step, including detector output,
-    structural context, extracted definitions, Tier-1 and Tier-2 work products,
-    and the final assembled resolution result.
-
-    Attributes:
-        text: Full source text being processed by the pipeline.
-        det_cfg: Active defined-term detector configuration for this run.
-        ext_cfg: Active defined-term extraction and resolution configuration for
-            this run.
-        last_info: Short human-readable status string describing the most recent
-            completed stage.
-        det_res: Detector output containing introductions, mentions, and
-            unique-term mappings.
-        term_meaning_index: Legacy or transitional top-level mapping from
-            normalised term key to candidate meanings. Current Tier-1 work
-            generally stores the active meaning index data.
-        structure_index: Optional document structure index used for section-path
-            aware scoring and extraction.
-        definition_entries: Extracted definition entries derived from detected
-            introductions.
-        tier_1: Tier-1 working state containing candidate meanings, occurrences,
-            and deterministic ranking outputs.
-        tier_2: Tier-2 working state containing semantic rerank outputs and
-            report metadata.
-        extr: Final assembled defined-term resolution result, when available.
     """
 
     text: str

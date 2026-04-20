@@ -99,11 +99,6 @@ def _close_entry(
 def build_term_structure_index(text: str) -> TermStructureIndex:
     """Build a lightweight structure index from section- and schedule-like headings.
 
-    The parser is intentionally conservative. It scans line-oriented headings and
-    opens new structural blocks for recognised schedules, annexes, appendices,
-    sections, and clauses. If no headings are found, the entire document is
-    represented as a single ``("document",)`` span.
-
     Args:
         text: Full source text to analyse.
 

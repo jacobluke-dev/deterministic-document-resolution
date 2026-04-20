@@ -19,13 +19,6 @@ def detect_and_resolve_terms(
 ):
     """Run the full defined-term detection + resolution pipeline over a single input text.
 
-    This is a convenience wrapper around `DefinedTermResolutionFlow` that:
-      1) constructs a `DefinedTermResolutionFlow`,
-      2) initialises a `TermFlowState`,
-      3) executes the configured stage chain, and
-      4) returns the final `DefinedTermDetectorResult` and `TermResolutionResult`,
-         with optional stage reports, trace events, and/or the final `TermFlowState`.
-
     Args:
         text: Source document text to process.
         det_cfg: Optional `DefinedTermDetectorConfig` override. If None, the flow
