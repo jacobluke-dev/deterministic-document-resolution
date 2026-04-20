@@ -18,14 +18,6 @@ class PatternSpec:
 def compile_anchored_for_surface(acr: str, cfg: ExtractionConfig) -> tuple[PatternSpec, ...]:
     """Compile anchored acronym-definition patterns for a specific acronym surface.
 
-    Covers forward and reverse wrapper forms such as `Long Form (ACR)` and
-    `ACR (Long Form)`, wrapper-before-acronym forms, and inline cue forms where
-    either the acronym or the long form appears before the cue phrase.
-
-    Each pattern exposes:
-        - `acr`: the acronym surface aligned to detector occurrences
-        - `def`: a candidate definition region to be resolved or cleaned downstream
-
     Args:
         acr: Exact acronym surface to compile patterns for (e.g., ``"PPE"``).
         cfg: Extraction configuration controlling phrase limits, inline cue

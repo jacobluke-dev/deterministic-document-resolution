@@ -22,9 +22,6 @@ _TAIL_PUNCT = set(",;:—–-")
 def _trim_span(seg: str, d0: int, d1: int) -> Span:
     """Trim leading/trailing whitespace from a slice span.
 
-    Adjusts (d0, d1) inward while the characters at the boundaries are
-    whitespace (per `str.isspace()`), without touching internal whitespace.
-
     Args:
         seg: The string being spanned.
         d0: Start index (inclusive).
@@ -50,20 +47,6 @@ def _calc_def_span_def_before(
     cfg: ExtractionConfig,
 ) -> OptSpan:
     """Resolve a definition span for the forward-parenthetical form: `DEF (ACR...)`.
-
-    Handles two cases:
-
-    1) **Plain wrapper** `Long Form (ACR)`:
-       Uses `find_parenthetical_longform_before_acr` on the matched snippet to
-       reuse the “helper” logic and return its definition span.
-
-    2) **Complex wrapper** where the acronym is decorated inside the wrapper:
-       - quotes around acronym: `("ACR")`, `('ACR')`, `(“ACR”)`
-       - trailing tail punctuation: `(ACR, ...)`, `(ACR - ...)`, etc.
-       - dotted acronym with terminal dot inside wrapper: `(U.S.A.)`
-
-       In these cases, bypasses the helper and returns the trimmed `m.group("def")`
-       span **only if** `initials_match(acr_norm, phrase)` passes.
 
     Args:
         acr_norm: Normalised acronym key used for initials validation.
@@ -121,12 +104,7 @@ def _calc_def_span_inline_after(
     """Resolve the definition span for an inline-after pattern.
 
     This helper is used for patterns like:
-
         "ACR stands for Long Form"
-
-    It slices the segment at `acr_end_local`, runs the inline-after matcher on the
-    suffix, and (if a match is found) re-bases the matcher’s local definition span
-    back into `seg` offsets.
 
     Args:
         acr_norm (str): Normalised acronym (typically uppercased) to match.
@@ -168,11 +146,6 @@ def _calc_def_span_def_after(
         "ACR’s (Long Form)"
         "ACR, (Long Form)"
         "ACR - (Long Form)"
-
-    It slices `seg` at `acr_end_local`, optionally consumes a possessive/joiner
-    (e.g. `'s`, commas, dashes) via `_POSSESSIVE_JOIN_RE`, then runs the
-    acronym-after matcher on the remaining snippet. If a match is found, the
-    matcher’s local definition span is re-based back into `seg` coordinates.
 
     Args:
         acr_norm (str): Normalised acronym (typically uppercased) to match.
@@ -218,19 +191,12 @@ def _calc_def_span(
     """
     Compute the local definition span for an anchored extraction pattern.
 
-    Selects the appropriate span-calculation strategy based on `kind` and derives
-    a `(start, end)` character span relative to `seg`. Some strategies require
-    additional context (e.g. the acronym end offset or the regex match object),
-    which must be provided by the caller for the corresponding `kind`.
-
     Args:
-        kind: Strategy identifier (e.g. "def_after", "def_before").
+        kind: Strategy identifier
         acr_norm: Normalised acronym surface.
         seg: Text segment containing the match.
-        acr_end_local: Local end offset of the acronym within `seg`; required
-            when `kind == "def_after"`.
-        m: Regex match object for the anchored pattern; required when
-            `kind == "def_before"`.
+        acr_end_local: Local end offset of the acronym within `seg`
+        m: Regex match object for the anchored pattern;
         cfg: Extraction configuration used by the span calculators.
 
     Returns:
@@ -256,22 +222,12 @@ def resolve_def_span(
     """
     Resolve the definition span for an anchored pattern match.
 
-    Given a pattern `strategy` and its regex match `m`, this function returns a
-    `(start, end)` character span into `seg` identifying the definition region.
-    Strategies either:
-      - use the match group's span directly ("direct_def"), or
-      - delegate to helper span calculators for more contextual selection
-        (e.g. definition before/after the acronym, or inline cue forms).
-
     Args:
-        strategy: Strategy identifier attached to a `PatternSpec` (e.g. "direct_def",
-            "helper_def_after", "helper_def_before", "helper_inline_after").
+        strategy: Strategy identifier attached to a `PatternSpec`
         seg: Text segment containing the match.
-        m: Regex match object for the anchored pattern (must include a "def" group
-            for "direct_def").
+        m: Regex match object for the anchored pattern
         acr_key: Normalised acronym surface used by helper strategies.
-        a1_local: Local end offset of the acronym within `seg` (used by "after"/"inline"
-            helper strategies).
+        a1_local: Local end offset of the acronym within `seg`
         cfg: Extraction configuration used by helper span calculators.
 
     Returns:
