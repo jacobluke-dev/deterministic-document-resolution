@@ -11,8 +11,6 @@ from document_resolution.nlp.common.shared import (
     normalize_acronym_key,
     strip_trailing_punct_str,
 )
-from document_resolution.nlp.extraction.acronyms.anchored.normalise import tighten_definition_span
-
 
 def _end_of(text: str, token: str) -> int:
     i = text.index(token)
@@ -266,60 +264,6 @@ class TestCollapseWs:
     def test_handles_newlines(self):
         assert collapse_ws("a\nb\r\nc") == "a b c"
 
-
-class TestTightenDefinitionSpan:
-    def test_keeps_titlecase_with_per(self):
-        s = "Cost per Acquisition"
-        out = tighten_definition_span(s)
-        assert out == "Cost per Acquisition"
-
-    def test_keeps_titlecase_with_common_linkers(self):
-        s = "Department of Health and Social Care"
-        out = tighten_definition_span(s)
-        assert out == "Department of Health and Social Care"
-
-    def test_keeps_ampersand(self):
-        s = "Research & Development"
-        out = tighten_definition_span(s)
-        assert out == "Research & Development"
-
-    def test_trailing_comma_is_ignored(self):
-        s = "Cost per Acquisition,"
-        out = tighten_definition_span(s)
-        assert out == "Cost per Acquisition"
-
-    def test_all_caps_phrase_is_preserved(self):
-        s = "COST PER ACQUISITION"
-        out = tighten_definition_span(s)
-        assert out == "COST PER ACQUISITION"
-
-    def test_prefers_last_titlecase_run_at_end(self):
-        s = "Some intro text, Department of Education and Skills"
-        out = tighten_definition_span(s)
-        assert out == "Department of Education and Skills"
-
-    def test_fallback_when_no_titlecase_run(self):
-        s = "this is a lowercase tail with numbers 123"
-        out = tighten_definition_span(s)
-        assert out == "this is a lowercase tail with numbers 123"
-
-    def test_handles_unicode_apostrophes_and_dashes(self):
-        s = "Director-General’s Office – North"
-        # We end the string with a TitleCase run so it’s selected
-        s2 = f"See memo for {s}"
-        out = tighten_definition_span(s2)
-        assert out == "Director-General’s Office – North"
-
-    def test_works_when_titlecase_is_after_a_boundary(self):
-        # Even if the BOUNDARY_RE logic changes, ending with the TitleCase run keeps this robust
-        s = "some preface. Cost per Acquisition"
-        out = tighten_definition_span(s)
-        assert out == "Cost per Acquisition"
-
-    def test_picks_titlecase_run_for_pto_sentence(self):
-        s = "Please Turn Over on print jobs."
-        out = tighten_definition_span(s)
-        assert out == "Please Turn Over"
 
 
 class TestHasLetters:

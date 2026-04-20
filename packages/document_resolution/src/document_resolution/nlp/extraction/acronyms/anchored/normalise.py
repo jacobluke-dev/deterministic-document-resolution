@@ -31,9 +31,6 @@ def _pick_best_run(text: str) -> str | None:
     Select the “best” title-case run from `text`. Chooses a winner using a
     deterministic ranking:
 
-      1) Prefer the candidate with the greatest number of tokens (as counted by `TOKEN_RE`).
-      2) If tied on token count, prefer the rightmost candidate (largest match end offset).
-
     Args:
         text: Source text to scan for title-case runs.
 
