@@ -56,11 +56,6 @@ def _build_anchor_key(
 ) -> str:
     """Build the deterministic lookup key for a structural anchor.
 
-    The key format mirrors structural-reference canonical keys so that
-    downstream linking can match references to anchors directly. When Roman
-    numeral conversion is enabled, article labels such as ``III`` are
-    converted to numeric form, for example ``article_3``.
-
     Args:
         kind: Structural heading kind, for example ``"Schedule"`` or
             ``"Article"``.
@@ -90,11 +85,6 @@ def _build_anchor(
     cfg: StructuralReferenceExtractionConfig,
 ) -> StructuralAnchor:
     """Build a structural anchor from parsed heading components.
-
-    Normalizes optional heading title text and derives the deterministic
-    structural lookup key from heading kind + label only. Title text is
-    preserved for display and traceability, but does not affect anchor
-    matching.
 
     Args:
         label: Structural label extracted from the heading, for example
@@ -178,10 +168,7 @@ def _numbered_section_anchor_from_line(
     """Build an anchor from a bare numbered section heading line.
 
     Supports headings such as ``4.2 Termination`` by applying the current
-    deterministic default rule that bare numbered headings are interpreted as
-    ``Section`` anchors. This default preserves stable structural lookup
-    behaviour, but does not imply that explicit cross-kind linking between
-    ``Clause`` and ``Section`` references is allowed.
+    deterministic default rule that bare numbered headings
 
     Args:
         line: Candidate heading line with surrounding whitespace removed.
@@ -219,10 +206,7 @@ def _anchor_from_line(
     ordinal: int,
     cfg: StructuralReferenceExtractionConfig,
 ) -> StructuralAnchor | None:
-    """Build a structural anchor from a candidate line.
-
-    Named structural headings are attempted first. If no named heading is
-    found, the line is tested as a bare numbered section heading.
+    """Build a structural anchor from a candidate line, named structural headings are attempted first.
 
     Args:
         line: Candidate heading line with surrounding whitespace removed.
@@ -262,11 +246,6 @@ def extract_structural_anchors(
     cfg: StructuralReferenceExtractionConfig,
 ) -> list[StructuralAnchor]:
     """Extract heading-like structural anchors from document text.
-
-    Anchors are derived from line-oriented heading patterns such as
-    ``Schedule A: Services Description`` and ``4.2 Termination``.
-    Returned anchors preserve document order, and ordinals are assigned
-    sequentially across matched headings only.
 
     Args:
         text: Source document text to scan.
@@ -308,11 +287,6 @@ def build_structural_anchor_index(
     anchors: list[StructuralAnchor],
 ) -> dict[str, list[StructuralAnchor]]:
     """Group structural anchors by lookup key in document order.
-
-    Anchors are indexed by the lookup key stored in ``normalized_key``.
-    Input order is preserved within each group to support deterministic
-    downstream linking and proximity-based tie-breaking.
-
     Args:
         anchors: Structural anchors in document order.
 
