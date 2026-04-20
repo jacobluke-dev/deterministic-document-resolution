@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import re
-from dataclasses import dataclass
 from typing import Literal
 
 from document_resolution.nlp.common.constants_regex import BRIDGES_DEFAULT, DEFAULT_STOPWORDS, PUNCT_TRIM
@@ -9,6 +8,9 @@ from document_resolution.nlp.common.shared import collapse_ws, strip_trailing_pu
 from document_resolution.nlp.common.types import Span, as_str_set
 from document_resolution.nlp.extraction.acronyms.config import ExtractionConfig
 from document_resolution.nlp.extraction.acronyms.matchers.common import is_mixed_case_acronym, split_compound
+from document_resolution.nlp.extraction.acronyms.matchers.defs.constants import InitialsStream, AlignmentHit
+from document_resolution.nlp.extraction.acronyms.matchers.defs.ltr import _align_ltr_min_window
+from document_resolution.nlp.extraction.acronyms.matchers.defs.rtl import _acronym_letters_rtl, _align_rtl_scan_wrapper
 
 _SEG_RE = re.compile(
     r"""
@@ -23,47 +25,9 @@ _SEG_RE = re.compile(
 type scanner = Literal["ltr", "rtl"]
 
 
-class LocalDefMatch:
-    def __init__(self, def_start: int, def_end: int, definition: str, raw: str | None = None):
-        self.def_start = def_start
-        self.def_end = def_end
-        self.definition = definition
-        self.raw = raw
-
-
-@dataclass(frozen=True, slots=True)
-class InitialsStream:
-    """
-    `letters` is a list of scan-order initials (uppercased),
-    `owners[i]` is the token index that produced `letters[i]`, and
-    `is_stop[i]` is the stopword status of the owning token.
-    """
-
-    letters: list[str]
-    owners: list[int]
-    is_stop: list[bool]
-
-
-@dataclass(frozen=True, slots=True)
-class AlignmentHit:
-    """
-    `used_letter_pos`: indices into `stream.letters` used by the match,
-    `hit_tokens`: set of token indices that contributed initials,
-    `tok_left`/`tok_right`: inclusive token-span bounds covering `hit_tokens`.
-    """
-
-    used_letter_pos: list[int]
-    hit_tokens: set[int]
-    tok_left: int
-    tok_right: int
-
-
 def get_cfg_consts(cfg: ExtractionConfig, max_char_default: int = 80) -> tuple[set[str], set[str], int]:
     """
     Return `(bridges, stop, max_chars)` from `cfg` with sensible defaults.
-
-    Coerces `cfg.bridges` (or `BRIDGES_DEFAULT`) and `cfg.stop`/`cfg.stopwords` (or `DEFAULT_STOPWORDS`)
-    into concrete `set[str]` to avoid `set|frozenset|Any` leakage in callers and keep mypy happy.
 
     Args:
         cfg (ExtractionConfig): Extraction configuration object.
@@ -125,18 +89,6 @@ def build_initials_stream(
     The returned stream is the canonical representation used by acronym alignment:
     a flat list of initials (always uppercased) plus metadata mapping each initial
     back to its owning token and that token's stopword status.
-
-    Scan direction affects both:
-      * token traversal order, and
-      * per-token part traversal order when `split_compounds=True`.
-
-    Behaviour by option:
-      * `treat_acronym_tokens_as_multi_letter`: acronym-like tokens (e.g. "U.S.A", "HTTP")
-        contribute multiple letters rather than a single initial.
-      * `expand_allcaps_tokens`: ALLCAPS alphabetic tokens contribute multiple letters.
-      * Otherwise: each token contributes one initial per part, where parts are either:
-          - `split_compound(tok)` if `split_compounds=True`, or
-          - the token itself (as a single part).
 
     Args:
         tokens: Token strings (typically whitespace tokens from a snippet window).
@@ -209,17 +161,6 @@ def _append_letters(
     is_stop_letter: list[bool],
 ) -> None:
     """Append letters to the initials stream buffers with ownership metadata.
-
-    Args:
-        chs: Letters to append (already in scan order).
-        ti: Owning token index.
-        is_stop: Whether the owning token is a stopword.
-        letters: Output letters buffer.
-        owners: Output token-owner index buffer (parallel to `letters`).
-        is_stop_letter: Output stopword flag buffer (parallel to `letters`).
-
-    Returns:
-        None
     """
     for ch in chs:
         letters.append(ch.upper())
@@ -356,11 +297,6 @@ def _lowercase_prefix_ok(
 ) -> bool:
     """Return True if a leading lowercase acronym char may map to token[0].
 
-    This is a narrow exception used for mixed-case acronyms such as "mRNA" or "iOS".
-    It permits the *first* acronym character (acr_pos == 0) to align to the *first*
-    token (token_idx == 0) even if that token is not a stopword, but only when the
-    token genuinely appears to begin with that lowercase prefix.
-
     Args:
         acr: Acronym string being aligned (maybe mixed-case).
         tokens: Token list for the alignment window.
@@ -482,319 +418,24 @@ def align_acronym_to_initials(
     )
 
 
-def _align_rtl_scan_wrapper(
-    acronym_alignment: list[str],
-    *,
-    stream: InitialsStream,
-    allow_upper_on_stop: bool,
-    allow_lower_on_non_stop: bool,
-) -> AlignmentHit | None:
-    """Align acronym targets to the stream using right-to-left scanning.
-
-    This is a thin wrapper around `align_rtl_scan(...)` that converts the matched
-    stream-letter positions into token-span metadata (`AlignmentHit`).
-
-    Args:
-        acronym_alignment: Acronym alignment targets (typically from `acr_alignment_targets`), in the
-            order expected by the RTL scan aligner.
-        stream: Initials stream providing `letters`, `owners`, and per-letter stopword
-            status `is_stop`.
-        allow_upper_on_stop: If True, permit uppercase targets to match initials owned
-            by stopword tokens.
-        allow_lower_on_non_stop: If True, permit lowercase targets to match initials
-            owned by non-stopword tokens.
-
-    Returns:
-        An `AlignmentHit` if a match is found, else None. The hit's token bounds are
-        derived from the owning tokens of the matched stream positions.
-    """
-    used = align_rtl_scan(
-        acronym_alignment,
-        stream.letters,
-        stream.is_stop,
-        allow_upper_on_stop=allow_upper_on_stop,
-        allow_lower_on_non_stop=allow_lower_on_non_stop,
-    )
-    if used is None:
-        return None
-
-    used = list(used)
-    hit_tokens = {stream.owners[p] for p in used}
-    return AlignmentHit(
-        used_letter_pos=used,
-        hit_tokens=hit_tokens,
-        tok_left=min(hit_tokens),
-        tok_right=max(hit_tokens),
-    )
-
-
-def _align_ltr_min_window(
-    alignment_letters: list[str],
-    *,
-    stream: InitialsStream,
-    tokens: list[str],
-    is_stop_token: list[bool],
-    allow_upper_on_stop: bool,
-    allow_lower_on_non_stop: bool,
-    lowercase_prefix_exception: bool,
-) -> AlignmentHit | None:
-    """Align acronym letters to a initials stream using a minimal token-span strategy.
-
-    Scans the stream left-to-right and tries to match `alignment_letters` in order.
-    Among all valid matches, selects the one that minimises `(tok_right - tok_left)`
-    where token bounds are derived from `stream.owners`.
-
-    Case/stopword constraints:
-      - Uppercase target letters prefer non-stopword tokens unless `allow_upper_on_stop`.
-      - Lowercase target letters prefer stopword tokens; mapping to non-stopwords is
-        only allowed when `allow_lower_on_non_stop`, and can be further restricted
-        by `lowercase_prefix_exception` for mixed-case acronyms (e.g. iOS/mRNA).
-
-    Args:
-        alignment_letters: Acronym letters to align (may include lowercase to signal
-            stopword preference). Must be alphanumeric-only upstream.
-        stream: Prebuilt initials stream (letters are expected uppercase).
-        tokens: Original token list the stream was derived from.
-        is_stop_token: Parallel list to `tokens` indicating stopword status per token.
-        allow_upper_on_stop: If True, allow uppercase target letters to align onto
-            stopword tokens.
-        allow_lower_on_non_stop: If True, allow lowercase target letters to align onto
-            non-stopword tokens (subject to `lowercase_prefix_exception`).
-        lowercase_prefix_exception: If True, allow a narrow exception for a leading
-            lowercase letter in a mixed-case acronym to map to token0.
-
-    Returns:
-        An `AlignmentHit` describing the chosen alignment, or `None` if no valid
-        alignment exists.
-    """
-    L = [c.upper() for c in alignment_letters]  # stream letters are uppercase
-
-    best_used: list[int] | None = None
-    best_span: Span | None = None  # (tok_left, tok_right)
-
-    for li in range(len(stream.letters)):
-        if (len(stream.letters) - li) < len(L):
-            break
-
-        used = _try_align_from_ltr_start(
-            alignment_letters,
-            L,
-            li,
-            stream=stream,
-            tokens=tokens,
-            is_stop_token=is_stop_token,
-            allow_upper_on_stop=allow_upper_on_stop,
-            allow_lower_on_non_stop=allow_lower_on_non_stop,
-            lowercase_prefix_exception=lowercase_prefix_exception,
-        )
-        if not used:
-            continue
-
-        tok_left, tok_right = _token_span_for_used(used, stream.owners)
-
-        if best_span is None or (tok_right - tok_left) < (best_span[1] - best_span[0]):
-            best_span = (tok_left, tok_right)
-            best_used = used
-
-    if not best_used or best_span is None:
-        return None
-
-    hit_tokens = {stream.owners[p] for p in best_used}
-    tok_left, tok_right = best_span
-    return AlignmentHit(
-        used_letter_pos=best_used,
-        hit_tokens=hit_tokens,
-        tok_left=tok_left,
-        tok_right=tok_right,
-    )
-
-
-def _try_align_from_ltr_start(
-    alignment_letters: list[str],
-    L: list[str],
-    li: int,
-    *,
-    stream: InitialsStream,
-    tokens: list[str],
-    is_stop_token: list[bool],
-    allow_upper_on_stop: bool,
-    allow_lower_on_non_stop: bool,
-    lowercase_prefix_exception: bool,
-) -> list[int] | None:
-    """Attempt to align from a specific LTR starting stream index.
-
-    Scans `stream.letters[li:]` and tries to match the acronym letters `L` in order.
-    Applies stopword/case constraints per letter. Returns the used stream positions
-    for the first valid completion (minimal end position for this `li`).
-
-    Args:
-        alignment_letters: Original acronym letters (may include lowercase).
-        L: Uppercased version of `alignment_letters`.
-        li: Starting index into `stream.letters`.
-        stream: Prebuilt initials stream.
-        tokens: Original token list.
-        is_stop_token: Stopword flags per token.
-        allow_upper_on_stop: Allow uppercase letters to hit stop tokens.
-        allow_lower_on_non_stop: Allow lowercase letters to hit non-stop tokens.
-        lowercase_prefix_exception: Allow narrow exception for mixed-case leading lowercase.
-
-    Returns:
-        list[int] | None: Used stream letter positions if a full match is found, else None.
-    """
-    ai = 0
-    used_letter_pos: list[int] = []
-
-    for lj in range(li, len(stream.letters)):
-        if stream.letters[lj] != L[ai]:
-            continue
-
-        tok_idx = stream.owners[lj]
-        if not _alignment_letter_ok(
-            alignment_letters,
-            ai,
-            tok_idx,
-            tokens=tokens,
-            is_stop_token=is_stop_token,
-            allow_upper_on_stop=allow_upper_on_stop,
-            allow_lower_on_non_stop=allow_lower_on_non_stop,
-            lowercase_prefix_exception=lowercase_prefix_exception,
-        ):
-            continue
-
-        used_letter_pos.append(lj)
-        ai += 1
-
-        if ai == len(L):
-            return used_letter_pos
-
-    return None
-
-
-def _alignment_letter_ok(
-    alignment_letters: list[str],
-    ai: int,
-    tok_idx: int,
-    *,
-    tokens: list[str],
-    is_stop_token: list[bool],
-    allow_upper_on_stop: bool,
-    allow_lower_on_non_stop: bool,
-    lowercase_prefix_exception: bool,
-) -> bool:
-    """Check whether a single aligned letter may map to a given token.
-
-    Implements the stopword/case constraints described in `_align_ltr_min_window`.
-
-    Args:
-        alignment_letters: Original acronym letters (may include lowercase).
-        ai: Index into `alignment_letters` for the letter being matched.
-        tok_idx: Candidate token index being hit.
-        tokens: Original token list.
-        is_stop_token: Stopword flags per token.
-        allow_upper_on_stop: Allow uppercase letters to hit stop tokens.
-        allow_lower_on_non_stop: Allow lowercase letters to hit non-stop tokens.
-        lowercase_prefix_exception: Allow narrow exception for mixed-case leading lowercase.
-
-    Returns:
-        bool: True if mapping is allowed, False otherwise.
-    """
-    want_stop = alignment_letters[ai].islower()
-
-    if not want_stop:
-        return (not is_stop_token[tok_idx]) or allow_upper_on_stop
-
-    # want stopword
-    if is_stop_token[tok_idx]:
-        return True
-    if not allow_lower_on_non_stop:
-        return False
-
-    # narrow exception: mixed-case leading lowercase (mRNA / iOS)
-    if not lowercase_prefix_exception or ai != 0 or tok_idx != 0:
-        return False
-
-    tok0 = tokens[0]
-    if tok0.isalpha() and tok0.isupper() and len(tok0) > 1:
-        return False
-
-    return tok0[:1].lower() == alignment_letters[0].lower()
-
-
-def _token_span_for_used(used_letter_pos: list[int], owners: list[int]) -> Span:
-    """Compute (tok_left, tok_right) from used stream letter positions.
-
-    Args:
-        used_letter_pos: Stream indices used in an alignment.
-        owners: Parallel list mapping stream indices to owning token index.
-
-    Returns:
-        Span: (tok_left, tok_right) inclusive token bounds.
-    """
-    tok_left = min(owners[p] for p in used_letter_pos)
-    tok_right = max(owners[p] for p in used_letter_pos)
-    return tok_left, tok_right
-
-
 def expand_numeric_leading_window(
     tokens: list[str],
     tok_left: int,
     tok_right: int,
 ) -> Span:
     """Expand a token window to include adjacent numeric-leading tokens.
-
-    A token is treated as numeric-leading if its first alphanumeric character
-    exists and is not a letter (e.g., "3M", "2", "10GbE").
-
-    Args:
-        tokens: Token sequence that the window refers to.
-        tok_left: Inclusive left token index of the current window.
-        tok_right: Inclusive right token index of the current window.
-
-    Returns:
-        A tuple ``(new_left, new_right)`` representing the expanded inclusive window.
     """
 
-    def _numeric_leading(idx: int) -> bool:
+    def _is_numeric_leading_token(idx: int) -> bool:
         init = first_alnum_char_upper(tokens[idx])
         return (init is not None) and (not init.isalpha())
 
-    while tok_left > 0 and _numeric_leading(tok_left - 1):
+    while tok_left > 0 and _is_numeric_leading_token(tok_left - 1):
         tok_left -= 1
-    while tok_right + 1 < len(tokens) and _numeric_leading(tok_right + 1):
+    while tok_right + 1 < len(tokens) and _is_numeric_leading_token(tok_right + 1):
         tok_right += 1
 
     return tok_left, tok_right
-
-
-def is_acronym_parenthetical_with_tail(snippet: str, acr: str) -> bool:
-    """
-    Check whether `snippet` is a parenthetical containing `acr` plus a trailing “tail”.
-    True for: (ACR, ...), ("ACR": ...), ('ACR' - ...)
-    False for: (Long Form), (ACR), (ACR, )
-    Args:
-        snippet: The parenthetical text to classify (typically including the surrounding parentheses).
-        acr: The acronym expected to appear at the start of the parenthetical content.
-
-    Returns:
-        True if `snippet` matches the acronym-parenthetical-with-tail pattern; otherwise False.
-
-    """
-    acr_esc = re.escape(acr)
-    Q = r"""["'“”‘’]"""
-    QUOTE = rf"(?:\s*{Q}\s*)?"
-
-    return bool(
-        re.match(
-            # word boundary must apply to the acronym, not the closing quote
-            rf"\(\s*{QUOTE}{acr_esc}\b{QUOTE}\s*"
-            # delimiter introducing the tail
-            rf"[,;:—–-]\s*"
-            # tail must start with a real char, not whitespace / ')'
-            rf"[^)\s]",
-            snippet,
-            flags=re.UNICODE,
-        )
-    )
 
 
 # Hard clause boundary for inline defs (stop scanning / gating at these)
@@ -817,8 +458,6 @@ def inline_clause_tail(s: str) -> tuple[str, int]:
 
 def first_alnum_char_upper(s: str) -> str | None:
     """Return the first alphanumeric character in `s`, uppercased.
-
-    Returns None if `s` contains no alphanumeric characters.
     """
     for ch in s:
         if ch.isalnum():
@@ -870,62 +509,6 @@ def has_numeric_evidence(tokens: list[str]) -> bool:
     return False
 
 
-def align_rtl_scan(
-    targets: list[str],
-    initials: list[str],
-    is_stop_letter: list[bool],
-    *,
-    allow_upper_on_stop: bool,
-    allow_lower_on_non_stop: bool = False,
-) -> list[int] | None:
-    """Align acronym targets right-to-left against an initials stream scanned in order.
-
-    This performs a greedy scan over `initials` from left to right, while consuming
-    `targets` from right to left. A target character matches when the uppercased
-    target equals the current initials letter and stopword constraints are satisfied.
-
-    Stopword constraints:
-      - Lowercase target (e.g. 'o' in "MofM") prefers a stopword owner letter. It may
-        align to non-stop letters only if `allow_lower_on_non_stop=True`.
-      - Uppercase target prefers a non-stop owner letter. It may align to stop letters
-        only if `allow_upper_on_stop=True`.
-
-    Args:
-        targets: Acronym alignment targets (caseful). Lowercase indicates a stopword
-            preference; uppercase indicates a non-stopword preference.
-        initials: Initials letters in scan order (expected uppercase).
-        is_stop_letter: Parallel to `initials`; True if the owning token is a stopword.
-        allow_upper_on_stop: If True, allow uppercase targets to align onto stop letters.
-        allow_lower_on_non_stop: If True, allow lowercase targets to align onto non-stop letters.
-
-    Returns:
-        A list of indices into `initials` representing the matched letters (in scan order),
-        or None if the full target sequence cannot be matched.
-    """
-    ti = len(targets) - 1  # target index (RTL)
-    li = 0  # initials scan index
-    used: list[int] = []
-
-    while li < len(initials) and ti >= 0:
-        need = targets[ti].upper()
-
-        if initials[li] == need:
-            want_stop = targets[ti].islower()
-
-            if want_stop:
-                ok = is_stop_letter[li] or allow_lower_on_non_stop
-            else:
-                ok = (not is_stop_letter[li]) or allow_upper_on_stop
-
-            if ok:
-                used.append(li)
-                ti -= 1
-
-        li += 1
-
-    return None if ti >= 0 else used
-
-
 _ACR_TOKEN_RE = re.compile(r"^[A-Z](?:[A-Z0-9]|[A-Z]\.){1,}$")  # RNA, HTTP2, U.S.A
 
 
@@ -951,28 +534,6 @@ def is_acronym_like_token(tok: str) -> bool:
         return True
     # Pure uppercase letters/digits (no lowercase) is also acronym-like
     return any(c.isupper() for c in t) and not any(c.islower() for c in t) and any(c.isalpha() for c in t)
-
-
-def _acronym_letters_rtl(tok: str) -> list[str]:
-    """Extract acronym characters in right-to-left order.
-
-    Strips light trailing/leading punctuation, keeps only alphanumeric characters,
-    uppercases letters, and returns them in RTL order.
-
-    Args:
-        tok: Token potentially containing an acronym/initialism (e.g. "U.S.A", "HTTP2").
-
-    Returns:
-        List of uppercased alphanumeric characters in RTL order.
-        Examples:
-          - "RNA" -> ["A", "N", "R"]
-          - "U.S.A" -> ["A", "S", "U"]
-          - "HTTP2" -> ["2", "P", "T", "T", "H"]
-    """
-    t = tok.strip(".,;:)]}»”'\"")
-    chars = [c.upper() for c in t if c.isalnum()]
-    chars.reverse()
-    return chars
 
 
 def strip_inline_cue_prefix(snippet: str, cfg) -> tuple[str, int] | None:
@@ -1002,18 +563,6 @@ def strip_inline_cue_prefix(snippet: str, cfg) -> tuple[str, int] | None:
 def _numeric_leading(token, include_numeric_leading: bool) -> bool:
     """
     Returns True if `token` should be treated as numeric-leading.
-
-    A token is numeric-leading when `include_numeric_leading` is True and the
-    first alphanumeric character in `token` exists and is NOT a letter
-    (e.g. starts with a digit like "3M", "10GbE", "(2FA)").
-
-    Args:
-        token: Raw token text (may include surrounding punctuation/whitespace).
-        include_numeric_leading: Feature-flag; when False this always returns False.
-
-    Returns:
-        True if numeric-leading tokens should be included and `token` begins
-        (after skipping non-alnum) with a non-alpha alnum character; otherwise False.
     """
     if not include_numeric_leading:
         return False
@@ -1066,19 +615,6 @@ def kept_token_indices(
 def phrase_from_indices(tokens: list[str], idxs: list[int]) -> str:
     """
     Build a display phrase from selected token indices.
-
-    Joins `tokens[i]` for `i` in `idxs`, collapses internal whitespace, then strips
-    any trailing punctuation/whitespace (per `strip_trailing_punct_str`).
-
-    Args:
-        tokens: Source token list.
-        idxs: Indices into `tokens` to include, in the desired output order.
-
-    Returns:
-        The rendered phrase string (may be empty if `idxs` is empty or selected tokens collapse away).
-
-    Raises:
-        IndexError: If any index in `idxs` is out of range for `tokens`.
     """
     return strip_trailing_punct_str(collapse_ws(" ".join(tokens[i] for i in idxs)))
 
