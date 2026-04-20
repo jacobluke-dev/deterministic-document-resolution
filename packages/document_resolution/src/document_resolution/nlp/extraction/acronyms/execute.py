@@ -20,13 +20,6 @@ def detect_and_extract(
 ):
     """Run the full detection + extraction pipeline over a single input text.
 
-    This is a convenience wrapper around `ExtractionFlow` that:
-      1) constructs an `ExtractionFlow` (optionally with custom configs),
-      2) initialises a `FlowState`,
-      3) executes the configured stage chain, and
-      4) returns the final `DetectorResult` and `ExtractionResult`, with optional
-         stage reports, trace events, and/or the final `FlowState`.
-
     Args:
         text: Source document text to process.
         det_cfg: Optional `DetectorConfig` override. If None, the flow default
@@ -80,10 +73,6 @@ def detect_and_extract(
         AssertionError: If the pipeline completes without producing a detector
             result or extraction result (indicates an internal pipeline fault).
 
-    Notes:
-        This function executes the stage chain directly via `flow.build_chain().run(...)`
-        so that callers/tests can optionally capture stage reports and/or access
-        the final `FlowState` without relying on `ExtractionFlow.run(...)`.
     """
     flow = ExtractionFlow(
         det_cfg=det_cfg,

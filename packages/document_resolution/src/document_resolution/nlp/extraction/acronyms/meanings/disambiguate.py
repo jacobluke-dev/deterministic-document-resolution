@@ -48,13 +48,6 @@ def _ascii_tokens(s: str) -> list[str]:
 
 def _center(s: int, e: int) -> float:
     """Return the midpoint of an interval.
-
-    Args:
-        s: Interval start.
-        e: Interval end.
-
-    Returns:
-        The midpoint `(s + e) / 2.0` as a float.
     """
     return (s + e) / 2.0
 
@@ -62,10 +55,6 @@ def _center(s: int, e: int) -> float:
 def _min_distance_to_spans(pos: float, spans: list[Span]) -> int:
     """
     Return the minimum integer distance from a position to the centers of spans.
-
-    For each (start, end) span, the center is computed as `_center(start, end)`.
-    The function returns the smallest floor distance `int(abs(center - pos))`
-    over all spans. If `spans` is empty, returns a large sentinel (1_000_000_000).
 
     Args:
         pos: Position (float) to measure from.
@@ -106,45 +95,6 @@ def choose_with_tiebreak(
     Pick a winning meaning from candidate scores using a relative-margin rule first,
     then (if needed) a spatial tiebreak using definition-span proximity.
 
-    Overview
-        The resolver uses two different “separation” measures for two different jobs:
-
-        1) Relative margin (dimensionless):
-               rel_margin = (p1 - p2) / max(p1, 1e-9)
-
-           Used to decide whether the top-scoring meaning is clearly better than the runner-up.
-
-        2) Absolute gap (same units as the scores):
-               gap = p1 - p2
-
-           Used to decide whether the top two scores are close enough to treat as a near-tie
-           and attempt a distance-based tiebreak.
-
-    Process
-        1) Sort candidates by score descending.
-           Tie keys (in order):
-             - score (desc)
-             - meaning_confidence (desc, if present on the meaning)
-             - meaning_id (desc) for deterministic ordering
-
-        2) Compute:
-             p1 = top score
-             p2 = second score (or 0.0 if missing)
-             gap = p1 - p2
-             rel_margin = gap / max(p1, 1e-9)
-
-        3) If rel_margin >= margin_threshold:
-             accept the probabilistic winner and return the top meaning.
-
-        4) Otherwise, if gap <= near_tie_margin (and there are at least two candidates):
-             engage the distance tiebreak:
-               - compute the occurrence centre
-               - compute each meaning’s distance to its nearest definition-span centre
-               - if one meaning is at least DIST_TIEBREAK_MIN_ADVANTAGE closer, choose it
-               - else return None (ambiguous)
-
-        5) If not a near-tie (gap > near_tie_margin), return None (ambiguous).
-
     Args:
         occ:
             Occurrence to resolve (expects integer start/end offsets).
@@ -170,10 +120,6 @@ def choose_with_tiebreak(
             It is 0.0 when there are no candidates, and equals p1 when there is only one candidate
             (since p2 is treated as 0.0).
 
-    Notes:
-        - Relative margin is used for the acceptance decision (stable across score scaling).
-        - Absolute gap is used for the near-tie decision (treats “close” as an absolute notion).
-        - The distance tiebreak only runs for near-ties; otherwise ambiguity is preserved.
     """
     items = sorted(
         cand_scores.items(),
@@ -217,9 +163,6 @@ def choose_with_tiebreak(
 def prior_weight_for_gap(gap: float, *, max_w: float = 0.08, engage_gap: float = 0.06) -> float:
     """Return dynamic prior weight based on top-two score gap.
 
-    Engages only for near-ties: returns 0 when gap >= engage_gap, else ramps up to
-    max_w as gap approaches 0.
-
     Args:
         gap: Absolute (p1 - p2) gap (>=0).
         max_w: Maximum weight applied at exact tie.
@@ -259,9 +202,6 @@ def dynamic_prior_weight(
     """
     Compute a dynamic prior weight for near-ties based on the top-two score gap.
 
-    Engages only when there are at least two candidates and the top-two gap is below
-    `engage_gap`; otherwise returns 0.0.
-
     Args:
         base_scores: Mapping of meaning_id -> base score (no prior).
         max_w: Maximum prior weight applied at exact tie; set 0.0 to disable.
@@ -292,10 +232,6 @@ def base_scores_for_occurrence(
 ) -> dict[str, float]:
     """
     Compute per-meaning base scores for a single occurrence.
-
-    Scores combine distance-to-definition-span proximity and local token overlap, with
-    no confidence prior applied.
-
     Args:
         occ: Occurrence being resolved.
         meanings_list: Candidate meanings for the occurrence acronym.
@@ -338,21 +274,7 @@ def disambiguate_occurrences(
     meanings_by_id: dict[str, AcronymMeaning] | None = None,
 ) -> list[OccurrenceResolution]:
     """
-    Resolve acronym occurrences to the most likely meaning using two signals:
-    (1) proximity to the nearest definition span center and (2) label–context
-    token overlap. A probabilistic margin and spatial tiebreak decide close calls.
-
-    Scoring:
-        distance = 1 / (1 + d), where d = min distance from occurrence start
-                   to any definition-span center for that meaning (0 if no spans).
-        overlap  = |label_tokens ∩ ctx_tokens| / max(1, |label_tokens|).
-        score    = dist_weight * distance + overlap_weight * overlap.
-
-    Tiebreak:
-        If the relative margin between top two scores
-        ((p1 - p2) / max(p1, 1e-9)) ≥ margin_threshold → choose top.
-        Otherwise, compare occurrence center to each meaning’s def-spans using
-        _min_distance_to_spans; if one is ≥3 units closer, choose it; else None.
+    Resolve acronym occurrences to the most likely meaning.
 
     Args:
         text: Full source text.
@@ -360,9 +282,6 @@ def disambiguate_occurrences(
         meanings: Mapping from UPPER(acronym) to candidate AcronymMeaning list.
         window_chars: Half-window (chars) around each occurrence to form ctx_tokens.
         meanings_prior_weight: Maximum weight for an optional confidence prior.
-            The prior is applied only for near-ties: a dynamic weight `w` is derived from
-            the top-two base-score gap, then each meaning score is nudged by
-            `score += w * meaning_confidence`. Set to 0.0 to disable.
         margin_threshold: Relative margin needed to accept the probabilistic winner.
         dist_weight: Weight for distance score.
         overlap_weight: Weight for overlap score.
@@ -371,11 +290,6 @@ def disambiguate_occurrences(
     Returns:
         List of OccurrenceResolution in the same order as `occurrences`. Each item
         includes chosen_meaning_id (or None), per-meaning scores, and the top-two margin.
-
-    Notes:
-        - Tokenization uses `_tokens` (ASCII letters/digits leading; allows `'` and `-`).
-        - Distance uses span centers; near-tie uses occurrence center vs span centers.
-        - If an occurrence’s acronym is absent from `meanings`, returns an ambiguous result.
     """
     results: list[OccurrenceResolution] = []
     meanings_by_id = meanings_by_id or {s.meaning_id: s for lst in meanings.values() for s in lst}
