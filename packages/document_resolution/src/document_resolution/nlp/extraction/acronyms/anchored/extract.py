@@ -108,7 +108,7 @@ def extract_near_firsts(
     *,
     window_left: int,
     window_right: int,
-    cfg: ExtractionConfig | None = None,
+    cfg: ExtractionConfig,
 ) -> dict[str, Optional[InTextPick]]:
     """Extract anchored in-text definitions near known first occurrences.
 
@@ -126,7 +126,7 @@ def extract_near_firsts(
         firsts: Mapping of normalised acronym key to first-occurrence metadata.
         window_left: Number of characters to include to the left of each first occurrence.
         window_right: Number of characters to include to the right of each first occurrence.
-        cfg: Optional extraction configuration. Defaults to ``ExtractionConfig()``.
+        cfg: ExtractionConfig() the extraction config for Acronyms.
 
     Returns:
         Mapping from each input key to the best nearby anchored definition pick, or
@@ -138,8 +138,6 @@ def extract_near_firsts(
           compared via ``_pick_better``.
         - The result preserves the input keys from ``firsts``.
     """
-    if cfg is None:
-        cfg = ExtractionConfig()
 
     picks: dict[str, Optional[InTextPick]] = {}
 
