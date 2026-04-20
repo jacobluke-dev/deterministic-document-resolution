@@ -63,14 +63,9 @@ def _select_final_candidate_scores_and_method(
 
 def _choose_from_candidate_scores(
     candidate_scores: tuple[TermCandidateScore, ...],
-    *,
     margin_threshold: float,
 ) -> str | None:
     """Choose a winning meaning from assembled candidate scores.
-
-    The top candidate is selected only when its score margin over the runner-up
-    meets or exceeds ``margin_threshold``. Single-candidate cases resolve
-    immediately. Empty candidate sets remain unresolved.
 
     Args:
         candidate_scores: Final assembled candidate scores for one occurrence,
@@ -119,7 +114,7 @@ def assemble_term_resolution_result(s: TermFlowState) -> TermResolutionResult:
 
     for idx, r1 in enumerate(s.tier_1.ranked):
         candidate_scores, method = _select_final_candidate_scores_and_method(s, idx)
-        chosen_meaning_id = _choose_from_candidate_scores(candidate_scores, margin_threshold=margin_threshold)
+        chosen_meaning_id = _choose_from_candidate_scores(candidate_scores, margin_threshold)
         chosen = next((c for c in candidate_scores if c.meaning_id == chosen_meaning_id), None)
 
         resolution = TermResolution(

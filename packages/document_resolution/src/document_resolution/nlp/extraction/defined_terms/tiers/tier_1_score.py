@@ -22,9 +22,6 @@ def _occurrence_context(
 ) -> str:
     """Return local context text for a defined-term occurrence.
 
-    Prefers a precomputed ``segment_window`` on the occurrence when available.
-    Otherwise, extracts a symmetric character window around the occurrence span.
-
     Args:
         text: Full source text containing the occurrence.
         occ: Defined-term occurrence to extract context for.
@@ -45,12 +42,6 @@ def _occurrence_context(
 
 def _tokenise(text: str) -> set[str]:
     """Tokenise text into a lowercase word set for overlap scoring.
-
-    Args:
-        text: Source text to tokenise.
-
-    Returns:
-        A set of lowercase word tokens extracted from ``text``.
     """
     return {m.group(0).lower() for m in _WORD_RE.finditer(text)}
 
@@ -62,10 +53,6 @@ def _lexical_overlap_score(
     term_surface: str,
 ) -> float:
     """Compute lexical overlap between occurrence context and definition text.
-
-    The surface tokens of the term itself are removed from both sides before
-    comparison so the score reflects contextual overlap rather than the repeated
-    term string.
 
     Args:
         occ_context: Local context text around the occurrence.
@@ -113,9 +100,6 @@ def _directionality_score(occ: DefinedTermMention, meaning: TermMeaning) -> floa
 
 def _proximity_score(occ: DefinedTermMention, meaning: TermMeaning) -> float:
     """Score proximity between the occurrence and candidate introduction span.
-
-    Nearby introductions receive a higher score than distant ones using a small
-    bucketed distance heuristic.
 
     Args:
         occ: Defined-term occurrence being resolved.
@@ -248,13 +232,6 @@ def score_term_occurrence_tier1(
     """Score one defined-term occurrence against its candidate meanings.
 
     Candidates are scored deterministically and sorted by descending score.
-
-    Selection semantics:
-    - If there is a clear winner above the configured margin threshold, select it.
-    - If the top candidates are not separable within the configured margin:
-      - when ``prefer_prior_definitions`` is enabled, select the earliest
-        introduced candidate by document order
-      - otherwise, leave the occurrence unresolved
 
     Args:
         text: Full source text containing the occurrence.
