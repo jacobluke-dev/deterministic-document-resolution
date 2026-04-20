@@ -1,15 +1,6 @@
 def initials_match(acr: str, phrase: str) -> bool:
     """Check if an acronym fits the phrase's initials as an ordered subsequence.
 
-    Builds an uppercase string of initials from the phrase by taking the first
-    character of each word **only if** that character is alphabetic. Then checks
-    whether the alphabetic characters of ``acr`` (ignoring any non-letters in
-    ``acr``) appear in order within those initials.
-
-    This is case-insensitive for matching and does not require contiguity—only
-    order. Words that begin with non-letters (e.g., ``"3M"``, ``"7-Document"``)
-    do not contribute an initial.
-
     Args:
       acr (str): The Acronym to test.
       phrase (str): Candidate long-form phrase used to derive initials.

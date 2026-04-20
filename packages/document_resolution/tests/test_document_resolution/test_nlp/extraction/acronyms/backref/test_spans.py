@@ -54,7 +54,7 @@ class TestBestSpanByInitials:
         assert best_span_by_initials("PDF", sent, max_chars=200) is None
 
 
-class TestSentSpansUnit:
+class TestSentSpans:
     def test_empty_text(self):
         assert sent_spans("") == []
 
@@ -108,7 +108,7 @@ class TestSentSpansUnit:
         assert sent_spans(text) == [(0, len(text))]
 
 
-class TestFindSpanIndexUnit:
+class TestFindSpanIndex:
     def test_returns_none_for_empty_spans(self):
         assert find_span_index([], 0) is None
 

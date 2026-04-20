@@ -38,11 +38,6 @@ def token_initials(token: str) -> str:
 def best_span_by_initials(acr: str, sent: str, *, max_chars: int) -> str | None:
     """Find the shortest contiguous token span whose initials match an acronym.
 
-    Splits `sent` on whitespace into tokens and builds token initials using the first
-    character of each token when alphabetic. Then searches for the shortest contiguous
-    token window whose initials match the alphabetic characters of `acr` in order.
-    The returned span is whitespace-collapsed via `collapse_ws` and must be <= `max_chars`.
-
     Args:
         acr (str): Acronym to match. Non-letters are ignored.
         sent (str): Sentence text to search within.
@@ -92,24 +87,15 @@ def best_span_by_initials(acr: str, sent: str, *, max_chars: int) -> str | None:
 def _best_window_end_for_initials(
     A: list[str],
     tok_inits: list[str],
-    i: int,
+    start_idx: int,
 ) -> int | None:
     """Return the smallest end index j >= i such that initials from i..j match A.
-
-    Scans token initials from `i` forward and consumes letters from acronym `A` in order.
-    Token initials may be multi-letter (e.g., "SO"), and each matching letter advances
-    the acronym index.
-
-    Args:
-        A (list[str]): Acronym letters (uppercase), letters-only.
-        tok_inits (list[str]): Per-token initials strings (uppercase), may be empty.
-        i (int): Start token index (inclusive).
 
     Returns:
         int | None: The minimal end index `j` achieving a full match, else None.
     """
     ai = 0
-    for j in range(i, len(tok_inits)):
+    for j in range(start_idx, len(tok_inits)):
         init = tok_inits[j]
         if not init:
             continue
@@ -125,27 +111,18 @@ def _best_window_end_for_initials(
     return None
 
 
-def _candidate_span(tokens: list[str], i: int, j: int) -> tuple[str, int]:
+def _candidate_span(tokens: list[str], start_idx: int, end_idx: int) -> tuple[str, int]:
     """Build a collapsed candidate span string and return it with its character length.
-
-    Args:
-        tokens (list[str]): Sentence tokens.
-        i (int): Start token index (inclusive).
-        j (int): End token index (inclusive).
 
     Returns:
         tuple[str, int]: (collapsed_span, len(collapsed_span)).
     """
-    cand = collapse_ws(" ".join(tokens[i : j + 1]).strip())
+    cand = collapse_ws(" ".join(tokens[start_idx: end_idx + 1]).strip())
     return cand, len(cand) if cand else 0
 
 
 def sent_spans(text: str) -> list[Span]:
     """Split text into sentence-ish spans using a simple boundary regex.
-
-    Sentence boundaries are detected by `_SENT_BOUNDARY_RE` (punctuation followed by
-    whitespace, or one-or-more newlines). Returned spans are `(start, end)` offsets
-    into the original `text` (end-exclusive). Empty spans are not returned.
 
     Args:
         text (str): Source text to split.
@@ -167,9 +144,6 @@ def sent_spans(text: str) -> list[Span]:
 
 def find_span_index(spans: list[Span], pos: int) -> int | None:
     """Find the index of the span that contains a position.
-
-    A position is considered inside a span when `start <= pos < end`
-    (end-exclusive).
 
     Args:
         spans (list[Span]): List of `(start, end)` spans (end-exclusive).

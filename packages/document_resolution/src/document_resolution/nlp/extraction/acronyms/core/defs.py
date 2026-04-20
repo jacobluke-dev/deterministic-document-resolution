@@ -36,10 +36,6 @@ def _wins(a: ExtractedDefinition, b: ExtractedDefinition) -> bool:
 def _meaning_key(acr: str, label: str) -> tuple[str, str]:
     """Build a canonical (acronym, label) key.
 
-    Uppercases the acronym and returns it alongside a normalized, lowercase
-    label produced by :func:`tighten_label`. This function does not validate
-    that the acronym and label correspond; they are treated independently.
-
     Args:
         acr: Acronym surface form (any case).
         label: Candidate long-form label or definition.
@@ -48,39 +44,12 @@ def _meaning_key(acr: str, label: str) -> tuple[str, str]:
         A tuple ``(ACRONYM_UPPER, tightened_label_lower)`` suitable for use as
         a stable dictionary key or join key.
 
-    Examples:
-        >>> _meaning_key("Gpu", "Graphics Processing Unit")
-        ('GPU', 'graphics processing unit')
-        >>> _meaning_key("PDF", "And, which the Portable Document Format")
-        ('PDF', 'portable document format')
-        # Acronym and label do not need to match:
-        >>> _meaning_key("GPU", "Portable Document Format")
-        ('GPU', 'portable document format')
-
-    Notes:
-        - ``tighten_label`` removes leading connectors/articles and keeps
-          meaningful RHS for patterns like ``"X stands for Y"`` before lowering.
-        - No punctuation/whitespace trimming is applied to ``acr`` beyond
-          uppercasing; callers should pre-clean if needed.
     """
     return acr.upper(), tighten_label(label).lower()
 
 
 def defs_from_picks(text: str, picks: dict[str, Optional[InTextPick]]) -> list[ExtractedDefinition]:
     """Convert extracted in-text picks into `ExtractedDefinition` records.
-
-    For each non-null `InTextPick`, this builds an `ExtractedDefinition` using:
-    - the pick's acronym and definition spans (absolute offsets into `text`)
-    - the pick's confidence and original definition text
-    - a normalised acronym key derived from the surface acronym in `text`
-
-    The acronym is normalised by:
-    1) slicing the surface form from `text` using `pick.acr_span`
-    2) stripping trailing punctuation from that surface form
-    3) uppercasing the result
-
-    The definition label is then normalised via `tighten_label_by_acronym()` using
-    the computed acronym key.
 
     Args:
         text (str): Original document text that the picks' spans refer to.
@@ -124,11 +93,6 @@ def defs_from_picks(text: str, picks: dict[str, Optional[InTextPick]]) -> list[E
 
 def dedupe_defs(defs: list[ExtractedDefinition]) -> list[ExtractedDefinition]:
     """Deduplicate extracted definitions by stable meaning key.
-
-    Definitions are considered duplicates when they resolve to the same meaning key,
-    computed via `_meaning_key(d.acronym, d.definition)`. The first occurrence is
-    kept and subsequent duplicates are dropped. The `definition` field is preserved
-    exactly as provided (it is assumed to have been tightened/normalised upstream).
 
     Args:
         defs (list[ExtractedDefinition]): Candidate definitions to deduplicate.

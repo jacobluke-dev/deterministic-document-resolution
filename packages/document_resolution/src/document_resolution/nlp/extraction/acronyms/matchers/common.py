@@ -3,7 +3,6 @@ from typing import Optional
 
 from document_resolution.nlp.common.constants_regex import PUNCT_TRIM
 from document_resolution.nlp.common.shared import has_letter
-from document_resolution.nlp.extraction.acronyms.core.normalise import has_digit
 
 _ASCII_CAMEL_RE = re.compile(
     r"[A-Z]+(?=[A-Z][a-z0-9])"  # e.g., 'XML' in 'XMLHttp'
@@ -41,6 +40,11 @@ LEXICAL_SPLITS = {
     "hypertext": ("Hyper", "text"),
 }
 
+def _has_digit(s: str) -> bool:
+    """True if the string contains any number.
+    """
+    return any(ch.isdigit() for ch in s)
+
 
 def should_preserve_alnum_token(token: str) -> bool:
     """Return True if an ASCII alphanumeric token should be kept intact.
@@ -64,7 +68,7 @@ def should_preserve_alnum_token(token: str) -> bool:
     if not token or not token.isalnum():
         return False
 
-    if not (has_letter(token) and has_digit(token)):
+    if not (has_letter(token) and _has_digit(token)):
         return False
 
     if token[0].isdigit() or token[-1].isdigit():

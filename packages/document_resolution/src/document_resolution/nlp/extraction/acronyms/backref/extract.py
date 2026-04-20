@@ -484,11 +484,6 @@ def _find_backref_candidate(
 ) -> tuple[str, Span, int, BackrefEvidence] | None:
     """Search previous sentence spans for a back-reference definition candidate.
 
-    Looks backwards from the sentence containing an acronym occurrence (sentence index `si`)
-    and evaluates up to `cfg.sentence_backref_lookback` previous sentences (nearest first).
-    For each prior sentence, delegates to `_candidate_from_prev_sentence` to produce a
-    cleaned/validated candidate definition.
-
     Args:
         text (str): Full document text.
         spans (list[Span]): Sentence-like spans as (start, end) offsets into `text`.
@@ -535,9 +530,6 @@ def _emit_backref_def(
 ) -> ExtractedDefinition:
     """
     Build an `ExtractedDefinition` for a sentence back-reference hit.
-    Computes char-distance from the previous sentence end to the FO start and
-    scores confidence/reasons via `_score_backref_confidence`, then maps spans
-    back to absolute offsets and stores the raw prior-sentence slice.
 
     Args:
         acr_norm: Normalised acronym key to store on the definition.
@@ -581,9 +573,6 @@ def _emit_backref_def(
 
 def _alpha_len(s: str) -> int:
     """Count alphabetic characters in a string.
-
-    Non-letter characters (digits, punctuation, whitespace) are ignored. Uses
-    `str.isalpha()` so Unicode letters are counted as well.
 
     Args:
         s (str): Input string.
