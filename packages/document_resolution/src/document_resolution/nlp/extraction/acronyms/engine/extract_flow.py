@@ -74,7 +74,7 @@ class ExtractionFlow(
         """Initialize an ExtractionFlow.
 
         Args:
-            det_cfg (AcronymDetectorConfig | None): Detector config. If None, then `DetectorConfig()`.
+            det_cfg (AcronymDetectorConfig | None): Detector config. If None, defaults to `AcronymDetectorConfig()`.
             ext_cfg (ExtractionConfig | None): Extraction config. If None, then `ExtractionConfig()`.
             window_left (int): Chars to include to the left of the first occurrence
                 when performing anchored extraction.
@@ -97,13 +97,7 @@ class ExtractionFlow(
         return len(s.det_res.unique_acronyms) if s.det_res is not None else 0
 
     def build_chain(self) -> Chain[FlowState]:
-        """Build the staged execution chain for the extraction pipeline.
-
-        Returns:
-            Chain[FlowState]: A chain of `Stage`s that transform a `FlowState`
-            through detection, extraction, merge, gap-fill, and disambiguation.
-
-        """
+        """Build the staged execution chain for the acronym extraction pipeline."""
         wl, wr = self.window_left, self.window_right
 
         def _t1_margin(s: FlowState) -> float:

@@ -4,8 +4,7 @@ from document_resolution.nlp.common.constants_regex import QUOTE
 from document_resolution.nlp.common.shared import collapse_ws, has_letter
 from document_resolution.nlp.extraction.acronyms.core.normalise import normalize_definition
 from document_resolution.nlp.extraction.acronyms.matchers.common import is_mixed_case_acronym
-from document_resolution.nlp.extraction.acronyms.matchers.defs.common import (
-    LocalDefMatch,
+from document_resolution.nlp.extraction.acronyms.matchers.defs.defs_common import (
     align_acronym_to_initials,
     build_initials_stream,
     build_kept_phrase,
@@ -13,6 +12,7 @@ from document_resolution.nlp.extraction.acronyms.matchers.defs.common import (
     first_alnum_char_upper,
     get_cfg_consts,
 )
+from document_resolution.nlp.extraction.acronyms.matchers.defs.constants import LocalDefMatch
 from document_resolution.nlp.extraction.acronyms.matchers.defs.inline_after import scan_tokens
 from document_resolution.nlp.extraction.acronyms.matchers.numeric_matcher import consume_left_numeric_designator
 

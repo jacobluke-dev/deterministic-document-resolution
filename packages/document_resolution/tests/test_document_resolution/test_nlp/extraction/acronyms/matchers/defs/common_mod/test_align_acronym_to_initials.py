@@ -1,5 +1,5 @@
 from document_resolution.nlp.common.constants_regex import DEFAULT_STOPWORDS
-from document_resolution.nlp.extraction.acronyms.matchers.defs.common import (
+from document_resolution.nlp.extraction.acronyms.matchers.defs.defs_common import (
     AlignmentHit,
     InitialsStream,
     align_acronym_to_initials,
@@ -318,17 +318,27 @@ class TestAlignAcronymToInitialsPreflightAndPlumbing:
 
         def fake_acr_alignment_targets(acr, has_numeric_evidence):
             seen["has_num"] = has_numeric_evidence
-            return ["A"]  # minimal non-empty
+            return ["A"]
 
-        def fake_align_rtl_scan(A, stream_letters, stream_is_stop, **kwargs):
+        def fake_align_rtl_scan_wrapper(
+            A,
+            *,
+            stream,
+            allow_upper_on_stop,
+            allow_lower_on_non_stop,
+        ):
             seen["A"] = A
-            return [0]  # "used positions"
+            return hit_cfg(
+                hit_tokens={0},
+                tok_left=0,
+                tok_right=0,
+            )
 
         _patch(
             align_acronym_to_initials,
             has_numeric_evidence=fake_has_numeric_evidence,
             acr_alignment_targets=fake_acr_alignment_targets,
-            align_rtl_scan=fake_align_rtl_scan,
+            _align_rtl_scan_wrapper=fake_align_rtl_scan_wrapper,
         )
 
         # Minimal stream object shape for rtl_scan

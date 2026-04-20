@@ -1,4 +1,4 @@
-from document_resolution.nlp.extraction.acronyms.matchers.defs.common import strip_inline_cue_prefix
+from document_resolution.nlp.extraction.acronyms.matchers.defs.defs_common import strip_inline_cue_prefix
 
 
 class DummyCfg:

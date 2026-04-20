@@ -6,8 +6,7 @@ from document_resolution.nlp.extraction.acronyms.anchored.normalise import tight
 from document_resolution.nlp.extraction.acronyms.config import ExtractionConfig
 from document_resolution.nlp.extraction.acronyms.core.normalise import normalize_definition
 from document_resolution.nlp.extraction.acronyms.matchers.common import is_mixed_case_acronym
-from document_resolution.nlp.extraction.acronyms.matchers.defs.common import (
-    LocalDefMatch,
+from document_resolution.nlp.extraction.acronyms.matchers.defs.defs_common import (
     _acr_signature_for_initials,
     align_acronym_to_initials,
     build_initials_stream,
@@ -15,6 +14,7 @@ from document_resolution.nlp.extraction.acronyms.matchers.defs.common import (
     first_alnum_char_upper,
     get_cfg_consts,
 )
+from document_resolution.nlp.extraction.acronyms.matchers.defs.constants import LocalDefMatch
 
 
 def find_parenthetical_longform_after_acr(  # noqa: C901

@@ -3,7 +3,7 @@ import re
 import document_resolution.nlp.extraction.acronyms.anchored.spans as mod
 from document_resolution.nlp.extraction.acronyms.anchored.spans import _trim_span
 from document_resolution.nlp.extraction.acronyms.config import ExtractionConfig
-from document_resolution.nlp.extraction.acronyms.matchers.defs.common import LocalDefMatch
+from document_resolution.nlp.extraction.acronyms.matchers.defs.constants import LocalDefMatch
 
 
 class TestTrimSpan:
