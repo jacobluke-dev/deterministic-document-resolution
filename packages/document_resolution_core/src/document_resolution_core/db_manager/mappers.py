@@ -67,22 +67,12 @@ def _parse_ts(val: Any) -> datetime:
 def _sanitize_status(x: Any) -> int | None:
     """Normalize a value to a valid HTTP status code or return ``None``.
 
-    Accepts ints, numeric strings, and whole-number floats (e.g., ``200.0``)
-    that fall within the HTTP status range ``100..599`` (inclusive). Rejects
-    booleans, non-finite floats (``nan``, ``inf``), and non-integer floats
-    (e.g., ``200.1``). Any parsing/validation failure results in ``None``.
-
     Args:
         x: Candidate status value. May be an ``int``, ``float``, string, etc.
 
     Returns:
         ``int``: The validated status code in the range ``100..599``.
         ``None``: If the value cannot be interpreted as a valid status.
-
-    Notes:
-        * Booleans are explicitly rejected (even though ``bool`` is a subclass of ``int``).
-        * Floats must be finite and represent an integer (``x.is_integer()``).
-        * Strings are parsed via ``int(x)``; non-numeric strings are rejected.
     """
     try:
         if isinstance(x, bool):
@@ -101,11 +91,7 @@ def make_logger_mapper(
     default_logger_type: str = "decorator",
 ) -> MapperFn:
     """The returned callable accepts a logging payload (dict) and produces a
-    dict of column values filtered to the columns declared on ``model``. It
-    normalizes level information (``level_name``/``level_code``), chooses a
-    final ``info`` field (prefers ``result`` then ``info`` then ``event``),
-    converts the timestamp to a timezone-aware UTC ``date_time``, and includes
-    optional HTTP-style fields only if the model defines them.
+    dict of column values filtered to the columns declared on ``model``.
 
     Args:
         model: A SQLAlchemy mapped class whose columns are discovered via
@@ -116,10 +102,6 @@ def make_logger_mapper(
     Returns:
         MapperFn: A function ``map_(payload: dict[str, Any]) -> dict[str, Any]``
         that produces a row ready for insertion (e.g., ``insert(model).values(**row)``).
-
-    Notes:
-        - Unknown payload keys are dropped.
-        - Only columns present on ``model`` are returned in the mapped dict.
     """
     # Collect column names from the mapped class
     cols = {c.key for c in sqla_inspect(model).columns}

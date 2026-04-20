@@ -126,9 +126,6 @@ def get_project_path(
 ) -> str | bool:
     """Returns the absolute path relative to the project root directory.
 
-    This function combines the project root directory with a relative path
-    to provide the absolute path to any file within the project structure.
-
     Args:
         relative_path (str): The relative path from the project root to the target file.
         raise_error (bool): If True (default), raise FileNotFoundError if not found.

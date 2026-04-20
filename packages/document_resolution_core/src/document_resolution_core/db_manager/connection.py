@@ -41,11 +41,6 @@ def _quote_table_fqn(table_fqn: str) -> str:
 def require_allowed_table(func: Callable[P, R]) -> Callable[P, R]:
     """Decorator to enforce allowed-table checks on DBManager methods.
 
-    This decorator assumes the first argument after ``self`` is a table
-    name (``table_fqn``). If the DBManager instance has a non-empty
-    ``allowed_tables`` set, and the provided table name is not in that set,
-    a ``ValueError`` is raised before calling the wrapped method.
-
     Args:
         func (Callable[P, R]): The method to wrap. Must have a signature
             like ``(self, table_fqn: str, *args, **kwargs)``.
@@ -106,9 +101,6 @@ class DBManager:
     def session(self) -> Iterator[Session]:
         """Provide a transactional scope around a series of operations.
 
-        This context manager yields a SQLAlchemy Session and ensures proper
-        commit, rollback, and close behavior.
-
         Yields:
             Iterator[Session]: An active SQLAlchemy Session object.
 
@@ -129,30 +121,13 @@ class DBManager:
     # --- Utilities ---------------------------------------------------------
 
     def create_schema(self, schema_name: str) -> None:
-        """Create a new database schema if it does not already exist.
-
-        Executes a `CREATE SCHEMA IF NOT EXISTS` statement using the
-        configured SQLAlchemy engine.
-
-        Args:
-            schema_name (str): The name of the schema to create.
-
-        Returns:
-            None
-
-        Raises:
-            sqlalchemy.exc.SQLAlchemyError: If the database engine encounters
-                an error while executing the statement.
-        """
-        stmt = text(f'CREATE SCHEMA IF NOT EXISTS "{schema_name}"')
+        """Create a schema if it does not already exist."""
+        stmt = text(f"CREATE SCHEMA IF NOT EXISTS {_quote_ident(schema_name)}")
         with self.engine.begin() as conn:
             conn.execute(stmt)
 
     def execute_sql_file(self, file_path: str | Path) -> None:
         """Execute the SQL statements contained in a file.
-
-        Reads the contents of a `.sql` file and executes them against the
-        database using the configured SQLAlchemy engine.
 
         Args:
             file_path (str | Path): Path to the SQL file. Can be a string
@@ -165,10 +140,6 @@ class DBManager:
             FileNotFoundError: If the specified file does not exist.
             UnicodeDecodeError: If the file cannot be decoded with UTF-8.
             sqlalchemy.exc.SQLAlchemyError: If execution of the SQL fails.
-
-        Examples:
-            # >>> dbm.execute_sql_file("migrations/init.sql")
-            # Executes all statements in migrations/init.sql
         """
         sql = Path(file_path).read_text(encoding="utf-8")
         with self.engine.begin() as conn:
@@ -189,9 +160,6 @@ class DBManager:
     def insert_row(self, table_fqn: str, columns: Sequence[str], values: Sequence[Any]) -> None:
         """Insert a row into a specified table.
 
-       Constructs an INSERT statement dynamically from the provided
-       column names and values, and executes it using the engine.
-
        Args:
            table_fqn (str): Fully qualified table name (e.g. "public.users").
            columns (Sequence[str]): list or tuple of column names.
@@ -200,19 +168,8 @@ class DBManager:
 
        Returns:
            None
-
-       Raises:
-           ValueError: If the table is not in `allowed_tables`.
-           sqlalchemy.exc.SQLAlchemyError: If the SQL execution fails.
-
-       Examples:
-           >>> dbm.insert_row(
-           ...     "glossary_entries",
-           ...     ["acronym", "definition"],
-           ...     ["NHS", "National Health Service"]
-           ... )
         """
-        cols = ", ".join(f'"{c}"' for c in columns)
+        cols = ", ".join(_quote_ident(c) for c in columns)
         placeholders = ", ".join(f":v{i}" for i in range(len(values)))
         params = {f"v{i}": v for i, v in enumerate(values)}
         table_sql = _quote_table_fqn(table_fqn)
@@ -365,16 +322,8 @@ class DBManager:
         Raises:
             ValueError: If the table is not in `allowed_tables`.
             sqlalchemy.exc.SQLAlchemyError: If execution fails.
-
-        Examples:
-            >>> dbm.update_row(
-            ...     "glossary_entries",
-            ...     {"definition": "Nat. Health Service"},
-            ...     where='"acronym" = :acr',
-            ...     params={"acr": "NHS"}
-            ... )
         """
-        sets = [f'"{k}" = :u_{k}' for k in updates]
+        sets = [f'{_quote_ident(k)} = :u_{k}' for k in updates]
         update_params = {f"u_{k}": v for k, v in updates.items()}
         if touch_updated_at:
             sets.append('updated_at = NOW()')
@@ -395,10 +344,6 @@ class DBManager:
         """Select multiple rows from a specified table using simple equality
         criteria.
 
-        This is a convenience wrapper around :meth:`select_rows` that builds a
-        parameterised WHERE clause from a list of ``(column, value)`` pairs.
-        All criteria are joined with ``AND`` and use equality comparisons.
-
         Args:
             table_fqn (str): Fully qualified table name (e.g. "public.users" or "users").
             columns (Sequence[str] | None): Column names to select. If None, selects all columns ("*").
@@ -416,22 +361,6 @@ class DBManager:
             ValueError: If ``table_fqn`` is not in ``allowed_tables``.
             ValueError: If ``limit`` is provided and is negative.
             sqlalchemy.exc.SQLAlchemyError: If query execution fails.
-
-        Examples:
-            >>> dbm.select_rows_where(
-            ...     "glossary_acronyms",
-            ...     columns=["acronym", "normalized"],
-            ...     criteria=[("acronym", "QWE")],
-            ... )
-            [('QWE', 'qwe')]
-
-            >>> dbm.select_rows_where(
-            ...     "glossary_acronyms",
-            ...     columns=["acronym"],
-            ...     criteria=[("tenant_id", None)],
-            ...     order_by=["acronym"],
-            ...     limit=10,
-            ... )
         """
         where = None
         params: dict[str, Any] = {}
