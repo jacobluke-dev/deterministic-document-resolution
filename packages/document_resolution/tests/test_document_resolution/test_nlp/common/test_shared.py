@@ -12,6 +12,7 @@ from document_resolution.nlp.common.shared import (
     strip_trailing_punct_str,
 )
 
+
 def _end_of(text: str, token: str) -> int:
     i = text.index(token)
     return i + len(token)

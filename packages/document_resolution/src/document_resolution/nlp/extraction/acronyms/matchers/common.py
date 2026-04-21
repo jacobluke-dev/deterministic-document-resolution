@@ -40,9 +40,9 @@ LEXICAL_SPLITS = {
     "hypertext": ("Hyper", "text"),
 }
 
+
 def _has_digit(s: str) -> bool:
-    """True if the string contains any number.
-    """
+    """True if the string contains any number."""
     return any(ch.isdigit() for ch in s)
 
 

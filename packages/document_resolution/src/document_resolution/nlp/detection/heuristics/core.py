@@ -18,6 +18,7 @@ from document_resolution.nlp.plugins.registry import DOMAIN_PLUGINS
 _DOTTED_INITIALISM_RE = re.compile(r"^(?:[A-Z]\.)+[A-Z]$")
 _LOWER_PREFIX_BRAND_RE = re.compile(r"^[a-z]{1,2}[A-Z][A-Za-z0-9]*$")
 
+
 def letters(token: str) -> str:
     """
     Extract alphabetic characters from a token surface.

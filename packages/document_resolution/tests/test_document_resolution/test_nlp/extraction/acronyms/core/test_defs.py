@@ -5,7 +5,6 @@ from document_resolution.nlp.common.types import (
     InTextPick,  # noqa: E402
     Span,
 )
-
 from document_resolution.nlp.extraction.acronyms.core.defs import _meaning_key, dedupe_defs, defs_from_picks
 
 

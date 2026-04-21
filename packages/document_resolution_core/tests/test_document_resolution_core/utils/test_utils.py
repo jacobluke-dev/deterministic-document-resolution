@@ -6,7 +6,6 @@ import pytest
 from document_resolution_core.utils.utils import (
     find_project_root,
     get_environment,
-    get_project_path,
     is_integration_env,
     is_local_env,
     is_test_env,

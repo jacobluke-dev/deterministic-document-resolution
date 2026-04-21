@@ -1,5 +1,4 @@
 import pytest
-
 from document_resolution.nlp.extraction.acronyms.anchored.normalise import tighten_definition_span
 
 

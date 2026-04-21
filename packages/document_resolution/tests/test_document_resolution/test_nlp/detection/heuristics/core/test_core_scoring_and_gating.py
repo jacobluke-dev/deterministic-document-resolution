@@ -1,9 +1,8 @@
 from types import SimpleNamespace
 
-import pytest
-
 import document_resolution.nlp.detection.acronym.detector as det
 import document_resolution.nlp.detection.heuristics.core as core
+import pytest
 from document_resolution.nlp.common.types import AcronymDetectorConfig, Span
 from document_resolution.nlp.detection.heuristics.core import (
     _has_lower_and_upper,

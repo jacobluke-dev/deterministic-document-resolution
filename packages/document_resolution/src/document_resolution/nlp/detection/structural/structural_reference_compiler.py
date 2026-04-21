@@ -6,8 +6,7 @@ from dataclasses import dataclass
 
 @dataclass(frozen=True)
 class StructuralReferencePatterns:
-    """Container for compiled regex patterns used by structural-reference detection.
-    """
+    """Container for compiled regex patterns used by structural-reference detection."""
 
     schedule_reference: re.Pattern[str]
     exhibit_reference: re.Pattern[str]

@@ -41,8 +41,7 @@ def _occurrence_context(
 
 
 def _tokenise(text: str) -> set[str]:
-    """Tokenise text into a lowercase word set for overlap scoring.
-    """
+    """Tokenise text into a lowercase word set for overlap scoring."""
     return {m.group(0).lower() for m in _WORD_RE.finditer(text)}
 
 

@@ -1,5 +1,4 @@
 import document_resolution.nlp.detection.acronym.detector as det
-import pytest
 from document_resolution.nlp.common.types import Occurrence
 from document_resolution.nlp.detection.acronym.chunking import score_chunk_worker
 

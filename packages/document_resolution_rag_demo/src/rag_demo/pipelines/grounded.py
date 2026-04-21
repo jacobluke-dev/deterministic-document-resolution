@@ -8,8 +8,7 @@ from public_api.schemas.resolve import ResolveOptions, ResolveRequest, ResolveRe
 
 from rag_demo.agentic.orchestrator import SingleAgentEvidenceOrchestrator
 from rag_demo.agentic.types import GroundedAgentAnswerResult
-from rag_demo.common import DemoDocument, IndexedCorpus
-from rag_demo.common import Chunker
+from rag_demo.common import Chunker, DemoDocument, IndexedCorpus
 from rag_demo.common.interfaces import ChunkIndex, GroundingStage, VectorStore
 
 

@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import pytest
-
 from document_resolution.nlp.detection.structural.structural_reference_compiler import (
     StructuralReferencePatterns,
     compile_structural_reference_patterns,

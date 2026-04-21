@@ -117,7 +117,7 @@ def _candidate_span(tokens: list[str], start_idx: int, end_idx: int) -> tuple[st
     Returns:
         tuple[str, int]: (collapsed_span, len(collapsed_span)).
     """
-    cand = collapse_ws(" ".join(tokens[start_idx: end_idx + 1]).strip())
+    cand = collapse_ws(" ".join(tokens[start_idx : end_idx + 1]).strip())
     return cand, len(cand) if cand else 0
 
 

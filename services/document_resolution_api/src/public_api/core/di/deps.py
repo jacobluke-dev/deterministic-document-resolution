@@ -19,10 +19,6 @@ from public_api.db.repos import AcronymRepo, GlossaryRepository, SqlAlchemyAcron
 class AppContainer:
     """Application-scoped dependency container.
 
-    This container is created once at startup and holds shared,
-    long-lived resources for the FastAPI application such as
-    the resolver and concurrency-limiting semaphore.
-
     Attributes:
         resolver: The acronym resolver instance created by
             `create_resolver()`.
@@ -79,21 +75,6 @@ def get_dbm(request: Request) -> Any:
         Any: The DB manager-like object stored at `request.app.state.dbm`.
     """
     return request.app.state.dbm
-
-
-def get_session(
-    dbm: Annotated[DBManager, Depends(get_dbm)],
-) -> Iterator[Session]:
-    """Yield a transactional SQLAlchemy Session.
-
-    This wraps `DBManager.session()` so routes can depend on a ready-to-use
-    session with commit/rollback/close handled automatically.
-
-    Yields:
-        Iterator[Session]: An active Session for the request scope.
-    """
-    with dbm.session() as s:
-        yield s
 
 
 def get_request_timeout_ms() -> int:

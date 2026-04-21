@@ -8,7 +8,7 @@ from document_resolution.nlp.common.shared import collapse_ws, strip_trailing_pu
 from document_resolution.nlp.common.types import Span, as_str_set
 from document_resolution.nlp.extraction.acronyms.config import ExtractionConfig
 from document_resolution.nlp.extraction.acronyms.matchers.common import is_mixed_case_acronym, split_compound
-from document_resolution.nlp.extraction.acronyms.matchers.defs.constants import InitialsStream, AlignmentHit
+from document_resolution.nlp.extraction.acronyms.matchers.defs.constants import AlignmentHit, InitialsStream
 from document_resolution.nlp.extraction.acronyms.matchers.defs.ltr import _align_ltr_min_window
 from document_resolution.nlp.extraction.acronyms.matchers.defs.rtl import _acronym_letters_rtl, _align_rtl_scan_wrapper
 
@@ -160,8 +160,7 @@ def _append_letters(
     owners: list[int],
     is_stop_letter: list[bool],
 ) -> None:
-    """Append letters to the initials stream buffers with ownership metadata.
-    """
+    """Append letters to the initials stream buffers with ownership metadata."""
     for ch in chs:
         letters.append(ch.upper())
         owners.append(ti)
@@ -423,8 +422,7 @@ def expand_numeric_leading_window(
     tok_left: int,
     tok_right: int,
 ) -> Span:
-    """Expand a token window to include adjacent numeric-leading tokens.
-    """
+    """Expand a token window to include adjacent numeric-leading tokens."""
 
     def _is_numeric_leading_token(idx: int) -> bool:
         init = first_alnum_char_upper(tokens[idx])
@@ -457,8 +455,7 @@ def inline_clause_tail(s: str) -> tuple[str, int]:
 
 
 def first_alnum_char_upper(s: str) -> str | None:
-    """Return the first alphanumeric character in `s`, uppercased.
-    """
+    """Return the first alphanumeric character in `s`, uppercased."""
     for ch in s:
         if ch.isalnum():
             return ch.upper()

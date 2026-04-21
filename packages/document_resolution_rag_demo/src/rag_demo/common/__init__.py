@@ -1,3 +1,5 @@
+from rag_demo.common.chunking import Chunker, FixedWindowChunker
+from rag_demo.common.interfaces import Embedder
 from rag_demo.common.models import (
     BaselineAnswerResult,
     DemoChunk,
@@ -5,8 +7,6 @@ from rag_demo.common.models import (
     IndexedCorpus,
     RetrievedChunk,
 )
-from rag_demo.common.chunking import FixedWindowChunker, Chunker
-from rag_demo.common.interfaces import Embedder
 
 __all__ = [
     "BaselineAnswerResult",
@@ -16,5 +16,5 @@ __all__ = [
     "RetrievedChunk",
     "FixedWindowChunker",
     "Chunker",
-    "Embedder"
+    "Embedder",
 ]

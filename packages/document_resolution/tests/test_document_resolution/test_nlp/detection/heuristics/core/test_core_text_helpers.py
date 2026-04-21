@@ -1,10 +1,18 @@
-import pytest
-
-from document_resolution.nlp.common.constants_regex import TRAILING_PUNCT_CHARS
 import document_resolution.nlp.detection.heuristics.core as core
-from document_resolution.nlp.detection.heuristics.core import in_brackets, strip_trailing_punct_span, caps_ratio, \
-    letters, core_len_for_bounds, prev_token, next_word_lowercase, has_stands_for_follow, threshold_len, \
-    _contained_in_any
+import pytest
+from document_resolution.nlp.common.constants_regex import TRAILING_PUNCT_CHARS
+from document_resolution.nlp.detection.heuristics.core import (
+    _contained_in_any,
+    caps_ratio,
+    core_len_for_bounds,
+    has_stands_for_follow,
+    in_brackets,
+    letters,
+    next_word_lowercase,
+    prev_token,
+    strip_trailing_punct_span,
+    threshold_len,
+)
 
 
 def _end(text: str, token: str) -> int:

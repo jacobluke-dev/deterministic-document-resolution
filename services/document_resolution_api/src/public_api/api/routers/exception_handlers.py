@@ -38,15 +38,6 @@ async def map_length_validation_to_413(
 async def map_http_exception(request: Request, exc: Exception) -> Response:
     """
     Map HTTP exceptions into our canonical ErrorResponse envelope.
-
-    - 401 -> UNAUTHENTICATED
-    - 403 -> FORBIDDEN
-    - Everything else -> pass-through (best-effort)
-
-    Notes:
-      - Signature accepts `Exception` to satisfy Starlette's handler typing.
-      - Non-HTTP exceptions should not normally reach this handler; they are
-        defensively mapped to a generic 500 response.
     """
     if not isinstance(exc, HTTPException):
         return JSONResponse(status_code=500, content={"detail": "Internal Server Error"})

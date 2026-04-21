@@ -1,21 +1,14 @@
 import re
-import pytest
 
 import document_resolution.nlp.detection.heuristics.core as core
 import document_resolution.nlp.plugins.registry as domain_mod
+import pytest
 from document_resolution.nlp.common.types import AcronymDetectorConfig
 from document_resolution.nlp.detection.heuristics.core import (
     _collect_core_hits,
     _collect_domain_hits,
     iter_acronym_candidates,
 )
-
-
-
-
-
-
-
 
 
 class TestIterCandidatesWith:

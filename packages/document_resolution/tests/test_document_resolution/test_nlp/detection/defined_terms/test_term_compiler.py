@@ -1,5 +1,4 @@
 import pytest
-
 from document_resolution.nlp.detection.defined_terms.compiler import compile_defined_term_patterns
 
 

@@ -5,12 +5,13 @@ import secrets
 import time
 from dataclasses import dataclass
 from datetime import datetime, timezone
-from typing import Any, Literal
+from typing import Literal
 
 from argon2 import PasswordHasher
 from argon2.exceptions import VerifyMismatchError
 from sqlalchemy import text
 
+from public_api.core.di.di_aliases import DBManagerDep
 from public_api.core.settings import app_settings
 
 API_KEY_RE = re.compile(
@@ -124,9 +125,6 @@ def parse_api_key(raw: str, *, allow_prefixes: set[str]) -> ParsedApiKey | None:
     """
     Parse and validate a raw `X-API-Key` value into structured components.
 
-    Validates format against `API_KEY_RE`, enforces the provided prefix allowlist,
-    and returns the parsed (prefix, key_id, secret) on success.
-
     Args:
       raw: Raw API key string, typically from the `X-API-Key` header.
       allow_prefixes: Set of allowed key prefixes (e.g. {"live", "test"}).
@@ -155,10 +153,7 @@ def parse_api_key(raw: str, *, allow_prefixes: set[str]) -> ParsedApiKey | None:
 
 def hash_secret(secret: str, *, scheme: Literal["argon2id", "bcrypt"] = "argon2id") -> str:
     """
-    Hash API key secret material for storage.
-
-    Uses the configured hashing scheme to produce a stored hash (never store the
-    raw secret). Currently supports Argon2id only.
+    Hash API key secret material for storage. Currently supports Argon2id only.
 
     Args:
       secret: Raw secret material from a generated API key.
@@ -188,9 +183,6 @@ def verify_secret(
     """
     Verify presented secret material against a stored hash.
 
-    Performs a constant-time verification appropriate to the configured scheme.
-    Any mismatch or unexpected error is treated as authentication failure.
-
     Args:
       secret: Presented secret material from the client.
       key_hash: Stored hash retrieved from the database.
@@ -219,20 +211,11 @@ def generate_key(prefix: str) -> tuple[str, str, str]:
     """
     Generate a new API key triplet: (key_id, secret, full_key_string).
 
-    Produces a short `key_id` used for database lookup, a longer random `secret`
-    used for authentication, and the full `uak_{prefix}_{key_id}_{secret}` string
-    intended to be shown once to an operator/customer.
-
     Args:
       prefix: Environment/category prefix embedded into the full key string.
 
     Returns:
       Tuple of `(key_id, secret, full_key_string)`.
-
-    Notes:
-      - `key_id` and `secret` are generated from URL-safe randomness and then
-        normalised to match the regex constraints.
-      - This function does not validate the prefix allowlist; callers should.
     """
     key_id = secrets.token_urlsafe(9).replace("-", "").replace("_", "")[:12]
     secret = secrets.token_urlsafe(32).replace("-", "").replace("_", "")[:40]
@@ -250,13 +233,9 @@ def _now_utc() -> datetime:
     return datetime.now(timezone.utc)
 
 
-def fetch_key_record(dbm: Any, key_id: str) -> ApiKeyRecord | None:
+def fetch_key_record(dbm: DBManagerDep, key_id: str) -> ApiKeyRecord | None:
     """
     Load an active, unexpired API key record from cache or database.
-
-    Checks the in-process TTL cache first; on a miss, queries `document_resolution.api_keys`
-    for a matching key id that is active and not expired, then caches and returns
-    a normalised `ApiKeyRecord`.
 
     Args:
       dbm: Database/session manager providing a `session()` context.
@@ -312,11 +291,9 @@ def fetch_key_record(dbm: Any, key_id: str) -> ApiKeyRecord | None:
     return rec
 
 
-def update_last_used(dbm: Any, key_id: str) -> None:
+def update_last_used(dbm: DBManagerDep, key_id: str) -> None:
     """
     Update the `last_used_at` timestamp for an API key record.
-
-    Performs a simple `UPDATE` to set `last_used_at = now()` for the given key id.
 
     Args:
       dbm: Database/session manager providing a `session()` context.

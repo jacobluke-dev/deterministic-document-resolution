@@ -6,9 +6,7 @@ from document_resolution.nlp.plugins.registry import register_plugin
 
 
 class LegalPlugin(DomainPlugin):
-    """Domain plugin providing legal/regulatory domain sniffing.
-
-    """
+    """Domain plugin providing legal/regulatory domain sniffing."""
 
     name = "legal"
     _SNIFF_CAP = 80_000

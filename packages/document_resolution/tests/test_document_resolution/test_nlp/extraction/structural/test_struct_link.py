@@ -5,7 +5,6 @@ from typing import Any
 
 import pytest
 from document_resolution.nlp.extraction.structural.link import (
-    _select_best_anchor,
     build_structural_reference_links,
 )
 from document_resolution.nlp.extraction.structural.types import (

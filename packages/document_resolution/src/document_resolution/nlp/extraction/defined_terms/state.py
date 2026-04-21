@@ -16,8 +16,7 @@ from document_resolution.nlp.extraction.defined_terms.types import (
 
 @dataclass
 class TermFlowState:
-    """Mutable state container for the defined-term resolution pipeline.
-    """
+    """Mutable state container for the defined-term resolution pipeline."""
 
     text: str
     det_cfg: DefinedTermDetectorConfig

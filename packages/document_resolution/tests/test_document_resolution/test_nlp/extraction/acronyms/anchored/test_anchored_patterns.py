@@ -1,5 +1,4 @@
 import pytest
-
 from document_resolution.nlp.extraction.acronyms.anchored.patterns import compile_anchored_for_surface
 from document_resolution.nlp.extraction.acronyms.anchored.spans import resolve_def_span
 from document_resolution.nlp.extraction.acronyms.config import ExtractionConfig

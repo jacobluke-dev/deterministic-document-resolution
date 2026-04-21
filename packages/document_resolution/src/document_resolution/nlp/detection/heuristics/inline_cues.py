@@ -22,6 +22,7 @@ def _compile_inline_cues_pattern(cues: tuple[str, ...]) -> re.Pattern[str]:
 
 _INLINE_CUES_RE = _compile_inline_cues_pattern(INLINE_CUE_FRAGMENTS)
 
+
 def boost_confidence_if_inline_cue(surface: str, text: str, e: int, conf: float) -> float:
     """
     Boost confidence for short acronyms if an inline cue appears immediately to the right.

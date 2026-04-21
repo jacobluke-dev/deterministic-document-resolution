@@ -9,9 +9,7 @@ from document_resolution.nlp.plugins.registry import register_plugin
 
 
 class StructuralReferencePlugin(DomainPlugin):
-    """Domain plugin providing structural-reference document sniffing.
-
-    """
+    """Domain plugin providing structural-reference document sniffing."""
 
     name = "structural_reference"
     _SNIFF_CAP = 80_000

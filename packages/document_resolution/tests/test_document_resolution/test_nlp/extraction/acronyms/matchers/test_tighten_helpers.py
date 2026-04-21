@@ -1,7 +1,9 @@
 import pytest
-
-from document_resolution.nlp.extraction.acronyms.matchers.tighten import _numeric_leading, _tokenize_preserve, \
-    _best_window_for_acronym
+from document_resolution.nlp.extraction.acronyms.matchers.tighten import (
+    _best_window_for_acronym,
+    _numeric_leading,
+    _tokenize_preserve,
+)
 
 
 class TestTokenizePreserve:

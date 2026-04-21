@@ -6,12 +6,19 @@ from alembic.script import ScriptDirectory
 from sqlalchemy import text
 from sqlalchemy.engine import Engine
 
+from public_api.core.settings import db_settings
 
-def is_at_head(engine: Engine, *, schema: str | None) -> bool:
+
+def is_at_head(
+    engine: Engine,
+    *,
+    schema: str | None,
+    alembic_ini_path: Path = db_settings.ALEMBIC_INI_PATH,
+) -> bool:
+    """Return whether the schema's alembic version matches the current head."""
     if not schema:
         raise ValueError("schema is required for alembic head check")
 
-    alembic_ini_path = Path.cwd() / "alembic.ini"
     if not alembic_ini_path.exists():
         raise FileNotFoundError(f"File '{alembic_ini_path}' does not exist.")
 

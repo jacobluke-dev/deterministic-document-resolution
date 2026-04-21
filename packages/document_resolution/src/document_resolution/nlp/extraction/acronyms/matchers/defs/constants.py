@@ -34,4 +34,3 @@ class AlignmentHit:
     hit_tokens: set[int]
     tok_left: int
     tok_right: int
-

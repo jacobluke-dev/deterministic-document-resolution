@@ -1,6 +1,5 @@
 import pytest
-
-from rag_demo.common import FixedWindowChunker, DemoDocument
+from rag_demo.common import DemoDocument, FixedWindowChunker
 
 
 def _doc(

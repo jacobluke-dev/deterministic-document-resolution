@@ -7,7 +7,6 @@ from rag_demo.agentic.orchestrator import SingleAgentEvidenceOrchestrator
 from rag_demo.agentic.prompted_reviewer import PromptedGroundingReviewer
 from rag_demo.agentic.reviewer_model import OpenAIReviewerModel
 from rag_demo.common import FixedWindowChunker
-
 from rag_demo.composition.embedder import build_openai_embedder
 from rag_demo.pipelines.baseline import BaselineRagPipeline
 from rag_demo.pipelines.demo import DemoAnswerGenerator

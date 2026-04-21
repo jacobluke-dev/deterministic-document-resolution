@@ -52,14 +52,14 @@ def _term_surface_variants(term: str) -> list[str]:
 
 def _spans_overlap(a_start: int, a_end: int, b_start: int, b_end: int) -> bool:
     """Return whether two half-open spans overlap.
-        Args:
-            a_start: Inclusive start offset of the first span.
-            a_end: Exclusive end offset of the first span.
-            b_start: Inclusive start offset of the second span.
-            b_end: Exclusive end offset of the second span.
+    Args:
+        a_start: Inclusive start offset of the first span.
+        a_end: Exclusive end offset of the first span.
+        b_start: Inclusive start offset of the second span.
+        b_end: Exclusive end offset of the second span.
 
-        Returns:
-            True if the spans overlap by at least one character; otherwise False.
+    Returns:
+        True if the spans overlap by at least one character; otherwise False.
     """
     return a_start < b_end and b_start < a_end
 

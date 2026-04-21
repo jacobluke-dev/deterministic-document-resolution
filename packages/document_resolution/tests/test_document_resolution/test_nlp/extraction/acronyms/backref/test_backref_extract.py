@@ -3,8 +3,8 @@ from document_resolution.nlp.extraction.acronyms.backref.extract import (
     _candidate_from_prev_sentence,
     _find_backref_candidate,
     _score_backref_confidence,
-    extract_sentence_backrefs,
     _valid_backref_candidate,
+    extract_sentence_backrefs,
 )
 from document_resolution.nlp.extraction.acronyms.config import ExtractionConfig
 

@@ -7,8 +7,8 @@ import faiss  # type: ignore[import-untyped]
 import numpy as np
 
 from rag_demo.common import DemoChunk, RetrievedChunk
-from rag_demo.common.types import FloatMatrix
 from rag_demo.common.interfaces import ChunkIndex, Embedder, VectorStore
+from rag_demo.common.types import FloatMatrix
 
 
 @dataclass(frozen=True, slots=True)

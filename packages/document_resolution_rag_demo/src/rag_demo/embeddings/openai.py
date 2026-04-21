@@ -9,7 +9,6 @@ from rag_demo.common import Embedder
 from rag_demo.common.types import FloatMatrix
 
 
-
 class OpenAIEmbedder(Embedder):
     """Embed text by calling the OpenAI embeddings API.
 

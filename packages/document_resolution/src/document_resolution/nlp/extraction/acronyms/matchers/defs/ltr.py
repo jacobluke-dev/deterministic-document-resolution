@@ -1,5 +1,6 @@
-from document_resolution.nlp.extraction.acronyms.matchers.defs.constants import InitialsStream, AlignmentHit
 from document_resolution.nlp.common.types import Span
+from document_resolution.nlp.extraction.acronyms.matchers.defs.constants import AlignmentHit, InitialsStream
+
 
 def _alignment_letter_ok(
     alignment_letters: list[str],
@@ -49,6 +50,7 @@ def _alignment_letter_ok(
         return False
 
     return tok0[:1].lower() == alignment_letters[0].lower()
+
 
 def _align_ltr_min_window(
     alignment_letters: list[str],
@@ -130,9 +132,9 @@ def _align_ltr_min_window(
         tok_right=tok_right,
     )
 
+
 def _token_span_for_used(used_letter_pos: list[int], owners: list[int]) -> Span:
-    """Compute (tok_left, tok_right) from used stream letter positions.
-    """
+    """Compute (tok_left, tok_right) from used stream letter positions."""
     tok_left = min(owners[p] for p in used_letter_pos)
     tok_right = max(owners[p] for p in used_letter_pos)
     return tok_left, tok_right

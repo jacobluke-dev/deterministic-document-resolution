@@ -1,4 +1,3 @@
-import pytest
 
 from document_resolution.nlp.extraction.acronyms.matchers.tighten import (
     _phrase_from_best_window,

@@ -1,8 +1,7 @@
 from __future__ import annotations
 
 import numpy as np
-from rag_demo.chunking import FixedWindowChunker
-from rag_demo.common import DemoDocument
+from rag_demo.common import DemoDocument, FixedWindowChunker
 from rag_demo.retrieval.faiss import FaissVectorStore
 
 
