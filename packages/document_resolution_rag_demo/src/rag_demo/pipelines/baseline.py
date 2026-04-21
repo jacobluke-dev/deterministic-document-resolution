@@ -4,8 +4,8 @@ from dataclasses import dataclass
 from typing import Sequence
 
 from rag_demo.common import BaselineAnswerResult, DemoDocument, IndexedCorpus
-from rag_demo.contracts import AnswerGenerator, Chunker
-from rag_demo.contracts.interfaces import ChunkIndex, VectorStore
+
+from rag_demo.common.interfaces import ChunkIndex, VectorStore, Chunker, AnswerGenerator
 
 
 @dataclass(frozen=True, slots=True)

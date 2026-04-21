@@ -2,8 +2,8 @@ from __future__ import annotations
 
 import pytest
 from rag_demo.agentic.types import GroundedEvidenceAssessment
-from rag_demo.chunking import FixedWindowChunker
-from rag_demo.common import DemoDocument
+
+from rag_demo.common import DemoDocument, FixedWindowChunker
 from rag_demo.composition.pipeline import build_baseline_pipeline, build_grounded_pipeline
 from rag_demo.pipelines.baseline import BaselineRagPipeline
 from rag_demo.pipelines.grounded import GroundedRagPipeline, ResolveBackedGroundingStage

@@ -93,9 +93,6 @@ class SingleAgentEvidenceOrchestrator:
     def _looks_like_grounding_fragment(text: str) -> bool:
         """Return whether text appears to be a sliced grounding JSON fragment.
 
-        This heuristic helps exclude partial grounding-only chunks when choosing
-        the best source excerpt for reviewer use.
-
         Args:
             text: Chunk text to inspect.
 
@@ -121,9 +118,6 @@ class SingleAgentEvidenceOrchestrator:
         items: list[GroundedEvidenceDocument],
     ) -> GroundedEvidenceDocument | None:
         """Select the best source-excerpt candidate for one document.
-
-        Only non-grounding, non-JSON-like excerpts are considered. Candidates
-        are ranked by retrieval score first and span length second.
 
         Args:
             items: Candidate evidence documents for a single source document.
@@ -154,9 +148,6 @@ class SingleAgentEvidenceOrchestrator:
         items: list[GroundedEvidenceDocument],
     ) -> GroundedEvidenceDocument | None:
         """Select the best grounding-bearing candidate for one document.
-
-        Preference is given to chunks that start at offset zero, then to higher
-        retrieval scores, then to longer spans.
 
         Args:
             items: Candidate evidence documents for a single source document.
@@ -218,9 +209,6 @@ class SingleAgentEvidenceOrchestrator:
     ) -> list[GroundedEvidenceDocument]:
         """Reduce raw candidates to a compact per-document evidence set.
 
-        For each source document, the compact set retains at most one best
-        grounding-bearing chunk and one best source-excerpt chunk.
-
         Args:
             candidates: Candidate evidence documents derived from retrieved
                 chunks.
@@ -257,11 +245,6 @@ class SingleAgentEvidenceOrchestrator:
         retrieved_chunks: tuple[Any, ...],
     ) -> GroundedEvidencePacket:
         """Convert retrieved chunks into a compact grounded evidence packet.
-
-        For each source document, the packet keeps at most one best
-        grounding-bearing chunk and one best source-excerpt chunk. This reduces
-        prompt duplication while preserving both deterministic binding context
-        and question-relevant source text.
 
         Args:
             question: User question for which evidence is being assembled.
@@ -327,10 +310,6 @@ class SingleAgentEvidenceOrchestrator:
             A tuple containing:
                 - the parsed deterministic grounding payload when available, and
                 - the source document excerpt.
-
-        If the full grounding payload is not present in the chunk, the function
-        still strips any leading grounding fragment when the document marker is
-        present so the returned source excerpt is cleaner for reviewer use.
         """
         grounding_marker = "[DETERMINISTIC_GROUNDING]\n"
         document_marker = "\n\n[DOCUMENT]\n"

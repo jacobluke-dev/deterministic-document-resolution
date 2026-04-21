@@ -7,7 +7,7 @@ import numpy as np
 
 from rag_demo.common.models import DemoChunk, RetrievedChunk
 from rag_demo.common.types import FloatMatrix
-from rag_demo.contracts.interfaces import ChunkIndex, Embedder, VectorStore
+from rag_demo.common.interfaces import ChunkIndex, Embedder, VectorStore
 
 
 @dataclass(frozen=True, slots=True)

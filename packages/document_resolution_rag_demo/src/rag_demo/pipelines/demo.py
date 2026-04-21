@@ -3,7 +3,7 @@ from __future__ import annotations
 from collections.abc import Callable, Sequence
 
 from rag_demo.common import RetrievedChunk
-from rag_demo.contracts.interfaces import AnswerGenerator
+from rag_demo.common.interfaces import AnswerGenerator
 
 _BASELINE_SYSTEM_PROMPT = """You are answering questions from retrieved document excerpts in a baseline RAG demo.
 
