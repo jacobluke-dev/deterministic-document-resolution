@@ -1,5 +1,4 @@
 import os
-from functools import lru_cache
 from pathlib import Path
 from typing import Literal, Optional, overload
 
@@ -70,35 +69,20 @@ def is_integration_env() -> bool:
     return get_environment() == 'INTEGRATION'
 
 
-@lru_cache(maxsize=1)
-def find_project_root(start: str | Path | None = None,
-                      markers: tuple[str, ...] = ("pyproject.toml", ".git", ".gitlab-ci.yml")) -> Path:
-    """Returns the project root directory.
+_ROOT_MARKER = ".document-resolution-root"
 
-    This function determines the project root directory by assuming the file is
-    located in the 'src/utils/' directory and then traversing up the directory
-    structure.
 
-    Returns:
-        str: The absolute path to the project root directory.
-    """
-    p = Path(start).resolve() if start else Path.cwd().resolve()
-    parents = [p, *p.parents]
-    candidates: list[Path] = []
-    for q in parents:
-        if any((q / m).exists() for m in markers):
-            candidates.append(q)
+def find_project_root(start: str | Path | None = None) -> Path:
+    """Return the nearest ancestor containing the project root marker."""
+    current = Path(start).resolve() if start else Path.cwd().resolve()
+    if current.is_file():
+        current = current.parent
 
-    if not candidates:
-        return p  # fallback: no markers found
+    for candidate in (current, *current.parents):
+        if (candidate / _ROOT_MARKER).is_file():
+            return candidate
 
-    # Prefer the top-most (repo root). If multiple, bias to the one that has .git.
-    top = candidates[-1]
-    for q in reversed(candidates):
-        if (q / ".git").exists():
-            return q
-    return top
-
+    raise FileNotFoundError(f"Could not find {_ROOT_MARKER!r} from: {current}")
 
 
 @overload
