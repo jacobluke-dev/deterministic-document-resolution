@@ -5,17 +5,16 @@ from document_resolution.nlp.common.types import AcronymDetectorConfig, pattern_
 
 def compile_acronym_pattern(cfg: AcronymDetectorConfig) -> re.Pattern[str]:
     """
-    Compile a linear, low-backtracking token pattern for acronym-like candidates.
+    Compile the candidate-token regex for acronym detection.
 
-    The pattern is assembled from multiple branches (separators, dotted forms, compact caps,
-    digit-prefixed, and optional mixed-case) and wrapped in word boundaries to avoid
-    matching inside longer identifiers.
+     Assembles enabled pattern branches from the detector configuration and returns
+     a compiled regex with named group `tok`.
 
-    Args:
-        cfg (AcronymDetectorConfig): Detector configuration controlling bounds and enabled branches.
+     Args:
+         cfg (AcronymDetectorConfig): Detector configuration controlling bounds and enabled branches.
 
-    Returns:
-        re.Pattern[str]: Compiled regex with a named group "tok" for candidate spans.
+     Returns:
+         re.Pattern[str]: Compiled regex with a named group "tok" for candidate spans.
     """
     # Cache key must include all switches that change the pattern’s shape.
     # NOTE: if our config field is named `enable_mixed_case` (no underscore),

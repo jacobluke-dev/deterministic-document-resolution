@@ -1,9 +1,9 @@
-from document_resolution.nlp.extraction.acronyms.matchers.defs.common import (
+from document_resolution.nlp.extraction.acronyms.matchers.defs.defs_common import (
     AlignmentHit,
     InitialsStream,
     _align_rtl_scan_wrapper,
-    align_rtl_scan,
 )
+from document_resolution.nlp.extraction.acronyms.matchers.defs.rtl import align_rtl_scan
 
 
 class TestAlignRtlScanWrapper:

@@ -55,10 +55,10 @@ class TestRecomputeFirstsUnit:
         o2 = occ(cfg, "mRNA", 2, 6, conf=0.95)
 
         # Force both to normalise to the same key regardless of input.
-        def reminder(acr, allow_chars, dotted_mode):
+        def fake_normalize(acr, allow_chars, dotted_mode):
             return "K"
 
-        _patch(recompute_firsts, normalize_acronym_key=reminder)
+        _patch(recompute_firsts, normalize_acronym_key=fake_normalize)
 
         # Force normalizer path for both to keep the unit test strictly about recompute logic.
         o1 = replace(o1, normalized_key="")

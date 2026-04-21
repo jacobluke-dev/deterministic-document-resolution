@@ -1,4 +1,4 @@
-from document_resolution.nlp.extraction.acronyms.matchers.defs.common import expand_numeric_leading_window
+from document_resolution.nlp.extraction.acronyms.matchers.defs.defs_common import expand_numeric_leading_window
 
 
 class TestExpandNumericLeadingWindow:

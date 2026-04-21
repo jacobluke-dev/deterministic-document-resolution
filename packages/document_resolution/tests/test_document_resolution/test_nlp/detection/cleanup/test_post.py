@@ -122,8 +122,7 @@ class TestPostCleanup:
         cleaned, _, dropped = post_detect_cleanup(text, det, cfg)
 
         assert {o.acronym for o in cleaned.occurrences} == {"mRNA"}
-        # Depending on ordering, either contained_suffix or end_suffix_micro may claim the drop.
-        # This assertion keeps the test robust while still validating the intended behaviour.
+        # Earlier rules may claim the drop before end_suffix_micro runs.
         assert any(d.acronym == "RNA" and d.rule in {"contained_suffix", "end_suffix_micro"} for d in dropped), dropped
 
     def test_cleanup_drops_mixed_case_typo_internal_blip(self, cfg, occ, fo):
@@ -160,7 +159,7 @@ class TestPostCleanup:
         assert {o.acronym for o in cleaned.occurrences} == {"TfL"}
         assert dropped == []
 
-    def test_cleanup_recomputes_firsts_from_keptoccurrences_earliest_wins(self, cfg, occ, fo):
+    def test_cleanup_recomputes_firsts_from_kept_occurrences_earliest_wins(self, cfg, occ, fo):
         text = "mRNA appears. Later, mRNA appears again."
 
         occ1 = occ(cfg, "mRNA", 0, 4, conf=0.7)

@@ -26,9 +26,6 @@ def _mapper_for(model: type[Any], default_logger_type: str) -> MapperFn:
     """Return a cached/constructed payload→row mapper for a given model and
     logger type.
 
-    Uses an internal cache keyed by ``(model, default_logger_type)``. If a mapper
-    does not exist for the key, it is created via ``make_logger_mapper`` and stored.
-
     Args:
         model (type[Any]): SQLAlchemy mapped class the mapper targets.
         default_logger_type (str): Fallback ``logger_type`` applied by the mapper
@@ -37,10 +34,6 @@ def _mapper_for(model: type[Any], default_logger_type: str) -> MapperFn:
     Returns:
         MapperFn: Callable that transforms a logging payload (``dict[str, Any]``)
         into a model-aligned row (``dict[str, Any]``).
-
-    Notes:
-        - Cache key is the identity of ``model`` and the exact ``default_logger_type`` string.
-        - This cache is in-memory and not synchronized across processes.
     """
     key = (model, default_logger_type)
     mapper = _MAPPER_CACHE.get(key)
@@ -73,10 +66,6 @@ def make_sink(sessionmaker: async_sessionmaker[AsyncSession], name: str) -> SqlA
 
     Raises:
         ValueError: If ``name`` is not found in the internal registry.
-
-    Notes:
-        The mapper is retrieved from an internal cache keyed by
-        ``(model, default_logger_type)``; if absent, it is constructed and cached.
     """
     spec = _REGISTRY.get(name)
     if spec is None:
@@ -92,13 +81,6 @@ def make_universal_sink(
 ) -> UniversalSink:
     """Create a sink usable from both async and sync call sites.
 
-    Looks up the sink specification by ``name`` in the internal registry,
-    builds (or reuses, via cache) the mapper for the spec’s ``(model, default_logger_type)``,
-    and returns a ``UniversalSink`` that wraps:
-      - an async ``SqlAlchemyModelSink`` (using the provided ``sessionmaker``), and
-      - a sync ``SyncSqlAlchemyModelSink`` (using ``sync_url``),
-    both targeting the same model and mapper.
-
     Args:
         sessionmaker (async_sessionmaker[AsyncSession]): Async SQLAlchemy session factory for the async sink.
         sync_url (str): SQLAlchemy database URL for the sync sink.
@@ -107,13 +89,6 @@ def make_universal_sink(
     Returns:
         UniversalSink: A wrapper exposing both ``enqueue_async`` and ``enqueue`` via
         its underlying async and sync sinks.
-
-    Raises:
-        ValueError: If ``name`` is not found in the registry.
-
-    Notes:
-        The async and sync sinks share the same mapper instance to ensure consistent
-        row-shaping across execution contexts.
     """
     spec = _REGISTRY.get(name)
     if spec is None:
@@ -128,10 +103,6 @@ def register_sink(name: str, model: type[Any], default_logger_type: str = "decor
     """Register (or overwrite) a sink specification and invalidate its cached
     mapper.
 
-    Adds/updates an entry in the internal registry mapping ``name`` → ``SinkSpec(model, default_logger_type)``.
-    If a mapper for the exact ``(model, default_logger_type)`` tuple exists in the cache, it is removed so that a
-    fresh mapper will be created on next use.
-
     Args:
         name: Unique key used to reference the sink (e.g., ``"logger"``).
         model: SQLAlchemy mapped class associated with the sink.
@@ -140,14 +111,6 @@ def register_sink(name: str, model: type[Any], default_logger_type: str = "decor
 
     Returns:
         None
-
-    Side Effects:
-        - Mutates the internal sink registry.
-        - Removes a single matching entry from the mapper cache for ``(model, default_logger_type)``.
-
-    Notes:
-        Overwriting an existing sink name does not purge any *previous* mapper cache entries that
-        referenced a different ``(model, default_logger_type)`` pair.
     """
     _REGISTRY[name] = SinkSpec(model, default_logger_type)
     _MAPPER_CACHE.pop((model, default_logger_type), None)  # invalidate cached mapper
@@ -158,19 +121,6 @@ def build_sink_from_env(name: str) -> UniversalSink:
 
     This reads synchronous and asynchronous database URLs from environment
     variables and constructs a ``UniversalSink`` for the named sink target.
-
-    Environment resolution order:
-      - Synchronous URL:
-        - ``DATABASE_URL_SYNC``
-        - ``TEST_DB_URL``
-      - Asynchronous URL:
-        - ``DATABASE_URL``
-        - derived from the synchronous URL via ``to_asyncpg(...)``
-
-    The function requires both a synchronous URL and an asynchronous URL. If
-    only a synchronous URL is provided, the asynchronous variant is derived
-    automatically. If the required configuration is incomplete, a
-    ``RuntimeError`` is raised.
 
     Args:
       name: Logical sink name used when constructing the universal sink.

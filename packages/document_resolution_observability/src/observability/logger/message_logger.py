@@ -19,19 +19,6 @@ def _to_text(v: Any, limit: int = 2048) -> Optional[str]:
     """
     Convert a value into a log-safe string, with optional truncation.
 
-    Conversion rules:
-      - None → returns None
-      - bytes → UTF-8 decode (errors="replace")
-      - str → unchanged
-      - other → compact JSON via json.dumps(v, default=str, separators=(",", ":"))
-        (falls back to str(v) if serialization fails)
-
-    Truncation:
-        If the resulting string exceeds `limit` characters, it is truncated to the
-        first `limit` characters and suffixed with:
-            ...(+N chars)
-        where N is the number of omitted characters.
-
     Args:
         v (Any): Any input value to convert.
         limit (int): Maximum string length before truncation (default: 2048).
@@ -88,12 +75,6 @@ def message_logger(
 
     Returns:
         None
-
-    Notes:
-        - The caller function name is captured without retaining frames (to avoid cycles).
-        - `_to_text` handles string/bytes directly and JSON-serializes other objects,
-          truncating long values with a `...(+N chars)` suffix.
-        - Redaction (e.g., `authorization` → `[REDACTED]`) is applied inside `emit`.
     """
     frame = inspect.currentframe()
     try:
@@ -114,7 +95,6 @@ def message_logger(
     )
 
 
-# Optional convenience shorthands:
 def info(message: str, **kw) -> None:
     message_logger(message, LogLevel.INFO, **kw)
 

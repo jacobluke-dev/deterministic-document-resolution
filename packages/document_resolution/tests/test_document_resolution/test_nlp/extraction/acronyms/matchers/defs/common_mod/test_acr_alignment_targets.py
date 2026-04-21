@@ -1,4 +1,4 @@
-from document_resolution.nlp.extraction.acronyms.matchers.defs.common import acr_alignment_targets
+from document_resolution.nlp.extraction.acronyms.matchers.defs.defs_common import acr_alignment_targets
 
 
 class TestAcrAlignmentTargets:

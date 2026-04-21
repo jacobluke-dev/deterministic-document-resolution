@@ -3,7 +3,6 @@ from typing import Optional
 
 from document_resolution.nlp.common.constants_regex import PUNCT_TRIM
 from document_resolution.nlp.common.shared import has_letter
-from document_resolution.nlp.extraction.acronyms.core.normalise import has_digit
 
 _ASCII_CAMEL_RE = re.compile(
     r"[A-Z]+(?=[A-Z][a-z0-9])"  # e.g., 'XML' in 'XMLHttp'
@@ -42,19 +41,13 @@ LEXICAL_SPLITS = {
 }
 
 
+def _has_digit(s: str) -> bool:
+    """True if the string contains any number."""
+    return any(ch.isdigit() for ch in s)
+
+
 def should_preserve_alnum_token(token: str) -> bool:
     """Return True if an ASCII alphanumeric token should be kept intact.
-
-    This is used by token splitting logic to avoid fragmenting tokens that are
-    commonly treated as single units in technical text (e.g. "2FA", "HTTP2",
-    "RFC7231", "B2B").
-
-    The token must be ASCII alphanumeric and contain both letters and digits.
-    It is preserved when:
-      - It starts with a digit (e.g. "2FA", "7Zip"), or
-      - It ends with a digit (e.g. "HTTP2", "v1", "x86"), or
-      - It is all-uppercase (e.g. "B2B", "RFC7231", "SHA256", "H264").
-
     Args:
         token (str): Candidate token (already separator-split) to evaluate.
 
@@ -64,7 +57,7 @@ def should_preserve_alnum_token(token: str) -> bool:
     if not token or not token.isalnum():
         return False
 
-    if not (has_letter(token) and has_digit(token)):
+    if not (has_letter(token) and _has_digit(token)):
         return False
 
     if token[0].isdigit() or token[-1].isdigit():
@@ -76,11 +69,6 @@ def should_preserve_alnum_token(token: str) -> bool:
 
 def match_from(letters: list[str], acronym_list: list[str], start: int) -> Optional[tuple[int, list[int]]]:
     """Greedily align an acronym as an ordered subsequence of `letters`, starting at `start`.
-
-    Scans `letters` from index `start` onward and tries to match `acronym_list`
-    in order (no backtracking). When a match is found, records the letter index
-    used and advances to the next acronym character. If all acronym characters
-    are matched, returns the scan end position and the indices that were used.
 
     Args:
         letters (list[str]): Stream of candidate letters (typically already uppercased).
@@ -96,20 +84,6 @@ def match_from(letters: list[str], acronym_list: list[str], start: int) -> Optio
                 each character of `acronym_list` in order.
             Returns None if the acronym cannot be fully matched.
 
-    Notes:
-        - This is a greedy subsequence matcher: it finds the earliest possible
-          completion given the starting point, but does not guarantee a globally
-          optimal match if multiple alignments exist.
-        - Caller is responsible for any normalisation (e.g., uppercasing, filtering
-          to alnum) before passing inputs.
-
-    Examples:
-        >>> match_from(list("ABCD"), list("AC"), 0)
-        (3, [0, 2])
-        >>> match_from(list("ABCD"), list("DA"), 0) is None
-        True
-        >>> match_from(list("AAB"), list("AB"), 1)
-        (3, [1, 2])
     """
     li, ai = start, 0
     used = []
@@ -143,20 +117,6 @@ def is_mixed_case_acronym(acr: str) -> bool:
 def initials_seq(tokens: list[str], *, expand_allcaps: bool = False) -> tuple[list[str], list[int]]:
     """Build an initials stream (letters/digits) from a list of tokens.
 
-    Produces:
-      - `letters`: the extracted initials (uppercased), one per token-part.
-      - `owners`: parallel list mapping each `letters[i]` back to the originating
-        token index in `tokens`.
-
-    Each token is first trimmed using `PUNCT_TRIM`, then split into sub-parts via
-    `split_compound()` (e.g., hyphens, slashes, CamelCase). For each part, the
-    first alphanumeric character contributes an initial.
-
-    If `expand_allcaps` is True, ALL-CAPS alphabetic tokens of length > 1
-    contribute *all* their letters (e.g., "RNA" -> "R","N","A"). This enables
-    alignment of mixed-case acronyms such as "mRNA" to phrases like
-    "messenger RNA".
-
     Args:
         tokens (list[str]): Token strings to derive initials from.
         expand_allcaps (bool): Whether to expand ALL-CAPS alphabetic tokens into
@@ -188,22 +148,6 @@ def initials_seq(tokens: list[str], *, expand_allcaps: bool = False) -> tuple[li
 
 def split_compound(token: str) -> list[str]:
     """Split a compound token into sub-parts for initials extraction and matching.
-
-    This function performs *lightweight*, deterministic token segmentation using:
-      1) hard separators: hyphen (`-`), slash (`/`), dot (`.`), ampersand (`&`)
-      2) ASCII-only CamelCase / alnum chunking via `_ASCII_CAMEL_RE`
-      3) optional lexical overrides via `LEXICAL_SPLITS`
-      4) an alphanumeric preservation rule via `should_preserve_alnum_token()`
-
-    Behaviour rules:
-      - If a piece contains non-ASCII letters/symbols (i.e. not strictly `[A-Za-z0-9]`),
-        it is kept intact (no CamelCase splitting).
-      - If `LEXICAL_SPLITS` contains the lowercase form of a piece (e.g. "postgresql"),
-        the configured split is used verbatim.
-      - If `should_preserve_alnum_token(piece)` is True (e.g. for acronym-ish alnum like
-        "2FA" or "HTTP2"), the piece is kept intact.
-      - Otherwise, the piece is split using `_ASCII_CAMEL_RE` into parts such as
-        "XML" + "Http" + "Request", or "Foo" + "Bar".
 
     Args:
         token (str): Input token to split (may include separators/CamelCase/alnum).

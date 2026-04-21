@@ -2,8 +2,8 @@ from __future__ import annotations
 
 from collections.abc import Sequence
 
+from rag_demo.common.interfaces import Chunker
 from rag_demo.common.models import DemoChunk, DemoDocument
-from rag_demo.contracts.interfaces import Chunker
 
 
 class FixedWindowChunker(Chunker):

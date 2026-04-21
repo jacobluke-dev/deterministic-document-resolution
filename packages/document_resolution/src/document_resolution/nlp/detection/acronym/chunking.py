@@ -14,7 +14,6 @@ def score_chunk_worker(cfg: AcronymDetectorConfig, text: str, cands: list[tuple[
 
     Processes (surface, start, end) tuples, drops blacklisted contexts and
     below-threshold matches, and builds `Occurrence` objects for accepted items.
-    Intended for use in a `ProcessPoolExecutor`.
 
     Args:
         cfg: Detection configuration used for scoring and thresholds.

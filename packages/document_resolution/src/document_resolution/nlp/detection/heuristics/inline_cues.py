@@ -7,9 +7,6 @@ def _compile_inline_cues_pattern(cues: tuple[str, ...]) -> re.Pattern[str]:
     """
     Compile a single, detector-friendly regex for inline definition cues.
 
-    Builds an alternation over cue fragments and anchors it as a whole-word match,
-    requiring right-side punctuation/whitespace via a lookahead.
-
     Args:
         cues: Tuple of regex fragments representing cue phrases (no flags, no \b wrappers).
 
@@ -23,12 +20,12 @@ def _compile_inline_cues_pattern(cues: tuple[str, ...]) -> re.Pattern[str]:
     )
 
 
+_INLINE_CUES_RE = _compile_inline_cues_pattern(INLINE_CUE_FRAGMENTS)
+
+
 def boost_confidence_if_inline_cue(surface: str, text: str, e: int, conf: float) -> float:
     """
     Boost confidence for short acronyms if an inline cue appears immediately to the right.
-
-    Intended for shapes like "AM, short for ..." / "NLP stands for ...". Only applies to
-    short surfaces (<=3 chars) and scans a small rightward window to stay cheap.
 
     Args:
         surface: Matched acronym surface (e.g. "NLP").
@@ -44,7 +41,7 @@ def boost_confidence_if_inline_cue(surface: str, text: str, e: int, conf: float)
 
     # Look rightwards: "AM, short for ..." is the canonical form
     right = text[e : min(len(text), e + 60)]
-    if _compile_inline_cues_pattern(INLINE_CUE_FRAGMENTS).search(right):
+    if _INLINE_CUES_RE.search(right):
         return min(conf + 0.20, 0.99)
 
     return conf

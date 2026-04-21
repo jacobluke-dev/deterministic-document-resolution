@@ -11,24 +11,12 @@ def assemble_structural_reference_resolution_result(
 ) -> StructuralReferenceResolutionResult:
     """Assemble final structural-reference resolution output from flow state.
 
-    Builds the final result using canonicalised structural reference entries
-    and resolved structural links stored on the flow state. The full ordered
-    lists of entries and links are preserved, and canonical-key indexes are
-    built for quick lookup of the first entry and first link encountered for
-    each canonical key.
-
     Args:
         s: Structural flow state containing structural reference entries and
             resolved structural links ready for final assembly.
 
     Returns:
-        A ``StructuralReferenceResolutionResult`` containing:
-            - ``references``: all structural reference entries in source order.
-            - ``links``: all structural reference links in source order.
-            - ``unique_keys``: mapping from canonical key to the first
-              corresponding structural reference entry.
-            - ``unique_links``: mapping from canonical key to the first
-              corresponding structural reference link.
+        A ``StructuralReferenceResolutionResult``
     """
     unique_keys: dict[str, StructuralReferenceEntry] = {}
     for ref in s.reference_entries:

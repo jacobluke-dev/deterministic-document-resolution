@@ -5,8 +5,8 @@ from collections.abc import Sequence
 import numpy as np
 from openai import OpenAI
 
+from rag_demo.common import Embedder
 from rag_demo.common.types import FloatMatrix
-from rag_demo.contracts import Embedder
 
 
 class OpenAIEmbedder(Embedder):

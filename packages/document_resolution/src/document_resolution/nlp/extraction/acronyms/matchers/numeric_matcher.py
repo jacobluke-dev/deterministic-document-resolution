@@ -80,66 +80,63 @@ _ORDINAL_NUM_RE = re.compile(r"^(?P<n>\d+)(?:st|nd|rd|th)$", re.IGNORECASE)
 _EDGE_PUNCT_RE = re.compile(r"^[^\w]+|[^\w]+$")
 
 
+def _matches_left_numeric_designator(
+    prev_raw: str,
+    want: str,
+    *,
+    word_to_digits: Mapping[str, str],
+) -> bool:
+    """Return whether a previous token matches the wanted leading digits."""
+    prev = _EDGE_PUNCT_RE.sub("", prev_raw.strip().lower())
+    if not prev:
+        return False
+
+    head = prev.split("-", 1)[0]
+
+    m = _ORDINAL_NUM_RE.match(head)
+    if m and m.group("n") == want:
+        return True
+
+    if head.isdigit() and head == want:
+        return True
+
+    return word_to_digits.get(head) == want
+
+
 def consume_left_numeric_designator(
     *,
     acr: str,
     tokens: Sequence[str],
     tok_left: int,
-    word_to_digits: Mapping[str, str] = WORD_TO_DIGITS,
+    word_to_digits: Mapping[str, str] | None = None,
 ) -> int:
     """Optionally consume a left-hand numeric designator for digit-prefixed acronyms.
 
-    If ``acr`` begins with one or more digits (e.g. ``"5G"``, ``"12V"``) and the
-    token immediately to the left of ``tok_left`` expresses the same number,
-    this function returns ``tok_left - 1`` to expand the candidate phrase window
-    left by one token. Otherwise, it returns ``tok_left`` unchanged.
-
-    Recognised forms for the left token (after light normalisation):
-      - Numeric ordinals: ``"5th"``, ``"12th"`` (case-insensitive suffix)
-      - Plain numerics: ``"5"``, ``"12"``
-      - Word numerics/ordinals via ``word_to_digits``: ``"fifth" -> "5"``, ``"twelve" -> "12"``
-      - Hyphenated tokens: if the token is hyphenated (e.g. ``"5th-generation"``),
-        only the head segment (``"5th"``) is considered.
-
-    Normalisation rules:
-      - Strips *edge* punctuation (keeps internal hyphens).
-      - Lowercases the left token for matching.
-
     Args:
-        acr (str): Acronym surface form. Only digit-prefixed acronyms are eligible.
-        tokens (Sequence[str]): Token stream for the candidate phrase.
-        tok_left (int): Current left boundary token index (0-based).
-        word_to_digits (Mapping[str, str]): Mapping of word numerics/ordinals to digits.
+        acr: Acronym surface form. Only digit-prefixed acronyms are eligible.
+        tokens: Token stream for the candidate phrase.
+        tok_left: Current left boundary token index (0-based).
+        word_to_digits: Mapping of word numerics/ordinals to digits.
 
     Returns:
-        int: ``tok_left - 1`` if the immediate left token matches the acronym's
-        leading digits; otherwise ``tok_left``.
-
-    Examples:
-        >>> consume_left_numeric_designator(acr="5G", tokens=["fifth","generation"], tok_left=1)
-        0
-        >>> consume_left_numeric_designator(acr="12V", tokens=["12th","edition"], tok_left=1)
-        0
-        >>> consume_left_numeric_designator(acr="GPU", tokens=["graphics","processing"], tok_left=1)
-        1
+        ``tok_left - 1`` if the immediate left token matches the acronym's leading
+        digits; otherwise ``tok_left``.
     """
+    if word_to_digits is None:
+        word_to_digits = WORD_TO_DIGITS
     if tok_left <= 0 or not acr:
         return tok_left
 
     m = _LEADING_DIGITS_RE.match(acr)
     if not m:
         return tok_left
+    want = m.group("n")
 
-    want = m.group("n")  # full leading digit run (e.g., "12" in "12V")
-
-    # Before normalisation
-    prev_raw = tokens[tok_left - 1].strip().lower()
-    if not prev_raw:
+    prev_raw = tokens[tok_left - 1]
+    if not prev_raw.strip():
         return tok_left
 
-    # If previous token ends with '.', only block consumption when the next token
-    # looks like a new-sentence start (capitalised).
-    if prev_raw.endswith(".") and tok_left < len(tokens):
+    if prev_raw.rstrip().endswith(".") and tok_left < len(tokens):
         nxt = tokens[tok_left].lstrip()
         nxt0 = nxt[0] if nxt else ""
         if nxt0 in "\"'“”‘’([{" and len(nxt) > 1:
@@ -147,23 +144,7 @@ def consume_left_numeric_designator(
         if nxt0.isupper():
             return tok_left
 
-    # normalisation: strip edge punctuation, keep internal hyphens
-    prev = _EDGE_PUNCT_RE.sub("", prev_raw)
-
-    # If tokeniser kept hyphens (e.g. "5th-generation"), look at head segment.
-    head = prev.split("-", 1)[0]
-
-    # Case 1: numeric ordinal token like "5th"
-    m2 = _ORDINAL_NUM_RE.match(head)
-    if m2 and m2.group("n") == want:
-        return tok_left - 1
-
-    # Case 2: plain numeric token like "5"
-    if head.isdigit() and head == want:
-        return tok_left - 1
-
-    # Case 3: word mapping like "fifth" -> "5"
-    if word_to_digits.get(head) == want:
+    if _matches_left_numeric_designator(prev_raw, want, word_to_digits=word_to_digits):
         return tok_left - 1
 
     return tok_left

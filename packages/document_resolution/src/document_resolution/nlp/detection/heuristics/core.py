@@ -16,14 +16,12 @@ from document_resolution.nlp.common.types import AcronymDetectorConfig, Span, Te
 from document_resolution.nlp.plugins.registry import DOMAIN_PLUGINS
 
 _DOTTED_INITIALISM_RE = re.compile(r"^(?:[A-Z]\.)+[A-Z]$")
+_LOWER_PREFIX_BRAND_RE = re.compile(r"^[a-z]{1,2}[A-Z][A-Za-z0-9]*$")
 
 
 def letters(token: str) -> str:
     """
     Extract alphabetic characters from a token surface.
-
-    This is used for casing calculations where punctuation and digits should not
-    affect ratios. The relative order of letters is preserved.
 
     Args:
         token (str): Token surface to filter.
@@ -35,6 +33,7 @@ def letters(token: str) -> str:
 
 
 def caps_ratio(token: str) -> float:
+    """Return the uppercase-letter ratio among alphabetic characters."""
     ls = letters(token)
     if not ls:
         return 0
@@ -45,9 +44,6 @@ def caps_ratio(token: str) -> float:
 def strip_trailing_punct_span(text: str, start: int, end: int) -> Span:
     """
     Trim common trailing punctuation from a candidate span.
-
-    This adjusts offsets without allocating substrings and helps avoid matching
-    tokens like 'NHS,' or 'U.S.A.)' with punctuation included.
 
     Args:
         text (str): Source text.
@@ -65,10 +61,6 @@ def strip_trailing_punct_span(text: str, start: int, end: int) -> Span:
 def in_brackets(text: str, start: int, end: int) -> tuple[bool, bool]:
     """
     Determine whether a span is bracketed or bracket-adjacent.
-
-    The 'inside' flag requires both an opening bracket immediately before and a
-    closing bracket immediately after. The 'adjacent' flag triggers if either side
-    touches any configured bracket character.
 
     Args:
         text (str): Source text.
@@ -88,9 +80,6 @@ def in_brackets(text: str, start: int, end: int) -> tuple[bool, bool]:
 def has_stands_for_follow(text: str, end: int, max_chars: int = 24) -> bool:
     """
     Detect a right-hand "stands for" cue near a candidate.
-
-    Scans forward from `end`, skipping whitespace and stopping at sentence-ending
-    punctuation or `max_chars`, then applies STANDS_FOR_RE to that slice.
 
     Args:
         text (str): Source text.
@@ -113,9 +102,6 @@ def has_stands_for_follow(text: str, end: int, max_chars: int = 24) -> bool:
 def next_word_lowercase(text: str, end: int) -> bool:
     """
     Check whether the next lexical word after a span is all lowercase.
-
-    This is a cheap heuristic to detect patterns like "NHS is ..." where the token
-    behaves like a normal noun phrase boundary. Quotes/brackets are skipped.
 
     Args:
         text (str): Source text.
@@ -141,8 +127,6 @@ def next_word_lowercase(text: str, end: int) -> bool:
 def prev_token(text: str, start: int) -> str:
     """
     Extract the immediately preceding token to the left of a span.
-
-    Scans backwards over whitespace then collects a simple alnum/":." token.
     Used for lightweight context checks (e.g., time markers).
 
     Args:
@@ -165,9 +149,6 @@ def core_len_for_bounds(token: str) -> int:
     """
     Compute alphanumeric length for min/max gating.
 
-    This ignores punctuation/separators so tokens like "R&D" are evaluated on their
-    alnum content, consistent with other acceptance heuristics.
-
     Args:
         token (str): Token surface.
 
@@ -181,9 +162,6 @@ def threshold_len(surface: str, allow_chars: str) -> int:
     """
     Compute effective length used for confidence/threshold heuristics.
 
-    Base length is the alnum count. If any allowed separator (or a dot) exists, the
-    effective length is boosted to at least 3 so forms like "R&D" are not treated as
-    low-signal two-character tokens.
 
     Args:
         surface (str): Matched surface text.
@@ -201,9 +179,6 @@ def threshold_len(surface: str, allow_chars: str) -> int:
 def boost_confidence_if_whitelisted(surface: str, confidence_score: float, cfg: AcronymDetectorConfig) -> float:
     """
     Boost confidence for whitelisted two-letter keys.
-
-    Normalizes the surface to a key and, if the key is exactly two letters and
-    present in cfg.whitelist_two_letter, applies a bounded additive boost.
 
     Args:
         surface (str): Candidate surface text.
@@ -228,9 +203,6 @@ def boost_confidence_if_whitelisted(surface: str, confidence_score: float, cfg: 
 def calc_score(surface: str, text: str, start: int, end: int, cfg: AcronymDetectorConfig) -> float:
     """
     Compute a confidence score for an accepted candidate using local cues.
-
-    The score starts from a baseline and is adjusted by bracket placement, nearby
-    definition cues, "stands for" cues, and blacklist membership.
 
     Args:
         surface (str): Candidate surface text.
@@ -260,9 +232,6 @@ def calc_score(surface: str, text: str, start: int, end: int, cfg: AcronymDetect
 def context_window(text: str, start: int, end: int, window_chars: int) -> Span:
     """
     Build a bounded sentence-like context window around a span.
-
-    Expands left/right until a terminator (., !, ?, newline) or `window_chars` is reached,
-    then trims leading whitespace on the left and includes the terminator on the right.
 
     Args:
         text (str): Source text.
@@ -297,11 +266,7 @@ def context_window(text: str, start: int, end: int, window_chars: int) -> Span:
 
 def _has_lower_and_upper(tok: str) -> bool:
     """
-    Check whether a token contains both lowercase and uppercase letters.
-
-    Used to relax caps-ratio requirements for mixed-case forms (e.g., mRNA, eBPF)
-    when cfg.enable_mixed_case is enabled.
-
+    Return whether the token contains both lowercase and uppercase letters
     Args:
         tok (str): Token surface.
 
@@ -313,17 +278,12 @@ def _has_lower_and_upper(tok: str) -> bool:
 
 def _is_lower_prefix_brand(surface: str) -> bool:
     # eBay, iOS, xAPI, mDNS, etc.
-    # 1–2 lowercase prefix, then exactly 1 uppercase, then at least 1 more alnum
-    # (keeps it narrow; avoids normal words)
     return bool(re.match(r"^[a-z]{1,2}[A-Z][A-Za-z0-9]+$", surface))
 
 
 def _accept_candidate(text: str, cfg: AcronymDetectorConfig, s: int, e: int) -> TextSpanTuple | None:
     """
     Apply standard gating to a raw (s, e) match and return an accepted span.
-
-    Performs trailing punctuation stripping, letter presence checks, length bounds,
-    dotted-initialism validation, and caps-ratio gating (with mixed-case relaxation).
 
     Args:
         text (str): Source text.
@@ -355,9 +315,7 @@ def _passes_dotted_gates(text: str, cfg: AcronymDetectorConfig, surface: str, s:
     """
     Validate dotted-initialism constraints when '.' appears in the surface.
 
-    This performs validation only (does not mutate surface). It ensures dotted tokens
-    are clean initialisms (e.g., "U.S", "U.S.A") and applies additional context guards
-    to avoid common false positives (section numbers, dotted chains, etc.).
+    This performs validation only (does not mutate surface).
 
     Args:
         text (str): Source text for boundary/context checks.
@@ -419,7 +377,6 @@ def _passes_generic_gates(cfg: AcronymDetectorConfig, surface: str) -> bool:
     Returns:
         bool: True if the generic gates pass; False otherwise.
     """
-    _LOWER_PREFIX_BRAND_RE = re.compile(r"^[a-z]{1,2}[A-Z][A-Za-z0-9]*$")
 
     clen = core_len_for_bounds(surface)
 
@@ -444,12 +401,8 @@ def _passes_generic_gates(cfg: AcronymDetectorConfig, surface: str) -> bool:
         if upp >= 2:
             req = min(req, cfg.require_caps_ratio_mixed)
 
-        # NEW: allow lower-prefix brand tokens like eBay/iOS-style when only 1 upper
         elif upp == 1 and _LOWER_PREFIX_BRAND_RE.match(surface):
-            # Keep this conservative: brand tokens should not need 0.7 caps ratio.
-            # 0.25 is enough for eBay (1/4). If we want stricter, use 0.3.
             req = min(req, 0.25)
-
     return caps_ratio(surface) >= req
 
 
@@ -500,8 +453,7 @@ def _contained_in_any(s: int, e: int, containers: list[TextSpanTuple]) -> bool:
     """
     Check whether a span is fully contained within any container span.
 
-    Containers are expected to be sorted by start offset; the function uses an
-    early-exit when container starts surpass the target end.
+    Containers are expected to be sorted by start offset
 
     Args:
         s (int): Start offset (inclusive) of the target span.
@@ -522,9 +474,6 @@ def _contained_in_any(s: int, e: int, containers: list[TextSpanTuple]) -> bool:
 def iter_acronym_candidates(text: str, cfg: AcronymDetectorConfig, pat: re.Pattern[str]) -> Iterator[TextSpanTuple]:
     """
     Yield accepted candidates while suppressing obvious fragments.
-
-    Core regex hits are emitted first unless fully contained by any domain span.
-    Domain plugin hits are then emitted, with duplicates removed by (start, end).
 
     Args:
         text (str): Source text.
@@ -570,7 +519,7 @@ def reason_tags(surface: str, text: str, start: int, end: int, cfg: AcronymDetec
       - "adjacent_parens"       → span touches a bracket/paren boundary
       - "paren_definition_right"→ a parenthetical definition immediately follows
       - "stands_for_right"      → “stands for …” pattern appears to the right
-      - "soft_blacklist_penalty"→ surface is in cfg.soft_blacklist
+      - "blacklist_penalty"     → surface is in cfg.blacklist
       - "non_acronym_upper"     → surface is in cfg.non_acronym_upper
       - "next_word_lowercase"   → next lexical word after `end` starts lowercase
       - "prev_time_token"       → previous token matches TIME_RE (e.g. “8PM”)

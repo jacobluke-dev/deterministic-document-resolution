@@ -52,15 +52,14 @@ def _term_surface_variants(term: str) -> list[str]:
 
 def _spans_overlap(a_start: int, a_end: int, b_start: int, b_end: int) -> bool:
     """Return whether two half-open spans overlap.
-    7
-        Args:
-            a_start: Inclusive start offset of the first span.
-            a_end: Exclusive end offset of the first span.
-            b_start: Inclusive start offset of the second span.
-            b_end: Exclusive end offset of the second span.
+    Args:
+        a_start: Inclusive start offset of the first span.
+        a_end: Exclusive end offset of the first span.
+        b_start: Inclusive start offset of the second span.
+        b_end: Exclusive end offset of the second span.
 
-        Returns:
-            True if the spans overlap by at least one character; otherwise False.
+    Returns:
+        True if the spans overlap by at least one character; otherwise False.
     """
     return a_start < b_end and b_start < a_end
 
@@ -86,11 +85,6 @@ def _is_intro_term_span(start: int, end: int, spans: set[Span]) -> bool:
 
 class DefinedTermDetector(BaseDetector[DefinedTermDetectorResult]):
     """Detect defined-term introductions and occurrences in text.
-
-    The detector identifies a bounded set of legal drafting patterns, including
-    quoted term definitions, selected unquoted capitalised definitions, and later
-    term occurrences. Detection is configuration-driven and may be further gated by
-    automatic domain activation.
 
     This detector returns:
         * ``unique_terms``: canonical defined-term meanings keyed by normalised term.
@@ -135,11 +129,6 @@ class DefinedTermDetector(BaseDetector[DefinedTermDetectorResult]):
         The method first tries an exact normalised match. If that fails, it attempts to
         recover a known term from either edge of a broader capitalised run:
 
-        * right-trimmed suffix matching, for example
-          ``"Party's Confidential Information"`` to ``"Confidential Information"``
-        * left-trimmed prefix matching, for example
-          ``"Services to the Customer"`` to ``"Services"``
-
         Args:
             raw_term: Raw matched text from a capitalised occurrence pattern.
             known_keys: Set of known normalised defined-term keys introduced earlier in
@@ -176,8 +165,8 @@ class DefinedTermDetector(BaseDetector[DefinedTermDetectorResult]):
 
         return None
 
+    @staticmethod
     def _iter_exact_known_term_references(
-        self,
         text: str,
         *,
         introductions: list[DefinedTermIntroduction],
@@ -614,18 +603,14 @@ class DefinedTermDetector(BaseDetector[DefinedTermDetectorResult]):
         )
 
     def detect_parallel(self, text: str, threshold: int = 1000, chunk_size: int = 256) -> DefinedTermDetectorResult:
-        """Detect defined terms using the current single-pass implementation.
-
-        This method currently delegates directly to ``detect``. The parallel entry
+        """This method currently calls ``detect``. The parallel entry
         point exists to preserve a stable detector interface and allow future
         structure-aware chunking if needed.
 
         Args:
-            text: Full source text to analyse.
-            threshold: Minimum text-size threshold at which a parallel strategy may be
-                considered in future.
-            chunk_size: Target chunk size that may be used by a future parallel
-                implementation.
+            text: Full source text to analyse
+            threshold: Minimum text-size threshold
+            chunk_size: Target chunk size
 
         Returns:
             A ``DefinedTermDetectorResult`` containing detected unique terms and later

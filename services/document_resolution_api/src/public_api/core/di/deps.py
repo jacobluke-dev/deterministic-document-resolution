@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 from asyncio import Semaphore
-from collections.abc import Iterator
 from functools import lru_cache
 from typing import Annotated, Any
 
@@ -9,7 +8,6 @@ from document_resolution.orchestration import PipelineRegistry
 from document_resolution.wiring.composition import build_pipeline_registry
 from document_resolution_core.db_manager.connection import DBManager
 from fastapi import Depends, Request
-from sqlalchemy.orm import Session
 
 from public_api.core.services.resolve_service import ResolveService
 from public_api.core.settings import app_settings
@@ -18,10 +16,6 @@ from public_api.db.repos import AcronymRepo, GlossaryRepository, SqlAlchemyAcron
 
 class AppContainer:
     """Application-scoped dependency container.
-
-    This container is created once at startup and holds shared,
-    long-lived resources for the FastAPI application such as
-    the resolver and concurrency-limiting semaphore.
 
     Attributes:
         resolver: The acronym resolver instance created by
@@ -79,21 +73,6 @@ def get_dbm(request: Request) -> Any:
         Any: The DB manager-like object stored at `request.app.state.dbm`.
     """
     return request.app.state.dbm
-
-
-def get_session(
-    dbm: Annotated[DBManager, Depends(get_dbm)],
-) -> Iterator[Session]:
-    """Yield a transactional SQLAlchemy Session.
-
-    This wraps `DBManager.session()` so routes can depend on a ready-to-use
-    session with commit/rollback/close handled automatically.
-
-    Yields:
-        Iterator[Session]: An active Session for the request scope.
-    """
-    with dbm.session() as s:
-        yield s
 
 
 def get_request_timeout_ms() -> int:

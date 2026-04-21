@@ -38,7 +38,6 @@ class TestTightenLabel:
         s = "The British-Irish Council"
         assert tighten_label(s) == "British-Irish Council"
 
-        s2 = "Queen’s Award for Enterprise"
         # Proper-noun chunk is the trailing capitalised sequence:
         # "Queen’s Award for Enterprise" -> last proper chunk = "Enterprise"? No:
         # the trailing chunk matched should be the last Capitalised+ words sequence.

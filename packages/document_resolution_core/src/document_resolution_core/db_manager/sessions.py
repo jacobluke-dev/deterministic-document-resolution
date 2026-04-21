@@ -4,15 +4,6 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_asyn
 def to_asyncpg(url: str) -> str:
     """Convert a PostgreSQL SQLAlchemy URL to use the asyncpg driver.
 
-    This normalises supported PostgreSQL connection URL variants so they can be
-    used with SQLAlchemy's async engine creation. If the URL already targets
-    ``asyncpg``, it is returned unchanged.
-
-    Supported rewrites:
-      - ``postgresql+psycopg://`` -> ``postgresql+asyncpg://``
-      - ``postgresql://`` -> ``postgresql+asyncpg://``
-
-    Any non-PostgreSQL or unrecognised URL is returned unchanged as a fallback.
 
     Args:
       url: Database connection URL.
@@ -34,17 +25,6 @@ def to_asyncpg(url: str) -> str:
 def make_async_session_maker(url: str) -> async_sessionmaker[AsyncSession]:
     """Create an ``AsyncSession`` factory for the document_resolution database.
 
-    This builds a SQLAlchemy async engine using ``asyncpg``-compatible settings
-    and returns an ``async_sessionmaker`` configured with
-    ``expire_on_commit=False``. The engine enables connection liveness checks
-    via ``pool_pre_ping`` and sets the PostgreSQL ``search_path`` to the
-    ``document_resolution`` schema at connection time.
-
-    Note:
-      ``connect_args={"server_settings": {"search_path": "document_resolution"}}`` is
-      specific to the ``asyncpg`` driver. Callers should ensure the supplied
-      URL is already using ``postgresql+asyncpg://`` or is normalised before
-      engine creation.
 
     Args:
       url: Database connection URL for the target PostgreSQL database.

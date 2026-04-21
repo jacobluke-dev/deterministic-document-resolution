@@ -14,22 +14,17 @@ def build_defined_term_intro(
     provenance: str,
     intro_kind: IntroKind,
 ) -> DefinedTermIntroduction:
-    """Build a canonical defined-term intro from an introduced term span.
-
-    The raw term text is trimmed, stripped of surrounding straight quotes, cleaned
-    of trailing punctuation noise, and normalised into a stable lookup key. A
-    deterministic meaning identifier is then derived from the normalised key and
-    start offset.
+    """Build a canonical defined-term introduction from a detected term span.
 
     Args:
-        term: Raw detected term text from an introduction pattern.
-        term_start: Inclusive start offset of the detected term in the source text.
-        term_end: Exclusive end offset of the detected term in the source text.
+        term: Raw detected term text.
+        term_start: Inclusive start offset of the term.
+        term_end: Exclusive end offset of the term.
         provenance: Source label describing how the term was produced.
         intro_kind: Introduction kind of the term.
+
     Returns:
-        A ``DefinedTermIntroduction`` containing the cleaned term text, source offsets,
-        normalised lookup key, and provenance.
+        Defined-term introduction with cleaned term text and normalised lookup key.
     """
     cleaned_term = strip_trailing_punct_str(term.strip().strip('"'))
     normalized_key = normalize_defined_term_key(cleaned_term)
@@ -52,26 +47,17 @@ def build_defined_term_mention(
     segment_window: str | None = None,
     confidence: float = 1.0,
 ) -> DefinedTermMention:
-    """Build a defined-term occurrence from a detected reference span.
-
-    The raw term text is trimmed, stripped of surrounding straight quotes, cleaned
-    of trailing punctuation noise, and normalised into a stable lookup key before
-    being packaged as an occurrence object.
+    """Build a defined-term mention from a detected reference span.
 
     Args:
-        term: Raw detected term text from an occurrence pattern.
-        start_offset: Inclusive start offset of the detected occurrence in the
-            source text.
-        end_offset: Exclusive end offset of the detected occurrence in the source
-            text.
-        segment_window: Optional surrounding text window to retain for debugging,
-            ranking, or downstream context.
-        confidence: Confidence score assigned to the occurrence.
+        term: Raw detected term text.
+        start_offset: Inclusive start offset of the mention.
+        end_offset: Exclusive end offset of the mention.
+        segment_window: Optional surrounding text window.
+        confidence: Confidence score for the mention.
 
     Returns:
-        A ``DefinedTermMention`` containing the cleaned term text, source
-        offsets, normalised lookup key, confidence score, and optional segment
-        window.
+        Defined-term mention with cleaned term text and normalised lookup key.
     """
     cleaned_term = strip_trailing_punct_str(term.strip().strip('"'))
     normalized_key = normalize_defined_term_key(cleaned_term)

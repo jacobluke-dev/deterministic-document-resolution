@@ -234,9 +234,6 @@ def _apply_semantic_rerank(
 ) -> tuple[list[TermTier2OccurrenceRanking], Tier2Report]:
     """Apply Tier-2 semantic similarity and blended scoring to eligible rows.
 
-    For each eligible occurrence, this helper computes semantic similarity between
-    the occurrence context and each candidate definition, blends the similarity
-    with the existing Tier-1 score, and writes an applied Tier-2 ranking result.
 
     Args:
         ranked2: Current Tier-2 output rows, containing pending placeholders for
@@ -296,12 +293,6 @@ def rerank_term_occurrences_tier2(
     cfg: DefinedTermExtractionConfig,
 ) -> tuple[list[TermTier2OccurrenceRanking], Tier2Report]:
     """Optionally rerank ambiguous defined-term occurrences using semantic similarity.
-
-    Tier-2 reranking is only attempted for occurrences that remain eligible after
-    deterministic Tier-1 filtering. Ineligible occurrences are emitted with a skip
-    reason. For eligible cases, semantic similarity between local occurrence context
-    and candidate definition text is blended with Tier-1 scores to produce final
-    Tier-2 outputs.
 
     Args:
         text: Full source text containing the term occurrences.

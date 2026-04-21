@@ -1,9 +1,12 @@
+from pathlib import Path
+
 from document_resolution_core.utils.utils import find_project_root
-from pydantic import AnyUrl
+from pydantic import AnyUrl, Field
 from pydantic_settings import BaseSettings
 
-ROOT = find_project_root(__file__)
-ENV_PATH = ROOT / ".env"
+SERVICE_ROOT = Path(__file__).resolve().parents[3]
+ENV_PATH = Path(find_project_root(), '.env')
+
 
 try:
     from dotenv import load_dotenv
@@ -66,6 +69,7 @@ class DatabaseSettings(BaseSettings):
         "fk": "fk_%(table_name)s_%(column_0_name)s_%(referred_table_name)s",
         "pk": "pk_%(table_name)s",
     }
+    ALEMBIC_INI_PATH: Path = Field(default=SERVICE_ROOT / "alembic.ini")
 
     @property
     def database_url(self) -> str:

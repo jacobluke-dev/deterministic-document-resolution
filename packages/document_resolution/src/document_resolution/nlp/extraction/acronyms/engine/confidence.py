@@ -7,18 +7,6 @@ def base_for_kind(cfg: ExtractionConfig, kind: str) -> float:
     """
     Map an anchored-pattern `kind` to the appropriate base confidence.
 
-    Anchored extraction emits different `kind` labels depending on which regex
-    pattern fired (wrapper/parenthetical vs inline cue). This helper collapses
-    those labels into a small set of scoring “sources” and returns the configured
-    base confidence for that source.
-
-    The mapping is intentionally coarse:
-      - Wrapper / parenthetical forms (e.g., "Long Form (ACR)", "ACR (Long Form)")
-        map to `source="parenthetical"`.
-      - Inline cue forms (e.g., "ACR stands for Long Form", "Long Form, abbreviated as ACR")
-        map to `source="inline"`.
-      - Everything else falls back to `source="first_occurrence_anchored"`.
-
     Args:
         cfg: Extraction configuration containing `cfg.confidence.base_by_source`.
         kind: Pattern kind label produced by anchored pattern specs (e.g., "def_before",
@@ -48,10 +36,6 @@ def base_conf_for(cfg: ExtractionConfig, *, source: str, default: float = 0.50) 
     """
     Fetch the configured base confidence for a given provenance/scoring `source`.
 
-    This is the single lookup point for “base confidence” values used across
-    extraction stages. It reads from `cfg.confidence.base_by_source` and returns
-    a safe fallback if the key is missing.
-
     Args:
         cfg: Extraction configuration containing `cfg.confidence.base_by_source`.
         source: The provenance/scoring key to look up (e.g., "parenthetical", "inline",
@@ -69,8 +53,6 @@ def base_conf_for(cfg: ExtractionConfig, *, source: str, default: float = 0.50) 
 def conf_knob(cfg: ExtractionConfig, name: str, default: float) -> float:
     """Read a numeric confidence knob from cfg.confidence with a safe default.
 
-    Intended for scalar tuning parameters (boosts/penalties/weights) that live on
-    `ConfidenceConfig` (e.g. `backref_lookback_penalty`, `dist_weight`).
 
     Args:
         cfg: ExtractionConfig (may or may not have `confidence` set).

@@ -6,15 +6,6 @@ Purpose
 This stage exists to catch the pattern where a definition appears in a *previous* sentence and the acronym
 appears later without an inline/parenthetical definition.
 
-    Example:
-        "We use Single sign-on for authentication. SSO is enabled by default."
-
-It is explicitly *not* a parenthetical extractor. It does not attempt to parse:
-    - "Long Form (ACR)"
-    - "ACR (Long Form)"
-    - "Long Form - ACR"
-Those are handled by the anchored/harvest stages.
-
 How it works (high level)
 -------------------------
 For each acronym first-occurrence (from the detector):
@@ -34,41 +25,6 @@ For each acronym first-occurrence (from the detector):
         d) The first valid match wins (nearest previous sentence first).
   5) Emit an ExtractedDefinition with source="backref" and kind="sentence_backref".
 
-Important behavioural constraints
---------------------------------
-- Only looks *backwards* across sentence boundaries.
-  If the acronym appears in the first sentence (sentence index 0), this stage will never fire.
-  That is by design: it prevents large, noisy “document-wide” hunting.
-
-- Sentence segmentation is intentionally conservative and predictable.
-  It uses punctuation/newlines as boundaries, not a full NLP sentence model.
-
-- This stage is intended to be deterministic and high-precision.
-  If it cannot find a mechanically defensible initials span in the immediate prior sentence(s),
-  it returns no result rather than guessing.
-
-Config knobs
-------------
-- cfg.sentence_backref_lookback:
-    How many previous sentences to search (nearest-first). Default is 2.
-
-- cfg.max_phrase_chars:
-    Maximum character length allowed for a candidate definition span.
-
-- cfg.require_two_words:
-    If true, candidate must contain at least two tokens as defined by _TOKEN_RE.
-
-Notes
------
-- Acronym matching should preserve the detector’s acronym casing for output, but may use
-  uppercasing internally for comparison. If you change casing behaviour, keep Tier-1
-  invariants: “do not rewrite the user’s acronym token”.
-
-Returns
--------
-list[ExtractedDefinition]
-    Zero or more extracted definitions; each corresponds to an acronym whose definition
-    was found in a prior sentence using initials-based span selection.
 """
 
 from collections.abc import Mapping
@@ -101,7 +57,6 @@ class _ScoreCtx:
 def _initials_hyphen_aware(phrase: str) -> str:
     """
     Build an initials string from a phrase, treating hyphenated tokens as multiple parts.
-    Useful for matching acronyms against phrases like "Single sign-on" → "SSO".
 
     Args:
         phrase: Input phrase.
@@ -125,8 +80,6 @@ def _initials_hyphen_aware(phrase: str) -> str:
 def _acr_key(acr_norm: str) -> str:
     """
     Canonicalise an acronym for matching by stripping non-alphanumerics and uppercasing.
-    Keeps digits and letters only to ensure stable comparisons across punctuation variants.
-
     Args:
         acr_norm: Acronym surface/normalised form.
 
@@ -139,7 +92,6 @@ def _acr_key(acr_norm: str) -> str:
 def _initials_match_backref(acr_norm: str, clean: str) -> bool:
     """
     Check whether a cleaned candidate’s initials match the acronym key.
-    Uses a hyphen-aware initials builder to handle cases like "Single sign-on" → "SSO".
 
     Args:
         acr_norm: Acronym to match (may include punctuation/casing).
@@ -169,10 +121,6 @@ def clamp_confidence(x: float, *, cap: float = CONF_MAX) -> float:
 def _titlecase_ratio(s: str) -> float:
     """Return the fraction of tokens that look title-cased.
 
-    A token counts as "title-ish" if:
-      - its first character is uppercase (e.g., "Single"), OR
-      - the whole token is uppercase (e.g., "USA").
-
     Used as a weak heuristic that a candidate definition resembles a proper noun / label.
 
     Args:
@@ -201,9 +149,6 @@ def _valid_backref_candidate(
 ) -> bool:
     """
     Validate a cleaned back-reference candidate definition against hard guardrails.
-    Enforces length, non-identity with the acronym, optional token-count minimum,
-    and an initials match check (strict or hyphen-aware fallback).
-    Returns True only when the candidate is structurally defensible.
 
     Args:
         clean: Candidate definition after cleaning/normalisation.
@@ -241,13 +186,6 @@ def _add_term(
 ) -> float:
     """Apply a signed delta to the score and append a trace line to `rs`.
 
-    Records either:
-      - "<label>:+<abs(delta)>" / "<label>:-<abs(delta)>" when delta != 0
-      - "<label>:0" when delta == 0
-
-    This keeps confidence scoring explainable and testable by preserving the
-    exact additive terms used.
-
     Args:
         score: Current running score.
         rs: Reasons list to append to (mutated in place).
@@ -267,13 +205,6 @@ def _add_term(
 
 def _evidence_delta(ctx: _ScoreCtx) -> tuple[float, str]:
     """Return the additive confidence delta for the evidence type.
-
-    Evidence types are:
-      - "definitionish": candidate came from span tightening / definition-like selection
-      - "initials": candidate came from initials-based span selection
-
-    The returned label is formatted for the reasons trace (e.g., "evidence=initials").
-
     Args:
         ctx: Scoring context.
 
@@ -290,9 +221,6 @@ def _evidence_delta(ctx: _ScoreCtx) -> tuple[float, str]:
 def _lookback_delta(ctx: _ScoreCtx) -> tuple[float, str]:
     """Return the lookback penalty based on how many sentences back the candidate is.
 
-    Penalises candidates found further back than the immediately previous sentence:
-        penalty = max(0, back - 1) * backref_lookback_penalty
-
     Args:
         ctx: Scoring context.
 
@@ -306,9 +234,6 @@ def _lookback_delta(ctx: _ScoreCtx) -> tuple[float, str]:
 
 def _distance_delta(ctx: _ScoreCtx) -> tuple[float, str]:
     """Return the distance penalty based on character gap between candidate and FO.
-
-    Uses `dist_chars` (distance from previous sentence end to FO start) and applies:
-        penalty = min(max(dist_chars, 0), cap) * per_char
 
     Args:
         ctx: Scoring context.
@@ -326,9 +251,6 @@ def _distance_delta(ctx: _ScoreCtx) -> tuple[float, str]:
 def _acronym_caps_delta(ctx: _ScoreCtx) -> tuple[float, str]:
     """Return the uppercase-acronym boost if the FO surface is all-caps.
 
-    This favours canonical acronym renderings (e.g., "SSO" vs "sso") as they tend to
-    correlate with more intentional definitions in formal prose.
-
     Args:
         ctx: Scoring context.
 
@@ -344,10 +266,6 @@ def _acronym_caps_delta(ctx: _ScoreCtx) -> tuple[float, str]:
 
 def _titlecase_delta(ctx: _ScoreCtx) -> tuple[float, str]:
     """Return the title-case boost if the candidate looks like a proper label.
-
-    Computes `_titlecase_ratio(cand)` and compares to the configured threshold.
-    If the ratio meets/exceeds the threshold, applies `backref_titlecase_boost`.
-
     Args:
         ctx: Scoring context.
 
@@ -422,15 +340,6 @@ def _candidate_from_prev_sentence(
     This helper tries to recover a “definition-ish” phrase from the prior sentence
     and validate it using the shared `clean_definition` pipeline.
 
-    Strategy (in order):
-      1) Tighten the previous sentence down to a plausible title/definition span
-         via `tighten_definition_span`, then clean/validate it.
-      2) If that fails, fall back to an initials-based shortest span
-         (`best_span_by_initials`), then clean/validate it.
-
-    The returned `BackrefEvidence` indicates which route produced the candidate
-    (e.g., `BackrefEvidence.DEFINITIONISH` vs `BackrefEvidence.INITIALS`).
-
     Args:
         acr_norm: Normalised acronym (typically uppercased) to match against.
         prev_text: Raw previous-sentence slice from the document.
@@ -484,11 +393,6 @@ def _find_backref_candidate(
 ) -> tuple[str, Span, int, BackrefEvidence] | None:
     """Search previous sentence spans for a back-reference definition candidate.
 
-    Looks backwards from the sentence containing an acronym occurrence (sentence index `si`)
-    and evaluates up to `cfg.sentence_backref_lookback` previous sentences (nearest first).
-    For each prior sentence, delegates to `_candidate_from_prev_sentence` to produce a
-    cleaned/validated candidate definition.
-
     Args:
         text (str): Full document text.
         spans (list[Span]): Sentence-like spans as (start, end) offsets into `text`.
@@ -499,7 +403,7 @@ def _find_backref_candidate(
         require_two_words (bool): If True, candidate must contain at least two tokens.
 
     Returns:
-        tuple[str, Span] | None: `(candidate, (prev_start, prev_end))` for the first
+        tuple[str, Span, int, BackrefEvidence] | None: `(candidate, (prev_start, prev_end))` for the first
         previous sentence that yields a candidate, otherwise None.
     """
     sent_lookback = getattr(cfg, "sentence_backref_lookback", 2)
@@ -535,9 +439,6 @@ def _emit_backref_def(
 ) -> ExtractedDefinition:
     """
     Build an `ExtractedDefinition` for a sentence back-reference hit.
-    Computes char-distance from the previous sentence end to the FO start and
-    scores confidence/reasons via `_score_backref_confidence`, then maps spans
-    back to absolute offsets and stores the raw prior-sentence slice.
 
     Args:
         acr_norm: Normalised acronym key to store on the definition.
@@ -577,21 +478,6 @@ def _emit_backref_def(
         kind="sentence_backref",
         reasons=reasons,
     )
-
-
-def _alpha_len(s: str) -> int:
-    """Count alphabetic characters in a string.
-
-    Non-letter characters (digits, punctuation, whitespace) are ignored. Uses
-    `str.isalpha()` so Unicode letters are counted as well.
-
-    Args:
-        s (str): Input string.
-
-    Returns:
-        int: Number of alphabetic characters in `s`.
-    """
-    return sum(1 for c in s if c.isalpha())
 
 
 def extract_sentence_backrefs(

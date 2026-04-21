@@ -1,5 +1,5 @@
 import pytest
-from document_resolution.nlp.extraction.acronyms.matchers.defs.common import has_numeric_evidence
+from document_resolution.nlp.extraction.acronyms.matchers.defs.defs_common import has_numeric_evidence
 
 
 class TestHasNumericEvidenceIntegration:

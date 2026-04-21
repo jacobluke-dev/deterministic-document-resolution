@@ -17,10 +17,6 @@ def _build_local_window(
 ) -> tuple[int, int, str]:
     """Build a bounded local text window around a first occurrence.
 
-    Computes a `[left:right]` slice around `fo` using the provided window sizes,
-    clamped to the document bounds. Returns both absolute indices and the sliced
-    segment for downstream matching.
-
     Args:
         text (str): Full document text.
         fo (FirstOccurrence): First occurrence acr.
@@ -60,12 +56,6 @@ def _fo_occurrence_position(fo: FirstOccurrence, left: int) -> Span:
 def _pick_better(best: Optional[ExtractedDefinition], cand: ExtractedDefinition) -> ExtractedDefinition:
     """Choose the better of two definition candidates.
 
-    Selection rules:
-        1) If `best` is None, return `cand`.
-        2) Prefer higher `confidence`.
-        3) If confidence ties, prefer the shorter definition span
-           (`def_end - def_start`).
-
     Args:
         best (ExtractedDefinition | None): Current best candidate.
         cand (ExtractedDefinition): New candidate to compare.
@@ -101,9 +91,6 @@ def _anchored_confidence(*, base_conf: float, dist: float) -> float:
 def _distance_from_fo(*, a0_local: int, left: int, fo_start_offset: int) -> int:
     """Return absolute character distance from the first occurrence start.
 
-    Converts a local segment offset back to an absolute offset by adding `left`,
-    then returns the absolute difference from `fo_start_offset`.
-
     Args:
         a0_local (int): Acronym start offset within the local segment.
         left (int): Absolute start index of the local segment in the full text.
@@ -121,10 +108,36 @@ def extract_near_firsts(
     *,
     window_left: int,
     window_right: int,
-    cfg: ExtractionConfig | None = None,
+    cfg: ExtractionConfig,
 ) -> dict[str, Optional[InTextPick]]:
-    if cfg is None:
-        cfg = ExtractionConfig()
+    """Extract anchored in-text definitions near known first occurrences.
+
+    For each first occurrence, builds a local text window, applies anchored
+    acronym-definition patterns for the observed acronym surface, and selects the
+    best cleaned definition candidate found near the first-occurrence span.
+
+    Matching is anchored to the known first-occurrence offsets within the local
+    window. When the detector preserved a trailing dot for a dotted initialism,
+    the matcher tolerates a regex acronym span that excludes that final dot and
+    normalises it back to the detector span before scoring.
+
+    Args:
+        text: Full source text.
+        firsts: Mapping of normalised acronym key to first-occurrence metadata.
+        window_left: Number of characters to include to the left of each first occurrence.
+        window_right: Number of characters to include to the right of each first occurrence.
+        cfg: ExtractionConfig() the extraction config for Acronyms.
+
+    Returns:
+        Mapping from each input key to the best nearby anchored definition pick, or
+        ``None`` when no valid definition can be resolved for that first occurrence.
+
+    Notes:
+        - Candidate definitions are resolved from anchored regex matches, cleaned,
+          scored by pattern kind and distance from the first occurrence, and then
+          compared via ``_pick_better``.
+        - The result preserves the input keys from ``firsts``.
+    """
 
     picks: dict[str, Optional[InTextPick]] = {}
 

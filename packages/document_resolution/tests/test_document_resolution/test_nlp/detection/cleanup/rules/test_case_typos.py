@@ -39,7 +39,7 @@ class TestIsMixedCaseTypo:
     def test_returns_false_for_short_len_under_4(self):
         assert _is_mixed_case_typo("TfL") is False
         assert _is_mixed_case_typo("aBc") is False
-        assert _is_mixed_case_typo("mRNA") is False  # len=3 letters
+        assert _is_mixed_case_typo("mRNA") is False  # special case letters[0] not upper == False
 
     def test_flags_internal_single_lowercase_blip(self):
         # Mostly uppercase with one lowercase in the middle and uppercase after -> blip

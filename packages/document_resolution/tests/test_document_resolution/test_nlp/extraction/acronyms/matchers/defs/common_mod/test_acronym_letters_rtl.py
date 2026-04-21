@@ -1,5 +1,5 @@
 import pytest
-from document_resolution.nlp.extraction.acronyms.matchers.defs.common import _acronym_letters_rtl
+from document_resolution.nlp.extraction.acronyms.matchers.defs.defs_common import _acronym_letters_rtl
 
 
 class TestAcronymLettersRtl:

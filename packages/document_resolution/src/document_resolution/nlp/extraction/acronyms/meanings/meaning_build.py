@@ -9,9 +9,6 @@ from document_resolution.nlp.extraction.acronyms.core.normalise import tighten_l
 def _slug(s: str) -> str:
     """Convert a string into a lowercase ASCII-ish slug.
 
-    The slug keeps only `[a-z0-9]` and replaces other runs with `_`, then trims `_`.
-    If the result is empty, returns `"x"`.
-
     Args:
         s: Input string.
 
@@ -25,10 +22,6 @@ def _slug(s: str) -> str:
 
 def build_meanings(defs: Iterable[ExtractedDefinition]) -> dict[str, list[AcronymMeaning]]:
     """Build `AcronymMeaning` objects from definition matches.
-
-    Definitions are de-duplicated first. Each definition becomes a "meaning" keyed by:
-    `"{acr.lower()}|{slug(tighten_label(definition))}"`. Multiple defs for the same meaning
-    are merged by appending spans and incrementing `support`.
 
     Args:
         defs (ExtractedDefinition): Iterable of definition-like objects with attributes:

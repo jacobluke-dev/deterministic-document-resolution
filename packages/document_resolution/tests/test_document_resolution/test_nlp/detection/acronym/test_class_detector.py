@@ -305,13 +305,12 @@ class TestAcronymDetectorIntegration:
         on = AcronymDetector(AcronymDetectorConfig(enable_dotted=True, dotted_display="strip")).detect(txt)
         assert "US" in on.unique_acronyms and "UK" in on.unique_acronyms
 
-    def test_dotted_initialisms_are_preserved_in_keys(self):
+    def test_dotted_initials_are_preserved_in_keys(self):
         txt = "The U.S. economy and U.K. policy differ. NASA leads."
         cfg = AcronymDetectorConfig(enable_dotted=True, dotted_display="preserve")
         res = AcronymDetector(cfg).detect(txt)
 
         keys = set(res.unique_acronyms.keys())
-        # With dotted_display='preserve' we expect dots in the keys:
         assert "U.S" in keys, f"Missing 'U.S.' in keys: {keys}"
         assert "U.K" in keys, f"Missing 'U.K.' in keys: {keys}"
         # Sanity: other acronyms still appear

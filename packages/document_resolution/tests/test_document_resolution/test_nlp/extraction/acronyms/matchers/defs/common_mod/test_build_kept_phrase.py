@@ -1,5 +1,5 @@
 import pytest
-from document_resolution.nlp.extraction.acronyms.matchers.defs.common import build_kept_phrase
+from document_resolution.nlp.extraction.acronyms.matchers.defs.defs_common import build_kept_phrase
 
 
 class TestBuildKeptPhrase:

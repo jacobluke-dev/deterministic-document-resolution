@@ -1,4 +1,4 @@
-from document_resolution.nlp.extraction.acronyms.matchers.defs.common import build_initials_stream
+from document_resolution.nlp.extraction.acronyms.matchers.defs.defs_common import build_initials_stream
 
 
 class TestBuildInitialsStreamBasics:

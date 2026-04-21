@@ -4,8 +4,8 @@ from document_resolution.nlp.common.shared import collapse_ws, strip_trailing_pu
 from document_resolution.nlp.extraction.acronyms.anchored.normalise import tighten_definition_span
 from document_resolution.nlp.extraction.acronyms.core.normalise import normalize_definition
 from document_resolution.nlp.extraction.acronyms.matchers.common import is_mixed_case_acronym
-from document_resolution.nlp.extraction.acronyms.matchers.defs.common import (
-    LocalDefMatch,
+from document_resolution.nlp.extraction.acronyms.matchers.defs.constants import LocalDefMatch
+from document_resolution.nlp.extraction.acronyms.matchers.defs.defs_common import (
     align_acronym_to_initials,
     build_initials_stream,
     get_cfg_consts,

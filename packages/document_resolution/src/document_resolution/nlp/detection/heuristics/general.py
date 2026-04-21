@@ -166,6 +166,7 @@ def _has_upper_after_with_fillers(text: str, start: int, max_fillers: int = 2) -
 def is_in_caps_interjection_context(
     surface: str, text: str, s: int, e: int, cfg: Union[AcronymDetectorConfig, "HeuristicCfg"]
 ) -> bool:
+    # Keep Union[...] here; `|` caused typing/runtime issues in this module.
     """
     Detect “shouty interjection” context like ', ALRIGHTY THEN!'.
 
@@ -194,6 +195,7 @@ def is_in_caps_interjection_context(
 def is_in_caps_interjection_context_prev(
     surface: str, text: str, s: int, e: int, cfg: Union[AcronymDetectorConfig, "HeuristicCfg"]
 ) -> bool:
+    # Keep Union[...] here; `|` caused typing/runtime issues in this module.
     """Detect the *second* ALL-CAPS word in a shouty pair (e.g. ', ALRIGHTY THEN!').
 
     Used to drop trailing words like 'THEN' when preceded by a nearby comma + ALL-CAPS

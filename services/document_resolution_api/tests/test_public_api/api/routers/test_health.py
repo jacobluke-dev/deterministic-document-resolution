@@ -13,9 +13,11 @@ class TestHealth:
     @pytest.mark.asyncio
     async def test_readyz(self, client):
         r = await client.get("/readyz")
+        print(r.status_code)
+        print(r.text)
+        assert r.status_code == 200
         assert r.status_code == 200
         assert r.json()["status"] == "ready"
-
     @pytest.mark.asyncio
     async def test_generates_request_id_when_absent(self, client):
         r = await client.get("/healthz")

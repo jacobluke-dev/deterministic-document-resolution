@@ -12,20 +12,12 @@ _BIO_SNIFF_RE = re.compile(r"\b(?:mRNA|miRNA|sgRNA|SARS-CoV-2|MERS-CoV|H\d{1,2}N
 
 
 class BioPlugin(DomainPlugin):
-    """Domain plugin providing biology-specific detection hooks.
-
-    Adds a fast domain sniff for auto-enabling, plus a dedicated candidate regex and
-    a keep-guard to rescue borderline spans in bio-heavy text. Intended to be
-    side-effect free and cheap per-document.
-    """
+    """Biology-domain plugin for sniffing, extra candidates, and keep-guarding."""
 
     name = "bio"
 
     def _cfg(self, cfg: AcronymDetectorConfig) -> BioConfig:
         """Return the active `BioConfig` for this plugin.
-
-        Looks up `cfg.domain_cfg["bio"]` and falls back to a default `BioConfig()`.
-        This isolates callers from the storage details of per-domain configuration.
 
         Args:
             cfg (AcronymDetectorConfig): Active detector configuration.
@@ -38,9 +30,6 @@ class BioPlugin(DomainPlugin):
     @staticmethod
     def sniff(text: str) -> bool:
         """Heuristically detect whether a document is likely biology/biomed.
-
-        Scans a capped prefix for strong bio cues (RNA types, viruses, cytokines,
-        UTR patterns) and falls back to a weighted bio-signal scorer.
 
         Args:
             text (str): Source document text (caller may pass a truncated prefix).
@@ -56,9 +45,6 @@ class BioPlugin(DomainPlugin):
 
     def extra_candidates(self, text: str, cfg: AcronymDetectorConfig):
         """Yield additional biology-specific candidate spans.
-
-        When the bio domain is enabled, runs the domain regex and yields each match
-        as a `(surface, start, end)` tuple using end-exclusive offsets.
 
         Args:
             text (str): Source document text.
@@ -76,9 +62,6 @@ class BioPlugin(DomainPlugin):
 
     def keep_guard(self, surface: str, text: str, s: int, e: int, cfg: AcronymDetectorConfig) -> bool:
         """Decide whether to keep a generic candidate based on biology context.
-
-        Used to rescue tokens that the generic pipeline might drop (e.g., short or
-        ambiguous forms) when bio context suggests they are meaningful.
 
         Args:
             surface (str): Candidate surface text (`text[s:e]`).

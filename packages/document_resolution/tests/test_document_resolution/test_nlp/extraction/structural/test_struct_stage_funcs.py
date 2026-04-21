@@ -17,12 +17,6 @@ class _DetCfg:
 
 class TestStructuralCanonicalizationFlow:
     def test_reference_and_anchor_keys_align_for_schedule_case_variant(self):
-        """
-        NOTE FOR TEST:
-        Reviewed UN-99 and determined no additional linker logic is required. Existing upstream
-        canonicalisation already standardises obvious formatting variants onto the same structural
-        lookup key, so exact canonical-key linking remains the correct contract.
-        """
         text = """
     See Schedule A for details.
 

@@ -11,17 +11,8 @@ from document_resolution.nlp.extraction.acronyms.matchers.tighten import tighten
 def extract_defs_all_occurrences(text: str, occs, cfg: ExtractionConfig) -> list[ExtractedDefinition]:
     """
     Extract parenthetical acronym definitions around detected occurrences.
+    e.g. "Portable Document Format (PDF)" or "PDF (Portable Document Format)"
 
-    For each occurrence, this scans a fixed character window around the acronym and runs two
-    matchers:
-      - Long form before acronym: "Portable Document Format (PDF)"
-      - Long form after acronym:  "PDF (Portable Document Format)"
-
-    Each matcher returns local (snippet-relative) spans; this function converts them back to
-    absolute spans in `text` and emits `ExtractedDefinition` objects with:
-      - `acronym` copied from the occurrence,
-      - `definition` tightened via `tighten_label_by_acronym(..., acronym.upper())`,
-      - `original_definition` taken as the raw slice `text[def_start:def_end]`.
 
     Args:
         text: Full source text.

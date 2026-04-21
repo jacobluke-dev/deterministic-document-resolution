@@ -38,22 +38,13 @@ class DefinedTermPatterns:
 
 
 def compile_defined_term_patterns() -> DefinedTermPatterns:
-    """Compile and return the regex patterns used by the defined-term detector.
+    """Compile the regex patterns used by defined-term detection.
 
-    The compiled patterns cover a bounded set of supported drafting forms,
-    including quoted introductions, selected bare capitalised introductions,
-    parenthetical aliases, quoted occurrences, and broader capitalised occurrence
-    runs.
-
-    Args:
-        None
+    Covers quoted and bare introductions, parenthetical aliases, quoted
+    occurrences, and capitalised occurrence runs.
 
     Returns:
-        A ``DefinedTermPatterns`` instance containing compiled regular expression
-        objects for supported introduction and occurrence patterns.
-
-    Raises:
-        re.error: If any regex expression is invalid at compile time.
+        Compiled defined-term patterns.
     """
     hws = r"[ \t]+"
 

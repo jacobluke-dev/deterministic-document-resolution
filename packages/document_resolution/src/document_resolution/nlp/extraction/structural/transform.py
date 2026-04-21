@@ -16,12 +16,6 @@ def _canonicalize_structural_reference(
 ) -> tuple[str, str]:
     """Return canonical label and canonical key for a detected structural reference.
 
-    This extraction-stage helper owns stronger semantic canonicalisation than the
-    detector. By default it preserves the detector-normalised form. When Roman
-    numeral conversion is enabled, eligible structural references such as
-    ``Article III`` are canonicalised to numeric form, for example
-    ``("3", "article_3")``.
-
     Args:
         ref: Detected structural reference to canonicalise.
         cfg: Structural extraction configuration controlling canonicalisation
@@ -52,11 +46,6 @@ def build_structural_reference_resolutions(
     cfg: StructuralReferenceExtractionConfig,
 ) -> list[StructuralReferenceEntry]:
     """Build structural-reference resolution entries from detected references.
-
-    Each detected structural reference is transformed into a resolution entry
-    carrying both the detector-normalised key and the extraction-stage canonical
-    key. This allows the extraction layer to preserve source-close data while
-    also exposing stronger canonicalisation for downstream consumers.
 
     Args:
         references: Detected structural references to transform.

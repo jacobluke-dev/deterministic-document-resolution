@@ -21,7 +21,7 @@ class TestIsStrictSuffix:
         assert _is_strict_suffix("BC", "ABCD") is False
         assert _is_strict_suffix("MR", "mRNA") is False
 
-    def test_returns_false_when_shorter_is_longer_or_equal(self):
+    def test_returns_false_when_candidate_is_not_strictly_shorter(self):
         assert _is_strict_suffix("ABCD", "ABC") is False
         assert _is_strict_suffix("ABC", "ABC") is False
 
@@ -281,6 +281,6 @@ class TestRuleTokenBeforeParenSuffix:
 
         kept, dropped = rule_token_before_paren_suffix(text, [a, b_short, b_long])
 
-        assert {o.acronym for o in kept} == {"mR", "mRNA"} or {o.acronym for o in kept} == {"mRNA", "mR"}
+        assert {o.acronym for o in kept} == {"mR", "mRNA"}
         # Token A should be dropped based on best B="mRNA"
         assert any(d.acronym == "RNA" and d.rule == "token_before_paren_suffix" for d in dropped), dropped

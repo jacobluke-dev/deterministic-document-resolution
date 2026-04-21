@@ -29,7 +29,7 @@ def anyio_backend():
 
 # --- env ---------------------------------------------------------------------
 
-ROOT = find_project_root(__file__, markers=(".git", "pyproject.toml"))
+ROOT = find_project_root(__file__)
 ENV_PATH = ROOT / ".env"
 
 ALLOWED_TABLES = {

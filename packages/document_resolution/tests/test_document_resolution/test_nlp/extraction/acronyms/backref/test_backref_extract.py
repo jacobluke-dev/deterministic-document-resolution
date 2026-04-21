@@ -3,9 +3,131 @@ from document_resolution.nlp.extraction.acronyms.backref.extract import (
     _candidate_from_prev_sentence,
     _find_backref_candidate,
     _score_backref_confidence,
+    _valid_backref_candidate,
     extract_sentence_backrefs,
 )
 from document_resolution.nlp.extraction.acronyms.config import ExtractionConfig
+
+
+class TestValidBackrefCandidate:
+    def test_rejects_empty(self, _patch):
+        _patch(
+            _valid_backref_candidate,
+            initials_match=lambda *_a, **_k: True,
+            _initials_match_backref=lambda *_a, **_k: True,
+        )
+
+        assert (
+            _valid_backref_candidate(
+                clean="",
+                acr_norm="SSO",
+                max_chars=200,
+                require_two_words=True,
+            )
+            is False
+        )
+
+    def test_rejects_over_max_chars(self, _patch):
+        _patch(
+            _valid_backref_candidate,
+            initials_match=lambda *_a, **_k: True,
+            _initials_match_backref=lambda *_a, **_k: True,
+        )
+
+        assert (
+            _valid_backref_candidate(
+                clean="x" * 201,
+                acr_norm="SSO",
+                max_chars=200,
+                require_two_words=False,
+            )
+            is False
+        )
+
+    def test_rejects_candidate_equal_to_acronym_ignoring_spaces_and_case(self, _patch):
+        _patch(
+            _valid_backref_candidate,
+            initials_match=lambda *_a, **_k: True,
+            _initials_match_backref=lambda *_a, **_k: True,
+        )
+
+        assert (
+            _valid_backref_candidate(
+                clean="s s o",
+                acr_norm="SSO",
+                max_chars=200,
+                require_two_words=False,
+            )
+            is False
+        )
+
+    def test_requires_two_words_when_enabled(self, _patch):
+        _patch(
+            _valid_backref_candidate,
+            initials_match=lambda *_a, **_k: True,
+            _initials_match_backref=lambda *_a, **_k: True,
+        )
+
+        assert (
+            _valid_backref_candidate(
+                clean="Single",
+                acr_norm="S",
+                max_chars=200,
+                require_two_words=True,
+            )
+            is False
+        )
+
+    def test_accepts_when_strict_initials_match_passes(self, _patch):
+        _patch(
+            _valid_backref_candidate,
+            initials_match=lambda *_a, **_k: True,
+            _initials_match_backref=lambda *_a, **_k: False,
+        )
+
+        assert (
+            _valid_backref_candidate(
+                clean="Single sign on",
+                acr_norm="SSO",
+                max_chars=200,
+                require_two_words=True,
+            )
+            is True
+        )
+
+    def test_accepts_when_hyphen_aware_fallback_passes_even_if_strict_fails(self, _patch):
+        _patch(
+            _valid_backref_candidate,
+            initials_match=lambda *_a, **_k: False,
+            _initials_match_backref=lambda *_a, **_k: True,
+        )
+
+        assert (
+            _valid_backref_candidate(
+                clean="Single sign-on",
+                acr_norm="SSO",
+                max_chars=200,
+                require_two_words=True,
+            )
+            is True
+        )
+
+    def test_rejects_when_both_initials_matchers_fail(self, _patch):
+        _patch(
+            _valid_backref_candidate,
+            initials_match=lambda *_a, **_k: False,
+            _initials_match_backref=lambda *_a, **_k: False,
+        )
+
+        assert (
+            _valid_backref_candidate(
+                clean="Single sign-on",
+                acr_norm="SSO",
+                max_chars=200,
+                require_two_words=True,
+            )
+            is False
+        )
 
 
 class TestScoreBackrefConfidence:

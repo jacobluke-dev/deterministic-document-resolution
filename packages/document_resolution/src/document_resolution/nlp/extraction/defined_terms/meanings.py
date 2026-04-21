@@ -11,13 +11,6 @@ def build_term_meaning_index(
     """
     Build deterministic term meanings from extracted definition entries.
 
-    Ordinals are assigned per normalized key in document order, so repeated
-    introductions of the same term become:
-
-        term|services|1
-        term|services|2
-        ...
-
     Args:
         definition_entries: Extracted term definition records.
 

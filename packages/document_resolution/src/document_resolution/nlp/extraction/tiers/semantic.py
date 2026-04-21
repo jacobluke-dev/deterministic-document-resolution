@@ -11,12 +11,9 @@ from numpy.typing import NDArray
 from document_resolution.nlp.extraction.tiers.types import FloatMat, FloatVec
 
 
-@lru_cache(maxsize=4)
+@lru_cache(maxsize=1)
 def _load_st_model(model_name: str, *, cache_folder: str | None = None) -> Any:
     """Load (and memoise) a Sentence-Transformers model by name.
-
-    Uses an LRU cache to avoid repeatedly initialising the same embedding model.
-    The cache is intentionally small because models are large in memory.
 
     Args:
         model_name: Sentence-Transformers model identifier (e.g. "all-MiniLM-L6-v2").
@@ -58,8 +55,6 @@ def embed_texts(
 ) -> FloatMat | None:
     """Embed a batch of texts using Sentence-Transformers.
 
-    Encodes `texts` into a dense float32 embedding matrix and row-normalises the
-    result so that dot products equal cosine similarity.
 
     Args:
         texts: Sequence of input strings to embed.
