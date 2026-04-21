@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 from asyncio import Semaphore
-from collections.abc import Iterator
 from functools import lru_cache
 from typing import Annotated, Any
 
@@ -9,7 +8,6 @@ from document_resolution.orchestration import PipelineRegistry
 from document_resolution.wiring.composition import build_pipeline_registry
 from document_resolution_core.db_manager.connection import DBManager
 from fastapi import Depends, Request
-from sqlalchemy.orm import Session
 
 from public_api.core.services.resolve_service import ResolveService
 from public_api.core.settings import app_settings

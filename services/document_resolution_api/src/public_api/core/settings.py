@@ -1,9 +1,8 @@
 from pathlib import Path
 
+from document_resolution_core.utils.utils import find_project_root
 from pydantic import AnyUrl, Field
 from pydantic_settings import BaseSettings
-
-from document_resolution_core.utils.utils import find_project_root
 
 SERVICE_ROOT = Path(__file__).resolve().parents[3]
 ENV_PATH = Path(find_project_root(), '.env')
