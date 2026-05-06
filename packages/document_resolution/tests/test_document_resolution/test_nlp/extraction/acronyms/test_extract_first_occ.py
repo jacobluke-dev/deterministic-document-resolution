@@ -197,7 +197,7 @@ class TestCompileAnchoredExact:
 
 
 class TestExtractNearFirstsUnit:
-    def test_forward_parenthetical_exact_alignment(self, monkeypatch, fo):
+    def test_forward_parenthetical_exact_alignment(self, _patch, fo):
         text = "Intro. Portable Document Format (PDF) is common."
         acr = "PDF"
         a0 = text.index("(PDF)") + 1
@@ -209,10 +209,20 @@ class TestExtractNearFirstsUnit:
         )
 
         def fake_compile(_acr, _cfg):
-            return ((pat_fwd, 0.95, "def_before"),)
+            pattern_spec = mod.PatternSpec(pat=pat_fwd,
+                                           base_conf=0.95,
+                                           strategy="helper_def_before",
+                                           kind="def_before"),
+            return pattern_spec
 
-        monkeypatch.setattr(mod, "compile_anchored_for_surface", fake_compile)
-        monkeypatch.setattr(ext, "base_for_kind", lambda _cfg, _kind: 0.95)
+        _patch(extract_near_firsts, compile_anchored_for_surface=fake_compile)
+
+        _patch(
+            extract_near_firsts,
+            compile_anchored_for_surface=fake_compile,
+            base_for_kind=lambda _cfg, kind: 0.995 if kind in {"inline", "inline_before"} else 0.95,
+        )
+
 
         out = extract_near_firsts(
             text,
@@ -228,7 +238,7 @@ class TestExtractNearFirstsUnit:
         assert 0 < out["PDF"].definition_confidence <= 0.99
         assert "Portable" in out["PDF"].original_definition
 
-    def test_requires_exact_alignment_other_match_is_ignored(self, monkeypatch, fo):
+    def test_requires_exact_alignment_other_match_is_ignored(self, _patch, fo):
         text = "PDF appears first. Portable Document Format (PDF) later."
         a0 = text.index("PDF")
         a1 = text.rindex("PDF")
@@ -243,18 +253,22 @@ class TestExtractNearFirstsUnit:
         )
 
         def fake_compile(_acr, _cfg):
-            return ((pat_fwd, 0.95, "def_before"),)
+            pattern_spec = mod.PatternSpec(pat=pat_fwd,
+                                           base_conf=0.95,
+                                           strategy="helper_def_before",
+                                           kind="def_before"),
+            return pattern_spec
 
         m2 = pat_fwd.search(text)
         assert m2 is not None
         assert m2.span("acr")[0] == a1
 
-        monkeypatch.setattr(mod, "compile_anchored_for_surface", fake_compile)
+        _patch(extract_near_firsts, compile_anchored_for_surface=fake_compile)
         out = extract_near_firsts(text, {"PDF": first_occurrence}, window_left=80, window_right=80, cfg=_cfg())
 
         assert out["PDF"] is None
 
-    def test_inline_match_non_empty_and_confidence_cap(self, monkeypatch, fo):
+    def test_inline_match_non_empty_and_confidence_cap(self, _patch, fo):
         text = "PDF stands for Portable Document Format in print."
         acr = "PDF"
         a0 = text.index("PDF")
@@ -275,11 +289,10 @@ class TestExtractNearFirstsUnit:
                 ),
             )
 
-        monkeypatch.setattr(ext, "compile_anchored_for_surface", fake_compile)
-        monkeypatch.setattr(
-            ext,
-            "base_for_kind",
-            lambda _cfg, kind: 0.995 if kind in {"inline", "inline_before"} else 0.95,
+        _patch(
+            extract_near_firsts,
+            compile_anchored_for_surface=fake_compile,
+            base_for_kind=lambda _cfg, kind: 0.995 if kind in {"inline", "inline_before"} else 0.95,
         )
 
         out = extract_near_firsts(text, {"PDF": first_occurrence}, window_left=10, window_right=50, cfg=_cfg())
@@ -289,7 +302,7 @@ class TestExtractNearFirstsUnit:
         assert out["PDF"].acr_span == (a0, a0 + 3)
         assert abs(out["PDF"].definition_confidence - 0.99) < 1e-9
 
-    def test_definition_too_long_is_dropped(self, monkeypatch, fo):
+    def test_definition_too_long_is_dropped(self, _patch, fo):
         text = "Extremely verbose explanation that keeps going forever (PDF)"
         acr = "PDF"
         a0 = text.index("(PDF)") + 1
@@ -301,16 +314,17 @@ class TestExtractNearFirstsUnit:
         )
 
         def fake_compile(_acr, _cfg):
-            return ((pat_fwd, 0.95, "def_before"),)
+            pattern_spec = mod.PatternSpec(pat=pat_fwd, base_conf=0.95, strategy="helper_def_before", kind="def_before"),
+            return pattern_spec
 
-        monkeypatch.setattr(mod, "compile_anchored_for_surface", fake_compile)
+        _patch(extract_near_firsts, compile_anchored_for_surface=fake_compile)
 
         cfg = _cfg(max_phrase_chars=8)
         out = extract_near_firsts(text, {"PDF": first_occurrence}, window_left=50, window_right=50, cfg=cfg)
 
         assert out["PDF"] is None
 
-    def test_reverse_parenthetical_ca_full_phrase(self, monkeypatch, fo):
+    def test_reverse_parenthetical_ca_full_phrase(self, _patch, fo):
         text = "The CFO said C/A (Cost per Acquisition) has fallen."
         acr = "C/A"
         a0 = text.index("C/A")
@@ -322,10 +336,18 @@ class TestExtractNearFirstsUnit:
         )
 
         def fake_compile(_acr, _cfg):
-            return ((pat_rev, 0.95, "def_after"),)
+            pattern_spec = mod.PatternSpec(pat=pat_rev,
+                                           base_conf=0.95,
+                                           strategy="helper_def_after",
+                                           kind="def_after"),
+            return pattern_spec
 
-        monkeypatch.setattr(mod, "compile_anchored_for_surface", fake_compile)
-        monkeypatch.setattr(ext, "base_for_kind", lambda _cfg, _kind: 0.95)
+        _patch(
+            extract_near_firsts,
+            compile_anchored_for_surface=fake_compile,
+            base_for_kind=lambda _cfg, kind: 0.95 if kind in {"inline", "def_after"} else 0.95,
+        )
+
         out = extract_near_firsts(text, {"C/A": first_occurrence}, window_left=40, window_right=60, cfg=_cfg())
 
         assert out["C/A"] is not None

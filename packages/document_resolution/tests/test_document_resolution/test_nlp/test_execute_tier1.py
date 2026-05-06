@@ -54,7 +54,7 @@ class TestDetectAndExtractUnit:
         s.harvested_defs = []
         return stage_fxn.StageResult(s, "harvested=0")
 
-    def test_strategy_anchored_plus_harvest_when_nothing_missing(self, monkeypatch, fo):
+    def test_strategy_anchored_plus_harvest_when_nothing_missing(self, monkeypatch, _patch, fo):
         text = "Portable Document Format (PDF)."
 
         det_cfg, ext_cfg = _cfgs()
@@ -90,27 +90,30 @@ class TestDetectAndExtractUnit:
             definition_confidence=0.98,
             original_definition="Portable Document Format",
         )
-        monkeypatch.setattr(stage_fxn, "extract_near_firsts", lambda *a, **k: {"PDF": anchored_pick})
+        _patch(stage_fxn.st_picks_first_occurrence_anchored, extract_near_firsts=lambda *a, **k: {"PDF": anchored_pick})
 
         # defs_from_picks returns one ED
-        monkeypatch.setattr(stage_fxn, "defs_from_picks", lambda _text, picks: [_ed("PDF", "Portable Document Format")])
+        _patch(
+            stage_fxn.st_defs_from_first_occurrence_picks,
+            defs_from_picks=lambda _text, picks: [_ed("PDF", "Portable Document Format")],
+        )
 
         # harvest returns nothing extra
-        monkeypatch.setattr(stage_fxn, "extract_defs_all_occurrences", lambda *_: [])
+        _patch(stage_fxn.st_defs_scan_all_occurrences, extract_defs_all_occurrences=lambda *_: [])
 
         # dedupe returns what it gets
-        monkeypatch.setattr(stage_fxn, "dedupe_defs", lambda defs: defs)
+        _patch(stage_fxn.st_merge, dedupe_defs=lambda defs: defs)
 
         # build_meanings: single meaning per acronym
-        monkeypatch.setattr(
-            stage_fxn, "build_meanings", lambda defs: {"PDF": [NS(meaning_id="PDF::Portable Document Format")]}
+        _patch(
+            stage_fxn.st_tier1_build_meanings,
+            build_meanings=lambda defs: {"PDF": [NS(meaning_id="PDF::Portable Document Format")]},
         )
 
         # disambiguate_occurrences: one resolution using that meaning
-        monkeypatch.setattr(
-            stage_fxn,
-            "disambiguate_occurrences",
-            lambda **kw: [
+        _patch(
+            stage_fxn.st_tier1_score_occurrences,
+            disambiguate_occurrences=lambda **kw: [
                 NS(
                     acronym="PDF",
                     start=28,

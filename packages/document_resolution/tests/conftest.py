@@ -197,7 +197,7 @@ def cfg_integrated():
 
 
 @pytest.fixture(autouse=True)
-def _mock_tier2_embeddings(monkeypatch):
+def _mock_tier2_embeddings(_patch):
     import document_resolution.nlp.extraction.tiers.tier_2 as t2
 
     def _fast_embed_texts(texts, *, model=None, model_name=None, **_kw):
@@ -206,7 +206,7 @@ def _mock_tier2_embeddings(monkeypatch):
         return np.zeros((len(xs), 8), dtype=np.float32)
 
     # This is the real seam Tier-2 uses now
-    monkeypatch.setattr(t2, "embed_texts", _fast_embed_texts, raising=True)
+    _patch(t2.embed_for_tier2, embed_texts=_fast_embed_texts)
 
 @pytest.fixture
 def test_cfg():

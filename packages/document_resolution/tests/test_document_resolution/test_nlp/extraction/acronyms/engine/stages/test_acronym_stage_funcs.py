@@ -79,7 +79,7 @@ class TestSrTier2SemanticRerank:
         assert s.tier_2.ranked[0].applied is False
         assert s.tier_2.ranked[0].skip_reason == "pending"
 
-    def test_tier2_applies_and_blends_in_tier1_order(self, monkeypatch):
+    def test_tier2_applies_and_blends_in_tier1_order(self, _patch):
         s = _mk_state(mode="on")
         s.text = "kernel launch overhead ... GPU ..."
 
@@ -111,7 +111,7 @@ class TestSrTier2SemanticRerank:
                     vecs.append([1.0, 0.0])
             return np.asarray(vecs, dtype=np.float32)
 
-        monkeypatch.setattr(Tier2, "embed_texts", fake_embed_texts, raising=True)
+        _patch(Tier2.embed_for_tier2, embed_texts=fake_embed_texts)
 
         f.st_tier2_semantic_rerank(s, auto_margin_ceiling=0)
 
