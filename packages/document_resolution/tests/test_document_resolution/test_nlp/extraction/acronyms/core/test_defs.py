@@ -14,19 +14,19 @@ def _span(text: str, needle: str) -> Span:
 
 
 class TestDefsFromPicks:
-    def test_returns_empty_for_empty_input(self, monkeypatch):
+    def test_returns_empty_for_empty_input(self, _patch):
         # Tighten shouldn't be called, but keep deterministic just in case
-        monkeypatch.setattr(mod, "tighten_label_by_acronym", lambda *a, **k: "N/A", raising=True)
+        _patch(defs_from_picks, tighten_label_by_acronym=lambda *a, **k: "N/A")
         assert mod.defs_from_picks("", {}) == []
 
-    def test_skips_none_and_maps_fields(self, monkeypatch):
+    def test_skips_none_and_maps_fields(self, _patch):
         calls: list[tuple[str, str]] = []
 
         def fake_tighten(raw_label: str, acronym: str, **_):
             calls.append((raw_label, acronym))
             return f"TIGHT[{raw_label}|{acronym}]"
 
-        monkeypatch.setattr(mod, "tighten_label_by_acronym", fake_tighten, raising=True)
+        _patch(defs_from_picks, tighten_label_by_acronym=fake_tighten)
 
         text = "Please turn over (PTO)."
         long = "Please turn over"
@@ -60,14 +60,14 @@ class TestDefsFromPicks:
         # tighten called with UPPER acronym
         assert calls == [(long, "PTO")]
 
-    def test_mixed_case_surface_is_uppercased(self, monkeypatch):
+    def test_mixed_case_surface_is_uppercased(self, _patch):
         seen: dict[str, tuple[str, str]] = {}
 
         def fake_tighten(raw_label: str, acronym: str, **_):
             seen["args"] = (raw_label, acronym)
             return raw_label
 
-        monkeypatch.setattr(mod, "tighten_label_by_acronym", fake_tighten, raising=True)
+        _patch(defs_from_picks, tighten_label_by_acronym=fake_tighten)
 
         text = "Look up Pto later."
         acr_surface = "Pto"
@@ -87,12 +87,10 @@ class TestDefsFromPicks:
         assert out[0].acronym == "PTO"
         assert seen["args"] == (long, "PTO")
 
-    def test_multiple_picks_preserve_insertion_order(self, monkeypatch):
-        monkeypatch.setattr(
-            mod,
-            "tighten_label_by_acronym",
-            lambda s, a, **_: f"{s}<{a}>",
-            raising=True,
+    def test_multiple_picks_preserve_insertion_order(self, _patch):
+        _patch(
+            defs_from_picks,
+            tighten_label_by_acronym=lambda s, a, **_: f"{s}<{a}>",
         )
 
         text = "… PTO … then PoM …"

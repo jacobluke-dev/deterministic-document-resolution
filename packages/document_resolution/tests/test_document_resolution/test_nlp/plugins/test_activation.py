@@ -1,4 +1,3 @@
-import document_resolution.nlp.plugins.activation as activation_mod
 from document_resolution.nlp.common.types import AcronymDetectorConfig
 from document_resolution.nlp.plugins.activation import _safe_sniff, autodetect_domains
 
@@ -44,46 +43,38 @@ class TestSafeSniff:
 
 
 class TestAutodetectDomains:
-    def test_detects_plugins_that_sniff_true(self, monkeypatch):
+    def test_detects_plugins_that_sniff_true(self, _patch):
         cfg = AcronymDetectorConfig()
-        monkeypatch.setattr(
-            activation_mod,
-            "DOMAIN_PLUGINS",
-            {"bio": GoodBioPlugin(), "other": FalsePlugin()},
-            raising=False,
+        _patch(
+            autodetect_domains,
+            DOMAIN_PLUGINS={"bio": GoodBioPlugin(), "other": FalsePlugin()},
         )
         detected = autodetect_domains("text with mRNA marker", cfg)
         assert detected == frozenset({"bio"})
 
-    def test_ignores_plugins_without_sniff(self, monkeypatch):
+    def test_ignores_plugins_without_sniff(self, _patch):
         cfg = AcronymDetectorConfig()
-        monkeypatch.setattr(
-            activation_mod,
-            "DOMAIN_PLUGINS",
-            {"nosniff": NoSniffPlugin()},
-            raising=False,
+        _patch(
+            autodetect_domains,
+            DOMAIN_PLUGINS={"nosniff": NoSniffPlugin()},
         )
         detected = autodetect_domains("mRNA present", cfg)
         assert detected == frozenset()
 
-    def test_handles_exceptions_and_detects_others(self, monkeypatch):
+    def test_handles_exceptions_and_detects_others(self, _patch):
         cfg = AcronymDetectorConfig()
-        monkeypatch.setattr(
-            activation_mod,
-            "DOMAIN_PLUGINS",
-            {"bio": GoodBioPlugin(), "error": ErrorPlugin()},
-            raising=False,
+        _patch(
+            autodetect_domains,
+            DOMAIN_PLUGINS={"bio": GoodBioPlugin(), "error": ErrorPlugin()},
         )
         detected = autodetect_domains("mRNA here", cfg)
         assert detected == frozenset({"bio"})
 
-    def test_respects_cap_truncation(self, monkeypatch):
+    def test_respects_cap_truncation(self, _patch):
         cfg = AcronymDetectorConfig()
-        monkeypatch.setattr(
-            activation_mod,
-            "DOMAIN_PLUGINS",
-            {"bio": GoodBioPlugin()},
-            raising=False,
+        _patch(
+            autodetect_domains,
+            DOMAIN_PLUGINS={"bio": GoodBioPlugin()},
         )
         long_text = ("x" * 100_000) + "mRNA"  # signal after default cap
         assert autodetect_domains(long_text, cfg) == frozenset()
@@ -91,13 +82,11 @@ class TestAutodetectDomains:
         # Increase cap so the signal is visible
         assert autodetect_domains(long_text, cfg, cap=200_000) == frozenset({"bio"})
 
-    def test_returns_frozenset(self, monkeypatch):
+    def test_returns_frozenset(self, _patch):
         cfg = AcronymDetectorConfig()
-        monkeypatch.setattr(
-            activation_mod,
-            "DOMAIN_PLUGINS",
-            {"bio": GoodBioPlugin()},
-            raising=False,
+        _patch(
+            autodetect_domains,
+            DOMAIN_PLUGINS={"bio": GoodBioPlugin()},
         )
         out = autodetect_domains("mRNA", cfg)
         assert isinstance(out, frozenset)

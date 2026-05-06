@@ -1,4 +1,3 @@
-import document_resolution.nlp.detection.acronym.detector as det
 import document_resolution.nlp.plugins.activation as act
 from document_resolution.nlp.common.types import AcronymDetectorConfig
 from document_resolution.nlp.detection.acronym.detector import AcronymDetector
@@ -8,29 +7,29 @@ from document_resolution.nlp.plugins.activation import autodetect_domains
 
 
 class TestBioAutodetect:
-    def test_autodetect_domains_flags_bio_from_rna_and_cytokines(self, monkeypatch):
+    def test_autodetect_domains_flags_bio_from_rna_and_cytokines(self, _patch):
         """
         Integration: ensure autodetect_domains returns {'bio'} when the text contains
         strong bio signals (e.g., mRNA / IL-6 / SARS-CoV-2).
         """
-        # The autodetect uses an isinstance(plug, SupportsSniff) gate and a safe wrapper.
-        # Make sure the registered BioPlugin gets queried in this test:
-        monkeypatch.setattr(act, "SupportsSniff", object, raising=True)  # all objects pass isinstance
-        # Some versions implement a sandbox wrapper; route to plugin.sniff in a safe way.
-        monkeypatch.setattr(act, "_safe_sniff", lambda plug, t: plug.sniff(t), raising=True)
+        _patch(
+            autodetect_domains,
+            SupportsSniff=object,
+            _safe_sniff=lambda plug, t: plug.sniff(t),
+        )
 
-        text = "We quantified mRNA for IL-6 after SARS-CoV-2 infection. " "The 5′UTR also showed changes."
+        text = "We quantified mRNA for IL-6 after SARS-CoV-2 infection. The 5′UTR also showed changes."
         cfg = AcronymDetectorConfig()
+
         auto = autodetect_domains(text, cfg)
+
         assert "bio" in auto, f"Expected 'bio' in autodetected domains, got {auto}"
 
-    def test_detector_merges_auto_domains_and_logs_added(self, captured_logs, monkeypatch):
-        # Force auto-detection to return {'bio'} where Detector will actually look:
-        monkeypatch.setattr(det, "autodetect_domains", lambda text, cfg: frozenset({"bio"}), raising=True)
+    def test_detector_merges_auto_domains_and_logs_added(self, captured_logs, _patch):
+        _patch(AcronymDetector._with_auto_domains, autodetect_domains=lambda text, cfg: frozenset({"bio"}))
 
-        # Keep detection path minimal
-        monkeypatch.setattr(det, "compile_acronym_pattern", lambda _cfg: object(), raising=True)
-        monkeypatch.setattr(det, "iter_acronym_candidates", lambda *a, **k: [], raising=True)
+        detect = AcronymDetector.detect.__wrapped__  # type: ignore[attr-defined]
+        _patch(detect, iter_acronym_candidates=lambda *a, **k: [])
 
         d = AcronymDetector(AcronymDetectorConfig(enabled_domains=frozenset()))
         _ = d.detect("mRNA and IL-6 were measured.")
@@ -130,7 +129,7 @@ class TestExtraCandidates:
 
 
 class TestAutoDetectedDomains:
-    def test_autodetect_domains_swallows_plugin_exceptions(self, monkeypatch):
+    def test_autodetect_domains_swallows_plugin_exceptions(self, _patch):
         class BadPlug(BioPlugin):
             name = "bio"
 
@@ -138,11 +137,11 @@ class TestAutoDetectedDomains:
             def sniff(text: str) -> bool:
                 raise RuntimeError("boom")
 
-        monkeypatch.setattr(act, "DOMAIN_PLUGINS", {"bio": BadPlug()}, raising=True)
+        _patch(autodetect_domains, DOMAIN_PLUGINS={"bio": BadPlug()})
         cfg = AcronymDetectorConfig()
         assert act.autodetect_domains("mRNA IL-6", cfg) == frozenset()
 
-    def test_autodetect_domains_returns_plugin_name_on_true(self, monkeypatch):
+    def test_autodetect_domains_returns_plugin_name_on_true(self, _patch):
         class GoodPlug:
             name = "bio"
 
@@ -150,7 +149,7 @@ class TestAutoDetectedDomains:
             def sniff(text: str) -> bool:
                 return "IL-6" in text
 
-        monkeypatch.setattr(act, "DOMAIN_PLUGINS", {"bio": GoodPlug()}, raising=True)
+        _patch(autodetect_domains, DOMAIN_PLUGINS={"bio": GoodPlug()})
 
         cfg = AcronymDetectorConfig()
         assert act.autodetect_domains("x IL-6 y", cfg) == frozenset({"bio"})
