@@ -113,7 +113,7 @@ class TestIterCandidatesWith:
 
 
 class TestCollectDomainHits:
-    def test_collects_and_sorts_by_start_then_length_desc(self, monkeypatch):
+    def test_collects_and_sorts_by_start_then_length_desc(self, _patch):
         text = "The ABC transporter and ABCDEF domain are here."
 
         # Fake plugins
@@ -130,13 +130,15 @@ class TestCollectDomainHits:
             def extra_candidates(self, _text, _cfg):
                 return [("fin", 12, 18)]  # middle
 
-        monkeypatch.setattr(core, "DOMAIN_PLUGINS", {"bio": BioPlug(), "finance": FinPlug()}, raising=False)
-
         # Accept everything by echoing a Span-like tuple
         def accept(text_arg, cfg_arg, s, e):
             return ("hit", s, e)
 
-        monkeypatch.setattr(core, "_accept_candidate", accept, raising=False)
+        _patch(
+            core._collect_domain_hits,
+            DOMAIN_PLUGINS={"bio": BioPlug(), "finance": FinPlug()},
+            _accept_candidate=accept,
+        )
 
         cfg = AcronymDetectorConfig(enabled_domains=("bio", "finance"))
         hits = _collect_domain_hits(text, cfg)
@@ -149,7 +151,7 @@ class TestCollectDomainHits:
             ("hit", 12, 18),
         ]
 
-    def test_filters_by_enabled_domains_only(self, monkeypatch):
+    def test_filters_by_enabled_domains_only(self, _patch):
         class BioPlug:
             def extra_candidates(self, *_):
                 return [("bio", 1, 3)]
@@ -158,50 +160,58 @@ class TestCollectDomainHits:
             def extra_candidates(self, *_):
                 return [("fin", 100, 110)]
 
-        monkeypatch.setattr(core, "DOMAIN_PLUGINS", {"bio": BioPlug(), "finance": FinPlug()}, raising=False)
-        monkeypatch.setattr(core, "_accept_candidate", lambda _t, _c, s, e: ("hit", s, e), raising=False)
+        _patch(
+            core._collect_domain_hits,
+            DOMAIN_PLUGINS={"bio": BioPlug(), "finance": FinPlug()},
+            _accept_candidate=lambda _t, _c, s, e: ("hit", s, e),
+        )
 
         cfg = AcronymDetectorConfig(enabled_domains=frozenset({"bio"}))  # finance disabled
         hits = _collect_domain_hits("x", cfg)
         assert hits == [("hit", 1, 3)]
 
-    def test_skips_missing_plugins_and_rejections_and_none_returns(self, monkeypatch):
+    def test_skips_missing_plugins_and_rejections_and_none_returns(self, _patch):
         class BioPlug:
             def extra_candidates(self, *_):
                 return [("bio", 5, 9), ("bio", 50, 60)]
 
-        monkeypatch.setattr(core, "DOMAIN_PLUGINS", {"bio": BioPlug()}, raising=False)
-
         def accept(_t, _c, s, e):
             return None if (s, e) == (50, 60) else ("hit", s, e)
 
-        monkeypatch.setattr(core, "_accept_candidate", accept, raising=False)
+        _patch(
+            core._collect_domain_hits,
+            DOMAIN_PLUGINS={"bio": BioPlug()},
+            _accept_candidate=accept,
+        )
 
         cfg = AcronymDetectorConfig(enabled_domains=frozenset({"bio", "chem"}))  # "chem" missing -> ignored
         hits = _collect_domain_hits("x", cfg)
         assert hits == [("hit", 5, 9)]
 
-    def test_empty_enabled_domains_or_none_yields_no_hits(self, monkeypatch):
+    def test_empty_enabled_domains_or_none_yields_no_hits(self, _patch):
         # Even if there are plugins, with enabled_domains empty/None the loop is skipped.
         class AnyPlug:
             def extra_candidates(self, *_):
                 return [("x", 1, 2)]
 
-        monkeypatch.setattr(domain_mod, "DOMAIN_PLUGINS", {"any": AnyPlug()}, raising=False)
-        monkeypatch.setattr(domain_mod, "_accept_candidate", lambda *_: ("hit", 1, 2), raising=False)
+        _patch(
+            _collect_domain_hits,
+            DOMAIN_PLUGINS={"any": AnyPlug()},
+            _accept_candidate=lambda *_: ("hit", 1, 2),
+        )
 
-        assert _collect_domain_hits("x", AcronymDetectorConfig(enabled_domains=(frozenset()))) == []
+        assert _collect_domain_hits("x", AcronymDetectorConfig(enabled_domains=frozenset())) == []
         assert _collect_domain_hits("x", AcronymDetectorConfig(enabled_domains=None)) == []
 
 
 class TestCollectCoreHits:
-    def test_collects_in_text_order(self, monkeypatch):
+    def test_collects_in_text_order(self, _patch):
         # Pattern: named group 'tok' for ALL-CAPS tokens length>=2
         pat = re.compile(r"(?P<tok>[A-Z]{2,})")
 
         text = "xx ABC yy DEF and GHIJ."
         # Echo back a Span-like tuple to simulate acceptance
-        monkeypatch.setattr(core, "_accept_candidate", lambda _t, _c, s, e: ("hit", s, e), raising=False)
+        _patch(core._collect_core_hits, _accept_candidate=lambda _t, _c, s, e: ("hit", s, e))
 
         # Minimal config object (fields unused by our stub)
         class DetectorConfig: ...
@@ -216,7 +226,7 @@ class TestCollectCoreHits:
             ("hit", text.index("GHIJ"), text.index("GHIJ") + 4),
         ]
 
-    def test_rejected_hits_are_filtered_out(self, monkeypatch):
+    def test_rejected_hits_are_filtered_out(self, _patch):
         pat = re.compile(r"(?P<tok>[A-Z]{2,})")
         text = "ABC DEF GHI"
 
@@ -225,7 +235,7 @@ class TestCollectCoreHits:
             tok = text[s:e]
             return None if tok == "DEF" else ("hit", s, e)
 
-        monkeypatch.setattr(core, "_accept_candidate", accept, raising=False)
+        _patch(core._collect_core_hits, _accept_candidate=accept)
 
         class DetectorConfig: ...
 
@@ -234,11 +244,11 @@ class TestCollectCoreHits:
         hits = _collect_core_hits(text, cfg, pat)
         assert [text[s:e] for (_, s, e) in hits] == ["ABC", "GHI"]
 
-    def test_no_matches_returns_empty(self, monkeypatch):
+    def test_no_matches_returns_empty(self, _patch):
         pat = re.compile(r"(?P<tok>[A-Z]{2,})")
         text = "no caps here"
 
-        monkeypatch.setattr(core, "_accept_candidate", lambda *_: ("hit", 0, 0), raising=False)
+        _patch(core._collect_core_hits, _accept_candidate=lambda *_: ("hit", 0, 0))
 
         class DetectorConfig: ...
 
@@ -246,12 +256,12 @@ class TestCollectCoreHits:
 
         assert _collect_core_hits(text, cfg, pat) == []
 
-    def test_requires_named_group_tok(self, monkeypatch):
+    def test_requires_named_group_tok(self, _patch):
         # Pattern without 'tok' should raise (m.span('tok') IndexError)
         pat = re.compile(r"([A-Z]{2,})")
         text = "ABC"
 
-        monkeypatch.setattr(core, "_accept_candidate", lambda *_: ("hit", 0, 3), raising=False)
+        _patch(core._collect_core_hits, _accept_candidate=lambda *_: ("hit", 0, 3))
 
         class DetectorConfig: ...
 
@@ -259,6 +269,5 @@ class TestCollectCoreHits:
 
         with pytest.raises(IndexError):
             _collect_core_hits(text, cfg, pat)
-
 
 

@@ -16,31 +16,34 @@ def _idx(text: str, token: str) -> Span:
 
 
 class TestAcceptCandidate:
-    def test_trailing_punct_is_stripped_and_returns_span(self, monkeypatch):
+    def test_trailing_punct_is_stripped_and_returns_span(self, _patch):
         text = "ABC!"
         cfg = DummyCfg(min_len=3, max_len=10, require_caps_ratio=0.8)
 
-        # strip trailing '!' -> (0,3)
-        monkeypatch.setattr(core, "strip_trailing_punct_span", lambda t, s, e: (s, e - 1), raising=False)
-        monkeypatch.setattr(core, "has_letter", lambda s: True, raising=False)
-        monkeypatch.setattr(core, "core_len_for_bounds", lambda s: len(s), raising=False)
-        monkeypatch.setattr(core, "caps_ratio", lambda s: 1.0, raising=False)
-        monkeypatch.setattr(core, "_has_lower_and_upper", lambda s: False, raising=False)
+        _patch(
+            core._accept_candidate,
+            strip_trailing_punct_span=lambda t, s, e: (s, e - 1),
+            has_letter=lambda s: True,
+            core_len_for_bounds=lambda s: len(s),
+            caps_ratio=lambda s: 1.0,
+            _has_lower_and_upper=lambda s: False,
+        )
 
         out = core._accept_candidate(text, cfg, 0, len(text))
         assert out == ("ABC", 0, 3)
 
-    def test_rejects_when_no_letters(self, monkeypatch):
+    def test_rejects_when_no_letters(self, _patch):
         text = "123-456"
         cfg = DummyCfg(min_len=2)
 
-        monkeypatch.setattr(core, "strip_trailing_punct_span", lambda t, s, e: (s, e), raising=False)
-        monkeypatch.setattr(core, "has_letter", lambda s: False, raising=False)
-
-        # The rest shouldn't matter if has_letter is False, but provide safe defaults
-        monkeypatch.setattr(core, "core_len_for_bounds", lambda s: 5, raising=False)
-        monkeypatch.setattr(core, "caps_ratio", lambda s: 1.0, raising=False)
-        monkeypatch.setattr(core, "_has_lower_and_upper", lambda s: False, raising=False)
+        _patch(
+            core._accept_candidate,
+            strip_trailing_punct_span=lambda t, s, e: (s, e),
+            has_letter=lambda s: False,
+            core_len_for_bounds=lambda s: 5,
+            caps_ratio=lambda s: 1.0,
+            _has_lower_and_upper=lambda s: False,
+        )
 
         assert core._accept_candidate(text, cfg, 0, len(text)) is None
 
@@ -54,16 +57,19 @@ class TestAcceptCandidate:
             (5, 2, 10, False),  # within bounds -> not rejected by length gate
         ],
     )
-    def test_core_length_guards(self, monkeypatch, core_len, min_len, max_len, expected_none):
+    def test_core_length_guards(self, _patch, core_len, min_len, max_len, expected_none):
         text = "AAAAAAAAAAAAAAAAAAAA"  # long enough so first raw len check passes
         s, e = 0, 10  # e - s = 10 >= min_len usually
         cfg = DummyCfg(min_len=min_len, max_len=max_len)
 
-        monkeypatch.setattr(core, "strip_trailing_punct_span", lambda t, _s, _e: (s, e), raising=False)
-        monkeypatch.setattr(core, "has_letter", lambda srf: True, raising=False)
-        monkeypatch.setattr(core, "core_len_for_bounds", lambda srf: core_len, raising=False)
-        monkeypatch.setattr(core, "caps_ratio", lambda srf: 1.0, raising=False)
-        monkeypatch.setattr(core, "_has_lower_and_upper", lambda srf: False, raising=False)
+        _patch(
+            core._accept_candidate,
+            strip_trailing_punct_span=lambda t, _s, _e: (s, e),
+            has_letter=lambda srf: True,
+            core_len_for_bounds=lambda srf: core_len,
+            caps_ratio=lambda srf: 1.0,
+            _has_lower_and_upper=lambda srf: False,
+        )
 
         out = core._accept_candidate(text, cfg, s, e)
         assert (out is None) == expected_none
@@ -76,21 +82,24 @@ class TestAcceptCandidate:
             (1.00, 0.80, True),
         ],
     )
-    def test_caps_ratio_threshold_without_mixed_case(self, monkeypatch, ratio, threshold, accepted):
+    def test_caps_ratio_threshold_without_mixed_case(self, _patch, ratio, threshold, accepted):
         text = "AbCD"  # content irrelevant; we control caps_ratio directly
         s, e = 0, len(text)
         cfg = DummyCfg(min_len=2, max_len=10, require_caps_ratio=threshold, enable_mixed_case=False)
 
-        monkeypatch.setattr(core, "strip_trailing_punct_span", lambda t, _s, _e: (s, e), raising=False)
-        monkeypatch.setattr(core, "has_letter", lambda srf: True, raising=False)
-        monkeypatch.setattr(core, "core_len_for_bounds", lambda srf: 4, raising=False)
-        monkeypatch.setattr(core, "caps_ratio", lambda srf: ratio, raising=False)
-        monkeypatch.setattr(core, "_has_lower_and_upper", lambda srf: False, raising=False)
+        _patch(
+            core._accept_candidate,
+            strip_trailing_punct_span=lambda t, _s, _e: (s, e),
+            has_letter=lambda srf: True,
+            core_len_for_bounds=lambda srf: 4,
+            caps_ratio=lambda srf: ratio,
+            _has_lower_and_upper=lambda srf: False,
+        )
 
         out = core._accept_candidate(text, cfg, s, e)
         assert (out is not None) == accepted
 
-    def test_mixed_case_relaxation_applies_when_enabled_and_both_cases_and_two_uppers(self, monkeypatch):
+    def test_mixed_case_relaxation_applies_when_enabled_and_both_cases_and_two_uppers(self, _patch):
         text = "AbC"  # has both lower and upper; uppers=2 ('A','C')
         s, e = 0, len(text)
         cfg = DummyCfg(
@@ -101,17 +110,19 @@ class TestAcceptCandidate:
             require_caps_ratio_mixed=0.5,
         )
 
-        monkeypatch.setattr(core, "strip_trailing_punct_span", lambda t, _s, _e: (s, e), raising=False)
-        monkeypatch.setattr(core, "has_letter", lambda srf: True, raising=False)
-        monkeypatch.setattr(core, "core_len_for_bounds", lambda srf: 3, raising=False)
-        # Raw ratio is too low for 0.9 but above the mixed threshold 0.5
-        monkeypatch.setattr(core, "caps_ratio", lambda srf: 0.6, raising=False)
-        monkeypatch.setattr(core, "_has_lower_and_upper", lambda srf: True, raising=False)
+        _patch(
+            core._accept_candidate,
+            strip_trailing_punct_span=lambda t, _s, _e: (s, e),
+            has_letter=lambda srf: True,
+            core_len_for_bounds=lambda srf: 3,
+            caps_ratio=lambda srf: 0.6,
+            _has_lower_and_upper=lambda srf: True,
+        )
 
         out = core._accept_candidate(text, cfg, s, e)
         assert out == (text, s, e)
 
-    def test_no_relaxation_if_mixed_case_disabled_or_fewer_than_two_uppers(self, monkeypatch):
+    def test_no_relaxation_if_mixed_case_disabled_or_fewer_than_two_uppers(self, _patch):
         # Case A: mixed-case disabled -> requires 0.9 and should fail at 0.6
         text = "Ab"  # only one upper
         s, e = 0, len(text)
@@ -120,11 +131,14 @@ class TestAcceptCandidate:
         cfg_disabled = DummyCfg(
             min_len=2, max_len=10, require_caps_ratio=0.9, enable_mixed_case=False, require_caps_ratio_mixed=0.5
         )
-        monkeypatch.setattr(core, "strip_trailing_punct_span", lambda t, _s, _e: (s, e), raising=False)
-        monkeypatch.setattr(core, "has_letter", lambda srf: True, raising=False)
-        monkeypatch.setattr(core, "core_len_for_bounds", lambda srf: 2, raising=False)
-        monkeypatch.setattr(core, "caps_ratio", lambda srf: 0.6, raising=False)
-        monkeypatch.setattr(core, "_has_lower_and_upper", lambda srf: True, raising=False)
+        _patch(
+            core._accept_candidate,
+            strip_trailing_punct_span=lambda t, _s, _e: (s, e),
+            has_letter=lambda srf: True,
+            core_len_for_bounds=lambda srf: 2,
+            caps_ratio=lambda srf: 0.6,
+            _has_lower_and_upper=lambda srf: True,
+        )
         assert core._accept_candidate(text, cfg_disabled, s, e) is None
 
         # Enabled but <2 uppers -> still no relaxation -> reject
@@ -133,7 +147,7 @@ class TestAcceptCandidate:
         )
         assert core._accept_candidate(text, cfg_enabled, s, e) is None
 
-    def test_min_len_raw_slice_check_happens_before_surface_processing(self, monkeypatch):
+    def test_min_len_raw_slice_check_happens_before_surface_processing(self, _patch):
         # Raw slice length check: e - s < cfg.min_len => immediate reject
         text = "ABCDE"
         cfg = DummyCfg(min_len=6, max_len=10)
@@ -146,11 +160,14 @@ class TestAcceptCandidate:
 
         # strip_trailing_punct_span is still called (function calls it before the raw len check),
         # but the early length check will return None before any deeper gates.
-        monkeypatch.setattr(core, "strip_trailing_punct_span", strip_fn, raising=False)
-        monkeypatch.setattr(core, "has_letter", lambda s: True, raising=False)
-        monkeypatch.setattr(core, "core_len_for_bounds", lambda s: 5, raising=False)
-        monkeypatch.setattr(core, "caps_ratio", lambda s: 1.0, raising=False)
-        monkeypatch.setattr(core, "_has_lower_and_upper", lambda s: False, raising=False)
+        _patch(
+            core._accept_candidate,
+            strip_trailing_punct_span=strip_fn,
+            has_letter=lambda s: True,
+            core_len_for_bounds=lambda s: 5,
+            caps_ratio=lambda s: 1.0,
+            _has_lower_and_upper=lambda s: False,
+        )
 
         out = core._accept_candidate(text, cfg, 0, 5)
         assert out is None
@@ -349,11 +366,14 @@ class DummyCfg(AcronymDetectorConfig):
 
 class TestScoreUnit:
     @pytest.fixture
-    def patch_score_cues(self, monkeypatch):
+    def patch_score_cues(self, _patch):
         def _apply(*, in_brackets=(False, False), paren_def=False, stands_for=False):
-            monkeypatch.setattr(core, "in_brackets", lambda t, s, e: in_brackets, raising=True)
-            monkeypatch.setattr(core, "has_paren_definition", lambda t, e: paren_def, raising=True)
-            monkeypatch.setattr(core, "has_stands_for_follow", lambda t, e, max_chars=24: stands_for, raising=True)
+            _patch(
+                core.calc_score,
+                in_brackets=lambda t, s, e: in_brackets,
+                has_paren_definition=lambda t, e: paren_def,
+                has_stands_for_follow=lambda t, e, max_chars=24: stands_for,
+            )
 
         return _apply
 
@@ -434,49 +454,47 @@ class TestBoostConfidenceIfWhitelisted:
         base.update(overrides)
         return SimpleNamespace(**base)
 
-    def test_boosts_when_two_letter_and_whitelisted(self, monkeypatch):
+    def test_boosts_when_two_letter_and_whitelisted(self, _patch):
         # Force the normalized key to 'AI'
-        monkeypatch.setattr(core, "normalize_acronym_key", lambda surface, **_: "AI", raising=True)
+        _patch(core.boost_confidence_if_whitelisted, normalize_acronym_key=lambda surface, **_: "AI")
 
         cfg = self._cfg()
         result = core.boost_confidence_if_whitelisted("A.I.", 0.20, cfg)
         assert result == pytest.approx(0.95)  # 0.20 + 0.75
 
-    def test_caps_at_point_99(self, monkeypatch):
-        monkeypatch.setattr(core, "normalize_acronym_key", lambda surface, **_: "AI", raising=True)
+    def test_caps_at_point_99(self, _patch):
+        _patch(core.boost_confidence_if_whitelisted, normalize_acronym_key=lambda surface, **_: "AI")
 
         cfg = self._cfg(two_letter_boost=0.75)
         result = core.boost_confidence_if_whitelisted("AI", 0.50, cfg)
         assert result == pytest.approx(0.99)  # capped
 
-    def test_no_boost_when_not_whitelisted(self, monkeypatch):
-        monkeypatch.setattr(
-            core,
-            "normalize_acronym_key",
-            lambda surface, **_: "TV",  # not in whitelist
-            raising=True,
+    def test_no_boost_when_not_whitelisted(self, _patch):
+        _patch(
+            core.boost_confidence_if_whitelisted,
+            normalize_acronym_key=lambda surface, **_: "TV",
         )
 
         cfg = self._cfg()
         result = core.boost_confidence_if_whitelisted("TV", 0.40, cfg)
         assert result == pytest.approx(0.40)
 
-    def test_no_boost_when_not_two_letters(self, monkeypatch):
+    def test_no_boost_when_not_two_letters(self, _patch):
         # Even if present in whitelist, length != 2 should not boost
-        monkeypatch.setattr(core, "normalize_acronym_key", lambda surface, **_: "GPU", raising=True)
+        _patch(core.boost_confidence_if_whitelisted, normalize_acronym_key=lambda surface, **_: "GPU")
 
         cfg = self._cfg(whitelist_two_letter={"GPU"})  # irrelevant; len != 2
         result = core.boost_confidence_if_whitelisted("GPU", 0.33, cfg)
         assert result == pytest.approx(0.33)
 
-    def test_respects_custom_boost_from_cfg(self, monkeypatch):
-        monkeypatch.setattr(core, "normalize_acronym_key", lambda surface, **_: "UK", raising=True)
+    def test_respects_custom_boost_from_cfg(self, _patch):
+        _patch(core.boost_confidence_if_whitelisted, normalize_acronym_key=lambda surface, **_: "UK")
 
         cfg = self._cfg(two_letter_boost=0.10)
         result = core.boost_confidence_if_whitelisted("U.K.", 0.50, cfg)
         assert result == pytest.approx(0.60)
 
-    def test_uses_defaults_when_cfg_lacks_optional_attrs(self, monkeypatch):
+    def test_uses_defaults_when_cfg_lacks_optional_attrs(self, _patch):
         # Capture kwargs to ensure defaults (allow_chars, dotted_mode) are passed
         seen = {}
 
@@ -484,7 +502,7 @@ class TestBoostConfidenceIfWhitelisted:
             seen.update(kwargs)
             return "AI"
 
-        monkeypatch.setattr(core, "normalize_acronym_key", _fake_normalize, raising=True)
+        _patch(core.boost_confidence_if_whitelisted, normalize_acronym_key=_fake_normalize)
 
         # cfg without dotted_display / allow_chars / two_letter_boost
         cfg = SimpleNamespace(whitelist_two_letter={"AI"}, allow_chars="&-/.", dotted_display="strip")

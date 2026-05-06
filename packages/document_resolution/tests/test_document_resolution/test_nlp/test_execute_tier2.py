@@ -219,7 +219,7 @@ class TestDetectAndExtractE2ETier2AcronymWins:
         # If this is flaky, keep only the positive assertion above.
         assert last1.chosen_meaning_id != baseline or "graphics_processing_unit" in baseline
 
-    def test_tier2_api_programming_interface_vs_active_pharmaceutical_ingredient(self, monkeypatch):
+    def test_tier2_api_programming_interface_vs_active_pharmaceutical_ingredient(self, _patch):
         import document_resolution.nlp.extraction.tiers.tier_2 as t2
 
         def fake_embed_texts(texts, *, model=None, model_name=None, **_kw):
@@ -248,7 +248,7 @@ class TestDetectAndExtractE2ETier2AcronymWins:
 
             return out
 
-        monkeypatch.setattr(t2, "embed_texts", fake_embed_texts, raising=True)
+        _patch(t2.embed_for_tier2, embed_texts=fake_embed_texts)
 
         text = (
             "Application Programming Interface (API) defines endpoints and contracts.\n"
@@ -276,7 +276,7 @@ class TestDetectAndExtractE2ETier2AcronymWins:
         r_rest = _res_near(extr, "API", rest_anchor)
         assert "application_programming_interface" in r_rest.chosen_meaning_id
 
-    def test_tier2_nhs_can_pick_honour_society_when_context_mentions_students(self, monkeypatch):
+    def test_tier2_nhs_can_pick_honour_society_when_context_mentions_students(self, _patch):
         import document_resolution.nlp.extraction.tiers.tier_2 as t2
 
         def fake_embed_texts(texts, *, model=None, model_name=None, **_kw):
@@ -296,7 +296,7 @@ class TestDetectAndExtractE2ETier2AcronymWins:
                     out[i, 0] = 1e-6
             return out
 
-        monkeypatch.setattr(t2, "embed_texts", fake_embed_texts, raising=True)
+        _patch(t2.embed_for_tier2, embed_texts=fake_embed_texts)
 
         text = (
             "NHS (National Health Service) publishes guidance.\n"
@@ -536,7 +536,6 @@ class TestDisambiguationE2EConfidenceContract:
         assert "nlp|natural_language_processing" in meanings_by_id
         assert "nlp|nice_lovely_plants" in meanings_by_id
 
-        # Now patch confidence levels by monkeypatching the meaning_index entries via replacement.
         # If AcronmMeaning is mutable in the codebase, can direct-set instead.
         s_hi = meanings_by_id["nlp|natural_language_processing"]
         s_lo = meanings_by_id["nlp|nice_lovely_plants"]

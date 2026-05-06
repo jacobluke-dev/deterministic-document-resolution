@@ -16,10 +16,10 @@ def cfg() -> rules.BioConfig:
 
 
 class TestExtraCandidates:
-    def test_yields_regex_matches_from_bio_pattern(self, monkeypatch, cfg):
+    def test_yields_regex_matches_from_bio_pattern(self, _patch, cfg):
         # Make the bio pattern deterministic for this unit.
         pat = re.compile(r"(?P<bio>IL-\d{1,3}|SARS-CoV-2)")
-        monkeypatch.setattr(rules, "bio_pattern", lambda: pat, raising=True)
+        _patch(rules.extra_candidates, bio_pattern=lambda: pat)
 
         text = "Measured IL-6 and SARS-CoV-2 in samples."
         hits = list(rules.extra_candidates(text, cfg))
@@ -28,9 +28,9 @@ class TestExtraCandidates:
         assert ("SARS-CoV-2", text.index("SARS-CoV-2"), text.index("SARS-CoV-2") + 10) in hits
         assert all(text[s:e] == surf for surf, s, e in hits)
 
-    def test_adds_explicit_rna_like_tokens(self, monkeypatch, cfg):
+    def test_adds_explicit_rna_like_tokens(self, _patch, cfg):
         # Pattern yields nothing; RNA additions should still appear.
-        monkeypatch.setattr(rules, "bio_pattern", lambda: re.compile(r"(?P<bio>NO_MATCH)"), raising=True)
+        _patch(rules.extra_candidates, bio_pattern=lambda: re.compile(r"(?P<bio>NO_MATCH)"))
 
         text = "We quantified mRNA and miRNA; sgRNA also appeared."
         hits = list(rules.extra_candidates(text, cfg))
@@ -40,8 +40,8 @@ class TestExtraCandidates:
         assert "miRNA" in surfaces
         assert "sgRNA" in surfaces
 
-    def test_rna_like_disabled_does_not_add_extra(self, monkeypatch, cfg):
-        monkeypatch.setattr(rules, "bio_pattern", lambda: re.compile(r"(?P<bio>NO_MATCH)"), raising=True)
+    def test_rna_like_disabled_does_not_add_extra(self, _patch, cfg):
+        _patch(rules.extra_candidates, bio_pattern=lambda: re.compile(r"(?P<bio>NO_MATCH)"))
         cfg2 = replace(cfg, rna_like=frozenset())
 
         text = "We quantified mRNA and miRNA."
@@ -49,9 +49,9 @@ class TestExtraCandidates:
 
         assert hits == []
 
-    def test_rna_like_word_boundary_excludes_nonword_suffix(self, monkeypatch, cfg):
+    def test_rna_like_word_boundary_excludes_nonword_suffix(self, _patch, cfg):
         cfg2 = replace(cfg, rna_like=frozenset({"mRNA+", "miRNA"}))
-        monkeypatch.setattr(rules, "bio_pattern", lambda: re.compile(r"(?P<bio>NO_MATCH)"), raising=True)
+        _patch(rules.extra_candidates, bio_pattern=lambda: re.compile(r"(?P<bio>NO_MATCH)"))
 
         text = "Signals: mRNA+ and miRNA."
         hits = list(rules.extra_candidates(text, cfg2))
@@ -129,7 +129,7 @@ class TestBioKeepGuard:
 
         assert rules.bio_keep_guard("OK", text, s, e, cfg) is False
 
-    def test_uses_sentence_slice_window(self, monkeypatch, cfg):
+    def test_uses_sentence_slice_window(self, cfg):
         # Prove we only scan a bounded window by shrinking the window and placing stats outside it.
         cfg2 = replace(cfg, stats_window_chars=10)
 
