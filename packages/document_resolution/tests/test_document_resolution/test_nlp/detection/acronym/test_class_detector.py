@@ -1,10 +1,8 @@
 from __future__ import annotations
 
-import asyncio
 from dataclasses import replace
 from types import SimpleNamespace
 
-import document_resolution.nlp.detection.acronym.detector as det
 import document_resolution.nlp.detection.base as bs
 import pytest
 from document_resolution.nlp.common.types import AcronymDetectorConfig, Occurrence
