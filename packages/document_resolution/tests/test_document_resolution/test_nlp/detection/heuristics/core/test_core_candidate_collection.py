@@ -1,7 +1,6 @@
 import re
 
 import document_resolution.nlp.detection.heuristics.core as core
-import document_resolution.nlp.plugins.registry as domain_mod
 import pytest
 from document_resolution.nlp.common.types import AcronymDetectorConfig
 from document_resolution.nlp.detection.heuristics.core import (

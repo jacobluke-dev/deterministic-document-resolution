@@ -1,7 +1,6 @@
 import re
 from types import SimpleNamespace as NS
 
-import document_resolution.nlp.extraction.acronyms.anchored.extract as ext
 import document_resolution.nlp.extraction.acronyms.anchored.patterns as mod
 from document_resolution.nlp.extraction.acronyms.anchored.extract import (
     compile_anchored_for_surface,
@@ -314,7 +313,10 @@ class TestExtractNearFirstsUnit:
         )
 
         def fake_compile(_acr, _cfg):
-            pattern_spec = mod.PatternSpec(pat=pat_fwd, base_conf=0.95, strategy="helper_def_before", kind="def_before"),
+            pattern_spec = mod.PatternSpec(pat=pat_fwd,
+                                           base_conf=0.95,
+                                           strategy="helper_def_before",
+                                           kind="def_before"),
             return pattern_spec
 
         _patch(extract_near_firsts, compile_anchored_for_surface=fake_compile)
